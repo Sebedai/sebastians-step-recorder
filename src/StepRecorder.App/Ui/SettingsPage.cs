@@ -123,6 +123,16 @@ static class SettingsPage
                             Note(AppPaths.Portable ? Loc.F("Portabler Modus – Einstellungen liegen neben der EXE ({0}).", "Portable mode – settings are stored next to the EXE ({0}).", AppPaths.DataDir) : Loc.F("Einstellungen liegen in {0}.", "Settings are stored in {0}.", AppPaths.DataDir)));
         var developer = U.Col(U.Hint(Loc.L("Hält fest, was das getestete Programm tat – über Bild, Programmende und Fehlermeldungen hinaus. Jede Quelle ist ab Werk aus, schwächt den Schutz, wird bei jedem Start in der Leiste gemeldet, ist in „Streng“ abgeschaltet und muss vor der Weitergabe durchgesehen werden.", "Records what the program under test did – beyond images, program exits and error messages. Every source is off by default, weakens protection, is reported in the bar at every start, is switched off in \"strict\" and must be reviewed before sharing."), new Thickness(0, 0, 0, 12)),
                               evText, clip,
+                              U.Field(Loc.L("Kommandozeile", "Command line"), U.Row(U.Btn(Theme.IKeyboard, Loc.L("Kurzbefehl steprec.cmd anlegen", "Create steprec.cmd shortcut"), () =>
+                              {
+                                  try
+                                  {
+                                      string exe = Environment.ProcessPath ?? StepRecorder.Data.AppInfo.ExeName;
+                                      string p = ConsoleShim.Write(Path.GetDirectoryName(exe)!, Path.GetFileName(exe));
+                                      Msg.Show(Loc.F("Angelegt: {0}\n\nIn Eingabeaufforderung und PowerShell wartet „steprec …“ auf das Ende und gibt den Exit-Code weiter, z. B.:\nsteprec export latest --format md", "Created: {0}\n\nIn Command Prompt and PowerShell, \"steprec …\" waits for the end and passes on the exit code, e.g.:\nsteprec export latest --format md", p), Title, MessageBoxButton.OK, MessageBoxImage.Information);
+                                  }
+                                  catch (Exception ex) { Msg.Show(Loc.L("Nicht angelegt\n\n", "Not created\n\n") + ex.Message, Title, MessageBoxButton.OK, MessageBoxImage.Warning); }
+                              }, Loc.L("Legt neben der EXE eine kleine Stapeldatei an, auf die Konsolen warten", "Creates a small batch file next to the EXE that consoles wait for"))), Loc.L("Für Skripte: Ein GUI-Programm lässt die Konsole sonst sofort weiterlaufen.", "For scripts: otherwise the console does not wait for a GUI program."), margin: new Thickness(0, 14, 0, 0)),
                               U.Field(Loc.L("Protokolldateien mitlesen", "Read log files along"), logs, Loc.L("Nur Zeilen, die während der Aufnahme dazukommen; nur lokale Festplatten; höchstens 5 Dateien. Für eine einzelne Aufnahme auch: record --log <Datei>.", "Only lines added during the recording; local disks only; at most 5 files. For a single recording also: record --log <file>."), margin: new Thickness(0, 14, 0, 0)));
         var pages = new UIElement[] { general, recording, keys, custom, storage, developer };
         var (tabTrack, tabs) = U.Segmented("settab", current, (Theme.ISettings, Loc.L("Allgemein", "General")), (Theme.IRecord, Loc.L("Aufnahme", "Recording")), (Theme.IKeyboard, Loc.L("Tastenkürzel", "Shortcuts")),

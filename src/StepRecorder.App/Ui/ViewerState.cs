@@ -44,6 +44,14 @@ sealed partial class ViewerWindow
     public string SessionPath => _path;
 
     /// <summary>Aus der Bibliothek: zum Schritt springen; mit Suchbegriff wird die Liste darauf gefiltert.</summary>
+    /// <summary>Modus „Fehler nachstellen“: zum ersten Marker „Fehler“, sonst zum ersten Absturz oder Hänger springen.</summary>
+    public void JumpToFailure()
+    {
+        var s = _view.All.FirstOrDefault(x => !x.Redacted && x.Kind == "marker" && x.Json.Obj("input")?.Str("markerKind") == "error")
+             ?? _view.All.FirstOrDefault(x => !x.Redacted && x.Kind == "system" && x.Json.Obj("input")?.Str("event") is "appExit" or "appHang" or "appEventLog" && x.Json.Obj("input")?.Str("class") != "normal");
+        if (s != null) JumpTo(s.Anchor, null);
+    }
+
     public void JumpTo(long anchor, string? search)
     {
         if (!string.IsNullOrWhiteSpace(search)) _search.Text = search;

@@ -179,12 +179,12 @@ public sealed class RecordingOptions
 
     public JsonObject ProfileJson() => new()
     {
-        ["name"] = ProfileName, ["id"] = ProfileId, ["builtIn"] = ProfileId is "guide" or "support" or "aiTrace",
+        ["name"] = ProfileName, ["id"] = ProfileId, ["builtIn"] = RecordingModes.Find(ProfileId)?.BuiltIn ?? false,
         ["effective"] = new JsonObject
         {
             ["scopeMode"] = Scope.ToString().ToLowerInvariant(), ["privacyLevel"] = PrivacyLevel, ["clipboardContent"] = ClipboardContent && PrivacyLevel != "strict",
             ["contentSources"] = new JsonArray(ContentSources().Select(x => (JsonNode)x).ToArray()),
-            ["afterStop"] = new JsonObject { ["action"] = AfterStop }, ["showGoalFields"] = ProfileId != "guide",
+            ["afterStop"] = new JsonObject { ["action"] = AfterStop }, ["showGoalFields"] = RecordingModes.Find(ProfileId)?.ShowGoalFields ?? true,
             ["detail"] = new JsonObject
             {
                 ["level"] = DetailLevel, ["changeFrames"] = ChangeFrames, ["appContext"] = AppContext,

@@ -18,7 +18,10 @@ public static class DetailPresets
     /// <summary>KI-Spur: alles, Zusatzbilder bei jeder sichtbaren Änderung, erweiterter Kontext.</summary>
     public static readonly DetailPreset AiTrace = new("aiTrace", "Vollständig", 4, Array.Empty<string>(), "many", true);
 
-    public static DetailPreset? For(string profileId) => profileId switch { "guide" => Guide, "support" => Support, "aiTrace" => AiTrace, _ => null };
+    /// <summary>Fehler nachstellen (Paket 14): alle Eingaben, Zusatzbilder auch bei kleinen Änderungen, erweiterter Kontext – wie Support-Fall, nach dem Stopp der Editor am Fehler.</summary>
+    public static readonly DetailPreset BugRepro = new("bugRepro", "Ausführlich", 3, Array.Empty<string>(), "normal", true);
+
+    public static DetailPreset? For(string profileId) => profileId switch { "guide" => Guide, "support" => Support, "aiTrace" => AiTrace, "bugRepro" => BugRepro, _ => null };
 
     public static void Apply(RecordingOptions o, DetailPreset p)
     {

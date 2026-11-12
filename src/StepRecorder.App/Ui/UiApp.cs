@@ -43,11 +43,14 @@ sealed class UiApp : Application
         RegisterGlobalHotkeys();
         _cliRecord = args.Length > 0 && args[0] == "record";
         _cliJson = args.Contains("--json");
+        _cliRecordOnly = _cliRecord && Array.IndexOf(args, "--after-stop") is int ai && ai >= 0 && ai + 1 < args.Length && args[ai + 1] == "none";
         HandleArgs(args);
     }
 
     /// <summary>Diese Instanz wurde mit <c>record</c> gestartet: beim Ende der ersten Aufnahme den Pfad ausgeben (02 §8.4).</summary>
     bool _cliRecord, _cliJson;
+    /// <summary>Mit <c>record --after-stop none</c> gestartet: danach beenden, nicht in Bereitschaft gehen.</summary>
+    bool _cliRecordOnly;
     int _exitCode;
 
     /// <summary>Tastenkürzel, die beim letzten Anmelden belegt waren (für Startfenster und Diagnose).</summary>
@@ -111,9 +114,50 @@ sealed class UiApp : Application
 
     public void HideStart() => _start?.Hide();
 
+    TrayIcon? _readyTray;
+
+    /// <summary>
+    /// Bereitschaft im Infobereich (Paket 14, Einstellung „Im Infobereich bereit bleiben“, ab Werk aus): Das Programm bleibt
+    /// mit einem eigenen grauen Symbol erreichbar; nur das Kürzel „Sofort aufnehmen“ ist angemeldet – keine Hooks,
+    /// keine Bildaufnahme, kein Autostart. Linksklick: Startfenster; Rechtsklick: Menü.
+    /// </summary>
+    void ShowReadyTray()
+    {
+        if (_readyTray != null) return;
+        try
+        {
+            string combo = AppSettings.Load().Hotkey("instantPause");
+            _readyTray = new TrayIcon(TrayIcon.Render("ready"), StepRecorder.Data.AppInfo.DisplayName + Loc.L(" – bereit", " – ready") + (combo.Length > 0 ? Loc.F(" · Sofort aufnehmen: {0}", " · Record now: {0}", Loc.Keys(combo)) : ""));
+            _readyTray.LeftClick += () => Dispatcher.BeginInvoke(ShowStart);
+            _readyTray.RightClick += () => Dispatcher.BeginInvoke(ReadyMenu);
+        }
+        catch (Exception ex) { Log("Bereitschaft: " + ex.Message); _readyTray = null; }
+    }
+
+    void HideReadyTray() { try { _readyTray?.Dispose(); } catch { } _readyTray = null; }
+
+    void ReadyMenu()
+    {
+        var m = U.MenuScope(new System.Windows.Controls.ContextMenu());
+        string combo = AppSettings.Load().Hotkey("instantPause");
+        m.Items.Add(U.Mi(Loc.L("Sofort aufnehmen", "Record now"), combo.Length > 0 ? Loc.Keys(combo) : null, () => { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); }, Theme.IRecord));
+        m.Items.Add(U.Mi(Loc.L("Neue Aufnahme …", "New recording …"), null, () => ShowStart(), Theme.IAdd));
+        m.Items.Add(U.Mi(Loc.L("Alle Aufnahmen …", "All recordings …"), null, () => ShowLibrary(), Theme.IFolder));
+        m.Items.Add(U.Mi(Loc.L("Einstellungen …", "Settings …"), null, () => { ShowStart(); _start?.ShowPage("settings"); }, Theme.ISettings));
+        m.Items.Add(new System.Windows.Controls.Separator());
+        m.Items.Add(U.Mi(Loc.L("Beenden", "Exit"), null, () => { HideReadyTray(); Shutdown(_exitCode); }, null));
+        m.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
+        m.IsOpen = true;
+    }
+
     public void MaybeShutdown()
     {
-        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown(_exitCode);
+        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow))
+        {
+            if (AppSettings.Load().StayInTray && !_cliRecordOnly) { ShowReadyTray(); return; }
+            HideReadyTray();
+            Shutdown(_exitCode);
+        }
     }
 
     /// <summary>„Alle Aufnahmen“: Seite „Aufnahmen“ im Startfenster.</summary>
@@ -199,8 +243,10 @@ sealed class UiApp : Application
     /// </summary>
     public static void ApplyProfile(RecordingOptions o, string profile)
     {
-        switch (profile.ToLowerInvariant())
+        switch (RecordingModes.Find(profile)?.Id.ToLowerInvariant() ?? profile.ToLowerInvariant())
         {
+            case "bugrepro":
+                o.ProfileId = "bugRepro"; o.ProfileName = Loc.L("Fehler nachstellen", "Reproduce bug"); o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "viewerError"; break;
             case "support" or "support-fall": o.ProfileId = "support"; o.ProfileName = Loc.L("Support-Fall", "Support case"); o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "supportPackage"; break;
             case "aitrace" or "ki-spur": o.ProfileId = "aiTrace"; o.ProfileName = Loc.L("KI-Spur", "AI trace"); o.Scope = ScopeMode.Screen; o.AfterStop = "export"; break;
             case "custom" or "eigene":
@@ -218,6 +264,7 @@ sealed class UiApp : Application
     public void StartRecording(RecordingOptions o, Action<string?>? onFinished = null)
     {
         if (Recording != null) return;
+        HideReadyTray();
         HideStart();
         foreach (var v in Windows.OfType<ViewerWindow>()) v.Hide();
         Recording = new RecordingController(o);
@@ -237,6 +284,7 @@ sealed class UiApp : Application
                 default:
                     var viewer = OpenViewer(folder);
                     if (o.AfterStop == "supportPackage") viewer.StartSupportFlow();
+                    else if (o.AfterStop == "viewerError") viewer.JumpToFailure();
                     else if (o.AfterStop == "export") viewer.ShowExportDialog("ki");
                     break;
             }

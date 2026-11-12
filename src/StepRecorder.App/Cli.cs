@@ -20,7 +20,7 @@ Aufruf:
   SebastiansStepRecorder.exe record [Optionen]       sofort aufnehmen
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <prozess.exe>   --region x,y,b,h|last
       --title <Text>   --goal <Text>   --expected <Text>   --reference <Text>
-      --protection balanced|strict   --profile anleitung|support|ki-spur|eigene   --out <Ordner>
+      --protection balanced|strict   --profile anleitung|support-fall|ki-spur|fehler-nachstellen|eigene   --out <Ordner>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
       --log <Datei>…   Protokolldatei mitlesen (Zeilen während der Aufnahme; prüfpflichtig; nicht in „Streng“)
       gibt am Ende den Aufnahmeordner aus (mit --json als JSON); Exit 5, wenn die Aufnahme verworfen wurde
@@ -60,7 +60,7 @@ Usage:
   SebastiansStepRecorder.exe record [options]        record now
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <process.exe>   --region x,y,w,h|last
       --title <text>   --goal <text>   --expected <text>   --reference <text>
-      --protection balanced|strict   --profile guide|support|aitrace|custom   --out <folder>
+      --protection balanced|strict   --profile guide|support|aitrace|bugrepro|custom   --out <folder>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
       --log <file>…   read a log file along (lines during the recording; requires review; not in "strict")
       prints the recording folder at the end (JSON with --json); exit 5 if the recording was discarded
@@ -152,7 +152,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         }
         if (c["--region"] != null && c["--scope"] is { } s2 && s2 != "region") return Loc.L("--region nur zusammen mit --scope region", "--region only together with --scope region");
         if (c["--protection"] is { } pr && pr is not ("balanced" or "strict")) return Loc.L("--protection: balanced oder strict", "--protection: balanced or strict");
-        if (c["--profile"] is { } pf && pf.ToLowerInvariant() is not ("guide" or "anleitung" or "support" or "support-fall" or "aitrace" or "ki-spur" or "custom" or "eigene")) return Loc.L("--profile: anleitung, support, ki-spur oder eigene", "--profile: guide, support, aitrace or custom");
+        if (c["--profile"] is { } pf && Capture.RecordingModes.Find(pf) == null) return Loc.F("--profile: {0}", "--profile: {0}", Capture.RecordingModes.CliNames(Loc.Lang));
         if (c["--after-stop"] is { } af && af is not ("viewer" or "export" or "supportPackage" or "folder" or "none")) return Loc.L("--after-stop: viewer, export, supportPackage, folder oder none", "--after-stop: viewer, export, supportPackage, folder or none");
         if (c["--skip"] is { } sk)
             foreach (var k in sk.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))

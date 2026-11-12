@@ -291,6 +291,9 @@ Mitgeliefert sind drei Profile:
 | Anleitung | Bedienungsanleitungen und Arbeitsschritte; Auslieferungszustand | nichts Abweichendes |
 | Support-Fall | Ein Problem für den Helpdesk vorführen | Ganzer Bildschirm mit Monitor mit Aktivität; Ziel-Felder aufgeklappt; nach dem Stopp der geführte Ablauf zum Support-Paket |
 | KI-Spur | Einen Ablauf für einen KI-Agenten festhalten | Ganzer Bildschirm; Ziel-Felder aufgeklappt; nach dem Stopp der Exportdialog mit dem KI-Paket in der Detailstufe „Vollständig“ ([06](06-ki-export-und-mcp.md#9-detailstufen)) |
+| Fehler nachstellen (Paket 14 aus [12](12-entwickler-fahrplan.md)) | Einen Fehler in der eigenen Anwendung festhalten | Detailgrad wie Support-Fall mit erweitertem Programmkontext (Programmende, Fehlertexte, Build-Stand); Monitor mit Aktivität; Ziel-Felder aufgeklappt; nach dem Stopp der Editor am ersten Marker „Fehler“ bzw. am ersten Absturz. Kennung `bugRepro`, an der Kommandozeile `fehler-nachstellen` oder `bugrepro` |
+
+*Stand der Umsetzung:* Die Liste der Modi steht an einer Stelle (`RecordingModes.All`); Startfenster, `--profile`, Manifest, Bibliothek und Katalog lesen sie dort.
 
 Festlegungen:
 

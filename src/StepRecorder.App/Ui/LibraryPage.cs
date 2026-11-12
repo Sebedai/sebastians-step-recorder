@@ -212,10 +212,7 @@ sealed class LibraryPage : ContentControl
         return g;
     }
 
-    static string? ProfileName(string id) => id switch
-    {
-        "guide" => Loc.L("Anleitung", "Guide"), "support" => Loc.L("Support-Fall", "Support case"), "aiTrace" => Loc.L("KI-Spur", "AI trace"), "custom" => Loc.L("Eigene", "Custom"), _ => null
-    };
+    static string? ProfileName(string id) => StepRecorder.Capture.RecordingModes.Name(id);
 
     void FillChips(WrapPanel chips, SessionInfo s)
     {

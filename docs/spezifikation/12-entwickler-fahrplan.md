@@ -96,7 +96,7 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | 11 | Kontext II: Fehlertext | V-41 | M (L bei zweitem UIA-Arbeiter) | Aufzeichnungskern, Schritte | 10 | ja | erledigt |
 | 12 | Kontext III: prüfbare Programmausgaben | V-41 | L | Leseschicht, Durchsicht, Datenschutz | 10 | ja | erledigt |
 | 13 | Kontext IV: Protokolldateien | V-41 | M | Aufzeichnungskern, Startfenster | 12 | nur bei Zuordnung zu Schritten | erledigt |
-| 14 | Bereitschaft und Modus „Fehler nachstellen“ | V-43 | M | Oberfläche, Lebenszyklus | (10 für den vollen Modus) | nein | geplant |
+| 14 | Bereitschaft und Modus „Fehler nachstellen“ | V-43 | M | Oberfläche, Lebenszyklus | (10 für den vollen Modus) | nein | erledigt |
 | 15 | Befehlspalette und Sofort-Bildschirmfoto | V-43 | M | Editor | – | nein | geplant |
 | 16 | UI-Tests I: Automationsmodell, FlaUI, Testbarkeits-Bericht | V-42 | L | Export | – | nein | geplant |
 | 17 | UI-Tests II: pywinauto, Playwright, Test-KI-Paket | V-42 | M–L | Export, MCP | 16 | nein | geplant |

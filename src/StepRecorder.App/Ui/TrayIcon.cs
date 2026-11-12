@@ -136,6 +136,13 @@ sealed class TrayIcon : IDisposable
                 float bw = s * 0.15f, bh = s * 0.46f, y = (s - bh) / 2;
                 g.FillRectangle(w, s * 0.31f, y, bw, bh); g.FillRectangle(w, s * 0.54f, y, bw, bh);
             }
+            else if (state == "ready")
+            {
+                // Bereit (Paket 14): grauer Ring – deutlich vom roten Aufnahmepunkt zu unterscheiden
+                using var pen = new System.Drawing.Pen(D(Theme.Night.FgColor), Math.Max(2, s / 8f));
+                float d = s * 0.46f;
+                g.DrawEllipse(pen, (s - d) / 2, (s - d) / 2, d, d);
+            }
             else if (state == "remind")
             {
                 // Erinnerung: heller Ring statt Punkt (blinkt im Wechsel mit dem normalen Symbol)

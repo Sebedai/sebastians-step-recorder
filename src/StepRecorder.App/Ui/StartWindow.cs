@@ -26,12 +26,13 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
     readonly StackPanel _recent = new();
     readonly TextBlock _stats = new() { FontSize = Theme.FsCaption, Foreground = Theme.Muted, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 10) };
     readonly TextBlock _protection = new() { FontSize = Theme.FsCaption, Foreground = Theme.Muted, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.NoWrap };
-    static readonly string[] Ids = { "guide", "support", "aiTrace", "custom" };
+    static readonly string[] Ids = RecordingModes.All.Select(m => m.Id).ToArray();
     static readonly (string glyph, string name, string audience, string text)[] Modes =
     {
         (Theme.IDoc, Loc.L("Anleitung", "Guide"), Loc.L("für Menschen", "for people"), Loc.L("Schlank – nur was Menschen zum Nachmachen brauchen.", "Lean – only what people need to follow along.")),
         (Theme.IWrench, Loc.L("Support-Fall", "Support case"), Loc.L("für den Helpdesk", "for the help desk"), Loc.L("Ausführlich – alle Eingaben, damit der Helpdesk den Fehler nachvollziehen kann.", "Detailed – all input, so the help desk can reproduce the problem.")),
         (Theme.IRobot, Loc.L("KI-Spur", "AI trace"), Loc.L("für KI und Skripte", "for AI and scripts"), Loc.L("Vollständig – so genau wie möglich, für KI-Assistenten und AutoHotkey.", "Complete – as precise as possible, for AI assistants and AutoHotkey.")),
+        (Theme.IError, Loc.L("Fehler nachstellen", "Reproduce bug"), Loc.L("für Entwickler", "for developers"), Loc.L("Ausführlich mit Programm-Kontext – Absturz, Fehlertexte, Build-Stand; danach der Editor direkt am Fehler.", "Detailed with program context – crash, error texts, build; then the editor right at the failure.")),
         (Theme.ISettings, Loc.L("Eigene", "Custom"), Loc.L("selbst festgelegt", "user-defined"), Loc.L("Selbst festgelegt – „Einstellen …“ öffnet die Auswahl.", "User-defined – “Set up …” opens the options.")),
     };
     readonly TextBlock _modeText = new() { TextWrapping = TextWrapping.Wrap, FontSize = Theme.FsBody, Foreground = Theme.Fg, VerticalAlignment = VerticalAlignment.Center };
@@ -63,7 +64,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         // ---------- Zweck ----------
         int sel = Math.Max(0, Array.IndexOf(Ids, s.LastProfile));
-        var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(-4, 0, -4, 0) };
+        var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = Modes.Length, Margin = new Thickness(-4, 0, -4, 0) };
         _profiles = Modes.Select((m, i) => ModeCard(m.name, m.audience, i == sel)).ToArray();
         for (int k = 0; k < _profiles.Length; k++) _profiles[k].ToolTip = $"{Modes[k].name} – {Modes[k].audience}\n{Modes[k].text}";
         foreach (var r in _profiles) { r.Margin = new Thickness(4, 0, 4, 0); modes.Children.Add(r); r.Checked += (_, _) => UpdateProfile(); }
@@ -271,7 +272,9 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         ("folder", Loc.L("Aufnahmeordner öffnen", "Open recording folder"), Loc.L("Aufnahme im Ordner – später im Editor öffnen", "Recording in its folder – open it in the editor later")),
     };
 
-    void UpdateCustomCard() { if (_profiles != null && ProfileIndex == 3) UpdateProfile(); }
+    bool IsCustom => Ids[ProfileIndex] == "custom";
+
+    void UpdateCustomCard() { if (_profiles != null && IsCustom) UpdateProfile(); }
 
     /// <summary>Inhalt „Eigener Detailgrad“: Eingabearten, Zusatzbilder, Programmkontext, nach dem Stopp.</summary>
     internal FrameworkElement BuildCustomContent()
@@ -338,21 +341,21 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
     void UpdateGoalLink()
     {
         bool set = (_goalText + _expectedText + _referenceText + _titleText).Trim().Length > 0;
-        bool recommended = ProfileIndex is 1 or 2;
+        bool recommended = RecordingModes.All[ProfileIndex].ShowGoalFields && !IsCustom;
         _goalLink.Content = U.IconText(set ? Theme.ICheck : Theme.IFlag, set ? Loc.L("Ziel und Titel ✓", "Goal and title ✓") : recommended ? Loc.L("Ziel und Titel (empfohlen) …", "Goal and title (recommended) …") : Loc.L("Ziel und Titel …", "Goal and title …"));
     }
 
     /// <summary>„Anpassen …“ bei einem festen Modus: Detailgrad in „Eigene“ übernehmen; bei „Eigene“: Einstellungen öffnen.</summary>
     void CustomizeFromPreset()
     {
-        if (ProfileIndex == 3) { ShowCustomDialog(); return; }
+        if (IsCustom) { ShowCustomDialog(); return; }
         var p = DetailPresets.For(Ids[ProfileIndex])!;
         var x = AppSettings.Load();
         x.Record = RecordingOptions.Channels.ToDictionary(c => c.key, c => !p.Off.Contains(c.key));
         x.ChangeFrames = p.ChangeFrames; x.CustomAppContext = p.AppContext;
-        x.CustomAfterStop = Ids[ProfileIndex] switch { "support" => "supportPackage", "aiTrace" => "export", _ => "viewer" };
+        x.CustomAfterStop = RecordingModes.All[ProfileIndex].AfterStop is "viewerError" ? "viewer" : RecordingModes.All[ProfileIndex].AfterStop;
         x.Save();
-        _profiles[3].IsChecked = true;
+        _profiles[Array.IndexOf(Ids, "custom")].IsChecked = true;
         ShowCustomDialog();
     }
 
@@ -363,9 +366,9 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         if (_profiles == null || _recLink == null) return;
         int i = ProfileIndex;
         _modeText.Text = Modes[i].text;
-        _recLink.Content = U.IconText(Theme.IEdit, i == 3 ? Loc.L("Einstellen …", "Set up …") : Loc.L("Anpassen …", "Customize …"));
-        _recLink.ToolTip = i == 3 ? Loc.L("Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ festlegen", "Set input types, extra images, program context and “after stopping”") : Loc.L("Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen", "Use this level of detail as the starting point for the “Custom” mode");
-        if (i == 3)
+        _recLink.Content = U.IconText(Theme.IEdit, Ids[i] == "custom" ? Loc.L("Einstellen …", "Set up …") : Loc.L("Anpassen …", "Customize …"));
+        _recLink.ToolTip = Ids[i] == "custom" ? Loc.L("Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ festlegen", "Set input types, extra images, program context and “after stopping”") : Loc.L("Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen", "Use this level of detail as the starting point for the “Custom” mode");
+        if (Ids[i] == "custom")
         {
             var st = AppSettings.Load();
             var off = RecordingOptions.Channels.Where(c => !st.Records(c.key)).Select(c => c.key).ToList();
@@ -375,7 +378,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         else
         {
             var p = DetailPresets.For(Ids[i])!;
-            Meter(_meter, p.Bars, p.Id switch { "guide" => Loc.L("Schlank", "Lean"), "support" => Loc.L("Ausführlich", "Detailed"), "aiTrace" => Loc.L("Vollständig", "Complete"), _ => p.Level });
+            Meter(_meter, p.Bars, DetailPresets.LevelName(p.Level));
             DetailChips(_chips, p.Off, p.ChangeFrames, p.AppContext);
         }
         UpdateGoalLink();
