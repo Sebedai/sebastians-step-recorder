@@ -27,6 +27,17 @@ public static class Program
                 return Cli.Run(args);
         }
         if (verb is "record" or "support") AttachParentConsole();
+        if (verb == "record")
+        {
+            // falsche Optionen hier melden – nicht erst in der Oberfläche (dort würde z. B. int.Parse werfen)
+            try { Settings.Loc.Init(Settings.AppSettings.Load().UiLanguage); } catch { }
+            if (Cli.ValidateRecordArgs(args) is { } error)
+            {
+                Console.Error.WriteLine(error);
+                Console.Error.WriteLine(Settings.Loc.L("Hilfe: SebastiansStepRecorder.exe --help", "Help: SebastiansStepRecorder.exe --help"));
+                return 2;
+            }
+        }
         return UiMain(args);
     }
 

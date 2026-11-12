@@ -127,7 +127,11 @@ sealed class UiApp : Application
         var o = OptionsFromSettings(scope);
         o.Monitors = Opt("--monitor") ?? "active";
         o.AppProcess = Opt("--app");
-        if (Opt("--region") is { } r && r.Split(',').Select(int.Parse).ToArray() is { Length: 4 } v) o.Region = new System.Drawing.Rectangle(v[0], v[1], v[2], v[3]);
+        if (Opt("--region") is { } r)
+        {
+            if (r == "last") { if (AppState.Load().LastRegion is { } lr) o.Region = new System.Drawing.Rectangle(lr.X, lr.Y, lr.W, lr.H); }
+            else if (r.Split(',').Select(x => int.TryParse(x.Trim(), out var n) ? n : -1).ToArray() is { Length: 4 } v && v[2] > 0 && v[3] > 0) o.Region = new System.Drawing.Rectangle(v[0], v[1], v[2], v[3]);
+        }
         o.Title = Opt("--title") ?? "";
         o.GoalDescription = Opt("--goal"); o.GoalExpected = Opt("--expected"); o.GoalReference = Opt("--reference");
         if (Opt("--protection") is { } p) o.PrivacyLevel = p;
