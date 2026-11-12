@@ -437,7 +437,7 @@ public sealed partial class StepBuilder
                         }
                     case "window.foreground":
                         eff["foreground"] = new JsonObject { ["from"] = e.Str("prev"), ["to"] = e.Str("win"), ["afterUs"] = Math.Max(0, t - start) }.Clean();
-                        if (st.Kind == "windowSwitch") st.InputObj["to"] = e.Str("win");
+                        if (st.Kind == "windowSwitch") { st.InputObj["to"] = e.Str("win"); if (Win(e.Str("win"))?.Str("title") is { Length: > 0 } tt) st.InputObj["toTitle"] = tt; }
                         break;
                     case "window.title":
                         titles.Add(new JsonObject { ["win"] = e.Str("win"), ["to"] = e.Str("title"), ["afterUs"] = Math.Max(0, t - start) }.Clean());

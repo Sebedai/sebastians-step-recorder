@@ -166,3 +166,44 @@ public class ExportAndMcpTests : IDisposable
         return JsonNode.Parse(text)!.AsObject();
     }
 }
+
+public class ReadableExportTests : IDisposable
+{
+    readonly string _folder = SyntheticSession.Create();
+    readonly string _out = Path.Combine(Path.GetTempPath(), "steprec-readable-" + Guid.NewGuid().ToString("N")[..8]);
+    public void Dispose() { try { Directory.Delete(_folder, true); } catch { } try { Directory.Delete(_out, true); } catch { } }
+
+    [Fact]
+    public void Readable_AddsExplanations_DefaultStaysCompact()
+    {
+        using var v1 = StepRecorder.ReadLayer.SessionView.Open(_folder, headless: true);
+        StepRecorder.Export.KiPackage.Export(v1, new StepRecorder.Export.KiOptions { OutDir = Path.Combine(_out, "a") });
+        using var v2 = StepRecorder.ReadLayer.SessionView.Open(_folder, headless: true);
+        StepRecorder.Export.KiPackage.Export(v2, new StepRecorder.Export.KiOptions { OutDir = Path.Combine(_out, "b"), Readable = true });
+        string a = File.ReadAllText(Path.Combine(_out, "a", "trace.md")), b = File.ReadAllText(Path.Combine(_out, "b", "trace.md"));
+        Assert.DoesNotContain("Erklärung:", a);
+        Assert.DoesNotContain("In Worten", a);
+        Assert.False(File.Exists(Path.Combine(_out, "a", "LIESMICH.md")));
+        Assert.DoesNotContain("$fields", File.ReadAllText(Path.Combine(_out, "a", "steps.json")));
+        Assert.Contains("## So lesen Sie dieses Protokoll", b);
+        Assert.Contains("- In Worten: ", b);
+        Assert.Contains("_Erklärung: ", b);
+        Assert.True(b.Length > a.Length);
+        Assert.True(File.Exists(Path.Combine(_out, "b", "LIESMICH.md")));
+        var sj = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(Path.Combine(_out, "b", "steps.json")))!;
+        Assert.NotNull(sj["$fields"]);
+        // jede Erklärung nur einmal je Feld
+        Assert.Single(System.Text.RegularExpressions.Regex.Matches(b, "Erklärung: Eindeutige Kennung des Schritts"));
+    }
+
+    [Fact]
+    public void Readable_Ahk_ExplainsStructure()
+    {
+        using var v = StepRecorder.ReadLayer.SessionView.Open(_folder, headless: true);
+        var s1 = StepRecorder.Export.AhkExport.Build(v, new StepRecorder.Export.AhkOptions());
+        var s2 = StepRecorder.Export.AhkExport.Build(v, new StepRecorder.Export.AhkOptions { Readable = true });
+        Assert.DoesNotContain("So ist dieses Skript aufgebaut", s1);
+        Assert.Contains("So ist dieses Skript aufgebaut", s2);
+        Assert.Contains("; Was hier passiert: ", s2);
+    }
+}

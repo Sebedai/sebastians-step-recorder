@@ -68,6 +68,7 @@ sealed partial class ViewerWindow : Window
         Load();
         BuildLayout();
         Fill();
+        try { AutoCleanupOnOpen(); } catch (Exception ex) { UiApp.Log("Aufräumen: " + ex); }
         PreviewKeyDown += OnKey;
         _play.Tick += (_, _) => { if (_list.SelectedIndex < _list.Items.Count - 1) _list.SelectedIndex++; else StopPlay(); };
         AllowDrop = true;
@@ -352,7 +353,7 @@ sealed partial class ViewerWindow : Window
         var s = Sel;
         var all = _view.MarksFor(null);
         var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
-        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = t.ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false });
+        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T(t).ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false });
         void Item(string label, bool on, Action a, string gesture = "")
         {
             var mi = new MenuItem { Header = label, InputGestureText = gesture, Icon = on ? U.Icon(Theme.ICheck, 12, Theme.AccentText) : null };

@@ -123,6 +123,18 @@ sealed partial class ViewerWindow
         return string.Format(header, startHtml, endHtml, startFrag, endFrag) + pre + fragment + post;
     }
 
+    /// <summary>Kurzer Clip (GIF) aus den gespeicherten Bildern des Schritts.</summary>
+    void SaveClip()
+    {
+        var s = Sel; if (s == null) return;
+        var ids = StepRecorder.Export.StepClip.FrameIds(_view, s);
+        if (ids.Count < 2) { Msg.Show("Für diesen Schritt gibt es nur ein Bild – ein Clip lohnt sich hier nicht. Mit dem Modus „KI-Spur“ oder vielen Zusatzbildern entstehen mehr Zwischenbilder.", "Clip", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = $"Schritt-{s.Number:00}-{Fmt.FileSafe(s.AuthorTitle ?? s.Title, 30)}.gif", Filter = "Animiertes GIF|*.gif" };
+        if (dlg.ShowDialog(this) != true) return;
+        int n = StepRecorder.Export.StepClip.Write(_view, s, dlg.FileName);
+        _status.Text = n > 0 ? $"Clip mit {n} Bildern gespeichert" : "Kein Clip möglich";
+    }
+
     void SaveImage()
     {
         var s = Sel; if (s == null) return;
@@ -144,14 +156,15 @@ sealed partial class ViewerWindow
         }
         var d = new ExportDialog(format, _view.Language, StepRecorder.Export.DocSettings.From(_view.Edits.Obj("guide"))) { Owner = this };
         if (d.ShowDialog() != true) return;
+        if (d.Format is "ki" or "ahk") { var st = StepRecorder.Settings.AppSettings.Load(); if (st.ExportReadable != d.Readable) { st.ExportReadable = d.Readable; st.Save(); } }
         var view = SessionView.Open(_path, headless: d.Format == "ki", lang: d.Language);
         try
         {
             ExportResult r = d.Format switch
             {
-                "ki" => KiPackage.Export(view, new KiOptions { Detail = d.Detail, ImageProfile = d.Profile, Language = d.Language, Zip = d.Zip }),
-                "ahk" when d.AhkKi => AhkKiPackage.Export(view, new AhkKiOptions()),
-                "ahk" => AhkExport.Export(view, new AhkOptions { RealTiming = d.RealTiming }),
+                "ki" => KiPackage.Export(view, new KiOptions { Detail = d.Detail, ImageProfile = d.Profile, Language = d.Language, Zip = d.Zip, Readable = d.Readable }),
+                "ahk" when d.AhkKi => AhkKiPackage.Export(view, new AhkKiOptions { Readable = d.Readable }),
+                "ahk" => AhkExport.Export(view, new AhkOptions { RealTiming = d.RealTiming, Readable = d.Readable }),
                 _ => GuideExport.Export(view, new GuideOptions { Format = d.Format, Language = d.Language, Importance = d.Importance, View = d.View, Overview = d.Overview, GifSeconds = d.GifSeconds, MouseMarks = d.MarkMouse, KeyMarks = d.MarkKeys })
             };
             _status.Text = "Exportiert: " + r.Path;
@@ -356,6 +369,9 @@ sealed class ExportDialog : Window
     readonly CheckBox _ahkKi = new() { Content = "Als KI-Paket: Anleitung für KI, ablauf.json, Bildausschnitte, Texterkennung", IsChecked = false };
     public bool RealTiming => _timing.IsChecked == true;
     public bool AhkKi => _ahkKi.IsChecked == true;
+    readonly CheckBox _readable = new() { Content = "Für Menschen lesbar – ausführlich kommentiert", IsChecked = StepRecorder.Settings.AppSettings.Load().ExportReadable };
+    readonly TextBlock _readableHint = Hint();
+    public bool Readable => _readable.IsChecked == true;
     int FormatIndex => Math.Max(0, Array.FindIndex(_formats, f => f.IsChecked == true));
     public string Format => FormatIndex switch { 1 => "md", 2 => "docx", 3 => "pdf", 4 => "gif", 5 => "ki", 6 => "ahk", _ => "html" };
     readonly CheckBox _overview = new() { Content = "Kleine Übersicht des ganzen Bildschirms einblenden", IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
@@ -410,6 +426,8 @@ sealed class ExportDialog : Window
         var gifOpts = U.Field("Ablauf", _gifSec, "Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.");
         gifOpts.Margin = new Thickness(0, 0, 0, 12);
         var ahkOpts = U.Col(_timing, _ahkKi);
+        var readableOpts = U.Col(_readable, _readableHint);
+        readableOpts.Margin = new Thickness(0, 12, 0, 12);
         ahkOpts.Margin = new Thickness(0, 0, 0, 12);
         var marksOpts = U.Field("Im Bild markieren", U.Col(_markMouse, _markKeys), "Wie im Editor unter „Markierungen“; dort lässt sich das auch je Schritt ein- und ausschalten.");
         marksOpts.Margin = new Thickness(0, 0, 0, 12);
@@ -421,6 +439,12 @@ sealed class ExportDialog : Window
             gifOpts.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             marksOpts.Visibility = ki || ahk ? Visibility.Collapsed : Visibility.Visible;
+            readableOpts.Visibility = ki || ahk ? Visibility.Visible : Visibility.Collapsed;
+            _readableHint.Text = ki
+                ? (Readable ? "Jede Angabe – auch Systeminfos, Belegqualität, Koordinaten und Lücken – wird in Klartext erklärt, jeder Schritt bekommt einen Satz „In Worten“, dazu LIESMICH.md und Kommentare in den JSON-Dateien. Etwa ein Drittel mehr Text – für eine KI unnötig."
+                            : "Aus: knapp und tokensparend für KI-Assistenten. Einschalten, wenn Menschen das Paket lesen sollen (Helpdesk, Entwickler, Prüfung).")
+                : (Readable ? "Das Skript erklärt seinen Aufbau, die Begriffe (WinTitle, ClassNN …) und bei jedem Schritt in Worten, was passiert."
+                            : "Aus: nur die technischen Kommentare. Einschalten, wenn jemand das Skript verstehen oder anpassen soll.");
             fImp.Visibility = fView.Visibility = ki ? Visibility.Collapsed : Visibility.Visible;
             fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             _impHint.Text = _imp.SelectedIndex switch
@@ -451,9 +475,9 @@ sealed class ExportDialog : Window
         }
         foreach (var f in _formats) f.Checked += (_, _) => Upd();
         foreach (var cb in new[] { _imp, _view, _detail, _profile, _gifSec }) cb.SelectionChanged += (_, _) => Upd();
-        foreach (var chk in new[] { _zip, _ahkKi }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
+        foreach (var chk in new[] { _zip, _ahkKi, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
-        U.Dialog(this, "Exportieren", U.Col(grid, infoBox, options, gifOpts, marksOpts, ahkOpts),U.Primary("Exportieren", () => DialogResult = true, Theme.IExport), U.Btn("Abbrechen", () => DialogResult = false));
+        U.Dialog(this, "Exportieren", U.Col(grid, infoBox, options, gifOpts, marksOpts, ahkOpts, readableOpts),U.Primary("Exportieren", () => DialogResult = true, Theme.IExport), U.Btn("Abbrechen", () => DialogResult = false));
     }
 
     /// <summary>Beschreibt das gewählte Format: wofür, welche Dateien mit welchem Inhalt, wo gespeichert.</summary>
@@ -515,6 +539,7 @@ sealed class ExportDialog : Window
                 _ => "Hauptschritte mit Vorher-Bild, Ausschnitt um den Klick und Nachher-Bild."
             })
         };
+        if (Readable) { l.Insert(0, ("LIESMICH.md", "für Menschen: was im Paket steckt, wofür jede Datei ist und wie man es nutzt.")); l[2] = ("trace.md", "das Protokoll mit Erklärungen: jede Angabe in Klartext erläutert, jeder Schritt zusätzlich „In Worten“."); }
         if (Detail == "full") l.Add(("events.jsonl", "alle Rohereignisse der Aufnahme (Maus, Tastatur, Fenster) – Passwörter und Schwärzungen bleiben ausgeblendet."));
         return l.ToArray();
     }

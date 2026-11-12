@@ -30,6 +30,8 @@ sealed class UiApp : Application
     {
         if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Recorder.Trace = Log;
         Theme.Init(this);
+        Loc.Init();
+        Accessibility.Install();
         DevSnapshots.Install();
         Invisibility.Install();
         SingleInstance.Listen();

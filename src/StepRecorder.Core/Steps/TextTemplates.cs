@@ -74,6 +74,23 @@ public static class TextTemplates
         return lang == "de" ? "ein unbekanntes Element" : "an unknown element";
     }
 
+    /// <summary>Menüpfad „Datei › Speichern unter“ (nur bei mindestens zwei Ebenen).</summary>
+    static string MenuPath(JsonObject step)
+    {
+        var items = step.Obj("menuPath")?.Arr("items")?.Select(x => CleanName(x?.GetValue<string>())).Where(x => x.Length > 0).ToList();
+        return items is { Count: >= 2 } ? string.Join(" › ", items.TakeLast(4)) : "";
+    }
+
+    /// <summary>Gruppe im Menüband (z. B. „Schriftart“), wenn das Element in einer benannten Gruppe liegt.</summary>
+    static string RibbonGroup(JsonObject step)
+    {
+        var path = step.Obj("target")?.Arr("path");
+        if (path == null) return "";
+        foreach (var p in path.Reverse().OfType<JsonObject>().Take(3))
+            if (p.Str("ct") == "Group" && CleanName(p.Str("name")) is { Length: > 0 } g && g != N(step)) return g;
+        return "";
+    }
+
     static string N(JsonObject step) => CleanName(step.Obj("target").Obj("el").Str("name")) is { Length: > 0 } n ? n : CleanName(step.Obj("target").Obj("el").Obj("labeledBy").Str("name"));
     static string F(JsonObject step, string lang) => CleanName(step.Obj("ctx").Str("title")) is { Length: > 0 } t ? Q(t, lang) : (lang == "de" ? "(ohne Titel)" : "(untitled)");
 
@@ -179,6 +196,7 @@ public static class TextTemplates
         {
             "click" or "doubleClick" or "tripleClick" or "rightClick" when n.Length == 0 => de ? $"Klick im Fenster {F(step, lang)}" : $"Click in window {F(step, lang)}",
             "click" when input.Bool("longPress") && step.Obj("input").StrList("mods").Count == 0 => de ? $"{Q(n, lang)} gedrückt halten" : $"Press and hold {Q(n, lang)}",
+            "click" when MenuPath(step) is { Length: > 0 } mp => de ? $"{Q(mp, lang)} wählen" : $"Choose {Q(mp, lang)}",
             "click" => ct switch
             {
                 "CheckBox" => step.Obj("target").Obj("el").Str("toggle") == "on" ? (de ? $"{Q(n, lang)} deaktivieren" : $"Clear {Q(n, lang)}") : (de ? $"{Q(n, lang)} aktivieren" : $"Select {Q(n, lang)}"),
@@ -230,7 +248,9 @@ public static class TextTemplates
         return t.Length > 60 ? t[..59] + "…" : t;
     }
 
-    static string WinTitle(JsonObject step, string? win, string lang) => F(step, lang);
+    /// <summary>Titel des Zielfensters (bei Fensterwechseln) – sonst das Fenster des Schritts.</summary>
+    static string WinTitle(JsonObject step, string? win, string lang)
+        => CleanName(step.Obj("input")?.Str("toTitle")) is { Length: > 0 } t ? Q(t, lang) : F(step, lang);
 
     /// <summary>Text eines Schritts. style: "protocol" oder "guide".</summary>
     public static string Body(JsonObject step, string lang, string style = "guide", string address = "formal", string? commentText = null)
@@ -249,6 +269,8 @@ public static class TextTemplates
                 guide ? (de ? $"Klicken Sie im Fenster {F(step, lang)} auf die im Bild markierte Stelle." : $"In the window {F(step, lang)}, click the spot marked in the image.")
                       : (de ? $"Linksklick an Position ({p.Int("x")}, {p.Int("y")}) im Fenster {F(step, lang)}" : $"Left click at position ({p.Int("x")}, {p.Int("y")}) in window {F(step, lang)}"),
             "click" when guide && mods.Count == 0 && ct == "CheckBox" => de ? $"{(step.Obj("target").Obj("el").Str("toggle") == "on" ? "Deaktivieren" : "Aktivieren")} Sie {Z()}." : $"{(step.Obj("target").Obj("el").Str("toggle") == "on" ? "Clear" : "Select")} {Z()}.",
+            "click" when guide && mods.Count == 0 && MenuPath(step) is { Length: > 0 } mp => de ? $"Wählen Sie im Menü {Q(mp, lang)}." : $"From the menu, choose {Q(mp, lang)}.",
+            "click" when guide && mods.Count == 0 && ct is "Button" or "SplitButton" && RibbonGroup(step) is { Length: > 0 } rg && !posOnly => de ? $"Klicken Sie in der Gruppe {Q(rg, lang)} auf {Z()}." : $"In the {Q(rg, lang)} group, click {Z()}.",
             "click" when guide && mods.Count == 0 && ct is "RadioButton" or "MenuItem" => de ? $"Wählen Sie {Z()}." : $"Choose {Z()}.",
             "click" when guide && mods.Count == 0 && ct is "ListItem" or "TreeItem" or "DataItem" => de ? $"Wählen Sie {Z()} aus." : $"Select {Z()}.",
             "click" when guide && mods.Count == 0 && ct == "TabItem" => de ? $"Wechseln Sie zu {Z()}." : $"Switch to {Z()}.",
@@ -275,7 +297,7 @@ public static class TextTemplates
             "key" => KeyText(input, lang, guide),
             "hover" => guide ? (de ? $"Zeigen Sie auf {Z()}." : $"Point to {Z()}.") : (de ? $"Mauszeiger verweilt auf {Z(false)}" : $"Pointer rests on {Z(false)}"),
             "move" => guide ? "" : (de ? "Mausbewegung ohne folgende Aktion" : "Mouse movement without a following action"),
-            "windowSwitch" => guide ? (de ? $"Wechseln Sie mit Alt+Tab zum Fenster {F(step, lang)}." : $"Press Alt+Tab to switch to the window {F(step, lang)}.") : (de ? $"Fensterwechsel mit Alt+Tab zu {F(step, lang)}" : $"Window switch with Alt+Tab to {F(step, lang)}"),
+            "windowSwitch" => guide ? (de ? $"Wechseln Sie mit Alt+Tab zum Fenster {WinTitle(step, input.Str("to"), lang)}." : $"Press Alt+Tab to switch to the window {WinTitle(step, input.Str("to"), lang)}.") : (de ? $"Fensterwechsel mit Alt+Tab zu {WinTitle(step, input.Str("to"), lang)}" : $"Window switch with Alt+Tab to {WinTitle(step, input.Str("to"), lang)}"),
             "system" => SystemText(step, input, lang, guide),
             "wait" => guide ? (input.Obj("until")?.Str("what") == "windowOpened" ? (de ? $"Warten Sie, bis das Fenster erscheint." : "Wait until the window appears.") : (de ? "Warten Sie, bis der Vorgang abgeschlossen ist." : "Wait for the operation to finish.")) : (de ? $"Wartezeit von {Duration(input.Long("durationUs"), lang)}" : $"Waiting time of {Duration(input.Long("durationUs"), lang)}"),
             "comment" => guide ? (commentText ?? "") : (de ? $"Kommentar des Autors: {commentText}" : $"Author's comment: {commentText}"),

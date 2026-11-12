@@ -19,6 +19,8 @@ public sealed class KiOptions
     public bool IncludeEvents { get; set; } = true;
     public string View { get; set; } = "screen";
     public int SplitTokens { get; set; } = 60000;
+    /// <summary>Für Menschen lesbar: alle Angaben erklärt, „In Worten“ je Schritt, LIESMICH.md, Kommentare in JSON (mehr Tokens).</summary>
+    public bool Readable { get; set; }
 }
 
 public sealed class ExportResult
@@ -88,20 +90,27 @@ public static class KiPackage
             }
             imageFiles[s.Id] = list;
         }
-        var trace = Trace(view, steps, imageFiles, lang, o.Detail);
+        var trace = Trace(view, steps, imageFiles, lang, o.Detail, o.Readable);
+        if (o.Readable) trace = KiExplain.Annotate(trace, lang);
         foreach (var l in imageFiles.Values) foreach (var (_, img) in l) img.Dispose();
         File.WriteAllText(Path.Combine(outDir, "trace.md"), trace, new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(outDir, "README_AI.md"), ReadmeText(lang), new UTF8Encoding(false));
+        if (o.Readable)
+        {
+            var (rf, rt) = KiExplain.Readme(lang, view.Title, steps.Count, imagesMeta.Count, o.IncludeEvents && o.Detail == "full");
+            File.WriteAllText(Path.Combine(outDir, rf), rt, new UTF8Encoding(false));
+        }
         res.TextTokens = (trace.Length + 38300) / 3;
         // steps.json über die Leseschicht (mit number/state)
         var sj = new JsonObject
         {
+            ["$comment"] = o.Readable ? KiExplain.StepsComment(lang) : null, ["$fields"] = o.Readable ? KiExplain.StepFields(lang) : null,
             ["format"] = "steprec.steps", ["schemaVersion"] = "1.0", ["sessionId"] = view.Session.SessionId,
             ["stepBuilderVersion"] = view.Steps.Str("stepBuilderVersion"), ["params"] = view.Steps.Obj("params")?.DeepClone(),
             ["steps"] = new JsonArray(allSteps.Select(s => { var c = (JsonObject)s.Json.DeepClone(); c["number"] = s.Number; c["state"] = s.State; c["title"] = s.Title; return (JsonNode)c; }).ToArray()),
             ["timeline"] = view.CleanNode(view.Steps.Arr("timeline")), ["gaps"] = view.CleanNode(view.Steps.Arr("gaps")), ["completeness"] = view.Steps.Obj("completeness")?.DeepClone()
         };
-        File.WriteAllText(Path.Combine(outDir, "steps.json"), Json.Pretty(sj), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(outDir, "steps.json"), Json.Pretty(o.Readable ? sj : Without(sj, "$comment", "$fields")), new UTF8Encoding(false));
         if (o.IncludeEvents && o.Detail == "full")
         {
             var sb = new StringBuilder();
@@ -114,7 +123,8 @@ public static class KiPackage
             checks[Path.GetRelativePath(outDir, f).Replace('\\', '/')] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))).ToLowerInvariant();
         var pkg = new JsonObject
         {
-            ["format"] = "steprecorder-ai-package", ["formatVersion"] = FormatVersion,
+            ["$comment"] = o.Readable ? KiExplain.PackageComment(lang) : null,
+            ["format"] = "steprecorder-ai-package", ["formatVersion"] = FormatVersion, ["readable"] = o.Readable ? true : null,
             ["generator"] = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version },
             ["createdAt"] = Json.UtcNow(), ["language"] = lang, ["detailLevel"] = o.Detail, ["imageProfile"] = o.ImageProfile,
             ["session"] = new JsonObject { ["id"] = view.Session.SessionId, ["title"] = view.Title, ["stepBuilderVersion"] = view.Steps.Str("stepBuilderVersion"), ["revision"] = view.Revision, ["goal"] = view.Goal() },
@@ -141,6 +151,8 @@ public static class KiPackage
         res.Files.Add(outDir);
         return res;
     }
+
+    static JsonObject Without(JsonObject o, params string[] keys) { foreach (var k in keys) o.Remove(k); return o; }
 
     static JsonObject CountRedactions(JsonObject edits)
     {
@@ -204,7 +216,7 @@ public static class KiPackage
         "recoveredInput" => "Eingabe aus dem Zweitkanal ergänzt", "injectedInput" => "automatisch erzeugte Eingabe", "causeUnobserved" => "Ursache nicht beobachtet", _ => r
     };
 
-    public static string Trace(SessionView view, List<ViewStep> steps, Dictionary<string, List<(string file, RenderedImage img)>> images, string lang, string detail)
+    public static string Trace(SessionView view, List<ViewStep> steps, Dictionary<string, List<(string file, RenderedImage img)>> images, string lang, string detail, bool readable = false)
     {
         bool de = lang == "de";
         var sb = new StringBuilder();
@@ -312,7 +324,7 @@ public static class KiPackage
                 L();
             }
             if (st.Importance == "trace" && detail != "full") { traceSkipped++; continue; }
-            Block(sb, view, st, prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail);
+            Block(sb, view, st, prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail, readable);
             prev = st;
         }
         while (idleIdx < idles.Count) { var (a, b) = idles[idleIdx++]; L(de ? $"> Leerlauf {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – keine Eingaben." : $"> Idle {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – no input."); L(); }
@@ -324,7 +336,7 @@ public static class KiPackage
     static string Kind(string k, string lang) => KindNames.TryGetValue(k, out var n) ? (lang == "de" ? n.de : n.en) : k;
     static string OneLine(string s) => s.Replace("\n", " ").Replace("\r", "");
 
-    static void Block(StringBuilder sb, SessionView view, ViewStep st, ViewStep? prev, List<(string file, RenderedImage img)> images, string lang, string detail)
+    static void Block(StringBuilder sb, SessionView view, ViewStep st, ViewStep? prev, List<(string file, RenderedImage img)> images, string lang, string detail, bool readable = false)
     {
         bool de = lang == "de";
         void L(string line = "") => sb.Append(line).Append('\n');
@@ -340,6 +352,7 @@ public static class KiPackage
         string head = st.Kind == "gap" ? $"{Fmt.Time(st.TFrom, lang)} – {Fmt.Time(st.TTo, lang)}" : Fmt.Time(st.TFrom, lang);
         L((de ? $"## Schritt {st.Number} · " : $"## Step {st.Number} · ") + $"{head} · {Kind(st.Kind, lang)}{since}");
         bool compactSecondary = detail == "compact" && st.Importance != "primary";
+        if (readable && st.Kind != "gap" && (st.AuthorBody ?? st.Guide) is { Length: > 0 } words) L((de ? "- In Worten: " : "- In plain words: ") + OneLine(words));
         L((de ? "- Aktion: " : "- Action: ") + OneLine(st.Protocol));
         if (j.Obj("action") is { } act && !compactSecondary) L((de ? "- Kanonisch: " : "- Canonical: ") + "`" + Canonical(act) + "`");
         L((de ? "- Kennung: " : "- Id: ") + st.Id + (j.Str("gapId") is { } gid ? (de ? $" · Lücke {gid}" : $" · gap {gid}") : ""));
@@ -416,7 +429,7 @@ public static class KiPackage
         var evd = j.Obj("evidence");
         var reasons = evd?.StrList("reasons").Select(r => Reason(r, lang)).ToList() ?? new();
         L((de ? "- Beleg: " : "- Evidence: ") + Lvl(st.EvidenceLevel, lang) + (reasons.Count > 0 ? $" ({string.Join("; ", reasons)})" : ""));
-        if (j.StrList("flags") is { Count: > 0 } flags) L((de ? "- Hinweis: " : "- Note: ") + string.Join(", ", flags));
+        if (j.StrList("flags") is { Count: > 0 } flags) L((de ? "- Hinweis: " : "- Note: ") + string.Join(readable ? "; " : ", ", readable ? flags.Select(f => KiExplain.Flag(f, lang)) : flags));
         foreach (var cm in st.Comments) L((de ? "- Kommentar des Autors: " : "- Author comment: ") + Fmt.Quote(cm.Str("text"), lang, 2000));
         if (st.Annotations.Count > 0) L((de ? "- Markierung des Autors: " : "- Author annotation: ") + string.Join("; ", st.Annotations.Select(a => a.Str("type") + (a.Str("text") is { } at ? " " + Fmt.Quote(at, lang, 80) : ""))));
         if (images.Count > 0)

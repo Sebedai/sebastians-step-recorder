@@ -54,6 +54,7 @@ sealed class TrayIcon : IDisposable
 
     public void SetTip(string tip)
     {
+        tip = Loc.T(tip);
         if (_disposed || tip == _tip) return;
         _tip = tip;
         var d = Data(NIF_TIP | NIF_SHOWTIP);

@@ -16,6 +16,8 @@ public sealed class AhkOptions
     /// <summary>Bildausschnitte neben das Skript schreiben (Unterordner „bilder“).</summary>
     public bool Images { get; set; } = true;
     public bool Overwrite { get; set; } = true;
+    /// <summary>Für Menschen lesbar: Aufbau des Skripts erklärt und je Schritt ein Satz „Was hier passiert“.</summary>
+    public bool Readable { get; set; }
 }
 
 /// <summary>
@@ -109,6 +111,7 @@ public static class AhkExport
                     c.L($";   wechselnd an Position {vv.Int("position")}: " + string.Join(" | ", (vv.Arr("values") ?? new JsonArray()).Select(x => OneLine(x?.GetValue<string>() ?? "", 30))));
             }
             c.L(head + $" ({KindLabel(s.Kind)})");
+            if (o.Readable && (s.AuthorBody ?? s.Guide) is { Length: > 0 } words) c.L("; Was hier passiert: " + OneLine(words));
             foreach (var cm in s.Comments) c.L("; Hinweis: " + OneLine(cm.Str("text") ?? ""));
             if (j.Obj("ctx") is { } cx) c.L($"; Fenster: {OneLine(cx.Str("title") ?? "")} ({cx.Str("process")})");
             if (Uia(j.Obj("target")) is { } uia) c.L("; Element: " + uia);
@@ -167,6 +170,28 @@ public static class AhkExport
         H($"; {nActions} automatisierte Schritte. Bitte vor dem Einsatz prüfen – Fenster, Positionen und Wartezeiten können abweichen.");
         H("; Abbrechen jederzeit mit Strg+Esc.");
         H(";");
+        if (o.Readable)
+        {
+            H("; ---------------------------------------------------------------------------------------------");
+            H("; So ist dieses Skript aufgebaut");
+            H(";");
+            H("; 1. Einstellungen (gleich unten): Tempo verlangsamt oder beschleunigt alle Pausen, Wartezeit legt fest,");
+            H(";    wie viele Sekunden auf ein Fenster gewartet wird, Streng = true bricht ab, wenn etwas anders aussieht als in der Aufnahme.");
+            H("; 2. Ablauf(): die aufgezeichneten Schritte der Reihe nach. Jeder Schritt beginnt mit „; --- Schritt N“,");
+            H(";    darunter steht in Worten, was passiert, in welchem Fenster und auf welchem Element.");
+            H("; 3. Hilfsfunktionen am Ende:");
+            H(";    Fenster(…)    wartet auf ein Fenster, holt es nach vorn und liefert sein Handle (hwnd).");
+            H(";    Warte(ms)     kurze Pause, skaliert mit Tempo.");
+            H(";    WarteBereit() wartet, bis die Anwendung nicht mehr beschäftigt ist (Sanduhr/Ladezeiger).");
+            H(";    Erwarte(…)    prüft, ob nach einem Schritt das Erwartete eingetreten ist (z. B. ein Fenster erschien).");
+            H(";");
+            H("; Begriffe: WinTitle beschreibt, wie AutoHotkey ein Fenster findet (Titel, ahk_exe = Programm, ahk_class = Fensterklasse).");
+            H("; ClassNN ist der interne Name eines Steuerelements (z. B. Edit1 = erstes Eingabefeld). ControlClick/ControlSetText bedienen");
+            H("; Elemente direkt, ohne die Maus zu bewegen – das ist robuster als Klicks auf Koordinaten. Koordinaten (x, y) zählen ab der");
+            H("; linken oberen Ecke des Fensters in physischen Pixeln. Zeilen mit „;“ am Anfang sind Kommentare und werden nicht ausgeführt.");
+            H("; ---------------------------------------------------------------------------------------------");
+            H(";");
+        }
         H("; Koordinaten sind physische Pixel wie in der Aufnahme (Per-Monitor-DPI):");
         H("DllCall(\"SetThreadDpiAwarenessContext\", \"ptr\", -4, \"ptr\")");
         H("SetTitleMatchMode 2");

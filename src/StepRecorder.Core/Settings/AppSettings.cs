@@ -105,6 +105,18 @@ public sealed class AppSettings
     public string SoundCues { get; set; } = "hidden";
     /// <summary>Farbschema der Oberfläche: dark (Standard) | light | system (wie Windows).</summary>
     public string Theme { get; set; } = "dark";
+    /// <summary>Beim ersten Öffnen einer Aufnahme überflüssige Schritte automatisch ausblenden.</summary>
+    public bool AutoCleanup { get; set; } = true;
+    /// <summary>Begriffsliste für automatische Texte: „Fundstelle=Ersatz“ je Zeile (z. B. Firmenwörter).</summary>
+    public List<string> Glossary { get; set; } = new();
+    /// <summary>Beim Start nach einer neuen Version auf GitHub suchen (Standard aus: das Programm bleibt offline).</summary>
+    public bool CheckUpdates { get; set; } = false;
+    /// <summary>Sprache der Oberfläche: de | en.</summary>
+    public string UiLanguage { get; set; } = "de";
+    /// <summary>Bildschirmaufnahme: auto (DXGI, Rückfall GDI) | gdi.</summary>
+    public string CaptureBackend { get; set; } = "auto";
+    /// <summary>KI- und AutoHotkey-Export für Menschen lesbar (ausführlich kommentiert) – zuletzt gewählt.</summary>
+    public bool ExportReadable { get; set; }
     public Dictionary<string, string> Hotkeys { get; set; } = new()
     {
         ["instantPause"] = "Ctrl+Shift+F9", ["stop"] = "Ctrl+Shift+F10", ["snapshot"] = "Ctrl+Shift+F11", ["comment"] = "Ctrl+Shift+F12",

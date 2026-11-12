@@ -14,6 +14,8 @@ public sealed class AhkKiOptions
     public List<string> With { get; set; } = new();
     public bool Ocr { get; set; } = true;
     public bool ContextImages { get; set; } = true;
+    /// <summary>Für Menschen lesbar: Skriptentwurf ausführlich kommentiert, Erklärung in ablauf.json.</summary>
+    public bool Readable { get; set; }
 }
 
 /// <summary>
@@ -39,7 +41,7 @@ public static class AhkKiPackage
         string imgDir = Path.Combine(dir, "bilder");
 
         // Skriptentwurf (schreibt auch die 48×48-Ausschnitte für ImageSearch)
-        var ahkOpt = new AhkOptions { ImageDir = imgDir };
+        var ahkOpt = new AhkOptions { ImageDir = imgDir, Readable = o.Readable };
         File.WriteAllText(Path.Combine(dir, "entwurf.ahk"), AhkExport.Build(view, ahkOpt, res), new UTF8Encoding(true));
 
         var doc = Document(view, o, imgDir, title);
@@ -61,6 +63,10 @@ public static class AhkKiPackage
             catch (Exception ex) { res.Warnings.Add($"Vergleich mit {other} nicht möglich: {ex.Message}"); }
         }
         if (comparisons.Count > 0) doc["comparisons"] = comparisons;
+        if (o.Readable)
+            doc["$comment"] = "Ablauf für ein AutoHotkey-Skript: Fenster (wie sie gefunden werden), je Schritt die Wege zum Element nach Zuverlässigkeit (score 1–5), " +
+                              "Eingaben, Wartesignale (wann die Anwendung bereit war), Erwartungen (was danach sichtbar sein soll), erkannte Parameter und Wiederholungen. " +
+                              "Zeiten in Millisekunden, Koordinaten in physischen Pixeln ab der linken oberen Fensterecke. entwurf.ahk ist ein daraus erzeugter, kommentierter Skriptentwurf.";
         File.WriteAllText(Path.Combine(dir, "ablauf.json"), Json.Pretty(doc), new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(dir, "README_AHK_KI.md"), Readme(title, steps.Count, comparisons.Count > 0), new UTF8Encoding(false));
         res.Files.AddRange(Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories));

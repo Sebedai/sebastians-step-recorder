@@ -415,6 +415,9 @@ public sealed partial class Recorder : IDisposable
         }
     }
 
+    /// <summary>Aktuelle Aufnahmezeit (µs seit Start) – z. B. für diktierte Kommentare.</summary>
+    public long Clock => Now();
+
     /// <summary>Kommentar während der Aufnahme (Bild = eingefrorener Zustand beim Auslösen).</summary>
     public void AddComment(string text, long tTrigger, string? frozenFrameId)
     {
@@ -541,7 +544,7 @@ public sealed partial class Recorder : IDisposable
         ["hookP50Us"] = _host.Ring.HookCalls == 0 ? 0 : (long)(_host.Ring.HookSumTicks * _usPerTick / _host.Ring.HookCalls),
         ["hookOver1ms"] = _host.Ring.HookOver1ms,
         ["ringOverflows"] = _host.Ring.Overflows,
-        ["framesTriggered"] = _frames.Requested, ["framesKey"] = _frames.KeyFrames, ["framesSame"] = _frames.Same, ["framesDropped"] = _frames.Dropped,
+        ["framesTriggered"] = _frames.Requested, ["captureBackend"] = _frames.Backend, ["framesDxgi"] = _frames.DxgiFrames, ["framesGdi"] = _frames.GdiFrames, ["framesKey"] = _frames.KeyFrames, ["framesSame"] = _frames.Same, ["framesDropped"] = _frames.Dropped,
         ["uiaQueries"] = _uia.Queries, ["uiaTimeouts"] = _uia.Timeouts, ["uiaWorkersReplaced"] = _uia.WorkersReplaced,
     };
 

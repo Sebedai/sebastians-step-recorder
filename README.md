@@ -79,10 +79,13 @@ Oben auf dem Bildschirm schwebt eine kleine **Aufnahmeleiste** mit Zeit, Schritt
 | **Strg+Umschalt+F2** | Marker „Erwartet“ |
 | **Strg+Umschalt+F7** | Marker setzen |
 | **Strg+Umschalt+F12** | Kommentar eingeben |
+| **Strg+Umschalt+F5** | Diktat ein/aus: Gesprochenes wird zu Kommentaren |
 | **Strg+Umschalt+F11** | Schnappschuss |
 | **Strg+Umschalt+F8** | Privattaste: Eingaben werden nur gezählt, nicht gespeichert |
 | **Strg+Umschalt+F6** | Letzten Schritt verwerfen |
 | **Strg+Umschalt+F4** | Leiste ein-/ausblenden (in den Infobereich minimieren) |
+
+**Diktat:** Statt zu tippen, sprechen Sie Ihre Erklärungen einfach. Jeder Satz wird als Kommentar an der Stelle gespeichert, an der Sie ihn begonnen haben. Die Erkennung läuft offline über die Windows-Spracherkennung; das Mikrofon ist nur offen, solange das Diktat läuft (rotes Mikrofon in der Leiste), und gespeichert wird nur der Text.
 
 **Countdown und Signaltöne:** Auf Wunsch zählt das Programm vor dem Start herunter und gibt kurze Töne bei Start, Stopp, Pause und Markern aus – praktisch, wenn keine Leiste zu sehen ist.
 
@@ -99,12 +102,15 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Eigene Schritte einfügen:** reine Textschritte oder Bildschritte aus Datei, Zwischenablage oder einem neuen Bildschirmfoto.
 - **Bild ersetzen oder neu aufnehmen**, wenn sich die Oberfläche geändert hat – das Original lässt sich jederzeit wiederherstellen.
 - **Suchen und Ersetzen** (Strg+H) über alle Überschriften, Texte, Hinweise und Kapitel.
+- **Automatisch aufgeräumt:** Beim ersten Öffnen blendet der Editor überflüssige Schritte aus – den Klick ins Feld direkt vor der Eingabe, doppelte Klicks auf dasselbe Element, Fensterwechsel hin und sofort zurück und Eingaben, die wieder gelöscht wurden. Nichts wird gelöscht: Strg+Z macht es rückgängig, unter *⋯ → Aufräumen* sehen Sie jeden Vorschlag mit Begründung.
+- **Bessere Texte:** Menüs erscheinen als Pfad („Datei › Speichern unter“), Schaltflächen im Menüband mit ihrer Gruppe. Eine **Begriffsliste** in den Einstellungen ersetzt technische Namen durch Ihre eigenen (z. B. „SAP Easy Access=SAP-Startseite“).
 
 **Bilder**
 - Vorher-/Nachher-Bild, ganzer Bildschirm, nur das Anwendungsfenster oder ein Ausschnitt um die Aktion (mit kleiner Übersicht des ganzen Bildschirms).
 - Zeichenwerkzeuge: Pfeil, Rahmen, Ellipse, Hervorheben, Text, nummerierte Markierungen, Schwärzen, Verpixeln, Zuschneiden – in sechs Farben und drei Strichstärken.
 - Automatische Markierungen: Klickpunkt, Zugweg, angeklicktes Element und gedrückte Tasten als kleine Tastenkappen im Bild – einzeln abschaltbar.
 - Zoom (Strg+Mausrad), Großansicht (F11 oder Doppelklick), Bild kopieren (Strg+C).
+- **Kurzer Clip je Schritt:** *Kopieren → Kurzen Clip speichern (GIF)* zeigt den Schritt als kleine Animation – vom Vorher-Bild über die Zwischenbilder bis zum Ergebnis.
 
 **Weitere Funktionen**
 - **Abspielen:** Schritte als Diashow.
@@ -144,6 +150,8 @@ Im Reiter **„Dokument“** wird aus den Schritten eine richtige Bedienungsanle
 | **AutoHotkey** | AutoHotkey-v2-Skript, das den Ablauf wiederholt | Automatisierung wiederkehrender Abläufe |
 | **Support-Paket** | ZIP mit HTML-Anleitung und KI-Paket | Fehler an den Helpdesk geben |
 
+**Für Menschen lesbar:** Beim KI-Paket und bei AutoHotkey gibt es die Option *„Für Menschen lesbar – ausführlich kommentiert“*. Dann wird jede Angabe – auch Systeminfos, Bildschirme, Belegqualität, Koordinaten und Lücken – in Klartext erklärt, jeder Schritt bekommt einen Satz „In Worten“, dazu kommen eine `LIESMICH.md` und Erklärungen in den JSON-Dateien; das Skript erklärt seinen Aufbau und jeden Schritt. Ohne die Option bleibt der Export knapp und spart Tokens, wenn ihn nur eine KI liest.
+
 Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – Sie geben die Dateien selbst weiter.
 
 ---
@@ -156,7 +164,7 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 - **Durchsicht vor dem Export:** Auffällige Eingaben (Schlüssel, IBANs, Kartennummern, Kennwörter in Befehlen) müssen vor der Weitergabe geprüft werden.
 - **Schwärzen:** Bereiche im Bild schwärzen oder verpixeln, Texte überall schwärzen, persönliche Werte (z. B. Benutzername) durch Platzhalter ersetzen.
 - **Persönliche Daten in Bildern finden:** Die Windows-Texterkennung sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln und bietet sie zum Schwärzen an.
-- Alles bleibt auf Ihrem Rechner. Das Programm braucht kein Internet und sendet keine Daten.
+- Alles bleibt auf Ihrem Rechner. Das Programm braucht kein Internet und sendet keine Daten (Ausnahme: die abschaltbare, standardmäßig ausgeschaltete Suche nach Updates).
 
 ---
 
@@ -192,6 +200,11 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 - **Windows Server und ältere Windows-10-Versionen** (z. B. Windows Server 2019) können eigene Fenster nicht aus Bildschirmfotos ausschließen. Das Programm erkennt das und bietet an, **mit ausgeblendeter Anzeige** aufzunehmen: Leiste und Rahmen bleiben unsichtbar, die Bedienung läuft über Tastenkürzel und das Symbol im Infobereich.
 - **Texterkennung** (für die Suche nach persönlichen Daten) nutzt die in Windows eingebaute OCR. Fehlt das Sprachpaket, lässt es sich unter *Einstellungen → Zeit und Sprache → Sprache* nachinstallieren.
 - **Wo liegen die Daten?** Ist der Ordner der EXE beschreibbar, liegen Einstellungen und Aufnahmen daneben (Ordner `Sessions`) – ideal für einen USB-Stick. Sonst unter `%APPDATA%\StepRecorder` und `%LOCALAPPDATA%\StepRecorder`. Der Aufnahmeordner ist in den Einstellungen änderbar.
+- **Bildschirmaufnahme:** Das Programm nutzt die schnelle Desktop-Duplizierung von Windows (DXGI) und fällt bei Problemen automatisch auf die klassische Aufnahme zurück. Hochformat-Monitore werden klassisch aufgenommen.
+- **Englische Oberfläche:** unter *Einstellungen → Allgemein → Sprache der Oberfläche* (gilt ab dem nächsten Start). Unabhängig davon lassen sich die Texte der Anleitungen auf Deutsch oder Englisch erzeugen.
+- **Bildschirmleser:** Alle Schaltflächen – auch die reinen Symbole – haben Namen für Sprachausgabe, NVDA und JAWS.
+- **Updates:** Das Programm sucht nur auf Wunsch nach neuen Versionen (*Einstellungen → Allgemein*); dabei wird ausschließlich die öffentliche Release-Seite abgefragt, ohne Kennung oder persönliche Daten. Heruntergeladen wird nichts automatisch.
+- **Eingaben:** Tottasten (^, ´, `), Bildschirmtastatur und Eingaben von Fernwartungs- und Passwort-Werkzeugen werden richtig erkannt. Entfernt Windows die Eingabeüberwachung (z. B. bei hoher Last), setzt das Programm sie sofort neu und vermerkt die mögliche Lücke.
 - **Dunkel oder hell:** Das Programm startet im dunklen Design; unter *Einstellungen → Darstellung* lässt sich „Hell“ oder „Wie Windows“ wählen.
 
 ---

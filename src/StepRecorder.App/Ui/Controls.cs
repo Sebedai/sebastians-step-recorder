@@ -82,13 +82,16 @@ static class U
     public static StackPanel Kbd(string combo, Brush? bg = null, Brush? fg = null, Brush? line = null)
     {
         var p = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        foreach (var k in combo.Split('+'))
+        foreach (var k0 in combo.Split('+'))
+        {
+            var k = Loc.En ? (k0 == "Eingabe" ? "Enter" : Loc.T(k0)) : k0;
             p.Children.Add(new Border
             {
                 Background = bg ?? Theme.Surface, BorderBrush = line ?? Theme.LineStrong, BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(3),
                 Padding = new Thickness(6, 1, 6, 1), Margin = new Thickness(0, 0, 3, 0), MinWidth = 22,
                 Child = new TextBlock { Text = k, FontSize = 11, FontFamily = Theme.Mono, Foreground = fg ?? Theme.Fg2, HorizontalAlignment = HorizontalAlignment.Center }
             });
+        }
         return p;
     }
 
@@ -134,7 +137,7 @@ static class U
     /// <summary>Kopf eines Abschnitts (klein, gedämpft).</summary>
     public static TextBlock Overline(string text, Thickness? margin = null)
     {
-        var t = Text(text.ToUpperInvariant(), 10.5, false, Theme.Muted, margin ?? new Thickness(0, 16, 0, 6));
+        var t = Text(Loc.T(text).ToUpperInvariant(), 10.5, false, Theme.Muted, margin ?? new Thickness(0, 16, 0, 6));
         t.FontFamily = Theme.Mono;
         return t;
     }
@@ -177,6 +180,7 @@ static class Msg
 {
     public static MessageBoxResult Show(string text, string title = StepRecorder.Data.AppInfo.DisplayName, MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None)
     {
+        text = Loc.T(text); title = Loc.T(title);
         var w = new Window { Title = title, Width = text.Length > 420 ? 620 : 470, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
         Theme.Prepare(w, Theme.Surface);
         w.Background = Theme.Surface;

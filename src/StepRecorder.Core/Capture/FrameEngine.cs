@@ -59,10 +59,36 @@ public sealed class FrameEngine : IDisposable
     readonly Dictionary<string, string> _lastFrameByMonitor = new();
     readonly Dictionary<string, (Bitmap? bmp, string id, int chain, int epoch)> _ref = new();
 
+    // Bildschirmaufnahme: DXGI Desktop Duplication (schnell, ganze Komposition), bei jedem Fehler GDI
+    DxgiGrabber? _dxgi;
+    public string Backend { get; private set; } = "gdi";
+    public int DxgiFrames, GdiFrames;
+
+    static bool UseDxgi()
+    {
+        var env = Environment.GetEnvironmentVariable("STEPRECORDER_CAPTURE");
+        if (env is "gdi" or "dxgi") return env == "dxgi";
+        try { return Settings.AppSettings.Load().CaptureBackend != "gdi"; } catch { return true; }
+    }
+
+    Bitmap Grab(Rectangle bounds)
+    {
+        if (_dxgi != null)
+        {
+            Bitmap? b = null;
+            try { b = _dxgi.Capture(bounds); } catch { }
+            if (b != null) { Interlocked.Increment(ref DxgiFrames); return b; }
+        }
+        Interlocked.Increment(ref GdiFrames);
+        return ScreenGrabber.Capture(bounds);
+    }
+
     public FrameEngine(RecordingOptions opt, SessionWriter writer, Topology topo, Func<long> now, Func<long, long> qpcToT)
     {
         _opt = opt; _writer = writer; _topo = topo; _now = now; _qpcToT = qpcToT;
         SetTopology(topo);
+        if (UseDxgi()) { try { _dxgi = DxgiGrabber.TryCreate(); } catch { _dxgi = null; } }
+        Backend = _dxgi != null ? "dxgi" : "gdi";
         _capThread = new Thread(CaptureLoop) { IsBackground = true, Name = "Frames.Capture", Priority = ThreadPriority.AboveNormal };
         _encThread = new Thread(EncodeLoop) { IsBackground = true, Name = "Frames.Encode" };
     }
@@ -112,7 +138,7 @@ public sealed class FrameEngine : IDisposable
     {
         long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
         Bitmap bmp;
-        try { bmp = ScreenGrabber.Capture(ms.Bounds); }
+        try { bmp = Grab(ms.Bounds); }
         catch { return; }
         long q1 = System.Diagnostics.Stopwatch.GetTimestamp();
         var rf = new RingFrame { Bmp = bmp, TStart = _qpcToT(q0), TEnd = _qpcToT(q1) };
@@ -224,7 +250,7 @@ public sealed class FrameEngine : IDisposable
                     PreNotGuaranteed++;
                     long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
                     Bitmap? bmp = null;
-                    try { bmp = ScreenGrabber.Capture(ms.Bounds); } catch { }
+                    try { bmp = Grab(ms.Bounds); } catch { }
                     if (bmp == null) { EnqueueNoneLocked(ms, tInput, "preInput", refSeq, "captureFailed"); continue; }
                     long t0 = _qpcToT(q0);
                     EnqueueLocked(ms, bmp, t0, _now(), "preInput", refSeq, "atInput", null);
@@ -264,7 +290,7 @@ public sealed class FrameEngine : IDisposable
                 if (!_mons.TryGetValue(id, out var ms)) continue;
                 long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
                 Bitmap? bmp = null;
-                try { bmp = ScreenGrabber.Capture(ms.Bounds); } catch { }
+                try { bmp = Grab(ms.Bounds); } catch { }
                 if (bmp == null) { ids.Add(EnqueueNoneLocked(ms, _qpcToT(q0), trigger, refSeq, "captureFailed")); continue; }
                 ids.Add(EnqueueLocked(ms, bmp, _qpcToT(q0), _now(), trigger, refSeq, null, null, forceKey));
             }
@@ -471,6 +497,8 @@ public sealed class FrameEngine : IDisposable
         _stop = true;
         lock (_lock) foreach (var m in _mons.Values) foreach (var r in m.Ring) r.Bmp.Dispose();
         foreach (var r in _ref.Values) r.bmp?.Dispose();
+        try { _dxgi?.Dispose(); } catch { }
+        _dxgi = null;
     }
 }
 

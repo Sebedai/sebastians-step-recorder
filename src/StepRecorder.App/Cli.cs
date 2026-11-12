@@ -21,7 +21,7 @@ Aufruf:
   SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Sitzungspfad aus)
   SebastiansStepRecorder.exe export <Sitzung> --format html|md|docx|pdf|gif|ki|ahk|ahk-ki [--out <Pfad>] [--with <Sitzung>] [--lang de|en]
                                            [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original]
-                                           [--zip] [--strict] [--json]
+                                           [--zip] [--readable] [--strict] [--json]
   SebastiansStepRecorder.exe validate <Sitzung> [--json]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
   SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
@@ -73,17 +73,17 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
         {
             string detail = (Opt(a, "--detail") ?? "standard") switch { "kompakt" or "compact" => "compact", "vollstaendig" or "vollständig" or "full" => "full", _ => "standard" };
             string prof = (Opt(a, "--image-profile") ?? "kompatibel") switch { "hochaufloesend" or "hochauflösend" or "highres" => "highres", "original" => "original", _ => "compatible" };
-            r = KiPackage.Export(view, new KiOptions { Detail = detail, ImageProfile = prof, OutDir = Opt(a, "--out"), Zip = Flag(a, "--zip"), IncludeEvents = !Flag(a, "--no-events"), Language = Opt(a, "--lang"), View = Opt(a, "--view") ?? "screen" });
+            r = KiPackage.Export(view, new KiOptions { Detail = detail, ImageProfile = prof, OutDir = Opt(a, "--out"), Zip = Flag(a, "--zip"), IncludeEvents = !Flag(a, "--no-events"), Language = Opt(a, "--lang"), View = Opt(a, "--view") ?? "screen", Readable = Flag(a, "--readable") });
         }
         else if (fmt is "html" or "md" or "markdown" or "docx" or "pdf" or "gif")
             r = GuideExport.Export(view, new GuideOptions { Format = fmt == "markdown" ? "md" : fmt, OutPath = Opt(a, "--out"), Language = Opt(a, "--lang"), Importance = Opt(a, "--importance") ?? "primary", Overwrite = true });
         else if (fmt is "ahk" or "autohotkey")
-            r = AhkExport.Export(view, new AhkOptions { OutPath = Opt(a, "--out"), RealTiming = Flag(a, "--real-timing"), Images = !Flag(a, "--no-images") });
+            r = AhkExport.Export(view, new AhkOptions { OutPath = Opt(a, "--out"), RealTiming = Flag(a, "--real-timing"), Images = !Flag(a, "--no-images"), Readable = Flag(a, "--readable") });
         else if (fmt is "ahk-ki" or "ahkki")
         {
             var with = new List<string>();
             for (int i = 0; i + 1 < a.Length; i++) if (a[i] == "--with") with.Add(a[i + 1]);
-            r = AhkKiPackage.Export(view, new AhkKiOptions { OutDir = Opt(a, "--out"), With = with, Ocr = !Flag(a, "--no-ocr") });
+            r = AhkKiPackage.Export(view, new AhkKiOptions { OutDir = Opt(a, "--out"), With = with, Ocr = !Flag(a, "--no-ocr"), Readable = Flag(a, "--readable") });
         }
         else { Console.Error.WriteLine("Unbekanntes Format: " + fmt); return 2; }
         if (json)

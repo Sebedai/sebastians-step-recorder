@@ -128,6 +128,7 @@ sealed class RecordingController
         _hk.Register("bar", K("bar", "Ctrl+Shift+F4"), ToggleBar);
         _hk.Register("markerError", K("markerError", "Ctrl+Shift+F1"), () => Marker("error"));
         _hk.Register("markerExpected", K("markerExpected", "Ctrl+Shift+F2"), () => Marker("expected"));
+        _hk.Register("dictation", K("dictation", "Ctrl+Shift+F5"), ToggleDictation);
         if (_hk.Failed.Count > 0) _bar?.Message("Tastenkürzel belegt: " + string.Join(", ", _hk.Failed), true);
     }
 
@@ -196,6 +197,7 @@ sealed class RecordingController
         Add("Fehlerstelle markieren", K("markerError", "Ctrl+Shift+F1"), () => Marker("error"));
         Add("Marker setzen", K("marker", "Ctrl+Shift+F7"), () => Marker("note"));
         Add("Kommentar …", K("comment", "Ctrl+Shift+F12"), Comment);
+        Add(_dict.Active ? "Diktat beenden" : "Diktat starten (Mikrofon)", K("dictation", "Ctrl+Shift+F5"), ToggleDictation);
         Add("Schnappschuss", K("snapshot", "Ctrl+Shift+F11"), () => Marker("snapshot"));
         Add(_rec.PrivacyMode ? "Privattaste aus" : "Privattaste ein", K("privacy", "Ctrl+Shift+F8"), TogglePrivacy);
         Add("Letzten Schritt verwerfen", K("discard", "Ctrl+Shift+F6"), DiscardPrevious);
@@ -258,6 +260,38 @@ sealed class RecordingController
         if (prevFg != 0) SetForegroundWindow(prevFg);
     }
 
+    // ---------------- Diktat ----------------
+    readonly Dictation _dict = new();
+    long _dictT = -1;
+    public bool Dictating => _dict.Active;
+
+    /// <summary>Diktat ein/aus: Gesprochenes wird offline erkannt und als Kommentar an der Stelle gespeichert, an der der Satz begann.</summary>
+    public void ToggleDictation()
+    {
+        if (_dict.Active)
+        {
+            _dict.Stop();
+            _bar?.Message("Diktat beendet – Mikrofon aus.");
+            _bar?.SetDictation(false);
+            return;
+        }
+        var disp = Application.Current.Dispatcher;
+        var err = _dict.Start(AppSettings.Load().Language,
+            onStart: () => disp.BeginInvoke(() => { if (_dictT < 0) _dictT = _rec.Clock; }),
+            onText: text => disp.BeginInvoke(() =>
+            {
+                long t = _dictT >= 0 ? _dictT : _rec.Clock; _dictT = -1;
+                if (_rec.State != RecorderState.Recording) return;
+                if (_rec.PrivacyMode) { _bar?.Message("Privattaste aktiv – Diktat nicht gespeichert.", true); return; }
+                _rec.AddComment(text, t, null);
+                _bar?.Message("Diktiert: " + (text.Length > 70 ? text[..69] + "…" : text));
+            }));
+        if (err != null) { _bar?.Message(err, true); Msg.Show("Diktat nicht möglich\n\n" + err, "Diktat", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        if (_sounds) Tones.Tick();
+        _bar?.SetDictation(true);
+        _bar?.Message($"Diktat läuft ({_dict.Culture}) – sprechen Sie; jeder Satz wird ein Kommentar. Strg+Umschalt+F5 beendet.");
+    }
+
     public void ShowRunningNotice() => _bar?.Message("Es läuft bereits eine Aufnahme.", true);
 
     public void Discard()
@@ -275,6 +309,7 @@ sealed class RecordingController
         if (_sounds) Tones.Stop();
         _tick.Stop();
         _hk?.Dispose();
+        _dict.Stop();
         _bar?.Message("Wird verarbeitet …");
         var rec = _rec;
         bool discard = _discard;
@@ -320,7 +355,15 @@ sealed class RecordingBar : Window
     readonly TextBlock _msg = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap };
     readonly Border _msgRow;
     readonly Button _privacy;
-    readonly TextBlock _pauseIcon = new(), _privacyIcon = new();
+    readonly TextBlock _pauseIcon = new(), _privacyIcon = new(), _dictIcon = new();
+    readonly Button _dictBtn;
+
+    /// <summary>Diktat-Anzeige: Mikrofon-Symbol rot, solange das Mikrofon offen ist.</summary>
+    public void SetDictation(bool on)
+    {
+        _dictIcon.Foreground = on ? RecRed : BarFg;
+        _dictBtn.ToolTip = on ? "Diktat läuft – klicken zum Beenden (Strg+Umschalt+F5)" : "Diktat: Gesprochenes wird offline zu Kommentaren (Strg+Umschalt+F5)";
+    }
     readonly DispatcherTimer _msgTimer = new() { Interval = TimeSpan.FromSeconds(6) };
     bool _dragged, _pulsing;
 
@@ -355,6 +398,7 @@ sealed class RecordingBar : Window
         var stop = B(Theme.IStop, "Aufnahme beenden (Strg+Umschalt+F10)", c.Stop, text: "Stopp");
         stop.Background = StopBg; stop.Foreground = Brushes.White; stop.Padding = new Thickness(10, 6, 12, 6); stop.Margin = new Thickness(3, 0, 1, 0);
         var comment = B(Theme.IComment, "Kommentar (Strg+Umschalt+F12)", c.Comment);
+        _dictBtn = B("\uE720", "Diktat: Gesprochenes wird offline zu Kommentaren (Strg+Umschalt+F5)", c.ToggleDictation, _dictIcon);
         var marker = B(Theme.IFlag, "Marker setzen (Strg+Umschalt+F7) – Rechtsklick: Art wählen", () => c.Marker("note"));
         var mm = new ContextMenu();
         foreach (var (k, n, g) in new[] { ("note", "Notiz", "Strg+Umschalt+F7"), ("error", "Fehler", "Strg+Umschalt+F1"), ("expected", "Erwartet", "Strg+Umschalt+F2"), ("important", "Wichtig", "") })
@@ -370,13 +414,13 @@ sealed class RecordingBar : Window
         Add("Letzte Eingabe schwärzen", "", c.RedactLastInput);
         Add("Marker mit Text …", "", () => { var d = new CommentWindow("Marker-Text"); if (d.ShowDialog() == true) c.Marker("important", d.Text); });
         Add("In den Infobereich minimieren", "Strg+Umschalt+F4", c.MinimizeToTray);
-        Add("Tastenkürzel …", "", () => Msg.Show("Tastenkürzel während der Aufnahme\n\nStrg+Umschalt+F9  Pause / Fortsetzen\nStrg+Umschalt+F10  Stopp\nStrg+Umschalt+F12  Kommentar\nStrg+Umschalt+F7  Marker\nStrg+Umschalt+F1  Marker „Fehler“\nStrg+Umschalt+F2  Marker „Erwartet“\nStrg+Umschalt+F11  Schnappschuss\nStrg+Umschalt+F8  Privattaste\nStrg+Umschalt+F6  Letzten Schritt verwerfen\nStrg+Umschalt+F4  Leiste ein/aus\n\nAlle Befehle gibt es auch per Rechtsklick auf das Symbol unten rechts im Infobereich der Taskleiste.", "Tastenkürzel"));
+        Add("Tastenkürzel …", "", () => Msg.Show("Tastenkürzel während der Aufnahme\n\nStrg+Umschalt+F9  Pause / Fortsetzen\nStrg+Umschalt+F10  Stopp\nStrg+Umschalt+F12  Kommentar\nStrg+Umschalt+F5  Diktat ein/aus\nStrg+Umschalt+F7  Marker\nStrg+Umschalt+F1  Marker „Fehler“\nStrg+Umschalt+F2  Marker „Erwartet“\nStrg+Umschalt+F11  Schnappschuss\nStrg+Umschalt+F8  Privattaste\nStrg+Umschalt+F6  Letzten Schritt verwerfen\nStrg+Umschalt+F4  Leiste ein/aus\n\nAlle Befehle gibt es auch per Rechtsklick auf das Symbol unten rechts im Infobereich der Taskleiste.", "Tastenkürzel"));
         menu.Items.Add(new Separator());
         Add("Aufnahme verwerfen …", "", c.Discard);
         more.Click += (_, _) => { menu.PlacementTarget = more; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var e in new UIElement[] { grip, status, countChip, Sep(), pause, stop, Sep(), comment, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
+        foreach (var e in new UIElement[] { grip, status, countChip, Sep(), pause, stop, Sep(), comment, _dictBtn, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
         _msgRow = new Border { Child = _msg, Padding = new Thickness(10, 4, 10, 4), Visibility = Visibility.Collapsed };
         _msg.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = row });
         Content = new Border
@@ -539,6 +583,7 @@ sealed class HiddenModeDialog : Window
         Row(K("privacy", "Ctrl+Shift+F8"), "Privattaste – Eingaben nicht speichern");
         Row(K("markerError", "Ctrl+Shift+F1"), "Fehlerstelle markieren");
         Row(K("comment", "Ctrl+Shift+F12"), "Kommentar");
+        Row(K("dictation", "Ctrl+Shift+F5"), "Diktat ein/aus (Mikrofon, offline)");
         body.Children.Add(keys);
         body.Children.Add(U.Text("Alternativ: Rechtsklick auf das Aufnahme-Symbol unten rechts im Infobereich der Taskleiste – dort gibt es alle Befehle als Menü.", 12.5, fg: Theme.Fg2, margin: new Thickness(0, 10, 0, 0)));
         body.Children.Add(_remember);

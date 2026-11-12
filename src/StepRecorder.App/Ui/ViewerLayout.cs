@@ -80,7 +80,7 @@ sealed partial class ViewerWindow
         var play = new Button { Style = Theme.Style("Ghost"), Content = U.Row(_playIcon, new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }), ToolTip = "Schritte nacheinander zeigen (F5)", Margin = new Thickness(2, 0, 2, 0) };
         play.Click += (_, _) => TogglePlay();
         var copy = MenuButton(Theme.ICopy, "Kopieren", "Bild oder Text dieses Schritts in die Zwischenablage", null, () => new (string, Action)[]
-            { ("Bild (Strg+C)", CopyImage), ("Bild mit Text (Strg+Umschalt+C)", CopyImageWithText), ("Nur Text (Strg+Umschalt+T)", CopyText), ("Als Markdown (Strg+M)", CopyMarkdown), ("Originalbild (Strg+Umschalt+O)", CopyOriginal), ("-", () => { }), ("Ganze Anleitung", CopyWholeGuide), ("Bild speichern … (Strg+Umschalt+S)", SaveImage) });
+            { ("Bild (Strg+C)", CopyImage), ("Bild mit Text (Strg+Umschalt+C)", CopyImageWithText), ("Nur Text (Strg+Umschalt+T)", CopyText), ("Als Markdown (Strg+M)", CopyMarkdown), ("Originalbild (Strg+Umschalt+O)", CopyOriginal), ("-", () => { }), ("Ganze Anleitung", CopyWholeGuide), ("Bild speichern … (Strg+Umschalt+S)", SaveImage), ("Kurzen Clip speichern (GIF) …", SaveClip) });
         var privacy = MenuButton(Theme.IShield, "Schwärzen", "Persönliche Daten aus Bildern und Texten entfernen", null, () => new (string, Action)[]
             { ("Persönliche Daten in Bildern suchen …", ScanImagesForPersonalData), ("Bereich im Bild schwärzen – Werkzeug X", () => SelectTool("redact")), ("Diesen Schritt schwärzen (Umschalt+Entf)", RedactStep), ("Text überall schwärzen …", RedactText), ("Werte verallgemeinern … (Strg+Umschalt+G)", Generalize), ("-", () => { }), ("Endgültig schwärzen …", FinalRedact) });
         var review = new Button { Style = Theme.Style("Ghost"), ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", Margin = new Thickness(2, 0, 2, 0) };
@@ -92,7 +92,7 @@ sealed partial class ViewerWindow
         var preview = new Button { Style = Theme.Style("Ghost"), Content = U.IconText(Theme.IEye, "Vorschau"), ToolTip = "Anleitung als HTML im Browser ansehen", Margin = new Thickness(2, 0, 2, 0) };
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
-            { ("Neue Aufnahme (Strg+N)", () => UiApp.Instance.ShowStart()), ("-", () => { }), ("Suchen und Ersetzen … (Strg+H)", ShowSearchReplace), ("Übersicht und Vollständigkeit", ShowOverview), ("Mit anderer Aufnahme vergleichen (F7)", Compare), ("-", () => { }), ("Alle Tastenkürzel", ShowShortcuts) });
+            { ("Neue Aufnahme (Strg+N)", () => UiApp.Instance.ShowStart()), ("-", () => { }), ("Suchen und Ersetzen … (Strg+H)", ShowSearchReplace), ("Aufräumen …", ShowCleanup), ("Übersicht und Vollständigkeit", ShowOverview), ("Mit anderer Aufnahme vergleichen (F7)", Compare), ("-", () => { }), ("Alle Tastenkürzel", ShowShortcuts) });
         var export = MenuButton(Theme.IExport, "Exportieren", "Als Anleitung, KI-Paket oder Skript speichern (Strg+E)", "Primary", () => new (string, Action)[]
             { ("HTML …", () => ShowExportDialog("html")), ("Markdown …", () => ShowExportDialog("md")), ("Word (DOCX) …", () => ShowExportDialog("docx")), ("PDF …", () => ShowExportDialog("pdf")), ("-", () => { }),
               ("KI-Paket …", () => ShowExportDialog("ki")), ("AutoHotkey-Skript …", () => ShowExportDialog("ahk")), ("Support-Paket (ZIP) …", StartSupportFlow) });
@@ -405,7 +405,7 @@ sealed partial class ViewerWindow
             meta.Children.Add(U.Row(U.Icon(KindIcon(s), 11, Theme.Muted), U.Text(KindLabel(s.Kind), 11.5, fg: Theme.Muted, margin: new Thickness(5, 0, 6, 2)), new TextBlock { Text = ShortTime(Fmt.Time(s.TFrom, "de")), FontFamily = Theme.Mono, FontSize = 10.5, Foreground = Theme.Muted, Margin = new Thickness(0, 1, 8, 2), VerticalAlignment = VerticalAlignment.Top }));
             if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
-            if (s.Hidden) meta.Children.Add(U.Chip("ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye));
+            if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
             if (s.Discarded) meta.Children.Add(U.Chip("verworfen", Theme.DangerSoft, Theme.Danger));
             if (s.Comments.Count > 0) meta.Children.Add(U.Chip(s.Comments.Count.ToString(), Theme.AccentSoft, Theme.AccentText, Theme.IComment));
             if (s.AuthorTitle != null || s.AuthorBody != null) meta.Children.Add(U.Chip("bearbeitet", Theme.Surface2, Theme.Muted, Theme.IEdit));
@@ -557,7 +557,7 @@ sealed partial class ViewerWindow
         {
         chips.Children.Add(U.Chip($"Schritt {s.Number}", Theme.Surface2, Theme.Fg2));
         chips.Children.Add(U.Chip(KindLabel(s.Kind), Theme.AccentSoft, Theme.AccentText, KindIcon(s)));
-        if (s.Hidden) chips.Children.Add(U.Chip("ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye));
+        if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; chips.Children.Add(hc); }
         var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => ("belegt", Theme.SuccessSoft, Theme.Success), "inputOnly" => ("nur Eingabe", Theme.WarnSoft, Theme.Warn), _ => ("unbekannt", Theme.Surface2, Theme.Muted) };
         var ev = U.Chip(evText, evBg, evFg, s.EvidenceLevel == "confirmed" ? Theme.ICheck : null);
         ev.ToolTip = s.EvidenceLevel switch { "confirmed" => "Die Wirkung der Aktion wurde beobachtet.", "inputOnly" => "Nur die Eingabe ist bekannt, eine Wirkung wurde nicht beobachtet.", _ => "Für diesen Schritt liegen keine Belege vor." };

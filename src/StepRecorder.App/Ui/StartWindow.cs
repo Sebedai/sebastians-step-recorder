@@ -65,7 +65,7 @@ sealed class StartWindow : Window
         // ---------- Begrüßung ----------
         var hello = new TextBlock { FontFamily = Theme.Display, FontSize = 28, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
         hello.Inlines.Add(new System.Windows.Documents.Run(Greeting() + " ") { FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg });
-        hello.Inlines.Add(new System.Windows.Documents.Run("Was möchten Sie festhalten?") { Foreground = Theme.Muted });
+        hello.Inlines.Add(new System.Windows.Documents.Run(Loc.T("Was möchten Sie festhalten?")) { Foreground = Theme.Muted });
         _stats.Margin = new Thickness(2, 8, 0, 0);
         var hero = U.Col(hello, _stats);
         hero.Margin = new Thickness(0, 0, 0, 20);
@@ -131,6 +131,7 @@ sealed class StartWindow : Window
         K("Beenden", HK("stop", "Ctrl+Shift+F10"));
         K("Fehlerstelle markieren", HK("markerError", "Ctrl+Shift+F1"));
         K("Kommentar", HK("comment", "Ctrl+Shift+F12"));
+        K("Diktat (Mikrofon)", HK("dictation", "Ctrl+Shift+F5"));
         K("Privattaste", HK("privacy", "Ctrl+Shift+F8"));
         var keysTab = U.Col(keyGrid, U.Text("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", 12, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)));
 
@@ -162,6 +163,15 @@ sealed class StartWindow : Window
         var foot = new DockPanel { Margin = new Thickness(2, 16, 0, 0) };
         var ver = U.Text($"Version {AppInfo.Version} · offline · kostenlos", 11.5, fg: Theme.Muted);
         DockPanel.SetDock(ver, Dock.Right); foot.Children.Add(ver);
+        var update = U.Btn(Theme.IGlobe, "Neue Version verfügbar", UpdateCheck.OpenReleases, "Release-Seite auf GitHub öffnen", "Link");
+        update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, 14, -4);
+        DockPanel.SetDock(update, Dock.Right); foot.Children.Add(update);
+        if (AppSettings.Load().CheckUpdates)
+            Loaded += async (_, _) =>
+            {
+                var r = await UpdateCheck.CheckAsync();
+                if (r.Newer) { update.Content = U.IconText(Theme.IGlobe, $"Version {r.Latest} verfügbar"); update.Visibility = Visibility.Visible; Anim.Appear(update); }
+            };
         var folderText = U.Text(folder, 11.5, fg: Theme.Muted, margin: new Thickness(6, 0, 12, 0)); folderText.TextWrapping = TextWrapping.NoWrap; folderText.TextTrimming = TextTrimming.CharacterEllipsis; folderText.ToolTip = folder;
         var folderRow = U.Row(U.Icon(Theme.IFolder, 12, Theme.Muted), folderText);
         if (AppPaths.LooksSynced(folder)) folderRow.Children.Add(U.Chip("synchronisierter Ordner", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
@@ -440,7 +450,7 @@ sealed class StartWindow : Window
             try { parts.Add("zuletzt " + Relative(Json.ParseUtc(last.Str("createdUtc")).ToLocalTime())); } catch { }
         parts.Add(AppSettings.Load().PrivacyLevel == "strict" ? "Schutz: streng" : "Passwortfelder werden maskiert");
         _stats.Inlines.Add(new System.Windows.Documents.Run("●  ") { Foreground = Theme.Success });
-        _stats.Inlines.Add(new System.Windows.Documents.Run(string.Join("   ·   ", parts)) { Foreground = Theme.Muted });
+        _stats.Inlines.Add(new System.Windows.Documents.Run(string.Join("   ·   ", parts.Select(Loc.T))) { Foreground = Theme.Muted });
 
         if (list.Count == 0)
         {
@@ -842,12 +852,23 @@ sealed class SettingsWindow : Window
             ToolTip = "Z. B. unter Windows Server 2019: Leiste und Rahmen bleiben ausgeblendet, gesteuert wird über Tastenkürzel und das Symbol im Infobereich." };
         var countdown = new ComboBox { Items = { "aus", "3 Sekunden", "5 Sekunden" }, SelectedIndex = s.Countdown >= 5 ? 2 : s.Countdown >= 3 ? 1 : 0 };
         var sounds = new ComboBox { Items = { "nur bei ausgeblendeter Anzeige", "immer", "nie" }, SelectedIndex = s.SoundCues switch { "always" => 1, "never" => 2, _ => 0 } };
+        var uiLang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.UiLanguage == "en" ? 1 : 0 };
+        var glossary = new TextBox { Text = string.Join(Environment.NewLine, s.Glossary), AcceptsReturn = true, Height = 74, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = 12.5,
+            ToolTip = "Eine Ersetzung je Zeile, z. B.  Text-Editor=Editor  oder  SAP Easy Access=SAP-Startseite" };
+        var cleanup = new CheckBox { Content = "Neue Aufnahmen beim ersten Öffnen aufräumen (doppelte Klicks, Klick vor der Eingabe, Fensterwechsel hin und zurück)", IsChecked = s.AutoCleanup, Margin = new Thickness(0, 8, 0, 0),
+            ToolTip = "Überflüssige Schritte werden nur ausgeblendet, nicht gelöscht – im Editor rückgängig mit Strg+Z oder über ⋯ › Aufräumen." };
+        var updates = new CheckBox { Content = "Beim Start nach einer neuen Version suchen", IsChecked = s.CheckUpdates, VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = "Fragt nur die öffentliche Release-Seite auf GitHub ab – ohne Kennung oder persönliche Daten. Heruntergeladen wird nichts." };
+        var checkNow = U.Btn(Theme.ISearch, "Jetzt suchen", () => _ = UpdateCheck.CheckInteractiveAsync(), "Einmalig auf GitHub nach einer neuen Version suchen", "Link");
+        checkNow.Margin = new Thickness(12, 0, 0, 0);
 
         // ---------- Reiter ----------
-        var general = Two(U.Field("Darstellung", theme, "Gilt ab dem nächsten Start."), U.Field("Sprache der Texte", lang),
-                          U.Field("Anrede in Anleitungen", address), new Border());
+        var general = U.Col(Two(U.Field("Darstellung", theme, "Gilt ab dem nächsten Start."), U.Field("Sprache der Oberfläche", uiLang, "Gilt ab dem nächsten Start."),
+                                U.Field("Sprache der Texte", lang), U.Field("Anrede in Anleitungen", address)),
+                            U.Field("Begriffe in automatischen Texten", glossary, "„Fundstelle=Ersatz“ je Zeile – z. B. für Firmenbegriffe oder sprechende Namen von Programmen."),
+                            U.Row(updates, checkNow));
         var recording = U.Col(Two(U.Field("Schutzstufe", level, "Was bei Eingaben maskiert wird."), U.Field("Countdown vor der Aufnahme", countdown, "Bei ausgeblendeter Anzeige mindestens 3 Sekunden."),
-                                  U.Field("Signaltöne", sounds, "Bei Start, Stopp, Pause und Markern."), new Border()), fallback);
+                                  U.Field("Signaltöne", sounds, "Bei Start, Stopp, Pause und Markern."), new Border()), fallback, cleanup);
         var custom = U.Col(U.Text("Gilt nur für den Modus „Eigene“ – die anderen Modi haben einen festen Detailgrad.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 10)),
                            RecordChoice.Build(rec, null), U.Field("Zusatzbilder ohne Eingabe", U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
         var storage = U.Col(U.Field("Aufnahmeordner", U.Col(folderRow, warn)),
@@ -877,6 +898,11 @@ sealed class SettingsWindow : Window
             s.Theme = newTheme;
             s.Countdown = countdown.SelectedIndex switch { 1 => 3, 2 => 5, _ => 0 };
             s.SoundCues = sounds.SelectedIndex switch { 1 => "always", 2 => "never", _ => "hidden" };
+            string newUi = uiLang.SelectedIndex == 1 ? "en" : "de";
+            if (newUi != s.UiLanguage) Msg.Show("Sprache der Oberfläche geändert\n\nDie neue Sprache gilt ab dem nächsten Start des Programms.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Information);
+            s.UiLanguage = newUi;
+            s.Glossary = glossary.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Contains('=') && x.Length > 2).ToList();
+            s.AutoCleanup = cleanup.IsChecked == true; s.CheckUpdates = updates.IsChecked == true;
             s.Excluded = excl.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             s.Save(); Close();
         }), U.Btn("Abbrechen", Close));
