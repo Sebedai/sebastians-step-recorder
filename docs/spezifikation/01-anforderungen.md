@@ -99,7 +99,7 @@ Jede Vorgabe des Auftraggebers ist mindestens einer Anforderung mit Abnahmekrite
 | V-18 | **Flexibel und trotzdem einfach** | NFA-013, BED-001–009 (Start in zwei Klicks), Leitprinzip 6 in [00](00-ueberblick.md#7-leitprinzipien) | Kernabläufe |
 | V-19 | Erkannte Passwortfelder immer maskieren; nicht erkennbare mit Schutznetz (Entscheidung) | NFA-010, DS-007–026 | T-07, DT-Prüfungen |
 | V-20 | Technologie C# / .NET + WPF | ARC-025, [02 §9](02-architektur.md) | Build |
-| V-21 | Öffentliches Projekt (Programm kostenlos, Quellcode einsehbar, siehe LICENSE) | NFA-017, NFA-019, NFA-020, [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | Release-Checkliste |
+| V-21 | Öffentliches Projekt unter CC BY-ND 4.0 (siehe LICENSE) | NFA-017, NFA-019, NFA-020, [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | Release-Checkliste |
 | V-22 | Kein KI-Aufruf im Tool, vollständig offline | NFA-011, ARC-029, DS-042 | T-12 |
 
 **Freigegebene Zusatzfunktionen** (vom Auftraggeber aus den Verbesserungsvorschlägen übernommen; alle Soll):

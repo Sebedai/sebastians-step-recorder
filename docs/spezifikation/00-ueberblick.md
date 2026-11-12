@@ -56,7 +56,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Kommentaren, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF |
 | Z6 | **Privatsphäre ab Werk** | Eingaben in erkannte Passwortfelder nie auf der Platte, kein Netzwerkzugriff, sichtbare Aufnahme |
 | Z7 | **Einfach im Normalfall, flexibel bei Bedarf** | Aufnahme mit einer Aktion, höchstens zwei Klicks; Aufnahmebereich und Darstellung frei wählbar |
-| Z8 | **Offen** | Kostenloses Programm, Quellcode einsehbar (nicht Open Source, siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
+| Z8 | **Offen** | Kostenloses Programm, Quellcode einsehbar unter CC BY-ND 4.0 (siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
 
 ## 4. Nicht-Ziele
 
@@ -104,7 +104,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Aufnahmen vergleichen, Abschnitte ersetzen | nein | teilweise | **ja** |
 | Persönliche Werte verallgemeinern | nein | nein | **ja** |
 | Support-Paket zum Zurückschicken | nein | nein | **ja**, ohne Versand durch das Programm |
-| Offen | nein | nein | **kostenlos, Quellcode einsehbar** |
+| Offen | nein | nein | **kostenlos, CC BY-ND 4.0** |
 
 ## 7. Leitprinzipien
 
@@ -151,7 +151,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | Abhängigkeiten | Nur freizügige Lizenzen (MIT, Apache-2.0, BSD) |
 | Netzwerk | Kein Netzwerkzugriff |
 | Sprache | Oberfläche Deutsch und Englisch; Datenformat-Bezeichner englisch; Spezifikation deutsch |
-| Lizenz des Projekts | Programm Freeware, Quellcode alle Rechte vorbehalten – siehe [LICENSE](../../LICENSE) |
+| Lizenz des Projekts | CC BY-ND 4.0 für Programm und Quellcode – siehe [LICENSE](../../LICENSE) |
 | Arbeitstitel | StepRecorder, `SebastiansStepRecorder.exe` |
 
 ## 10. Aufbau der Spezifikation

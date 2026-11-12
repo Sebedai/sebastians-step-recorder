@@ -49,7 +49,7 @@ static class Theme
         Bg = B("Bg"); Surface = B("Surface"); Surface2 = B("Surface2"); HoverBg = B("HoverBg"); Line = B("Line"); LineStrong = B("LineStrong");
         Fg = B("Fg"); Fg2 = B("Fg2"); Muted = B("Muted"); Accent = B("Accent"); AccentSoft = B("AccentSoft"); AccentText = B("AccentText"); OnAccent = B("OnAccent");
         Danger = B("Danger"); DangerSoft = B("DangerSoft"); Warn = B("Warn"); WarnSoft = B("WarnSoft"); Success = B("Success"); SuccessSoft = B("SuccessSoft");
-        CanvasBg = B("CanvasBg"); ScrollThumb = B("ScrollThumb"); B("AccentHover"); B("SegmentOn");
+        CanvasBg = B("CanvasBg"); ScrollThumb = B("ScrollThumb"); B("AccentHover"); B("SegmentOn"); B("FieldLine");
         AccentColor = ((SolidColorBrush)Accent).Color;
         app.Resources["ShadowOpacity"] = Dark ? 0.45 : 0.10;
         app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/SebastiansStepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
@@ -58,18 +58,18 @@ static class Theme
     // Eigene Linie: warmes Graphit statt Blaugrau, Signal-Orange als einzige Markenfarbe, Haarlinien statt Schatten.
     static readonly Dictionary<string, string> LightPalette = new()
     {
-        ["Bg"] = "#F5F4F0", ["Surface"] = "#FFFFFF", ["Surface2"] = "#EFEEE9", ["HoverBg"] = "#E9E7E1", ["Line"] = "#E3E1DA", ["LineStrong"] = "#CCC9BF",
-        ["Fg"] = "#171614", ["Fg2"] = "#46443E", ["Muted"] = "#7A776E", ["Accent"] = "#F2541B", ["AccentHover"] = "#DB4612", ["AccentSoft"] = "#FCEBE3",
-        ["AccentText"] = "#C2410C", ["OnAccent"] = "#FFFFFF", ["Danger"] = "#D6264A", ["DangerSoft"] = "#FBE8EC", ["Warn"] = "#A86400", ["WarnSoft"] = "#FBF1DC",
-        ["Success"] = "#2F7D4F", ["SuccessSoft"] = "#E5F2E8", ["CanvasBg"] = "#E7E5DF", ["ScrollThumb"] = "#C9C6BC", ["SegmentOn"] = "#FFFFFF"
+        ["Bg"] = "#F5F4F0", ["Surface"] = "#FFFFFF", ["Surface2"] = "#EFEEE9", ["HoverBg"] = "#E9E7E1", ["Line"] = "#D5D2C8", ["LineStrong"] = "#C2BEB3",
+        ["Fg"] = "#171614", ["Fg2"] = "#46443E", ["Muted"] = "#625F57", ["Accent"] = "#F2541B", ["AccentHover"] = "#F56B35", ["AccentSoft"] = "#FCEBE3",
+        ["AccentText"] = "#A93708", ["OnAccent"] = "#171614", ["Danger"] = "#B51D3D", ["DangerSoft"] = "#FBE8EC", ["Warn"] = "#875000", ["WarnSoft"] = "#FBF1DC",
+        ["Success"] = "#246640", ["SuccessSoft"] = "#E5F2E8", ["CanvasBg"] = "#E7E5DF", ["ScrollThumb"] = "#C9C6BC", ["FieldLine"] = "#8C887E", ["SegmentOn"] = "#FFFFFF"
     };
 
     static readonly Dictionary<string, string> DarkPalette = new()
     {
-        ["Bg"] = "#121211", ["Surface"] = "#191918", ["Surface2"] = "#20201E", ["HoverBg"] = "#282826", ["Line"] = "#2B2B28", ["LineStrong"] = "#3B3B37",
-        ["Fg"] = "#EDECE8", ["Fg2"] = "#BAB8B1", ["Muted"] = "#86847D", ["Accent"] = "#FF6A2B", ["AccentHover"] = "#FF7F47", ["AccentSoft"] = "#2E1C12",
+        ["Bg"] = "#121211", ["Surface"] = "#191918", ["Surface2"] = "#20201E", ["HoverBg"] = "#282826", ["Line"] = "#383733", ["LineStrong"] = "#45443F",
+        ["Fg"] = "#EDECE8", ["Fg2"] = "#BAB8B1", ["Muted"] = "#A09E96", ["Accent"] = "#FF6A2B", ["AccentHover"] = "#FF7F47", ["AccentSoft"] = "#2E1C12",
         ["AccentText"] = "#FF9461", ["OnAccent"] = "#141312", ["Danger"] = "#F0556E", ["DangerSoft"] = "#36181E", ["Warn"] = "#E9B14C", ["WarnSoft"] = "#30250F",
-        ["Success"] = "#62C28C", ["SuccessSoft"] = "#16291D", ["CanvasBg"] = "#0C0C0B", ["ScrollThumb"] = "#45443F", ["SegmentOn"] = "#2F2F2C"
+        ["Success"] = "#62C28C", ["SuccessSoft"] = "#16291D", ["CanvasBg"] = "#0C0C0B", ["ScrollThumb"] = "#45443F", ["FieldLine"] = "#75736C", ["SegmentOn"] = "#2F2F2C"
     };
 
     static string SettingTheme()

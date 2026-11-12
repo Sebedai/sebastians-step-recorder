@@ -14,34 +14,29 @@ using StepRecorder.Settings;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Startfenster („Dashboard“): Begrüßung, links „Neue Aufnahme“ in zwei Schritten (① Modus mit Detailgrad,
-/// ② Bereich – ein Klick startet), rechts zuletzt verwendete Aufnahmen mit Vorschaubild, Tastenkürzel und ein Tipp.
+/// Startfenster („Dashboard“): Begrüßung, links „Neue Aufnahme“ (① Modus, ② Bereich – ein Klick startet),
+/// rechts ein Kasten mit Reitern „Zuletzt“ und „Tastenkürzel“. Passt immer ins Fenster: Reicht der Platz nicht,
+/// wird der Inhalt gleichmäßig verkleinert statt gescrollt.
 /// </summary>
 sealed class StartWindow : Window
 {
     readonly RadioButton[] _profiles;
-    readonly TextBox _goal = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 60, MaxLength = 2000, VerticalContentAlignment = VerticalAlignment.Top, Tag = "z. B. Neuen Kontakt im Adressbuch anlegen" };
-    readonly TextBox _expected = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 60, MaxLength = 2000, VerticalContentAlignment = VerticalAlignment.Top, Tag = "z. B. Der Kontakt erscheint in der Liste" };
-    readonly TextBox _reference = new() { MaxLength = 200, Tag = "z. B. Ticketnummer" };
-    readonly TextBox _title = new() { MaxLength = 120, Tag = "sonst automatisch aus der Aufnahme" };
-    readonly Border _goalCard;
-    readonly ComboBox _monitor = new() { MinWidth = 210 };
+    string _goalText = "", _expectedText = "", _referenceText = "", _titleText = "";
+    readonly ComboBox _monitor = new() { MinWidth = 200 };
     readonly StackPanel _recent = new();
-    readonly TextBlock _stats = new() { FontFamily = Theme.Mono, FontSize = 11.5, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock _stats = new() { FontFamily = Theme.Mono, FontSize = 11.5, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
     static readonly string[] Ids = { "guide", "support", "aiTrace", "custom" };
     static readonly (string glyph, string name, string audience, string text)[] Modes =
     {
-        (Theme.IDoc, "Anleitung", "für Menschen", "Eine bebilderte Schritt-für-Schritt-Anleitung zum Nachmachen – schlank, ohne Mauswege, Zusatzbilder nur bei großen Änderungen."),
-        (Theme.IWrench, "Support-Fall", "für den Helpdesk", "Einen Fehler vorführen, damit der Helpdesk ihn nachvollziehen kann – mit allen Eingaben und erweitertem Programmkontext."),
-        (Theme.IRobot, "KI-Spur", "für KI und Skripte", "Ein Ablauf, den eine KI verstehen oder ein AutoHotkey-Skript wiederholen soll – alles, so genau wie möglich."),
-        (Theme.ISettings, "Eigene", "selbst festgelegt", "Sie bestimmen selbst, was und wie genau aufgezeichnet wird und was nach dem Stopp passiert."),
+        (Theme.IDoc, "Anleitung", "für Menschen", "Schlank – nur was Menschen zum Nachmachen brauchen."),
+        (Theme.IWrench, "Support-Fall", "für den Helpdesk", "Ausführlich – alle Eingaben, damit der Helpdesk den Fehler nachvollziehen kann."),
+        (Theme.IRobot, "KI-Spur", "für KI und Skripte", "Vollständig – so genau wie möglich, für KI-Assistenten und AutoHotkey."),
+        (Theme.ISettings, "Eigene", "selbst festgelegt", "Selbst festgelegt – „Einstellen …“ öffnet die Auswahl."),
     };
-    // Detailstreifen unter den Moduskarten
     readonly TextBlock _modeText = new() { TextWrapping = TextWrapping.Wrap, FontSize = 13, Foreground = Theme.Fg2 };
     readonly StackPanel _meter = new() { Orientation = Orientation.Horizontal };
     readonly WrapPanel _chips = new() { Margin = new Thickness(0, 10, 0, 0) };
-    Border _customCard = null!;
-    Button _recLink = null!;
+    Button _recLink = null!, _goalLink = null!;
     Border _strip = null!;
 
     int ProfileIndex => Math.Max(0, Array.FindIndex(_profiles, r => r.IsChecked == true));
@@ -51,61 +46,59 @@ sealed class StartWindow : Window
         Title = AppInfo.DisplayName;
         Theme.Prepare(this, Theme.Bg);
         var wa = Theme.ActiveWorkArea();
-        Width = Math.Min(1200, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.CanMinimize;
+        Width = Math.Min(1180, wa.Width - 24); Height = Math.Min(760, wa.Height - 24);
+        MinWidth = Math.Min(640, wa.Width - 24); MinHeight = Math.Min(460, wa.Height - 24);
+        WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.CanResize;
         AllowDrop = true;
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && Session.LooksLikeSession(f[0])) UiApp.Instance.OpenViewer(f[0]); };
         var s = AppSettings.Load();
 
         // ---------- Kopfleiste ----------
-        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 26) };
-        var actions = U.Row(U.Ghost(Theme.IOpen, "Öffnen", OpenSession, "Aufnahme öffnen (Strg+O) – oder einfach einen Aufnahmeordner hierher ziehen"), U.Ghost(Theme.ISettings, "Einstellungen", ShowSettings), U.Ghost(Theme.IHelp, "Hilfe", ShowHelp));
+        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 22) };
+        var actions = U.Row(U.Ghost(Theme.IOpen, "Öffnen", OpenSession, "Aufnahme öffnen (Strg+O) – oder einen Aufnahmeordner hierher ziehen"), U.Ghost(Theme.ISettings, "Einstellungen", ShowSettings), U.Ghost(Theme.IHelp, "Hilfe", ShowHelp));
         actions.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(actions, Dock.Right);
-        header.Children.Add(actions);
+        DockPanel.SetDock(actions, Dock.Right); header.Children.Add(actions);
         var logo = Theme.Logo(30); logo.Margin = new Thickness(0, 0, 12, 0);
         DockPanel.SetDock(logo, Dock.Left); header.Children.Add(logo);
-        var mark = Theme.Wordmark(17); header.Children.Add(mark);
+        header.Children.Add(Theme.Wordmark(17));
 
         // ---------- Begrüßung ----------
-        var hello = new TextBlock { FontFamily = Theme.Display, FontSize = 32, TextWrapping = TextWrapping.Wrap, LineHeight = 40 };
-        hello.Inlines.Add(new System.Windows.Documents.Run(Greeting()) { FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg });
-        hello.Inlines.Add(new System.Windows.Documents.LineBreak());
-        hello.Inlines.Add(new System.Windows.Documents.Run("Was möchten Sie heute festhalten?") { Foreground = Theme.Muted });
+        var hello = new TextBlock { FontFamily = Theme.Display, FontSize = 28, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        hello.Inlines.Add(new System.Windows.Documents.Run(Greeting() + " ") { FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg });
+        hello.Inlines.Add(new System.Windows.Documents.Run("Was möchten Sie festhalten?") { Foreground = Theme.Muted });
+        _stats.Margin = new Thickness(2, 8, 0, 0);
         var hero = U.Col(hello, _stats);
-        _stats.Margin = new Thickness(2, 12, 0, 0);
-        hero.Margin = new Thickness(0, 0, 0, 26);
+        hero.Margin = new Thickness(0, 0, 0, 20);
 
         // ---------- Neue Aufnahme: ① Modus ----------
         int sel = Math.Max(0, Array.IndexOf(Ids, s.LastProfile));
         var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(-5, 0, -5, 0) };
         _profiles = Modes.Select((m, i) => ModeCard(m.glyph, m.name, m.audience, i == sel)).ToArray();
+        for (int k = 0; k < _profiles.Length; k++) _profiles[k].ToolTip = $"{Modes[k].name} – {Modes[k].audience}\n{Modes[k].text}";
         foreach (var r in _profiles) { r.Margin = new Thickness(5, 0, 5, 0); modes.Children.Add(r); r.Checked += (_, _) => UpdateProfile(); }
-        _recLink = U.Btn(Theme.IEdit, "Anpassen …", CustomizeFromPreset, "Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen", "Link");
-        _recLink.Margin = new Thickness(0); _recLink.HorizontalAlignment = HorizontalAlignment.Right;
+        _recLink = U.Btn(Theme.IEdit, "Anpassen …", CustomizeFromPreset, null, "Link");
+        _recLink.Margin = new Thickness(0, 2, -6, 0); _recLink.HorizontalAlignment = HorizontalAlignment.Right;
+        var meterBox = U.Col(_meter, _recLink);
+        meterBox.Margin = new Thickness(20, 0, 0, 0);
+        meterBox.ToolTip = "Detailgrad: wie genau aufgezeichnet wird";
         var stripTop = new DockPanel();
-        var meterBox = U.Col(U.Overline("Detailgrad", new Thickness(0, 0, 0, 6)), _meter, _recLink);
-        meterBox.Margin = new Thickness(24, 0, 0, 0); meterBox.MinWidth = 150;
         DockPanel.SetDock(meterBox, Dock.Right); stripTop.Children.Add(meterBox); stripTop.Children.Add(_modeText);
-        var strip = _strip = new Border
+        _strip = new Border
         {
-            Background = Theme.Surface2, CornerRadius = new CornerRadius(7), Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 12, 0, 0),
-            Child = U.Col(stripTop, _chips, U.Text(DetailPresets.BaseRule() + " Passwortfelder werden in allen Modi maskiert.", 11.5, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)))
+            Background = Theme.Surface2, CornerRadius = new CornerRadius(7), Padding = new Thickness(16, 12, 16, 10), Margin = new Thickness(0, 10, 0, 0),
+            Child = U.Col(stripTop, _chips), ToolTip = DetailPresets.BaseRule() + " Passwortfelder werden in allen Modi maskiert."
         };
-        _customCard = BuildCustomCard();
-        _customCard.Margin = new Thickness(0, 12, 0, 0);
 
         // ---------- Neue Aufnahme: ② Bereich ----------
         _monitor.Items.Add("Monitor mit Aktivität"); _monitor.Items.Add("Alle Monitore");
         foreach (var m in ScreenGrabber.GetMonitors()) _monitor.Items.Add($"Monitor {m.Index + 1} · {m.Bounds.Width} × {m.Bounds.Height}{(m.Primary ? " · Hauptmonitor" : "")}");
         _monitor.SelectedIndex = 0;
         _monitor.ToolTip = "Welcher Bildschirm bei „Ganzer Bildschirm“ aufgenommen wird";
-        var goalToggle = U.Btn(Theme.IFlag, "Ziel und Titel", () => { }, "Optional: beschreibt, was die Aufnahme zeigen soll – für Menschen und für KI", "Link");
-        goalToggle.Click += (_, _) => _goalCard!.Visibility = _goalCard.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible;
-        var areaHead = new DockPanel { Margin = new Thickness(0, 22, 0, 12) };
-        var areaOpts = U.Row(_monitor, goalToggle); areaOpts.VerticalAlignment = VerticalAlignment.Center;
+        _goalLink = U.Btn(Theme.IFlag, "Ziel und Titel …", ShowGoalDialog, "Optional: was die Aufnahme zeigen soll – hilft Menschen und KI beim Verstehen", "Link");
+        var areaHead = new DockPanel { Margin = new Thickness(0, 18, 0, 10) };
+        var areaOpts = U.Row(_monitor, _goalLink); areaOpts.VerticalAlignment = VerticalAlignment.Center;
         DockPanel.SetDock(areaOpts, Dock.Right); areaHead.Children.Add(areaOpts);
-        areaHead.Children.Add(StepLabel("2", "Was soll aufgenommen werden?", "Ein Klick startet die Aufnahme."));
+        areaHead.Children.Add(StepLabel("2", "Was soll aufgenommen werden?"));
 
         var tiles = new Grid();
         tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
@@ -115,31 +108,13 @@ sealed class StartWindow : Window
         tiles.ColumnDefinitions.Add(new ColumnDefinition());
         void Place(UIElement e, int col) { Grid.SetColumn(e, col); tiles.Children.Add(e); }
         Place(StartTile(), 0);
-        Place(Tile(Theme.IApp, "Eine Anwendung", "Nur die Fenster eines Programms", "danach Fenster anklicken", () => Begin(ScopeMode.App)), 2);
-        Place(Tile(Theme.ICrop, "Bereich", "Ein fester Ausschnitt", "danach Rechteck aufziehen", () => Begin(ScopeMode.Region)), 4);
+        Place(Tile(Theme.IApp, "Eine Anwendung", "danach Fenster anklicken", "Nur die Fenster eines Programms aufnehmen – alles andere bleibt außen vor", () => Begin(ScopeMode.App)), 2);
+        Place(Tile(Theme.ICrop, "Bereich", "danach Rechteck aufziehen", "Einen festen Ausschnitt des Bildschirms aufnehmen", () => Begin(ScopeMode.Region)), 4);
 
-        var goalGrid = new Grid();
-        goalGrid.ColumnDefinitions.Add(new ColumnDefinition()); goalGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); goalGrid.ColumnDefinitions.Add(new ColumnDefinition());
-        goalGrid.RowDefinitions.Add(new RowDefinition()); goalGrid.RowDefinitions.Add(new RowDefinition());
-        void G(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); goalGrid.Children.Add(e); }
-        G(U.Field("Was wird gezeigt?", _goal), 0, 0); G(U.Field("Erwartetes Ergebnis", _expected), 0, 2);
-        G(U.Field("Bezug", _reference, margin: new Thickness(0)), 1, 0); G(U.Field("Titel der Aufnahme", _title, margin: new Thickness(0)), 1, 2);
-        _goalCard = new Border
-        {
-            BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(0, 16, 0, 0), Margin = new Thickness(0, 18, 0, 0), Visibility = Visibility.Collapsed,
-            Child = U.Col(U.Text("Ziel der Aufnahme", 14, true, margin: new Thickness(0, 0, 0, 2)),
-                U.Text("Optional. Hilft beim Verstehen der Aufnahme – für Menschen und für KI.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 14)), goalGrid)
-        };
+        var stepOne = StepLabel("1", "Wofür ist die Aufnahme?"); stepOne.Margin = new Thickness(0, 0, 0, 10);
+        var main = Panel("Neue Aufnahme", Theme.IRecord, U.Col(stepOne, modes, _strip, areaHead, tiles), null);
 
-        var newRec = U.Col(StepLabel("1", "Wofür ist die Aufnahme?", "Der Modus legt fest, wie genau aufgezeichnet wird."), modes, strip, _customCard, areaHead, tiles, _goalCard);
-        ((FrameworkElement)newRec.Children[0]).Margin = new Thickness(0, 0, 0, 12);
-        var main = Panel("Neue Aufnahme", Theme.IRecord, newRec, null);
-
-        // ---------- Seitenleiste ----------
-        var openFolder = U.Btn(Theme.IFolder, "Ordner", () => { var d = AppPaths.DefaultSessionsFolder(); Directory.CreateDirectory(d); Process.Start("explorer.exe", $"\"{d}\""); }, "Aufnahmeordner im Explorer öffnen", "Link");
-        openFolder.Margin = new Thickness(0);
-        var recentPanel = Panel("Zuletzt verwendet", Theme.IHistory, _recent, openFolder);
-
+        // ---------- Seitenkasten mit Reitern ----------
         var hk = s.Hotkeys;
         string HK(string key, string def) => De(hk.GetValueOrDefault(key, def));
         var keyGrid = new Grid();
@@ -157,48 +132,50 @@ sealed class StartWindow : Window
         K("Fehlerstelle markieren", HK("markerError", "Ctrl+Shift+F1"));
         K("Kommentar", HK("comment", "Ctrl+Shift+F12"));
         K("Privattaste", HK("privacy", "Ctrl+Shift+F8"));
-        var keysNote = U.Text("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", 11.5, fg: Theme.Muted, margin: new Thickness(0, 8, 0, 0));
-        var keysPanel = Panel("Während der Aufnahme", Theme.IKeyboard, U.Col(keyGrid, keysNote), null);
+        var keysTab = U.Col(keyGrid, U.Text("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", 12, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)));
 
-        var tipPanel = TipPanel();
-
-        var side = U.Col(recentPanel, keysPanel, tipPanel);
-        recentPanel.Margin = keysPanel.Margin = new Thickness(0, 0, 0, 14);
+        var (tabTrack, tabs) = U.Segmented("stab", 0, (Theme.IHistory, "Zuletzt"), (Theme.IKeyboard, "Tastenkürzel"));
+        var openFolder = U.Btn(Theme.IFolder, null, () => { var d = AppPaths.DefaultSessionsFolder(); Directory.CreateDirectory(d); Process.Start("explorer.exe", $"\"{d}\""); }, "Aufnahmeordner im Explorer öffnen", "Ghost");
+        openFolder.Margin = new Thickness(0);
+        var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
+        DockPanel.SetDock(openFolder, Dock.Right); sideHead.Children.Add(openFolder); sideHead.Children.Add(tabTrack);
+        var tabHost = new Grid();
+        tabHost.Children.Add(_recent); tabHost.Children.Add(keysTab);
+        keysTab.Visibility = Visibility.Hidden;   // „Hidden“ statt „Collapsed“: beide Reiter gleich hoch, nichts springt
+        tabs[0].Checked += (_, _) => { _recent.Visibility = Visibility.Visible; keysTab.Visibility = Visibility.Hidden; Anim.Refresh(_recent); };
+        tabs[1].Checked += (_, _) => { _recent.Visibility = Visibility.Hidden; keysTab.Visibility = Visibility.Visible; Anim.Refresh(keysTab); };
+        var side = new Border
+        {
+            Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
+            Padding = new Thickness(18, 16, 18, 16), Child = U.Col(sideHead, tabHost), VerticalAlignment = VerticalAlignment.Top
+        };
 
         var columns = new Grid();
-        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.75, GridUnitType.Star) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.1, GridUnitType.Star) });
         columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
-        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
-        columns.RowDefinitions.Add(new RowDefinition()); columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 290 });
         columns.Children.Add(main);
         Grid.SetColumn(side, 2); columns.Children.Add(side);
-        // schmale Fenster: Seitenleiste unter die Aufnahme
-        SizeChanged += (_, _) =>
-        {
-            bool narrow = ActualWidth < 1000;
-            Grid.SetColumn(side, narrow ? 0 : 2); Grid.SetRow(side, narrow ? 1 : 0); Grid.SetColumnSpan(side, narrow ? 3 : 1);
-            Grid.SetColumnSpan(main, narrow ? 3 : 1);
-            side.Margin = new Thickness(0, narrow ? 18 : 0, 0, 0);
-            modes.Columns = ActualWidth < 760 ? 2 : 4;
-        };
 
         // ---------- Fuß ----------
         string folder = AppPaths.DefaultSessionsFolder();
-        var foot = new WrapPanel { Margin = new Thickness(2, 18, 0, 0) };
-        var folderText = U.Text(folder, 11.5, fg: Theme.Muted, margin: new Thickness(6, 1, 8, 4)); folderText.TextWrapping = TextWrapping.NoWrap; folderText.TextTrimming = TextTrimming.CharacterEllipsis; folderText.MaxWidth = 620; folderText.ToolTip = folder;
-        foot.Children.Add(U.Row(U.Icon(Theme.IFolder, 12, Theme.Muted), folderText));
-        if (AppPaths.LooksSynced(folder)) foot.Children.Add(U.Chip("synchronisierter Ordner", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
-        foot.Children.Add(U.Text($"Version {AppInfo.Version} · offline · ohne Installation", 11.5, fg: Theme.Muted, margin: new Thickness(10, 1, 0, 4)));
+        var foot = new DockPanel { Margin = new Thickness(2, 16, 0, 0) };
+        var ver = U.Text($"Version {AppInfo.Version} · offline · kostenlos", 11.5, fg: Theme.Muted);
+        DockPanel.SetDock(ver, Dock.Right); foot.Children.Add(ver);
+        var folderText = U.Text(folder, 11.5, fg: Theme.Muted, margin: new Thickness(6, 0, 12, 0)); folderText.TextWrapping = TextWrapping.NoWrap; folderText.TextTrimming = TextTrimming.CharacterEllipsis; folderText.ToolTip = folder;
+        var folderRow = U.Row(U.Icon(Theme.IFolder, 12, Theme.Muted), folderText);
+        if (AppPaths.LooksSynced(folder)) folderRow.Children.Add(U.Chip("synchronisierter Ordner", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
+        foot.Children.Add(folderRow);
 
-        var root = new StackPanel { Margin = new Thickness(36, 22, 36, 22) };
-        root.Children.Add(header);
-        root.Children.Add(hero);
-        root.Children.Add(columns);
-        root.Children.Add(foot);
-        Content = Anim.WithAmbientGlow(new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, Theme.AccentColor);
-        // gestaffeltes Erscheinen
-        Anim.Appear(header, 0, 6); Anim.Appear(hero, 70, 12); Anim.Appear(main, 170, 14);
-        Anim.Appear(recentPanel, 250, 14); Anim.Appear(keysPanel, 320, 14); Anim.Appear(tipPanel, 390, 14); Anim.Appear(foot, 450, 6);
+        var root = new StackPanel { Margin = new Thickness(32, 20, 32, 18) };
+        root.Children.Add(header); root.Children.Add(hero); root.Children.Add(columns); root.Children.Add(foot);
+        // immer ganz sichtbar: Breite folgt dem Fenster, bei zu wenig Platz wird gleichmäßig verkleinert
+        var fit = new Viewbox { Child = root, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
+        var host = new Grid(); host.Children.Add(fit);
+        host.SizeChanged += (_, e) => root.Width = Math.Max(1000, e.NewSize.Width);
+        Content = Anim.WithAmbientGlow(host, Theme.AccentColor);
+
+        Anim.Appear(header, 0, 6); Anim.Appear(hero, 70, 12); Anim.Appear(main, 160, 14); Anim.Appear(side, 240, 14); Anim.Appear(foot, 320, 6);
         UpdateProfile();
         FillRecent();
         PreviewKeyDown += (_, e) =>
@@ -206,7 +183,7 @@ sealed class StartWindow : Window
             if (e.Key == Key.Enter && !(Keyboard.FocusedElement is TextBox or Button or ComboBox)) { Begin(ScopeMode.Screen); e.Handled = true; }
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control) { OpenSession(); e.Handled = true; }
         };
-        Activated += (_, _) => { if (ProfileIndex == 3) RefreshCustomCard(); UpdateProfile(); FillRecent(); };
+        Activated += (_, _) => { UpdateProfile(); FillRecent(); };
     }
 
     // =====================================================================================
@@ -231,7 +208,7 @@ sealed class StartWindow : Window
 
     [DllImport("secur32.dll", CharSet = CharSet.Unicode)] static extern bool GetUserNameEx(int format, System.Text.StringBuilder name, ref int size);
 
-    /// <summary>Weiße Fläche mit Kopf (Symbol, Titel, optional rechts eine Aktion).</summary>
+    /// <summary>Fläche mit Kopf (Symbol, Titel, optional rechts eine Aktion).</summary>
     static Border Panel(string title, string glyph, UIElement body, FrameworkElement? action)
     {
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
@@ -247,43 +224,39 @@ sealed class StartWindow : Window
         };
     }
 
-    /// <summary>„① Titel“ mit Unterzeile – Schritt innerhalb von „Neue Aufnahme“.</summary>
-    static FrameworkElement StepLabel(string n, string title, string sub)
+    /// <summary>„① Titel“ – Schritt innerhalb von „Neue Aufnahme“.</summary>
+    static FrameworkElement StepLabel(string n, string title)
     {
-        var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = Theme.AccentSoft, Margin = new Thickness(0, 1, 10, 0), VerticalAlignment = VerticalAlignment.Top,
+        var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = Theme.AccentSoft, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center,
             Child = new TextBlock { Text = n, FontFamily = Theme.Mono, FontSize = 11.5, FontWeight = FontWeights.SemiBold, Foreground = Theme.AccentText, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-        var t = U.Text(title, 14.5, true);
-        var d = new DockPanel();
-        DockPanel.SetDock(num, Dock.Left); d.Children.Add(num);
-        d.Children.Add(U.Col(t, U.Text(sub, 12, fg: Theme.Muted, margin: new Thickness(0, 1, 0, 0))));
-        return d;
+        var t = U.Text(title, 14.5, true); t.VerticalAlignment = VerticalAlignment.Center;
+        return U.Row(num, t);
     }
 
-    /// <summary>Kompakte Moduskarte: Symbol, Name, Zielgruppe (Auswahl mit Haken).</summary>
+    /// <summary>Kompakte Moduskarte: Symbol links, Name und Zielgruppe rechts (Auswahl mit Haken).</summary>
     static RadioButton ModeCard(string glyph, string title, string audience, bool selected)
     {
-        var name = U.Text(title, 14.5, true); name.FontFamily = Theme.Display; name.TextWrapping = TextWrapping.NoWrap;
-        var col = U.Col(U.IconBadge(glyph, 30, Theme.Surface2, Theme.Fg2, 14), name, U.Text(audience, 11.5, fg: Theme.Muted));
-        ((FrameworkElement)col.Children[0]).HorizontalAlignment = HorizontalAlignment.Left;
-        name.Margin = new Thickness(0, 10, 0, 0);
-        return new RadioButton { GroupName = "purpose", Style = Theme.Style("PurposeCard"), Content = col, IsChecked = selected, VerticalContentAlignment = VerticalAlignment.Top, Padding = new Thickness(14, 12, 14, 12) };
+        var name = U.Text(title, 14, true); name.FontFamily = Theme.Display; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
+        var text = U.Col(name); text.Margin = new Thickness(9, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center;
+        var row = new DockPanel();
+        var badge = U.IconBadge(glyph, 28, Theme.Surface2, Theme.Fg2, 13);
+        DockPanel.SetDock(badge, Dock.Left); row.Children.Add(badge); row.Children.Add(text);
+        return new RadioButton { GroupName = "purpose", Style = Theme.Style("PurposeCard"), Content = row, IsChecked = selected, VerticalContentAlignment = VerticalAlignment.Top, Padding = new Thickness(12, 11, 10, 11) };
     }
 
     /// <summary>Hauptkachel: ganzer Bildschirm – deutlich hervorgehoben, Eingabetaste startet.</summary>
     Button StartTile()
     {
         var icon = U.Icon(Theme.IMonitor, 22, Theme.OnAccent); icon.HorizontalAlignment = HorizontalAlignment.Left;
-        var head = U.Text("Ganzer Bildschirm", 17, true, Theme.OnAccent, new Thickness(0, 12, 0, 2)); head.FontFamily = Theme.Display;
-        var sub = U.Text("Aufnahme starten", 12.5, fg: Theme.OnAccent); sub.Opacity = 0.85;
-        var hint = U.Row(U.Kbd("Eingabe", new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)), Theme.OnAccent, new SolidColorBrush(Color.FromArgb(90, 255, 255, 255))), U.Text("startet sofort", 11.5, fg: Theme.OnAccent, margin: new Thickness(4, 0, 0, 0)));
-        ((FrameworkElement)hint.Children[1]).Opacity = 0.85; ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
-        hint.Margin = new Thickness(0, 12, 0, 0);
-        // Verlauf in der Akzentfarbe mit weichem Leuchten; beim Überfahren etwas heller
+        var head = U.Text("Ganzer Bildschirm", 17, true, Theme.OnAccent, new Thickness(0, 10, 0, 2)); head.FontFamily = Theme.Display;
+        var hint = U.Row(U.Kbd("Eingabe", new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)), Theme.OnAccent, new SolidColorBrush(Color.FromArgb(90, 255, 255, 255))), U.Text("Aufnahme starten", 12.5, fg: Theme.OnAccent, margin: new Thickness(6, 0, 0, 0)));
+        ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
+        hint.Margin = new Thickness(0, 6, 0, 0);
         var ac = Theme.AccentColor;
         Color Mix(Color c, double t) => Color.FromRgb((byte)(c.R + (255 - c.R) * t), (byte)(c.G + (255 - c.G) * t), (byte)(c.B + (255 - c.B) * t));
         var rest = new LinearGradientBrush(ac, Mix(ac, 0.22), new Point(0, 1), new Point(1, 0));
         var hot = new LinearGradientBrush(Mix(ac, 0.08), Mix(ac, 0.32), new Point(0, 1), new Point(1, 0));
-        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, sub, hint), Background = rest, BorderBrush = Brushes.Transparent, Foreground = Theme.OnAccent, MinHeight = 132, ToolTip = "Ganzen Bildschirm aufnehmen (Eingabe)" };
+        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, hint), Background = rest, BorderBrush = Brushes.Transparent, Foreground = Theme.OnAccent, MinHeight = 108, Padding = new Thickness(18, 14, 18, 14), ToolTip = "Alles auf dem Monitor, auf dem gerade gearbeitet wird (Eingabetaste)" };
         b.MouseEnter += (_, _) => b.Background = hot;
         b.MouseLeave += (_, _) => b.Background = rest;
         Anim.Glow(b, ac, 0.28, 0.55, 34);
@@ -291,30 +264,13 @@ sealed class StartWindow : Window
         return b;
     }
 
-    static Button Tile(string glyph, string title, string sub, string hint, Action click)
+    static Button Tile(string glyph, string title, string hint, string tip, Action click)
     {
         var icon = U.Icon(glyph, 22, Theme.Fg2); icon.HorizontalAlignment = HorizontalAlignment.Left;
-        var head = U.Text(title, 15.5, true, margin: new Thickness(0, 12, 0, 2)); head.FontFamily = Theme.Display;
-        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, U.Text(sub, 12.5, fg: Theme.Fg2), U.Text(hint, 11.5, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0))), MinHeight = 132, Background = Theme.Surface };
+        var head = U.Text(title, 15.5, true, margin: new Thickness(0, 10, 0, 2)); head.FontFamily = Theme.Display;
+        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, U.Text(hint, 12, fg: Theme.Muted)), MinHeight = 108, Background = Theme.Surface, Padding = new Thickness(18, 14, 18, 14), ToolTip = tip };
         b.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
         return b;
-    }
-
-    /// <summary>Tipp-Karte (wechselt bei jedem Öffnen) bzw. „Erste Schritte“, solange es keine Aufnahme gibt.</summary>
-    static Border TipPanel()
-    {
-        string[] tips =
-        {
-            "Im Editor werden aus Schritten mit Kapiteln, Hinweiskästen und Deckblatt fertige Bedienungsanleitungen – als PDF, Word, HTML oder GIF.",
-            "Ziehen Sie einen Aufnahmeordner einfach auf dieses Fenster, um ihn zu öffnen.",
-            "Mit der Privattaste Strg+Umschalt+F8 werden Eingaben nur gezählt, nicht gespeichert – praktisch für Kennwörter in Terminals.",
-            "Im Editor sucht „Schwärzen › Persönliche Daten in Bildern suchen“ E-Mail-Adressen, IBANs und Telefonnummern in allen Bildern.",
-            "Vorlagen im Reiter „Dokument“ merken sich Logo, Farbe und Fußzeile – neue Anleitungen sehen sofort nach Ihrer Firma aus.",
-            "Mit „DE | EN“ über dem Bild pflegen Sie deutsche und englische Texte – aus einer Aufnahme werden zwei Anleitungen.",
-            "Strg+Klick in der Schrittliste wählt mehrere Schritte – dann lassen sich alle gemeinsam ausblenden oder umstellen.",
-        };
-        var tip = tips[DateTime.Now.Second % tips.Length];
-        return Panel("Tipp", Theme.IInfo, U.Text(tip, 12.5, fg: Theme.Fg2), null);
     }
 
     /// <summary>Detailgrad als vier Balken plus Bezeichnung.</summary>
@@ -326,7 +282,7 @@ sealed class StartWindow : Window
         target.Children.Add(U.Text(label, 12.5, true, Theme.Fg, new Thickness(8, 0, 0, 1)));
     }
 
-    /// <summary>Was wird aufgezeichnet – als kurze Chips.</summary>
+    /// <summary>Was wird aufgezeichnet – als kurze Chips (Einzelheiten im Tooltip).</summary>
     static void DetailChips(WrapPanel target, ICollection<string> off, string changeFrames, bool appContext)
     {
         target.Children.Clear();
@@ -334,15 +290,15 @@ sealed class StartWindow : Window
         void C(string text, bool on, string tip)
         {
             var c = on ? U.Chip(text, Theme.Surface, Theme.Fg2, Theme.ICheck) : U.Chip(text, Brushes.Transparent, Theme.Muted);
-            c.Margin = new Thickness(0, 0, 6, 6); c.Padding = new Thickness(8, 3, 9, 4); c.ToolTip = tip;
+            c.Margin = new Thickness(0, 0, 6, 4); c.Padding = new Thickness(8, 3, 9, 4); c.ToolTip = tip;
             if (!on) { c.BorderBrush = Theme.LineStrong; c.BorderThickness = new Thickness(1); }
             target.Children.Add(c);
         }
-        C("Klicks und Scrollen", On("clicks", "wheel"), "Mausklicks mit Bild und angeklicktem Element, Scrollen");
-        C(On("typing", "hotkeys", "keys") ? "Texteingaben und Tasten" : "ohne Tastatur", On("typing", "hotkeys", "keys"), "Getippter Text, Tastenkombinationen und Einzeltasten (Passwortfelder immer maskiert)");
-        C(On("moves") ? "Mauswege" : "ohne Mauswege", On("moves"), "Mausbewegungen und Verweilen über Elementen – nützlich für KI und Fehlersuche, für Anleitungen meist überflüssig");
-        C("Zusatzbilder: " + char.ToLower(DetailPresets.ChangeFramesName(changeFrames)[0]) + DetailPresets.ChangeFramesName(changeFrames)[1..], true, DetailPresets.ChangeFramesRule(changeFrames));
-        C(appContext ? "Erweiterter Programmkontext" : "Basis-Kontext", true, appContext
+        C("Klicks", On("clicks", "wheel"), "Mausklicks mit Bild und angeklicktem Element, Scrollen");
+        C(On("typing", "hotkeys", "keys") ? "Tastatur" : "ohne Tastatur", On("typing", "hotkeys", "keys"), "Getippter Text, Tastenkombinationen und Einzeltasten (Passwortfelder immer maskiert)");
+        C(On("moves") ? "Mauswege" : "ohne Mauswege", On("moves"), "Mausbewegungen und Verweilen über Elementen – nützlich für KI und Fehlersuche");
+        C("Zusatzbilder: " + char.ToLower(DetailPresets.ChangeFramesName(changeFrames)[0]) + DetailPresets.ChangeFramesName(changeFrames)[1..], true, DetailPresets.ChangeFramesRule(changeFrames) + "\n" + DetailPresets.BaseRule());
+        C(appContext ? "Programmkontext erweitert" : "Programmkontext Basis", true, appContext
             ? "Zusätzlich Menüpfade, Listen, Explorer-Ordner, Browser-Adresse, Office-Dokument, Statusleiste – für AutoHotkey und KI"
             : "Fenster und angeklicktes Element – reicht für Anleitungen");
     }
@@ -357,67 +313,93 @@ sealed class StartWindow : Window
 
     void UpdateCustomCard() { if (_profiles != null && ProfileIndex == 3) UpdateProfile(); }
 
-    /// <summary>Einstellungen des Modus „Eigene“: Eingabearten, Zusatzbilder, Programmkontext, nach dem Stopp.</summary>
-    Border BuildCustomCard()
+    /// <summary>Inhalt „Eigener Detailgrad“: Eingabearten, Zusatzbilder, Programmkontext, nach dem Stopp.</summary>
+    internal FrameworkElement BuildCustomContent()
     {
         var st = AppSettings.Load();
         void Save(Action<AppSettings> change) { var x = AppSettings.Load(); change(x); x.Save(); UpdateCustomCard(); }
         var col = new StackPanel();
-        col.Children.Add(U.Text("Eigener Detailgrad", 14, true, margin: new Thickness(0, 0, 0, 2)));
-        col.Children.Add(U.Text("Wird gespeichert und gilt für den Modus „Eigene“. Ausgeschaltetes wird gar nicht erst aufgezeichnet; das Protokoll vermerkt, was fehlt.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 12)));
+        col.Children.Add(U.Text("Wird gespeichert und gilt für den Modus „Eigene“. Ausgeschaltetes wird gar nicht erst aufgezeichnet.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 12)));
         col.Children.Add(RecordChoice.Build(st.Record, () => Save(x => x.Record = new Dictionary<string, bool>(st.Record))));
-
         var grid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
         for (int i = 0; i < 3; i++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 1 ? new GridLength(24) : new GridLength(1, GridUnitType.Star) });
         int cf = st.ChangeFrames switch { "few" => 0, "many" => 2, _ => 1 };
         var (cfTrack, cfs) = U.Segmented("cfr", cf, (null, "Nur große"), (null, "Auch kleine"), (null, "Jede Änderung"));
         var cfHint = U.Text(DetailPresets.ChangeFramesRule(st.ChangeFrames), 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0));
         for (int i = 0; i < 3; i++) { string v = new[] { "few", "normal", "many" }[i]; cfs[i].Checked += (_, _) => { cfHint.Text = DetailPresets.ChangeFramesRule(v); Save(x => x.ChangeFrames = v); }; }
-        var left = U.Field("Zusatzbilder ohne Eingabe", U.Col(cfTrack, cfHint, U.Text(DetailPresets.BaseRule(), 11.5, fg: Theme.Muted, margin: new Thickness(0, 4, 0, 0))));
-        var ctx = new CheckBox { Content = "Erweiterter Programmkontext", IsChecked = st.CustomAppContext, Margin = new Thickness(0, 4, 0, 0) };
+        var left = U.Field("Zusatzbilder ohne Eingabe", U.Col(cfTrack, cfHint));
+        var ctx = new CheckBox { Content = "Erweiterter Programmkontext", IsChecked = st.CustomAppContext, Margin = new Thickness(0, 4, 0, 0), ToolTip = "Menüpfade, Listen, Explorer-Ordner, Browser-Adresse, Office-Dokument und Statusleiste – nötig für gute AutoHotkey-Skripte" };
         ctx.Checked += (_, _) => Save(x => x.CustomAppContext = true); ctx.Unchecked += (_, _) => Save(x => x.CustomAppContext = false);
         var after = new ComboBox { MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left };
         foreach (var a in AfterStops) after.Items.Add(a.name);
         after.SelectedIndex = Math.Max(0, Array.FindIndex(AfterStops, a => a.id == st.CustomAfterStop));
         after.SelectionChanged += (_, _) => { string id = AfterStops[Math.Max(0, after.SelectedIndex)].id; Save(x => x.CustomAfterStop = id); };
-        var right = U.Col(U.Field("Programmkontext", ctx, "Menüpfade, Listen, Explorer-Ordner, Browser-Adresse, Office-Dokument und Statusleiste – nötig für gute AutoHotkey-Skripte."),
-            U.Field("Nach dem Stopp", after, margin: new Thickness(0)));
+        var right = U.Col(U.Field("Programmkontext", ctx), U.Field("Nach dem Stopp", after, margin: new Thickness(0)));
         Grid.SetColumn(left, 0); Grid.SetColumn(right, 2);
         grid.Children.Add(left); grid.Children.Add(right);
         col.Children.Add(grid);
-        var card = new Border { BorderBrush = Theme.Accent, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(16, 14, 16, 14), Child = col };
-        card.Visibility = ProfileIndexSafe() == 3 ? Visibility.Visible : Visibility.Collapsed;
-        return card;
+        return col;
     }
 
-    /// <summary>Inhalt der Einstellkarte neu aufbauen (Einstellungen können sich außerhalb geändert haben).</summary>
-    void RefreshCustomCard()
+    void ShowCustomDialog()
     {
-        var fresh = BuildCustomCard();
-        var child = fresh.Child; fresh.Child = null;
-        _customCard.Child = child;
+        var w = new Window { Title = "Eigener Detailgrad", Width = Math.Min(760, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        Theme.Prepare(w, Theme.Surface);
+        U.Dialog(w, "Eigener Detailgrad", BuildCustomContent(), U.Primary("Fertig", () => w.Close()));
+        w.ShowDialog();
+        UpdateProfile();
     }
 
-    int ProfileIndexSafe() => _profiles == null ? Math.Max(0, Array.IndexOf(Ids, AppSettings.Load().LastProfile)) : ProfileIndex;
+    /// <summary>„Ziel und Titel“: optionale Angaben zur Aufnahme in einem kleinen Fenster.</summary>
+    void ShowGoalDialog()
+    {
+        TextBox Box(string v, string tag, bool multi) => new() { Text = v, Tag = tag, MaxLength = multi ? 2000 : 200, AcceptsReturn = multi, TextWrapping = TextWrapping.Wrap, MinHeight = multi ? 60 : 0, VerticalContentAlignment = multi ? VerticalAlignment.Top : VerticalAlignment.Center };
+        var goal = Box(_goalText, "z. B. Neuen Kontakt im Adressbuch anlegen", true);
+        var expected = Box(_expectedText, "z. B. Der Kontakt erscheint in der Liste", true);
+        var reference = Box(_referenceText, "z. B. Ticketnummer", false);
+        var title = Box(_titleText, "sonst automatisch aus der Aufnahme", false);
+        var grid = new Grid();
+        grid.ColumnDefinitions.Add(new ColumnDefinition()); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
+        void G(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); grid.Children.Add(e); }
+        G(U.Field("Was wird gezeigt?", goal), 0, 0); G(U.Field("Erwartetes Ergebnis", expected), 0, 2);
+        G(U.Field("Bezug", reference, margin: new Thickness(0)), 1, 0); G(U.Field("Titel der Aufnahme", title, margin: new Thickness(0)), 1, 2);
+        var w = new Window { Title = "Ziel und Titel", Width = Math.Min(680, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        Theme.Prepare(w, Theme.Surface);
+        var body = U.Col(U.Text("Optional. Hilft beim Verstehen der Aufnahme – für Menschen und für KI.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 14)), grid);
+        U.Dialog(w, "Ziel der Aufnahme", body,
+            U.Primary("Übernehmen", () => { _goalText = goal.Text; _expectedText = expected.Text; _referenceText = reference.Text; _titleText = title.Text.Trim(); w.Close(); }),
+            U.Btn("Leeren", () => { goal.Clear(); expected.Clear(); reference.Clear(); title.Clear(); }), U.Btn("Abbrechen", () => w.Close()));
+        w.Loaded += (_, _) => goal.Focus();
+        w.ShowDialog();
+        UpdateGoalLink();
+    }
 
-    /// <summary>„Anpassen“ bei einem festen Modus: dessen Detailgrad in „Eigene“ übernehmen und dorthin wechseln.</summary>
+    void UpdateGoalLink()
+    {
+        bool set = (_goalText + _expectedText + _referenceText + _titleText).Trim().Length > 0;
+        bool recommended = ProfileIndex is 1 or 2;
+        _goalLink.Content = U.IconText(set ? Theme.ICheck : Theme.IFlag, set ? "Ziel und Titel ✓" : recommended ? "Ziel und Titel (empfohlen) …" : "Ziel und Titel …");
+    }
+
+    /// <summary>„Anpassen …“ bei einem festen Modus: Detailgrad in „Eigene“ übernehmen; bei „Eigene“: Einstellungen öffnen.</summary>
     void CustomizeFromPreset()
     {
-        if (ProfileIndex == 3) { _customCard.Visibility = _customCard.Visibility == Visibility.Visible ? Visibility.Collapsed : Visibility.Visible; return; }
+        if (ProfileIndex == 3) { ShowCustomDialog(); return; }
         var p = DetailPresets.For(Ids[ProfileIndex])!;
         var x = AppSettings.Load();
         x.Record = RecordingOptions.Channels.ToDictionary(c => c.key, c => !p.Off.Contains(c.key));
         x.ChangeFrames = p.ChangeFrames; x.CustomAppContext = p.AppContext;
         x.CustomAfterStop = Ids[ProfileIndex] switch { "support" => "supportPackage", "aiTrace" => "export", _ => "viewer" };
         x.Save();
-        RefreshCustomCard();
         _profiles[3].IsChecked = true;
+        ShowCustomDialog();
     }
 
     /// <summary>„Ctrl+Shift+F9“ → „Strg+Umschalt+F9“.</summary>
     static string De(string combo) => string.Join("+", combo.Split('+').Select(p => p.Trim() switch { "Ctrl" => "Strg", "Shift" => "Umschalt", var x => x }));
 
-    /// <summary>Detailstreifen und Einstellkarte zum gewählten Modus.</summary>
+    /// <summary>Detailstreifen zum gewählten Modus.</summary>
     void UpdateProfile()
     {
         if (_profiles == null || _recLink == null) return;
@@ -425,9 +407,8 @@ sealed class StartWindow : Window
         bool changed = _modeText.Text != Modes[i].text && _modeText.Text.Length > 0;
         _modeText.Text = Modes[i].text;
         if (changed) { Anim.Refresh(_strip, 0.3, 260); Anim.Stagger(_chips, 40, 35, 4); }
-        if (i is 1 or 2 && _goalCard != null) _goalCard.Visibility = Visibility.Visible;
-        _customCard.Visibility = i == 3 ? Visibility.Visible : Visibility.Collapsed;
-        _recLink.Content = U.IconText(Theme.IEdit, i == 3 ? "Einstellungen ein/aus" : "Anpassen …");
+        _recLink.Content = U.IconText(Theme.IEdit, i == 3 ? "Einstellen …" : "Anpassen …");
+        _recLink.ToolTip = i == 3 ? "Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ festlegen" : "Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen";
         if (i == 3)
         {
             var st = AppSettings.Load();
@@ -441,13 +422,14 @@ sealed class StartWindow : Window
             Meter(_meter, p.Bars, p.Level);
             DetailChips(_chips, p.Off, p.ChangeFrames, p.AppContext);
         }
+        UpdateGoalLink();
     }
 
-    /// <summary>Zuletzt verwendet: Karten mit Vorschaubild (im Hintergrund geladen); ohne Aufnahmen „Erste Schritte“.</summary>
+    /// <summary>Zuletzt verwendet: bis zu vier Aufnahmen mit Vorschaubild; ohne Aufnahmen „Erste Schritte“.</summary>
     void FillRecent()
     {
         _recent.Children.Clear();
-        var list = AppSettings.Load().RecentSessions.Where(Session.LooksLikeSession).Take(5).ToList();
+        var list = AppSettings.Load().RecentSessions.Where(Session.LooksLikeSession).Take(4).ToList();
         _stats.Inlines.Clear();
         int total = 0;
         try { var d = AppPaths.DefaultSessionsFolder(); if (Directory.Exists(d)) total = Directory.EnumerateDirectories(d).Count(Session.LooksLikeSession); } catch { }
@@ -462,14 +444,13 @@ sealed class StartWindow : Window
 
         if (list.Count == 0)
         {
-            _recent.Children.Add(U.Text("Noch keine Aufnahmen – so geht’s:", 12.5, true, margin: new Thickness(0, 0, 0, 10)));
             int n = 0;
-            foreach (var (head, text) in new[] { ("Modus wählen", "Wofür ist die Aufnahme? Im Zweifel „Anleitung“."), ("Bereich anklicken", "Ganzer Bildschirm, eine Anwendung oder ein Ausschnitt."),
-                                                   ("Vorführen und beenden", "Ganz normal arbeiten, dann " + De(AppSettings.Load().Hotkeys.GetValueOrDefault("stop", "Ctrl+Shift+F10")) + "."), ("Nachbearbeiten", "Im Editor Texte anpassen und als PDF, Word oder HTML speichern.") })
+            foreach (var (head, text) in new[] { ("Modus wählen", "Im Zweifel „Anleitung“."), ("Bereich anklicken", "Die Aufnahme startet sofort."),
+                                                   ("Vorführen und beenden", De(AppSettings.Load().Hotkeys.GetValueOrDefault("stop", "Ctrl+Shift+F10")) + " stoppt."), ("Nachbearbeiten", "Texte anpassen, als PDF oder Word speichern.") })
             {
                 var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = Theme.AccentSoft, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock { Text = (++n).ToString(), FontFamily = Theme.Mono, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.AccentText, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
-                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 10) };
+                var row = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
                 DockPanel.SetDock(num, Dock.Left); row.Children.Add(num);
                 row.Children.Add(U.Col(U.Text(head, 13, true), U.Text(text, 12, fg: Theme.Muted)));
                 _recent.Children.Add(row);
@@ -486,9 +467,9 @@ sealed class StartWindow : Window
                 try { meta.Add(Relative(Json.ParseUtc(man.Str("createdUtc")).ToLocalTime())); } catch { }
                 if (man.Obj("summary")?.LongN("primarySteps") is long n) meta.Add(n == 1 ? "1 Schritt" : $"{n} Schritte");
             }
-            var thumb = new Image { Stretch = Stretch.UniformToFill, Width = 72, Height = 45 };
+            var thumb = new Image { Stretch = Stretch.UniformToFill, Width = 64, Height = 40 };
             RenderOptions.SetBitmapScalingMode(thumb, BitmapScalingMode.HighQuality);
-            var thumbBox = new Border { Width = 74, Height = 47, CornerRadius = new CornerRadius(4), Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 12, 0),
+            var thumbBox = new Border { Width = 66, Height = 42, CornerRadius = new CornerRadius(4), Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 12, 0),
                 Child = new Grid { Children = { U.Icon(Theme.IDoc, 14, Theme.Muted), thumb } }, ClipToBounds = true };
             LoadThumb(p, thumb);
             var g = new Grid();
@@ -528,7 +509,7 @@ sealed class StartWindow : Window
                 return U.ToSource(small);
             }
             catch { return null; }
-        }).ContinueWith(t => { if (t.Result is { } src) target.Source = src; }, TaskScheduler.FromCurrentSynchronizationContext());
+        }).ContinueWith(t => { if (t.Result is { } src) { target.Source = src; Anim.Refresh(target, 0, 320); } }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
     RecordingOptions BuildOptions(ScopeMode scope)
@@ -537,8 +518,8 @@ sealed class StartWindow : Window
         UiApp.ApplyProfile(o, Ids[ProfileIndex]);
         o.Scope = scope;
         o.Monitors = _monitor.SelectedIndex switch { 0 => "active", 1 => "all", var i => "M" + (i - 1) };
-        o.GoalDescription = _goal.Text; o.GoalExpected = _expected.Text; o.GoalReference = _reference.Text;
-        o.Title = _title.Text.Trim();
+        o.GoalDescription = _goalText; o.GoalExpected = _expectedText; o.GoalReference = _referenceText;
+        o.Title = _titleText;
         var s = AppSettings.Load(); s.LastProfile = o.ProfileId; s.Save();
         return o;
     }
@@ -560,7 +541,7 @@ sealed class StartWindow : Window
             if (r == null) { Show(); return; }
             o.Region = r;
         }
-        _goal.Clear(); _expected.Clear(); _reference.Clear(); _title.Clear();
+        _goalText = _expectedText = _referenceText = _titleText = "";
         UiApp.Instance.StartRecording(o);
     }
 
@@ -593,7 +574,7 @@ sealed class StartWindow : Window
         "Editor: Texte direkt rechts ändern, Kapitel und Hinweiskästen am Schritt anlegen, im Reiter „Dokument“ Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe festlegen, Werkzeuge links am Bild (V Auswahl, A Pfeil, R Rahmen, E Ellipse, M Hervorheben, T Text, N Nummer, X Schwärzen), Markierungen anklicken und mit Entf löschen, Schritte per Ziehen umsortieren. Strg+C kopiert das Bild, Strg+E exportiert.\n\n" +
         "KI-Zugriff: SebastiansStepRecorder.exe mcp --root <Aufnahmeordner> startet den MCP-Server (stdio).\n\n" +
         "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.\n\n" +
-        "Freeware – kostenlos nutzbar, auch beruflich. Quellcode: alle Rechte vorbehalten. © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
+        "Kostenlos nutzbar, auch beruflich. Lizenz: CC BY-ND 4.0 (Namensnennung – keine Bearbeitungen). © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
         "Hilfe", MessageBoxButton.OK, MessageBoxImage.Information);
 
     protected override void OnClosed(EventArgs e) { base.OnClosed(e); UiApp.Instance.MaybeShutdown(); }
@@ -817,9 +798,11 @@ sealed class SettingsWindow : Window
         return d;
     }
 
-    public SettingsWindow()
+    public SettingsWindow(int tab = 0)
     {
-        Title = "Einstellungen"; Width = 800; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        var wa = Theme.ActiveWorkArea();
+        Title = "Einstellungen"; Width = Math.Min(820, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
         var s = AppSettings.Load();
         var lang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.Language == "en" ? 1 : 0 };
@@ -839,35 +822,46 @@ sealed class SettingsWindow : Window
         }, "Ordner wählen …");
         browse.Margin = new Thickness(8, 0, 0, 0);
         var folderRow = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); folderRow.Children.Add(browse); folderRow.Children.Add(folder);
-        var excl = new TextBox { Text = string.Join(Environment.NewLine, s.Excluded), AcceptsReturn = true, Height = 120, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = 12.5 };
+        var excl = new TextBox { Text = string.Join(Environment.NewLine, s.Excluded), AcceptsReturn = true, Height = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = 12.5 };
 
-        var grid = new Grid();
-        grid.ColumnDefinitions.Add(new ColumnDefinition()); grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); grid.ColumnDefinitions.Add(new ColumnDefinition());
-        grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition()); grid.RowDefinitions.Add(new RowDefinition());
-        void G(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); grid.Children.Add(e); }
+        // zweispaltiges Raster für Felder
+        static Grid Two(params UIElement[] items)
+        {
+            var g = new Grid();
+            g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) }); g.ColumnDefinitions.Add(new ColumnDefinition());
+            for (int k = 0; k < items.Length; k++)
+            {
+                if (k % 2 == 0) g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(items[k], k / 2); Grid.SetColumn(items[k], k % 2 == 0 ? 0 : 2); g.Children.Add(items[k]);
+            }
+            return g;
+        }
         var theme = new ComboBox { Items = { "Dunkel", "Hell", "Wie Windows" }, SelectedIndex = s.Theme switch { "light" => 1, "system" => 2, _ => 0 } };
-        G(U.Field("Darstellung", theme, "Wird beim nächsten Start des Programms übernommen."), 2, 0);
-        G(U.Field("Sprache der Texte", lang), 0, 0); G(U.Field("Anrede in Anleitungen", address), 0, 2);
-        G(U.Field("Schutzstufe", level), 1, 0); G(U.Field("Zusatzbilder ohne Eingabe · Modus „Eigene“", U.Col(change, changeHint), "Anleitung, Support-Fall und KI-Spur legen das selbst fest."), 1, 2);
-
         var rec = new Dictionary<string, bool>(s.Record);
-        var fallback = new CheckBox { Content = "Ohne Nachfrage mit ausgeblendeter Anzeige aufnehmen, wenn die Unsichtbarkeit nicht bestätigt werden kann", IsChecked = s.InvisibleFallback == "hidden", Margin = new Thickness(0, 2, 0, 4),
-            ToolTip = "Z. B. unter Windows Server 2019: Leiste und Rahmen bleiben ausgeblendet, gesteuert wird über Tastenkürzel (Strg+Umschalt+F4 blendet ein)." };
-        var countdown = new ComboBox { Items = { "aus", "3 Sekunden", "5 Sekunden" }, SelectedIndex = s.Countdown >= 5 ? 2 : s.Countdown >= 3 ? 1 : 0, MinWidth = 160 };
-        var sounds = new ComboBox { Items = { "nur bei ausgeblendeter Anzeige", "immer", "nie" }, SelectedIndex = s.SoundCues switch { "always" => 1, "never" => 2, _ => 0 }, MinWidth = 220 };
-        var cues = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        cues.ColumnDefinitions.Add(new ColumnDefinition()); cues.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); cues.ColumnDefinitions.Add(new ColumnDefinition());
-        var fCd = U.Field("Countdown vor der Aufnahme", countdown, "Bei ausgeblendeter Anzeige immer mindestens 3 Sekunden.");
-        var fSnd = U.Field("Signaltöne bei Start, Stopp, Pause, Marker", sounds, "Kurze Töne – hilfreich, wenn keine Leiste zu sehen ist.");
-        Grid.SetColumn(fSnd, 2); cues.Children.Add(fCd); cues.Children.Add(fSnd);
-        var body = U.Col(
-            U.Overline("Allgemein", new Thickness(0, 0, 0, 10)), grid, fallback, cues,
-            U.Overline("Was wird aufgezeichnet? · Modus „Eigene“", new Thickness(0, 6, 0, 4)),
-            U.Text("Gilt für den Modus „Eigene“ im Startfenster – die anderen Modi haben einen festen Detailgrad. Ausgeschaltetes wird gar nicht erst gespeichert; das Protokoll vermerkt, was fehlt.", 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)),
-            RecordChoice.Build(rec, null),
-            U.Overline("Speicherort", new Thickness(0, 6, 0, 10)), U.Field("Aufnahmeordner", U.Col(folderRow, warn)),
-            U.Overline("Ausschlüsse", new Thickness(0, 6, 0, 10)), U.Field("Ausgeschlossene Programme", excl, "Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet."),
-            Note(AppPaths.Portable ? $"Portabler Modus – Einstellungen liegen neben der EXE ({AppPaths.DataDir})." : $"Profilmodus – Einstellungen liegen in {AppPaths.DataDir}."));
+        var fallback = new CheckBox { Content = "Ohne Nachfrage mit ausgeblendeter Anzeige aufnehmen, wenn die Unsichtbarkeit nicht bestätigt werden kann", IsChecked = s.InvisibleFallback == "hidden", Margin = new Thickness(0, 6, 0, 0),
+            ToolTip = "Z. B. unter Windows Server 2019: Leiste und Rahmen bleiben ausgeblendet, gesteuert wird über Tastenkürzel und das Symbol im Infobereich." };
+        var countdown = new ComboBox { Items = { "aus", "3 Sekunden", "5 Sekunden" }, SelectedIndex = s.Countdown >= 5 ? 2 : s.Countdown >= 3 ? 1 : 0 };
+        var sounds = new ComboBox { Items = { "nur bei ausgeblendeter Anzeige", "immer", "nie" }, SelectedIndex = s.SoundCues switch { "always" => 1, "never" => 2, _ => 0 } };
+
+        // ---------- Reiter ----------
+        var general = Two(U.Field("Darstellung", theme, "Gilt ab dem nächsten Start."), U.Field("Sprache der Texte", lang),
+                          U.Field("Anrede in Anleitungen", address), new Border());
+        var recording = U.Col(Two(U.Field("Schutzstufe", level, "Was bei Eingaben maskiert wird."), U.Field("Countdown vor der Aufnahme", countdown, "Bei ausgeblendeter Anzeige mindestens 3 Sekunden."),
+                                  U.Field("Signaltöne", sounds, "Bei Start, Stopp, Pause und Markern."), new Border()), fallback);
+        var custom = U.Col(U.Text("Gilt nur für den Modus „Eigene“ – die anderen Modi haben einen festen Detailgrad.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 10)),
+                           RecordChoice.Build(rec, null), U.Field("Zusatzbilder ohne Eingabe", U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
+        var storage = U.Col(U.Field("Aufnahmeordner", U.Col(folderRow, warn)),
+                            U.Field("Ausgeschlossene Programme", excl, "Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet."),
+                            Note(AppPaths.Portable ? $"Portabler Modus – Einstellungen liegen neben der EXE ({AppPaths.DataDir})." : $"Einstellungen liegen in {AppPaths.DataDir}."));
+        var pages = new UIElement[] { general, recording, custom, storage };
+        var (tabTrack, tabs) = U.Segmented("settab", 0, (Theme.ISettings, "Allgemein"), (Theme.IRecord, "Aufnahme"), (Theme.IChecklist, "Modus „Eigene“"), (Theme.IFolder, "Speicher und Schutz"));
+        tabTrack.Margin = new Thickness(0, 0, 0, 20);
+        var host = new Grid();
+        foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Reiter gleich hoch
+        general.Visibility = Visibility.Visible;
+        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; Anim.Refresh(pages[k], 0.2, 200); }; }
+        var body = U.Col(tabTrack, host);
+        if (tab > 0 && tab < tabs.Length) tabs[tab].IsChecked = true;
         U.Dialog(this, null, body, U.Primary("Speichern", () =>
         {
             var removed = s.Excluded.Except(excl.Text.Split('\n').Select(x => x.Trim())).ToList();
@@ -886,5 +880,11 @@ sealed class SettingsWindow : Window
             s.Excluded = excl.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             s.Save(); Close();
         }), U.Btn("Abbrechen", Close));
+        if (Content is FrameworkElement dlg)
+        {
+            Content = null;
+            dlg.Width = 800;
+            Content = new Viewbox { Child = dlg, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
+        }
     }
 }
