@@ -89,6 +89,7 @@ static class McpMode
                 {
                     case "--root": o.Root = Next(); break;
                     case "--allow-edit": o.AllowEdit = true; break;
+                    case "--allow-requests": o.AllowRequests = true; break;
                     case "--lang": o.Lang = Next(); break;
                     case "--max-result-tokens": o.MaxResultTokens = Math.Clamp(int.Parse(Next()), 2000, 24000); break;
                     case "--max-image-pixels": o.MaxImagePixels = Math.Clamp(int.Parse(Next()), 250_000, 3_750_000); break;

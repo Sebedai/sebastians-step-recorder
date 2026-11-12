@@ -121,6 +121,7 @@ public sealed class RecordingOptions
         if (!string.IsNullOrWhiteSpace(GoalDescription)) g["description"] = Trunc(GoalDescription.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalExpected)) g["expected"] = Trunc(GoalExpected.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalReference)) g["reference"] = Trunc(GoalReference.Replace("\r", " ").Replace("\n", " ").Trim(), 200);
+        if (g.Count > 0 && GoalStatedBy != "author") g["statedBy"] = GoalStatedBy;
         return g.Count == 0 ? null : g;
     }
 

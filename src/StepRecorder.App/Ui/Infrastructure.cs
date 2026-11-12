@@ -185,8 +185,8 @@ sealed class Hotkeys : IDisposable
 /// <summary>Eine Instanz je Windows-Sitzung; weitere Starts reichen ihre Argumente per WM_COPYDATA weiter.</summary>
 static class SingleInstance
 {
-    const string MutexName = @"Local\StepRecorder.UI";
-    const string WindowTitle = "StepRecorder.Instance";
+    const string MutexName = StepRecorder.Native.InstanceChannel.MutexName;
+    const string WindowTitle = StepRecorder.Native.InstanceChannel.WindowTitle;
     static Mutex? _mutex;
     static HwndSource? _src;
     public static event Action<string[]>? ArgsReceived;
@@ -220,31 +220,12 @@ static class SingleInstance
     public static bool Forward(string[] args) => Send(args, out _);
 
     /// <summary>Läuft die Oberfläche bereits (in dieser Windows-Sitzung)?</summary>
-    public static bool IsUiRunning()
-    {
-        if (Mutex.TryOpenExisting(MutexName, out var m)) { m.Dispose(); return true; }
-        return false;
-    }
+    public static bool IsUiRunning() => StepRecorder.Native.InstanceChannel.IsUiRunning();
 
     /// <summary>Läuft in der Oberfläche gerade eine Aufnahme?</summary>
     public static bool IsRecording() => Send(new[] { "--is-recording" }, out var r) && r == 2;
 
-    static bool Send(string[] args, out long result)
-    {
-        result = 0;
-        var h = FindWindowEx(new IntPtr(-3), IntPtr.Zero, null, WindowTitle);
-        if (h == IntPtr.Zero) return false;
-        var text = string.Join('\u001F', args);
-        var ptr = Marshal.StringToHGlobalUni(text);
-        try
-        {
-            var cds = new COPYDATASTRUCT { dwData = 1, cbData = (text.Length + 1) * 2, lpData = ptr };
-            bool ok = SendMessageTimeout(h, 0x004A, IntPtr.Zero, ref cds, 2, 5000, out var res) != IntPtr.Zero;
-            result = (long)res;
-            return ok;
-        }
-        finally { Marshal.FreeHGlobal(ptr); }
-    }
+    static bool Send(string[] args, out long result) => StepRecorder.Native.InstanceChannel.Send(args, out result);
 
     /// <summary><c>record --stop</c>: laufende Aufnahme beenden und den Sitzungspfad ausgeben.</summary>
     public static int SendStop()
@@ -267,7 +248,5 @@ static class SingleInstance
         => Settings.AppState.Update(s => { s.LastStopped = path; s.AtUtc = Data.Json.UtcNow(); });
 
     [StructLayout(LayoutKind.Sequential)] struct COPYDATASTRUCT { public IntPtr dwData; public int cbData; public IntPtr lpData; }
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? cls, string? title);
-    [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr h, int msg, IntPtr w, ref COPYDATASTRUCT l, int flags, int timeout, out IntPtr result);
 }
 

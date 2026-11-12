@@ -62,6 +62,8 @@ sealed class UiApp : Application
     {
         // nur Befehl und Optionsnamen protokollieren – Werte (Titel, Ziel, Pfade) können Vertrauliches enthalten
         Log("args: " + AppLog.ArgNames(args));
+        // Anfrage eines KI-Agenten (vom MCP-Server zugestellt) – der Mensch entscheidet im Dialog
+        if (args.Length > 1 && args[0] == "--recording-request") { AgentRequests.Handle(args[1]); return; }
         if (args.Length == 0 || args[0] == "--activate")
         {
             if (Recording != null) { Recording.ShowRunningNotice(); return; }

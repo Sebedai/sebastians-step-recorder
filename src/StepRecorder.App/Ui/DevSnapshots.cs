@@ -84,6 +84,7 @@ static class DevSnapshots
             demo.Notices.Add(Loc.L("12 Schritte, 11 Bilder", "12 steps, 11 images"));
             ExportResultDialog.Show(v, demo, "pdf");
             PackDialog.Show(v, v.SessionPath);
+            RecordingRequestDialog.Ask(new StepRecorder.Mcp.RecordingRequest { Id = "rq-000000000001", Goal = "Bitte zeigen Sie, wie man im Editor eine Datei unter neuem Namen speichert.", Expected = "Die Datei liegt danach im Ordner Dokumente.", Title = "Speichern unter", ExpiresUtc = DateTime.UtcNow.AddSeconds(118) });
             UiApp.Instance.ShowLibrary();
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();

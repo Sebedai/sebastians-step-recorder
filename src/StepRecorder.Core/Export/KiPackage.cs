@@ -301,7 +301,7 @@ public static class KiPackage
         if (goal == null && markers.Count == 0) L(de ? "keine" : "none");
         else
         {
-            if (goal?.Str("description") is { } gd) L((de ? "- Ziel der Aufnahme (Angabe des Autors): " : "- Purpose of the recording (stated by the author): ") + Fmt.Quote(gd, lang, 2000));
+            if (goal?.Str("description") is { } gd) L((goal.Str("statedBy") == "agent" ? (de ? "- Ziel der Aufnahme (vom KI-Agenten formuliert, vom Menschen bestätigt): " : "- Purpose of the recording (stated by an AI agent, confirmed by the person): ") : (de ? "- Ziel der Aufnahme (Angabe des Autors): " : "- Purpose of the recording (stated by the author): ")) + Fmt.Quote(gd, lang, 2000));
             if (goal?.Str("expected") is { } ge) L((de ? "- Erwartetes Ergebnis (Angabe des Autors): " : "- Expected result (stated by the author): ") + Fmt.Quote(ge, lang, 2000));
             if (goal?.Str("reference") is { } gr) L((de ? "- Bezug (Angabe des Autors): " : "- Reference (stated by the author): ") + Fmt.Quote(gr, lang, 200));
             foreach (var m in markers) L((de ? "- Marker in Schritt " : "- Marker in step ") + $"{m.Number}: {m.Protocol}");

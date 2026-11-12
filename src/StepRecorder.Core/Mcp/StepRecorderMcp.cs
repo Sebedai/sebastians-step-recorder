@@ -18,6 +18,11 @@ public sealed class McpOptions
     public int MaxResultTokens { get; set; } = 9000;
     public int MaxImagePixels { get; set; } = 1_200_000;
     public int MaxImages { get; set; } = 3;
+    /// <summary>Werkzeuge request_recording/get_recording_request anbieten (Schalter --allow-requests).</summary>
+    public bool AllowRequests { get; set; }
+    /// <summary>Nur für Tests: läuft die Oberfläche? / Anfrage zustellen.</summary>
+    public Func<bool>? UiRunning { get; set; }
+    public Func<string[], bool>? Notify { get; set; }
 }
 
 /// <summary>
@@ -68,6 +73,15 @@ public sealed class StepRecorderMcp
             Schema(("session_a", Str(), true), ("session_b", Str(), true), ("detail", Enum("outline", "standard", "full"), false), ("status", StrArr(), false), ("includeMinor", Bool(), false), ("limit", Int(1, 200), false), ("cursor", Str(), false)), CompareSessions));
         server.Register(new McpTool("get_automation", "Everything needed to write a robust AutoHotkey v2 script for a session: per step the window (ahk_class/ahk_exe), selectors ranked by stability (ClassNN, control id/text, UI Automation, label, relative, window coordinates), inputs (text, keys, mouse button, hold times, drag path), wait signals (busy cursor, window appeared, ready time), expected state afterwards (title, changed texts, check states), menu paths, list choices, data sources, OCR text near the click; plus parameters, repetitions, environment, rules for writing the script and an automatically generated draft script. Passwords are never included.",
             Schema(("sessionId", Str(), true), ("includeDraft", Bool(), false), ("includeRules", Bool(), false), ("ocr", Bool(), false), ("from", Int(1, 100000), false), ("to", Int(1, 100000), false)), GetAutomation));
+        if (_o.AllowRequests)
+        {
+            server.Register(new McpTool("request_recording", "Ask the person at this PC to demonstrate something while StepRecorder records it (a normal, visible recording). Works only if StepRecorder is already running – it is never started for you. The person sees your text marked as unverified and decides; flagged input stays hidden until they review it. Returns a requestId; poll get_recording_request. At most one open request, 60 s apart, 5 per hour.",
+                Schema(("goal", new JsonObject { ["type"] = "string", ["minLength"] = RecordingRequests.GoalMin, ["maxLength"] = RecordingRequests.GoalMax }, true),
+                       ("expected", new JsonObject { ["type"] = "string", ["maxLength"] = RecordingRequests.ExpectedMax }, false),
+                       ("title", new JsonObject { ["type"] = "string", ["maxLength"] = RecordingRequests.TitleMax }, false)), RequestRecording, ReadOnly: false));
+            server.Register(new McpTool("get_recording_request", "State of a recording request: pending, declined, expired, recording, finished (with sessionId – read it with get_session), discarded or failed. waitSeconds (0–60) waits for a change.",
+                Schema(("requestId", Str(), true), ("waitSeconds", Int(0, 60), false)), GetRecordingRequest));
+        }
         if (_o.AllowEdit)
             server.Register(new McpTool("set_step_text", "Set the author title/description of a step (stored in edits.json, by: mcp). Requires baseRevision from get_session/get_steps.",
                 Schema(("sessionId", Str(), true), ("step", Int(1, 100000), false), ("stepId", Str(), false), ("title", Str(), false), ("description", Str(), false), ("lang", Enum("de", "en"), false), ("baseRevision", Str(), true), ("dryRun", Bool(), false)), SetStepText, ReadOnly: false));
@@ -245,7 +259,7 @@ public sealed class StepRecorderMcp
         bool All(string k) => inc.Count == 0 || inc.Contains(k);
         var s = v.Session;
         var d = new JsonObject { ["title"] = v.Title, ["startedAt"] = s.Manifest.Str("createdUtc"), ["durationMs"] = s.DurationUs / 1000, ["state"] = s.State };
-        if (All("goal") && v.Goal() is { } g) { var gg = (JsonObject)g.DeepClone(); gg["statedBy"] = "author"; d["goal"] = gg; }
+        if (All("goal") && v.Goal() is { } g) { var gg = (JsonObject)g.DeepClone(); gg["statedBy"] = g.Str("statedBy") ?? "author"; d["goal"] = gg; }
         if (All("markers")) d["markers"] = new JsonArray(v.All.Where(x => x.Kind == "marker").Select(x => (JsonNode)new JsonObject { ["step"] = x.Number, ["id"] = x.Id, ["t"] = Fmt.Time(x.TFrom, "en"), ["kind"] = x.Json.Obj("input").Str("markerKind"), ["label"] = x.Json.Obj("input").Str("label") }.Clean()).ToArray());
         if (All("environment"))
         {
@@ -500,6 +514,43 @@ public sealed class StepRecorderMcp
         var d = new JsonObject { ["scope"] = scope, ["hits"] = items, ["total"] = hits.Count, ["incomplete"] = sw.ElapsedMilliseconds > 2000 };
         if (scope == "all") d["sessions"] = new JsonObject { ["searched"] = searched, ["pending"] = 0, ["skipped"] = Math.Max(0, ids.Count() - searched) };
         return McpToolResult.Text(Json.Line(Envelope(scope == "session" ? View(ids.First()) : null, d, page, est, Budget(a), tr)));
+    }
+
+    static void OnlyKeys(JsonObject a, params string[] allowed)
+    {
+        foreach (var k in a.Select(x => x.Key))
+            if (!allowed.Contains(k)) throw new McpToolException("INVALID_ARGUMENT", $"Unknown parameter: {k}");
+    }
+
+    McpToolResult RequestRecording(JsonObject a)
+    {
+        OnlyKeys(a, "goal", "expected", "title");
+        if (!(_o.UiRunning ?? Native.InstanceChannel.IsUiRunning)())
+            throw new McpToolException("UI_UNAVAILABLE", "StepRecorder is not running. Ask the person to start StepRecorder, then try again. It is never started automatically.");
+        RecordingRequest rq;
+        try { rq = RecordingRequests.Create(a.Str("goal") ?? "", a.Str("expected"), a.Str("title"), _root); }
+        catch (ArgumentException ex) { throw new McpToolException("INVALID_ARGUMENT", ex.Message); }
+        bool delivered = (_o.Notify ?? (args => Native.InstanceChannel.Send(args, out _)))(new[] { "--recording-request", rq.Id });
+        if (!delivered)
+        {
+            RecordingRequests.SetStatus(rq.Id, "failed", reason: "notDelivered");
+            throw new McpToolException("UI_UNAVAILABLE", "The request could not be delivered to StepRecorder. Ask the person to start it, then try again.");
+        }
+        return McpToolResult.Text(Json.Line(Envelope(null, new JsonObject { ["requestId"] = rq.Id, ["state"] = "pending", ["expiresInSeconds"] = RecordingRequests.TimeoutSeconds })));
+    }
+
+    McpToolResult GetRecordingRequest(JsonObject a)
+    {
+        OnlyKeys(a, "requestId", "waitSeconds");
+        string id = a.Str("requestId") ?? "";
+        if (RecordingRequests.Load(id) == null) throw new McpToolException("REQUEST_NOT_FOUND", "Unknown requestId.");
+        int wait = Math.Clamp(a.Int("waitSeconds", 0), 0, 60);
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var st = RecordingRequests.Status(id);
+        string first = st.state;
+        while (st.state == first && st.state is "pending" or "recording" && sw.Elapsed.TotalSeconds < wait) { Thread.Sleep(400); st = RecordingRequests.Status(id); }
+        var d = new JsonObject { ["requestId"] = id, ["state"] = st.state, ["sessionId"] = st.sessionId, ["reason"] = st.reason }.Clean();
+        return McpToolResult.Text(Json.Line(Envelope(null, d)));
     }
 
     McpToolResult CompareSessions(JsonObject a)
