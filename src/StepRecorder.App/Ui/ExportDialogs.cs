@@ -52,6 +52,33 @@ sealed class ExportDialog : Window
     readonly CheckBox _markKeys = new() { Content = Loc.L("Tastatur: gedrückte Tasten und getippten Text als Tasten", "Keyboard: pressed keys and typed text as key caps"), IsChecked = true };
 
     readonly StackPanel _info = new();
+    readonly TextBlock _estimate = U.Text("", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 0));
+    readonly System.Windows.Threading.DispatcherTimer _estimateDelay = new() { Interval = TimeSpan.FromMilliseconds(150) };
+    CancellationTokenSource? _estimateCts;
+
+    /// <summary>KI-Paket: Schätzung (Text, Warnung) für eine Anforderung – läuft im Hintergrund, mit Abbruch.</summary>
+    public Func<ExportRequest, CancellationToken, (string text, bool warn)>? Estimator { get; set; }
+
+    void ScheduleEstimate()
+    {
+        if (Estimator == null || Format != "ki") return;
+        _estimate.Text = Loc.L("Größe wird geschätzt …", "Estimating size …"); _estimate.Foreground = Theme.Muted;
+        _estimateDelay.Stop(); _estimateDelay.Start();
+    }
+
+    void RunEstimate()
+    {
+        _estimateDelay.Stop();
+        _estimateCts?.Cancel();
+        var cts = _estimateCts = new CancellationTokenSource();
+        var req = Request; var est = Estimator!;
+        Task.Run(() => est(req, cts.Token), cts.Token).ContinueWith(t =>
+        {
+            if (cts.IsCancellationRequested || !IsLoaded) return;
+            if (t.IsFaulted) { _estimate.Text = ""; return; }
+            _estimate.Text = t.Result.text; _estimate.Foreground = t.Result.warn ? Theme.Warn : Theme.Fg2;
+        }, TaskScheduler.FromCurrentSynchronizationContext());
+    }
     readonly Border _qualityRow = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(12, 8, 8, 8), CornerRadius = new CornerRadius(6), Margin = new Thickness(0, -6, 0, 14) };
     bool _hasQuality;
 
@@ -160,6 +187,13 @@ sealed class ExportDialog : Window
         var fDetail = U.Field(Loc.L("Detailstufe", "Level of detail"), U.Col(_detail, _detailHint));
         var fProfile = U.Field(Loc.L("Bildgröße", "Image size"), U.Col(_profile, _profileHint));
         var zipHost = new StackPanel { Children = { _zip }, Margin = new Thickness(0, 24, 0, 0) };
+        _estimate.TextWrapping = TextWrapping.Wrap;
+        var connect = U.Btn(Theme.IRobot, Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this), Loc.L("Statt eines Pakets: die KI liest Aufnahmen direkt über den MCP-Server", "Instead of a package: the AI reads recordings directly via the MCP server"), "Link");
+        connect.Margin = new Thickness(-4, 4, 0, 0); connect.HorizontalAlignment = HorizontalAlignment.Left;
+        var kiExtra = U.Col(_estimate, connect); kiExtra.Margin = new Thickness(0, 0, 0, 12);
+        _estimateDelay.Tick += (_, _) => RunEstimate();
+        Loaded += (_, _) => ScheduleEstimate();
+        Closed += (_, _) => _estimateCts?.Cancel();
         G(fLang, 0, 0); G(fPreset, 0, 2); G(fImp, 1, 0); G(fView, 1, 2); G(fMissing, 2, 0);
         G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
         var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), _gifSec, Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.", "The GIF shows a title image, then every step with number and heading."));
@@ -178,6 +212,8 @@ sealed class ExportDialog : Window
             fImp.Visibility = fView.Visibility = guide ? Visibility.Visible : Visibility.Collapsed;
             fMissing.Visibility = guide && Format != "gif" ? Visibility.Visible : Visibility.Collapsed;
             fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            kiExtra.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            if (ki) ScheduleEstimate();
             _qualityRow.Visibility = _hasQuality && guide ? Visibility.Visible : Visibility.Collapsed;
             _impHint.Text = _imp.SelectedIndex switch
             {
@@ -222,7 +258,7 @@ sealed class ExportDialog : Window
         _zip.Checked += (_, _) => Upd(); _zip.Unchecked += (_, _) => Upd();
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, gifOpts, marksOpts, ahkOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, kiExtra, gifOpts, marksOpts, ahkOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 

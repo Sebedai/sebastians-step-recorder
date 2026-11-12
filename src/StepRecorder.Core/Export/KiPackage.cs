@@ -21,6 +21,12 @@ public sealed class KiOptions
     public int SplitTokens { get; set; } = 60000;
 }
 
+/// <summary>Geschätzte Größe eines KI-Pakets.</summary>
+public sealed record KiEstimate(int Images, int ImageTokens, int TextTokens, List<(string text, bool warning)> Hints)
+{
+    public int Total => ImageTokens + TextTokens;
+}
+
 public sealed class ExportResult
 {
     public List<string> Files { get; } = new();
@@ -96,7 +102,7 @@ public static class KiPackage
         foreach (var l in imageFiles.Values) foreach (var (_, img) in l) img.Dispose();
         File.WriteAllText(Path.Combine(outDir, "trace.md"), trace, new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(outDir, "README_AI.md"), ReadmeText(lang), new UTF8Encoding(false));
-        res.TextTokens = (trace.Length + 38300) / 3;
+        res.TextTokens = (trace.Length + ReadmeText(lang).Length) / 3;
         // steps.json über die Leseschicht (mit number/state)
         var sj = new JsonObject
         {
@@ -129,9 +135,7 @@ public static class KiPackage
             ["checksums"] = new JsonObject { ["algorithm"] = "SHA-256", ["files"] = checks }
         };
         File.WriteAllText(Path.Combine(outDir, "ai-package.json"), Json.Pretty(pkg.Clean()), new UTF8Encoding(false));
-        if (imagesMeta.Count > 100) res.Warnings.Add($"{imagesMeta.Count} Bilder – manche KI-Oberflächen begrenzen die Anzahl.");
-        else if (imagesMeta.Count > 20) res.Notices.Add($"{imagesMeta.Count} Bilder im Paket.");
-        if (res.TextTokens + res.ImageTokens > 150_000) res.Warnings.Add("Paket ist groß (über 150 000 geschätzte Tokens).");
+        foreach (var (text, warning) in SizeHints(imagesMeta.Count, res.TextTokens + res.ImageTokens, lang)) (warning ? res.Warnings : res.Notices).Add(text);
         if (res.Unreviewed > 0) res.Notices.Add($"{res.Unreviewed} auffällige Eingaben ungeprüft – als {{unreviewed:N}} ausgegeben.");
         if (o.Zip)
         {
@@ -144,6 +148,44 @@ public static class KiPackage
         else res.Path = outDir;
         res.Files.Add(outDir);
         return res;
+    }
+
+    /// <summary>Schwellen für Hinweise zur Paketgröße (gemeinsam für Export und Schätzung im Dialog).</summary>
+    public static List<(string text, bool warning)> SizeHints(int images, long tokens, string lang)
+    {
+        bool de = lang == "de";
+        var l = new List<(string, bool)>();
+        if (images > 100) l.Add((de ? $"{images} Bilder – manche KI-Oberflächen begrenzen die Anzahl." : $"{images} images – some AI interfaces limit the number.", true));
+        else if (images > 20) l.Add((de ? $"{images} Bilder im Paket." : $"{images} images in the package.", false));
+        if (tokens > 150_000) l.Add((de ? "Paket ist groß (über 150 000 geschätzte Tokens)." : "Package is large (over 150,000 estimated tokens).", true));
+        return l;
+    }
+
+    /// <summary>
+    /// Schätzung wie <see cref="Export"/>, ohne etwas zu schreiben oder Bilder zu dekodieren: Bildanzahl, Bild-Tokens
+    /// (aus <see cref="StepImages.Measure"/>), Text-Tokens (Protokoll plus Lesehilfe).
+    /// </summary>
+    public static KiEstimate Estimate(SessionView view, KiOptions o, CancellationToken ct = default)
+    {
+        string lang = o.Language ?? view.Session.Language;
+        view.Language = lang;
+        view.Rebuild();
+        var steps = view.Effective(guide: false, importance: o.Detail == "full" ? "all" : "secondary");
+        int images = 0, imgTokens = 0;
+        foreach (var s in steps)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (s.Redacted) continue;
+            foreach (var v in ImageVariants(s, o.Detail))
+            {
+                var m = StepImages.Measure(view, s, v == "marker" ? "before" : v, o.ImageProfile, o.View, annotate: true, respectMarks: false);
+                if (m == null) continue;
+                images++; imgTokens += m.VisualTokens;
+            }
+        }
+        var trace = Trace(view, steps, new(), lang, o.Detail);
+        int text = (trace.Length + images * 140 + ReadmeText(lang).Length) / 3;   // je Bild eine Verweiszeile
+        return new KiEstimate(images, imgTokens, text, SizeHints(images, imgTokens + text, lang));
     }
 
     static JsonObject CountRedactions(JsonObject edits)

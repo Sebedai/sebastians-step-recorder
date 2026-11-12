@@ -84,6 +84,18 @@ sealed partial class ViewerWindow
         var d = new ExportDialog(initial, DefaultTargetFor, lastTarget) { Owner = this };
         var findings = Findings();
         if (findings.Count > 0) d.ShowQuality(QualitySummary(findings), findings.Any(f => f.Severity == "warning"), ShowQuality);
+        string estPath = _path, estLang = _view.Language;
+        d.Estimator = (r, ct) =>
+        {
+            using var v = SessionView.Open(estPath, headless: true, lang: r.Language ?? estLang);
+            var e = KiPackage.Estimate(v, new KiOptions { Detail = r.Detail ?? "standard", ImageProfile = r.ImageProfile ?? "compatible", Language = r.Language, View = r.View ?? "screen" }, ct);
+            string text = Loc.F("Geschätzt: ≈ {0} Tokens ({1} Text, {2} Bilder) · {3}", "Estimated: ≈ {0} tokens ({1} text, {2} images) · {3}",
+                e.Total.ToString("N0", Loc.Culture), e.TextTokens.ToString("N0", Loc.Culture), e.ImageTokens.ToString("N0", Loc.Culture),
+                Loc.N(e.Images, "1 Bild", "{0} Bilder", "1 image", "{0} images"));
+            var lang = Loc.Lang;
+            var hints = KiPackage.SizeHints(e.Images, e.Total, lang).Select(h => h.text);
+            return (string.Join(" ", new[] { text }.Concat(hints)), e.Hints.Any(h => h.warning));
+        };
         if (d.ShowDialog() != true) return;
         var req = d.Request;
         Remember(req, d.FolderChoice);

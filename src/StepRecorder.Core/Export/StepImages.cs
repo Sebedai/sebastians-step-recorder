@@ -113,6 +113,30 @@ public static class StepImages
         return new ImageGeometry(frameId, f.Str("m") ?? "", full, src, click, target);
     }
 
+    /// <summary>Größe eines Schrittbilds ohne Pixel (für Tokenschätzung).</summary>
+    public sealed record ImageInfo(int Width, int Height, double Scale)
+    {
+        public int VisualTokens => (int)(Math.Ceiling(Width / 28.0) * Math.Ceiling(Height / 28.0));
+    }
+
+    /// <summary>
+    /// Größe, die <see cref="Render"/> mit denselben Angaben erzeugen würde – nur aus Bildereignis und Geometrie, ohne ein
+    /// Bild zu dekodieren. Null, wenn kein Bild entstünde.
+    /// </summary>
+    public static ImageInfo? Measure(SessionView view, ViewStep step, string variant, string profile = "compatible", string viewMode = "screen", bool annotate = true, bool respectMarks = true, bool applyCrop = true)
+    {
+        var geo = Geometry(view, step, variant, viewMode == "window" ? "window" : "screen", applyCrop && annotate && respectMarks);
+        if (geo == null) return null;
+        var (w, h, s) = OutputSize(geo.Source, profile);
+        return new ImageInfo(w, h, s);
+    }
+
+    static (int w, int h, double scale) OutputSize(Rectangle src, string profile)
+    {
+        double scale = Math.Min(1.0, (double)LongEdgeFor(profile) / Math.Max(src.Width, src.Height));
+        return (Math.Max(1, (int)Math.Round(src.Width * scale)), Math.Max(1, (int)Math.Round(src.Height * scale)), scale);
+    }
+
     public static RenderedImage? Render(SessionView view, ViewStep step, string variant, string profile = "compatible", bool annotate = true, string viewMode = "screen", bool respectMarks = true, MouseMarks? mask = null, bool applyCrop = true, bool overview = false, bool authorAnnotations = false)
     {
         string? frameId = FrameFor(step, variant);
@@ -127,9 +151,7 @@ public static class StepImages
         Rectangle src = geo.Source;
         var img = new RenderedImage { Variant = variant, FrameId = frameId, Monitor = f.Str("m") ?? "" };
         foreach (var mk in f.Arr("masks") ?? new JsonArray()) img.Masks.Add(mk!.DeepClone());
-        int longEdge = LongEdgeFor(profile);
-        double scale = Math.Min(1.0, (double)longEdge / Math.Max(src.Width, src.Height));
-        int outW = Math.Max(1, (int)Math.Round(src.Width * scale)), outH = Math.Max(1, (int)Math.Round(src.Height * scale));
+        var (outW, outH, scale) = OutputSize(src, profile);
         var bmp = new Bitmap(outW, outH, PixelFormat.Format24bppRgb);
         using (var g = Graphics.FromImage(bmp))
         {
