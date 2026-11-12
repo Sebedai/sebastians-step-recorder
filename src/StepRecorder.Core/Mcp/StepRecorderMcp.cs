@@ -71,8 +71,8 @@ public sealed partial class StepRecorderMcp
             Schema(("query", Str(), true), ("scope", Enum("session", "all"), false), ("sessionId", Str(), false), ("fields", StrArr(), false), ("match", Enum("all", "any"), false), ("limit", Int(1, 100), false), ("cursor", Str(), false)), Search));
         server.Register(new McpTool("compare_sessions", "Compare the core steps of two sessions: same, changed, onlyA, onlyB with differences (target, text, effect, duration).",
             Schema(("session_a", Str(), true), ("session_b", Str(), true), ("detail", Enum("outline", "standard", "full"), false), ("status", StrArr(), false), ("includeMinor", Bool(), false), ("limit", Int(1, 200), false), ("cursor", Str(), false)), CompareSessions));
-        server.Register(new McpTool("get_automation", "Everything needed to write a robust AutoHotkey v2 script for a session: per step the window (ahk_class/ahk_exe), selectors ranked by stability (ClassNN, control id/text, UI Automation, label, relative, window coordinates), inputs (text, keys, mouse button, hold times, drag path), wait signals (busy cursor, window appeared, ready time), expected state afterwards (title, changed texts, check states), menu paths, list choices, data sources, OCR text near the click; plus parameters, repetitions, environment, rules for writing the script and an automatically generated draft script. Passwords are never included.",
-            Schema(("sessionId", Str(), true), ("includeDraft", Bool(), false), ("includeRules", Bool(), false), ("ocr", Bool(), false), ("from", Int(1, 100000), false), ("to", Int(1, 100000), false)), GetAutomation));
+        server.Register(new McpTool("get_automation", "Everything needed to write a robust AutoHotkey v2 script for a session: per step the window (ahk_class/ahk_exe), selectors ranked by stability (ClassNN, control id/text, UI Automation, label, relative, window coordinates), inputs (text, keys, mouse button, hold times, drag path), wait signals (busy cursor, window appeared, ready time), expected state afterwards (title, changed texts, check states), menu paths, list choices, data sources, OCR text near the click; plus parameters, repetitions, environment, rules for writing the script and an automatically generated draft script. target=flaui|pywinauto|playwright returns rules and a draft UI test (FlaUI C#/xUnit, pywinauto, Playwright for browser steps) plus a testability list instead. Passwords are never included.",
+            Schema(("sessionId", Str(), true), ("target", Enum("ahk", "flaui", "pywinauto", "playwright"), false), ("includeDraft", Bool(), false), ("includeRules", Bool(), false), ("ocr", Bool(), false), ("from", Int(1, 100000), false), ("to", Int(1, 100000), false)), GetAutomation));
         if (_o.AllowRequests)
         {
             server.Register(new McpTool("request_recording", "Ask the person at this PC to demonstrate something while StepRecorder records it (a normal, visible recording). Works only if StepRecorder is already running – it is never started for you. The person sees your text marked as unverified and decides; flagged input stays hidden until they review it. Returns a requestId; poll get_recording_request. At most one open request, 60 s apart, 5 per hour.",
@@ -585,6 +585,22 @@ public sealed partial class StepRecorderMcp
         int from = a.Int("from", 1), to = a.Int("to", int.MaxValue);
         if (doc["steps"] is JsonArray steps)
             foreach (var st in steps.OfType<JsonObject>().Where(x => x.Int("n") < from || x.Int("n") > to).ToList()) steps.Remove(st);
+        string target = a.Str("target") ?? "ahk";
+        if (target != "ahk")
+        {
+            doc["format"] = "steprec.automation";
+            doc["target"] = target;
+            if (a["includeRules"]?.GetValue<bool>() != false) doc["rules"] = Export.TestCodeGen.Rules(_o.Lang);
+            var old = v.Range;
+            if (a["from"] != null || a["to"] != null) v.Range = (from, to);
+            try
+            {
+                if (a["includeDraft"]?.GetValue<bool>() != false) doc["draftTest"] = Export.TestCodeGen.Build(v, new Export.TestGenOptions { Target = target, Language = _o.Lang });
+                doc["testability"] = new JsonArray(Export.TestCodeGen.Testability(v, _o.Lang).Select(f => (JsonNode)f).ToArray());
+            }
+            finally { v.Range = old; }
+            return McpToolResult.Text(Json.Line(doc));
+        }
         if (a["includeRules"]?.GetValue<bool>() != false) doc["rules"] = Export.AhkKiPackage.Rules;
         if (a["includeDraft"]?.GetValue<bool>() != false) doc["draftScript"] = Export.AhkExport.Build(v, new Export.AhkOptions { Images = false });
         return McpToolResult.Text(Json.Line(doc));

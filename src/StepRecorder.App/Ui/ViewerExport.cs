@@ -29,6 +29,7 @@ sealed partial class ViewerWindow
         items.Add(("-", () => { }));
         items.Add((Loc.L("KI-Paket …", "AI package …"), () => ShowExportDialog("ki")));
         items.Add((Loc.L("AutoHotkey-Skript …", "AutoHotkey script …"), () => ShowExportDialog("ahk")));
+        items.Add((Loc.L("UI-Test-Entwurf …", "UI test draft …"), () => ShowExportDialog("flaui")));
         items.Add((Loc.L("Support-Paket (ZIP) …", "Support package (ZIP) …"), StartSupportFlow));
         items.Add(("-", () => { }));
         items.Add(M("repeatExport"));

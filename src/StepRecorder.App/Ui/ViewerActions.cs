@@ -250,6 +250,51 @@ sealed partial class ViewerWindow
         w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = Theme.FsHint, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(28, 24, 28, 24), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
         w.Show();
     }
+
+    /// <summary>Zuletzt gewähltes Ziel des Formats „UI-Test“ (sonst FlaUI).</summary>
+    static string LastTestFormat()
+    {
+        var last = AppState.Load().Export.LastFormat;
+        return last is "flaui" or "pywinauto" or "playwright" or "test-ki" ? last : "flaui";
+    }
+
+    /// <summary>Testbarkeits-Bericht (Paket 16): Bedienelemente ohne AutomationId oder eindeutigen Namen.</summary>
+    void ShowTestability()
+    {
+        using var v = SessionView.Open(_path, headless: true, lang: _view.Language);
+        var findings = TestCodeGen.Testability(v, Loc.Lang);
+        var w = new Window { Title = Loc.F("Testbarkeit · {0} Befunde", "Testability · {0} findings", findings.Count), Width = 960, Height = 620, Owner = this };
+        Theme.Prepare(w, Theme.Surface);
+        var list = new ListBox { BorderThickness = new Thickness(0), Background = Theme.Surface, Margin = new Thickness(16, 12, 16, 16) };
+        System.Windows.Automation.AutomationProperties.SetName(list, Loc.L("Befunde", "Findings"));
+        if (findings.Count == 0)
+            list.Items.Add(new ListBoxItem { Content = U.Text(Loc.L("Alle benutzten Bedienelemente haben eine AutomationId oder einen eindeutigen Namen.", "All controls used have an AutomationId or a unique name."), 13, fg: Theme.Fg2), IsEnabled = false });
+        foreach (var f in findings)
+        {
+            string head = Loc.F("Schritt {0} · {1} „{2}“", "Step {0} · {1} \"{2}\"", f.Int("step"), f.Str("controlType") ?? "?", f.Str("name") ?? "–");
+            var col = U.Col(U.Text(head, 13, true, fg: f.Str("severity") == "warning" ? Theme.Warn : Theme.Fg),
+                            U.Text(string.Join(", ", f.StrList("issues")) + (f.Str("process") is { } p ? " · " + p : ""), 11.5, fg: Theme.Muted),
+                            U.Text(f.Str("advice") ?? "", 12, fg: Theme.Fg2));
+            col.Margin = new Thickness(4, 6, 4, 6);
+            list.Items.Add(new ListBoxItem { Content = col, Tag = f.Int("step") });
+        }
+        list.MouseDoubleClick += (_, _) =>
+        {
+            if (list.SelectedItem is ListBoxItem { Tag: int n } && _view.All.FirstOrDefault(s => s.Number == n) is { } st) { JumpTo(st.Anchor, null); Activate(); }
+        };
+        var copy = U.Btn(Theme.ICopy, Loc.L("Als Markdown kopieren", "Copy as Markdown"), () =>
+        {
+            var d = new DataObject(); d.SetText(TestCodeGen.TestabilityMarkdown(v, findings, Loc.Lang));
+            SetClipboard(d, Loc.L("Testbarkeits-Bericht kopiert", "Testability report copied"));
+        }, null, "Ghost");
+        copy.Margin = new Thickness(16, 12, 16, 0); copy.HorizontalAlignment = HorizontalAlignment.Left;
+        var hint = U.Text(Loc.L("Doppelklick springt zum Schritt. Für die CI: SebastiansStepRecorder.exe testability <Aufnahme> --strict", "Double-click jumps to the step. For CI: SebastiansStepRecorder.exe testability <recording> --strict"), 11.5, fg: Theme.Muted, margin: new Thickness(16, 6, 16, 0));
+        var dock = new DockPanel();
+        DockPanel.SetDock(copy, Dock.Top); DockPanel.SetDock(hint, Dock.Top);
+        dock.Children.Add(copy); dock.Children.Add(hint); dock.Children.Add(list);
+        w.Content = dock;
+        w.ShowDialog();
+    }
 }
 
 /// <summary>Einfacher Eingabedialog (Text, optional Titel und Kommentarart).</summary>

@@ -20,7 +20,7 @@ public static class Program
                 return Capture.Host.HookHost.HostMain(args);
             case "mcp":
                 return McpMode.Run(args);
-            case "export" or "check" or "validate" or "compare" or "settings" or "--help" or "-h" or "/?" or "--version" or "steps" or "list":
+            case "export" or "check" or "validate" or "compare" or "settings" or "--help" or "-h" or "/?" or "--version" or "steps" or "list" or "testability":
                 AttachParentConsole();
                 return Cli.Run(args);
             case "record" when args.Contains("--stop") || args.Contains("--self-test"):

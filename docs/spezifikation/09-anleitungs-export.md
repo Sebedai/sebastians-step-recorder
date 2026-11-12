@@ -793,6 +793,31 @@ Texterkennung: Windows-OCR (offline, Sprachen des Benutzerprofils) um den Klickp
 
 Ergänzungen im Format `ahk`: Eingaben werden zu Parametern oben im Skript; nach jedem Schritt wird gewartet, bis die Anwendung in der Aufnahme bereit war (`sync.readyMs`), bei beschäftigtem Zeiger mit `WarteBereit()`, bei neuen Fenstern mit `Erwarte(() => WinExist(…))`; beobachtete Änderungen (Texte, Häkchen, Titel) werden zu `Erwarte(…)`-Prüfungen (`Streng := true` bricht bei Abweichung ab). Menüpfade, Listenauswahl, Datenquellen, Tastenkürzel, Beschriftungen und Wiederholungen stehen als Kommentar, Bildsuche (`KlickBild`) als Alternative. Denkpausen nur mit `--real-timing`.
 
+### 14d UI-Test-Entwürfe
+
+Formate `flaui`, `pywinauto`, `playwright` und `test-ki` (12, Pakete 16 und 17; im Exportdialog: „UI-Test“ mit Auswahl des Testgerüsts). Grundlage ist dasselbe neutrale **Automationsmodell** wie beim AHK-KI-Paket (`ablauf.json`, §14b): Fenster, Selektoren nach Stabilität, Eingaben, Wartesignale, Zustand danach. AutoHotkey ist nur ein weiterer Abnehmer. Das Programm spielt nichts ab ([00 §4](00-ueberblick.md#4-nicht-ziele)); FlaUI, pywinauto und Playwright sind nur Ziel des erzeugten Textes, keine Abhängigkeit.
+
+| Format | Datei (Standardort `export/tests/`) | Inhalt |
+|---|---|---|
+| `flaui` | `<Titel>Tests.cs` | xUnit-Testklasse mit FlaUI.UIA3: `Application.Launch` (Pfad aus `APP_UNDER_TEST`), Hilfsfunktionen `Find` (`Retry.WhileNull`) und `WaitWindow` (Titelteil) |
+| `pywinauto` | `test_<titel>.py` | pytest-Funktion mit `Application(backend="uia")`, `child_window(auto_id/title, control_type)`, Hilfsfunktion `text_visible` (`wait_until`) |
+| `playwright` | `<Titel>.spec.ts` | Playwright-Test für Schritte in Chrome, Edge, Firefox oder Brave: `goto` aus der aufgezeichneten Adresse, `getByRole` aus UIA-Typ und Name, `toHaveURL` nach Adresswechseln; Schritte außerhalb des Browsers als Kommentar |
+| `test-ki` | Ordner `export/test-ki/<Titel>/` | `automation.json` (Format `steprec.automation`), die drei Entwürfe, `testbarkeit.md`/`.json`, `README_TEST_KI.md` mit Regeln für KI-Assistenten |
+
+**Regeln der Entwürfe.**
+
+| Thema | Regel |
+|---|---|
+| Selektoren | AutomationId (nur stabile, nicht rein numerische) → Name und Typ → Index. Bleibt nur der Klickpunkt, steht `NOTBEHELF / FALLBACK` mit Fensterkoordinaten im Code und eine Zeile im Testbarkeits-Bericht. |
+| Warten | nie feste Pausen: `sync.waitWindow` → auf das Fenster warten; `sync.busyMs` > 300 ms → `Wait.UntilResponsive`; Fensterwechsel → auf das Fenster mit dem aufgezeichneten Titel warten. |
+| Prüfungen | `verify.titleChanged` → Titelprüfung. Marker „Erwartet“ → Prüfung auf den ersten Text des Text-Schnappschusses ([03 §7.5](03-aufzeichnungskern.md)), sonst `TODO`. Marker „Fehler“ → Prüfung, die **fehlschlägt, solange der Fehler besteht** (der Fehlertext darf nicht erscheinen). |
+| Eingaben | Text als Literal; maskierte und ungeprüfte Eingaben (`{unreviewed:N}`) nur aus Umgebungsvariablen `WERT_<n>`. Tastenkürzel über `VirtualKeyShort` bzw. pywinauto-Notation. |
+| Nicht abgebildet | Kommentare, Lücken (als Kommentar), Spurdaten, Mausbewegungen ohne Aktion. Ziehen nur als gekennzeichneter Notbehelf. |
+
+Wie bei Anleitungen ist die Durchsicht auffälliger Eingaben im Editor Voraussetzung; kopflos stehen Platzhalter. Der MCP-Server liefert Entwurf, Regeln und Testbarkeit mit `get_automation` und `target` ([06](06-ki-mcp-schnittstelle.md)).
+
+**Testbarkeits-Bericht** (Editor: Exportieren → „Testbarkeit prüfen …“; Kommandozeile: `testability <Sitzung> [--json] [--strict]`, [02](02-architektur.md)): je benutztem Bedienelement (Klick, Eingabe, Ziehen, Scrollen; je Programm, Typ, Name und AutomationId einmal) die Befunde `noUiaElement`, `noAutomationId`, `noName`, `nameNotUnique`, `coordinatesOnly`, `volatileWindowClass` mit Schwere (`warning`, wenn nur Koordinaten bleiben; `hint` bei fehlender AutomationId) und Empfehlung. `--strict` endet mit Exit-Code 9, sobald eine Warnung vorliegt – so kann die CI fehlende AutomationIds anmahnen.
+
 ## 15 Qualitätsziele
 
 Die Referenzsysteme A und B stehen in [03](03-aufzeichnungskern.md#leistungsbudgets), die Sitzungsgrößen S, M und L in [08](08-viewer.md#14-geschwindigkeitsziele).

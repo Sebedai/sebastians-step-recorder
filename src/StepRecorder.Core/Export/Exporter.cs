@@ -82,26 +82,28 @@ public sealed class ExportRequest
 public static class Exporter
 {
     static readonly HashSet<string> Guide = new() { "html", "md", "markdown", "docx", "pdf", "gif", "pptx", "tour", "bugreport" };
-    static readonly HashSet<string> Known = new(Guide) { "ki", "ahk", "autohotkey", "ahk-ki", "ahkki" };
+    static readonly HashSet<string> Known = new(Guide) { "ki", "ahk", "autohotkey", "ahk-ki", "ahkki", "flaui", "pywinauto", "playwright", "test-ki" };
 
     /// <summary>Formate, die <see cref="GuideExport"/> wirklich erzeugen kann (wird mit neuen Formaten erweitert).</summary>
     public static Func<string, bool> GuideSupports { get; set; } = f => f is "html" or "md" or "docx" or "pdf" or "gif" or "pptx" or "tour" or "bugreport";
 
-    public static string Normalize(string format) => format.ToLowerInvariant() switch { "markdown" => "md", "autohotkey" => "ahk", "ahkki" => "ahk-ki", var f => f };
+    public static string Normalize(string format) => format.ToLowerInvariant() switch { "markdown" => "md", "autohotkey" => "ahk", "ahkki" => "ahk-ki", "testki" => "test-ki", var f => f };
     public static bool IsKnownFormat(string format) { var f = Normalize(format); return Known.Contains(f) && (!Guide.Contains(f) || GuideSupports(f)); }
     public static bool IsGuideFormat(string format) => Guide.Contains(Normalize(format));
     /// <summary>Formate, die einen eigenen Ordner erzeugen (statt einer Datei).</summary>
-    public static bool IsFolderOutput(string format) => Normalize(format) is "ki" or "ahk-ki";
+    public static bool IsFolderOutput(string format) => Normalize(format) is "ki" or "ahk-ki" or "test-ki";
+    /// <summary>UI-Test-Entwürfe (Pakete 16 und 17).</summary>
+    public static bool IsTestFormat(string format) => Normalize(format) is "flaui" or "pywinauto" or "playwright";
 
     public static string Extension(string format) => Normalize(format) switch
     {
-        "md" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", "bugreport" => "md", "ahk" => "ahk", _ => "html"
+        "md" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", "bugreport" => "md", "ahk" => "ahk", "flaui" => "cs", "pywinauto" => "py", "playwright" => "spec.ts", _ => "html"
     };
 
     /// <summary>Unterordner unter <c>export\</c> der Aufnahme.</summary>
     public static string SubFolder(string format) => Normalize(format) switch
     {
-        "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", "ahk" => "ahk", "ahk-ki" => "ahk-ki", "ki" => "", var f => f
+        "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", "ahk" => "ahk", "ahk-ki" => "ahk-ki", "ki" => "", "flaui" or "pywinauto" or "playwright" => "tests", var f => f
     };
 
     /// <summary>Ordner, in den Exporte dieser Aufnahme standardmäßig gehen (bei .steprec-Archiven: daneben).</summary>
@@ -116,7 +118,7 @@ public static class Exporter
     /// </summary>
     public static string DefaultTarget(SessionView view, string format, string? lastFolder, string? template = null, string? lang = null)
     {
-        string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" ? Loc.For(lang ?? view.Language, "Ablauf", "Workflow") : null, lang);
+        string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" or "test-ki" || IsTestFormat(f) ? Loc.For(lang ?? view.Language, "Ablauf", "Workflow") : null, lang);
         string suffix = f is "html" or "md" or "docx" or "pdf" ? GuidePresets.FileSuffix(template, lang ?? view.Language) : "";
         if (lastFolder != null)
         {
@@ -124,7 +126,9 @@ public static class Exporter
             {
                 "ki" => Path.Combine(lastFolder, "ki-paket-" + title),
                 "ahk-ki" => Path.Combine(lastFolder, title + "-ahk-ki"),
+                "test-ki" => Path.Combine(lastFolder, title + "-test-ki"),
                 "md" or "ahk" or "bugreport" => Path.Combine(lastFolder, title + (f == "bugreport" ? "-fehlerbericht" : ""), title + "." + Extension(f)),
+                _ when IsTestFormat(f) => Path.Combine(lastFolder, TestCodeGen.FileName(title, f)),
                 _ => Path.Combine(lastFolder, title + suffix + "." + Extension(f))
             };
         }
@@ -133,6 +137,8 @@ public static class Exporter
         {
             "ki" => Path.Combine(root, $"ki-paket-{DateTime.Now:yyyyMMdd-HHmmss}"),
             "ahk-ki" => Path.Combine(root, "ahk-ki", title),
+            "test-ki" => Path.Combine(root, "test-ki", title),
+            _ when IsTestFormat(f) => Path.Combine(root, SubFolder(f), TestCodeGen.FileName(title, f)),
             _ => Path.Combine(root, SubFolder(f), title + suffix + "." + Extension(f))
         };
     }
@@ -144,7 +150,7 @@ public static class Exporter
         if (string.IsNullOrWhiteSpace(r.Target)) return DefaultTarget(view, f, null, r.Template, r.Language);
         string t = Path.GetFullPath(r.Target);
         if (!IsFolderOutput(f) && (Directory.Exists(t) || r.Target.EndsWith('\\') || r.Target.EndsWith('/')))
-            t = Path.Combine(t, Title(view, null, r.Language) + "." + Extension(f));
+            t = Path.Combine(t, IsTestFormat(f) ? TestCodeGen.FileName(Title(view, Loc.For(r.Language ?? view.Language, "Ablauf", "Workflow"), r.Language), f) : Title(view, null, r.Language) + "." + Extension(f));
         return t;
     }
 
@@ -155,7 +161,7 @@ public static class Exporter
         if (!IsKnownFormat(f)) throw new ArgumentException("Unbekanntes Format: " + r.Format);
         string final = ResolveTarget(view, r);
         bool folder = IsFolderOutput(f);
-        if (folder) ExportFolders.CheckOwnable(final, f == "ki" ? "ai-package.json" : "ablauf.json");
+        if (folder) ExportFolders.CheckOwnable(final, f == "ki" ? "ai-package.json" : f == "test-ki" ? "automation.json" : "ablauf.json");
         string tmpRoot = view.Session.ReadOnly
             ? Path.Combine(Path.GetDirectoryName(final)!, ".steprec-tmp-" + Guid.NewGuid().ToString("N")[..8])
             : Path.Combine(view.Session.Path, "export", ".tmp", "job-" + Guid.NewGuid().ToString("N")[..8]);
@@ -188,6 +194,10 @@ public static class Exporter
             case "ahk" when r.AhkKi:
             case "ahk-ki":
                 return AhkKiPackage.Export(view, new AhkKiOptions { OutDir = work, With = r.With, Ocr = r.Ocr, Language = r.Language, Readable = r.Readable });
+            case "flaui" or "pywinauto" or "playwright":
+                return TestCodeGen.Export(view, new TestGenOptions { Target = f, OutPath = work, Language = r.Language });
+            case "test-ki":
+                return TestCodeGen.ExportPackage(view, work, r.Language);
             case "ahk":
                 return AhkExport.Export(view, new AhkOptions { OutPath = work, RealTiming = r.RealTiming, Images = r.Images, Language = r.Language, Readable = r.Readable });
             default:

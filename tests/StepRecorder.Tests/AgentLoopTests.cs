@@ -38,6 +38,21 @@ public class AgentLoopTests : IDisposable
     }
 
     [Fact]
+    public void GetAutomation_WithTarget_ReturnsTestDraftRulesAndTestability()
+    {
+        var (server, id) = Server();
+        var doc = Call(server, "get_automation", new JsonObject { ["sessionId"] = id, ["target"] = "pywinauto" });
+        Assert.Equal("steprec.automation", doc["format"]!.GetValue<string>());
+        Assert.Contains("def test_", doc["draftTest"]!.GetValue<string>());
+        Assert.Contains("score", doc["rules"]!.GetValue<string>());
+        Assert.NotEmpty(doc["testability"]!.AsArray());
+        var ahk = Call(server, "get_automation", new JsonObject { ["sessionId"] = id });
+        Assert.NotNull(ahk["draftScript"]);                                     // ohne target unverändert AutoHotkey
+        var ranged = Call(server, "get_automation", new JsonObject { ["sessionId"] = id, ["target"] = "flaui", ["from"] = 1, ["to"] = 1 });
+        Assert.DoesNotContain("// Schritt 2:", ranged["draftTest"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void FailureContext_FocusesErrorMarker_WithAutomationAndImage()
     {
         var (server, id) = Server();

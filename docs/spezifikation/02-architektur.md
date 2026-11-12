@@ -475,11 +475,12 @@ Dialog, Ein-Klick-Export (Strg+Umschalt+E) und Kommandozeile bilden denselben **
 | `SebastiansStepRecorder.exe settings export <Datei> [--parts <Liste>]` | Einstellungen, Vorlagen und Profile in eine Austauschdatei schreiben (Abschnitt [12.6](#einstellungs-austausch)) | nein | Pfad der Datei |
 | `SebastiansStepRecorder.exe settings import <Datei> [--parts <Liste>] [--confirm]` | Austauschdatei prüfen und zeigen, was sich ändern würde; erst mit `--confirm` einlesen | nein | Liste der Änderungen |
 | `SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…` | Einstellungen auf die Vorgaben zurücksetzen (Abschnitt [8.8](#befehle-nachgelagert)) | nein | Liste der Änderungen |
-| `SebastiansStepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf`, `gif`, `pptx`, `tour` (Klick-Tour), `bugreport` (Fehlerbericht) ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki`, AutoHotkey mit `ahk` und `ahk-ki` ([06](06-ki-export-und-mcp.md)); Art der Anleitung mit `--template standard\|short\|checklist` | nein | Pfade der erzeugten Dateien |
+| `SebastiansStepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf`, `gif`, `pptx`, `tour` (Klick-Tour), `bugreport` (Fehlerbericht) ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki`, AutoHotkey mit `ahk` und `ahk-ki` ([06](06-ki-export-und-mcp.md)); UI-Test-Entwürfe mit `flaui`, `pywinauto`, `playwright` und `test-ki` ([09 §14d](09-anleitungs-export.md#14d-ui-test-entwürfe)); Art der Anleitung mit `--template standard\|short\|checklist` | nein | Pfade der erzeugten Dateien |
 | `SebastiansStepRecorder.exe check <Sitzung> [--lang <de\|en>] [--importance <…>] [--all] [--json] [--strict]` | Qualitätsprüfung (Regeln Q01–Q21, [05, Abschnitt 18](05-schritterkennung.md#qualitaetskriterien)); mit `--strict` Exit-Code 9 bei Warnungen | nein | Befunde und Zähler |
 | `SebastiansStepRecorder.exe steps <Sitzung> [--json] [--all] [--lang <de\|en>]` | Schrittliste ausgeben (Nummer, Zeit, Art, Protokolltext, Belegstufe, Reaktionszeiten); `--all` mit Spurdaten | nein | eine Zeile je Schritt, mit `--json` ein JSON-Objekt |
 | `SebastiansStepRecorder.exe list [--json] [--limit <n>] [--root <Ordner>] [--all]` | Aufnahmen im Aufnahmeordner, neueste zuerst; `--all` mit `.steprec`-Archiven | nein | eine Zeile je Aufnahme, mit `--json` ein JSON-Objekt (Kennung, Titel, Beginn, Dauer, Zustand, Schritte, Profil, Pfad) |
 | `SebastiansStepRecorder.exe validate <Sitzung> [--json] [--thorough]` | Format und Vollständigkeit prüfen | nein | Bericht |
+| `SebastiansStepRecorder.exe testability <Sitzung> [--json] [--strict] [--lang <de\|en>]` | Testbarkeits-Bericht: benutzte Bedienelemente ohne AutomationId oder eindeutigen Namen ([09 §14d](09-anleitungs-export.md#14d-ui-test-entwürfe)); mit `--strict` Exit-Code 9, sobald nur Koordinaten bleiben | nein | Markdown-Tabelle, mit `--json` ein JSON-Objekt |
 | `SebastiansStepRecorder.exe record --self-test [--json]` | Startprüfungen ohne Aufnahme (Abschnitt [13](#fehlerbehandlung)) | nein | Ergebnis je Prüfung |
 | `SebastiansStepRecorder.exe mcp [--root <Ordner>] [--allow-edit] [--allow-requests] [--lang <de\|en>] [--max-result-tokens <n>] [--max-image-pixels <n>] [--max-images <n>]` | MCP-Server über stdio; `--allow-requests` schaltet die Werkzeuge für Agent-Anfragen ein ([06](06-ki-export-und-mcp.md)) | nein | **ausschließlich** JSON-RPC |
 | `SebastiansStepRecorder.exe --help` / `--version` | Hilfe / Version | nein | Text |
@@ -541,6 +542,7 @@ Eine Manifest-Einstellung, mit der ein Konsolenprogramm ohne Konsolenfenster sta
 | `settings` | – | Pfad der Austauschdatei bzw. Liste der Änderungen, mit `--json` als JSON-Objekt | Diagnose, Warnungen |
 | `check` | – | Befunde und Zähler, mit `--json` als JSON-Objekt | Diagnose |
 | `steps` | – | Schrittliste, eine Zeile je Schritt | Diagnose |
+| `testability` | – | Befunde als Markdown-Tabelle, mit `--json` als JSON-Objekt | Diagnose |
 | `mcp` | JSON-RPC | JSON-RPC | Diagnose |
 
 Textausgaben sind UTF-8 ohne Byte-Reihenfolge-Marke.

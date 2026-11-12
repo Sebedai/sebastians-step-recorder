@@ -126,6 +126,8 @@ sealed partial class ViewerWindow
         formats.Items.Add(Sep());
         formats.Items.Add(U.Mi(Loc.L("KI-Paket …", "AI package …"), null, () => ShowExportDialog("ki"), Theme.IRobot));
         formats.Items.Add(U.Mi(Loc.L("AutoHotkey-Skript …", "AutoHotkey script …"), null, () => ShowExportDialog("ahk"), Theme.IScript));
+        formats.Items.Add(U.Mi(Loc.L("UI-Test-Entwurf (FlaUI, pywinauto, Playwright) …", "UI test draft (FlaUI, pywinauto, Playwright) …"), null, () => ShowExportDialog(LastTestFormat()), Theme.IChecklist));
+        formats.Items.Add(U.Mi(Loc.L("Testbarkeit prüfen …", "Check testability …"), null, ShowTestability, Theme.ICheck));
         formats.Items.Add(Sep());
         formats.Items.Add(Item("support"));
         // kurz halten (höchstens ~13 Einträge, sonst scrollt das Menü): Verwandtes in Untermenüs

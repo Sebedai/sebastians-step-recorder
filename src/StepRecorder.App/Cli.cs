@@ -28,6 +28,7 @@ Aufruf:
   SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
   SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
   SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
+                                                 |flaui|pywinauto|playwright|test-ki   (UI-Test-Entwürfe)
       [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
@@ -37,6 +38,7 @@ Aufruf:
       KI-Paket und AutoHotkey: [--readable]   für Menschen lesbar, ausführlich kommentiert
   SebastiansStepRecorder.exe check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
   SebastiansStepRecorder.exe validate <Aufnahme> [--json] [--thorough]
+  SebastiansStepRecorder.exe testability <Aufnahme> [--json] [--strict] [--lang de|en]   Bedienelemente ohne AutomationId (--strict: Exit 9)
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
   SebastiansStepRecorder.exe steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
@@ -68,6 +70,7 @@ Usage:
   SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
   SebastiansStepRecorder.exe support                 prepare a support recording in the start window
   SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
+                                                 |flaui|pywinauto|playwright|test-ki   (UI test drafts)
       [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
@@ -77,6 +80,7 @@ Usage:
       AI package and AutoHotkey: [--readable]   readable for people, extensively commented
   SebastiansStepRecorder.exe check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
   SebastiansStepRecorder.exe validate <recording> [--json] [--thorough]
+  SebastiansStepRecorder.exe testability <recording> [--json] [--strict] [--lang de|en]   controls without AutomationId (--strict: exit 9)
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>]
   SebastiansStepRecorder.exe steps <recording> [--json] [--all]   step list with response times
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
@@ -108,6 +112,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
                 case "compare": return CompareCmd(args);
                 case "steps": return StepsCmd(args);
                 case "list": return ListCmd(args);
+                case "testability": return TestabilityCmd(args);
                 case "record" when args.Contains("--stop"): return Ui.SingleInstance.SendStop();
                 case "record" when args.Contains("--self-test"): return SelfTest(args);
                 case "settings": return SettingsCmd(args);
@@ -315,6 +320,23 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
             Console.WriteLine($"{s.Number,4}. {Fmt.Time(s.TFrom, view.Language)}  {s.Kind,-12} {s.Protocol}  [{s.EvidenceLevel}]{timing}");
         }
         return 0;
+    }
+
+    // ---------------- testability ----------------
+
+    /// <summary>Testbarkeits-Bericht (Paket 16): welche benutzten Bedienelemente keine AutomationId oder keinen eindeutigen Namen haben.</summary>
+    static int TestabilityCmd(string[] a)
+    {
+        var c = CliArgs.Parse(a, 1, new[] { "--lang" }, new[] { "--json", "--strict" });
+        if (c.Error != null) return Usage(c.Error);
+        if (NeedSession(c) is { } e) return Usage(e);
+        if (c["--lang"] is { } l && l is not ("de" or "en")) return Usage("--lang: de | en");
+        using var view = SessionView.Open(S(c.Positional[0]), headless: true, lang: c["--lang"]);
+        var list = TestCodeGen.Testability(view, view.Language);
+        int warnings = list.Count(f => f.Str("severity") == "warning");
+        if (c.Has("--json")) Console.WriteLine(Json.Pretty(new JsonObject { ["findings"] = new JsonArray(list.Select(f => (JsonNode)f).ToArray()), ["warnings"] = warnings, ["hints"] = list.Count - warnings }));
+        else Console.WriteLine(TestCodeGen.TestabilityMarkdown(view, list, view.Language));
+        return c.Has("--strict") && warnings > 0 ? 9 : 0;
     }
 
     // ---------------- list ----------------

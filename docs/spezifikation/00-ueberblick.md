@@ -60,7 +60,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 
 ## 4. Nicht-Ziele
 
-- **Keine Automatisierung oder Wiedergabe.** Das Tool steuert keine Programme und spielt Abläufe nicht ab. (Das Datenformat ist dafür geeignet, aber das ist Sache anderer Werkzeuge.)
+- **Keine Automatisierung oder Wiedergabe.** Das Tool steuert keine Programme und spielt Abläufe nicht ab. Es erzeugt höchstens **Text**, den andere Werkzeuge ausführen: ein AutoHotkey-Skript oder einen UI-Test-Entwurf für FlaUI, pywinauto oder Playwright ([09 §14a](09-anleitungs-export.md#14a-autohotkey-skript), [§14d](09-anleitungs-export.md#14d-ui-test-entwürfe)). Ausführen ist Sache dieser Werkzeuge und des Nutzers.
 - **Keine Überwachung.** Kein verdeckter Modus, kein Autostart, keine Daueraufzeichnung im Hintergrund, keine zentrale Sammlung. Das ist ein Projektgrundsatz, kein fehlendes Feature. Auch ein Agent startet nie von sich aus eine Aufnahme: Er kann über MCP nur um eine Vorführung bitten (nur mit `--allow-requests`), und der Nutzer bestätigt jede Anfrage ausdrücklich.
 - **Keine eingebaute KI und keine Cloud.** Das Tool ruft keine KI-Dienste auf und sendet nichts über das Netzwerk. KI-Nutzung geschieht außerhalb – über den Export oder den lokalen MCP-Server.
 - **Kein Videorekorder.** Bilder entstehen ereignisgesteuert; eine Abspielfunktion im Viewer zeigt den Ablauf als animierte Bildfolge.

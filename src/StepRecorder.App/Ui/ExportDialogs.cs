@@ -26,7 +26,16 @@ sealed class ExportDialog : Window
         new("gif", Theme.IPlay, "GIF", Loc.L("animiert", "animated")),
         new("ki", Theme.IRobot, Loc.L("KI-Paket", "AI package"), Loc.L("für KI", "for AI")),
         new("ahk", Theme.IScript, "AutoHotkey", Loc.L("Skript", "script")),
-    }.Where(f => Exporter.IsKnownFormat(f.Id)).ToList();
+        new("uitest", Theme.IChecklist, Loc.L("UI-Test", "UI test"), Loc.L("Entwurf", "draft")),
+    }.Where(f => f.Id == "uitest" || Exporter.IsKnownFormat(f.Id)).ToList();
+
+    /// <summary>Ziele des Formats „UI-Test“ (Pakete 16 und 17).</summary>
+    static readonly string[] TestTargets = { "flaui", "pywinauto", "playwright", "test-ki" };
+    readonly ComboBox _testTarget = new()
+    {
+        Items = { Loc.L("FlaUI (C#, xUnit)", "FlaUI (C#, xUnit)"), Loc.L("pywinauto (Python, pytest)", "pywinauto (Python, pytest)"), Loc.L("Playwright (TypeScript, nur Browser-Schritte)", "Playwright (TypeScript, browser steps only)"), Loc.L("Test-KI-Paket (alle Entwürfe, Modell und Regeln für KI)", "Test AI package (all drafts, model and rules for AI)") },
+        SelectedIndex = 0
+    };
 
     readonly List<Fmt> _fmts;
     readonly RadioButton[] _formatBtns;
@@ -117,7 +126,7 @@ sealed class ExportDialog : Window
 
     string FormatId => _fmts[Math.Max(0, Array.FindIndex(_formatBtns, f => f.IsChecked == true))].Id;
     /// <summary>Tatsächliches Format (AutoHotkey als KI-Paket ist ein eigenes Ordnerformat).</summary>
-    public string Format => FormatId == "ahk" && _ahkKi.IsChecked == true ? "ahk-ki" : FormatId;
+    public string Format => FormatId == "ahk" && _ahkKi.IsChecked == true ? "ahk-ki" : FormatId == "uitest" ? TestTargets[Math.Max(0, _testTarget.SelectedIndex)] : FormatId;
     string TextLanguage => _lang.SelectedIndex == 1 ? "en" : "de";
     string Preset => GuidePresets.All[Math.Max(0, _preset.SelectedIndex)].id;
     bool IsGuide => Format is "html" or "md" or "docx" or "pdf" or "pptx" or "tour" or "bugreport" or "gif";
@@ -148,6 +157,7 @@ sealed class ExportDialog : Window
         Theme.Prepare(this, Theme.Surface);
         _fmts = Formats();
         string start = Exporter.Normalize(initial.Format) is "ahk-ki" ? "ahk" : Exporter.Normalize(initial.Format);
+        if (Array.IndexOf(TestTargets, start) is int ti && ti >= 0) { _testTarget.SelectedIndex = ti; start = "uitest"; }
         int sel = Math.Max(0, _fmts.FindIndex(f => f.Id == start));
         var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = Math.Min(_fmts.Count, 7), Margin = new Thickness(-4, 0, -4, 12) };
         var btns = new List<RadioButton>();
@@ -217,6 +227,7 @@ sealed class ExportDialog : Window
         G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
         var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), _gifSec, Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.", "The GIF shows a title image, then every step with number and heading."));
         var ahkOpts = U.Col(_timing, _ahkKi); ahkOpts.Margin = new Thickness(0, 0, 0, 12);
+        var testOpts = U.Field(Loc.L("Testgerüst", "Test framework"), _testTarget, Loc.L("Ein Entwurf zum Prüfen und Anpassen – das Programm spielt nichts selbst ab. Selektoren nach Stabilität, Warten auf Signale statt fester Pausen, Marker „Erwartet“ und „Fehler“ als Prüfungen.", "A draft to review and adapt – the program does not replay anything itself. Selectors by stability, waiting for signals instead of fixed pauses, markers \"Expected\" and \"Error\" as assertions."));
         var fBefore = U.Field(Loc.L("Vorher-Bild", "Before image"), U.Col(_beforeTrack, _beforeHint));
         var fMore = U.Field(Loc.L("Weitere Bilder", "More images"), U.Col(_crop, _afterImg));
         var fGuideAfter = U.Field(Loc.L("Nachher-Bild", "After image"), U.Col(_guideAfterTrack, _guideAfterHint));
@@ -229,8 +240,9 @@ sealed class ExportDialog : Window
 
         void Upd()
         {
-            bool ki = Format == "ki", ahk = FormatId == "ahk", guide = IsGuide;
-            options.Visibility = ahk ? Visibility.Collapsed : Visibility.Visible;
+            bool ki = Format == "ki", ahk = FormatId == "ahk", guide = IsGuide, uitest = FormatId == "uitest";
+            options.Visibility = ahk || uitest ? Visibility.Collapsed : Visibility.Visible;
+            testOpts.Visibility = uitest ? Visibility.Visible : Visibility.Collapsed;
             ahkOpts.Visibility = ahk ? Visibility.Visible : Visibility.Collapsed;
             gifOpts.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
@@ -309,12 +321,13 @@ sealed class ExportDialog : Window
         foreach (var cb in new[] { _preset, _lang }) cb.SelectionChanged += (_, _) => Renamed();
         foreach (var cb in new[] { _imp, _view, _detail, _profile, _gifSec, _missing }) cb.SelectionChanged += (_, _) => Upd();
         _ahkKi.Checked += (_, _) => Renamed(); _ahkKi.Unchecked += (_, _) => Renamed();
+        _testTarget.SelectionChanged += (_, _) => Renamed();
         _zip.Checked += (_, _) => Upd(); _zip.Unchecked += (_, _) => Upd();
         foreach (var r in _before.Concat(_guideAfter)) r.Checked += (_, _) => Upd();
         foreach (var chk in new[] { _crop, _afterImg, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, marksOpts, ahkOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, marksOpts, ahkOpts, testOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 
@@ -400,6 +413,14 @@ sealed class ExportDialog : Window
                 KiFiles()),
             "ahk-ki" => (Loc.L("AutoHotkey als KI-Paket", "AutoHotkey as AI package"), Loc.L("Ein Skript-Entwurf plus alles, was ein KI-Assistent braucht, um das Skript zu prüfen und zu verbessern.", "A script draft plus everything an AI assistant needs to check and improve it."),
                 new[] { ("entwurf.ahk", Loc.L("das AutoHotkey-v2-Skript als Entwurf.", "the AutoHotkey v2 script draft.")), ("ablauf.json", Loc.L("alle Schritte mit Fenstern, Steuerelementen, Wartebedingungen und Prüfungen.", "all steps with windows, controls, wait conditions and checks.")), ("README_AHK_KI.md", Loc.L("Anleitung für den KI-Assistenten.", "instructions for the AI assistant.")), (Loc.L("bilder\\", "bilder\\"), Loc.L("Bildausschnitte der Bedienelemente mit erkanntem Text.", "image details of the controls with recognised text.")) }),
+            "flaui" => (Loc.L("UI-Test für FlaUI (C#, xUnit)", "UI test for FlaUI (C#, xUnit)"), Loc.L("Eine Testklasse als Entwurf: startet das Programm (APP_UNDER_TEST), findet Elemente über AutomationId, Name und Typ, wartet auf Fenster und prüft Titel und Marker.", "A test class draft: starts the program (APP_UNDER_TEST), finds elements via AutomationId, name and type, waits for windows and checks titles and markers."),
+                new[] { (Loc.L("<Titel>Tests.cs", "<title>Tests.cs"), Loc.L("xUnit-Test mit FlaUI.UIA3; Koordinaten nur als gekennzeichneter Notbehelf, Geheimes aus Umgebungsvariablen.", "xUnit test with FlaUI.UIA3; coordinates only as a marked fallback, secrets from environment variables.")) }),
+            "pywinauto" => (Loc.L("UI-Test für pywinauto (Python)", "UI test for pywinauto (Python)"), Loc.L("Ein pytest-Test als Entwurf mit dem UIA-Backend von pywinauto.", "A pytest test draft using pywinauto's UIA backend."),
+                new[] { (Loc.L("test_<titel>.py", "test_<title>.py"), Loc.L("Testfunktion: child_window(auto_id/title, control_type), Warten auf Fenster, Prüfungen.", "test function: child_window(auto_id/title, control_type), waiting for windows, assertions.")) }),
+            "playwright" => (Loc.L("UI-Test für Playwright (nur Browser-Schritte)", "UI test for Playwright (browser steps only)"), Loc.L("Ein Entwurf für Schritte in Chrome, Edge, Firefox oder Brave: goto aus der Adresse, getByRole aus Typ und Name. Es gibt keine DOM-Daten; Adressen sind ohne Abfrageteil gespeichert.", "A draft for steps in Chrome, Edge, Firefox or Brave: goto from the address, getByRole from type and name. There is no DOM data; addresses are stored without query."),
+                new[] { (Loc.L("<Titel>.spec.ts", "<title>.spec.ts"), Loc.L("Playwright-Test (TypeScript); Schritte außerhalb des Browsers als Kommentar.", "Playwright test (TypeScript); steps outside the browser as comments.")) }),
+            "test-ki" => (Loc.L("Test-KI-Paket", "Test AI package"), Loc.L("Alles, was ein KI-Assistent braucht, um aus der Aufnahme einen wartbaren UI-Test zu machen.", "Everything an AI assistant needs to turn the recording into a maintainable UI test."),
+                new[] { ("automation.json", Loc.L("neutrales Automationsmodell: Fenster, Selektoren nach Stabilität, Eingaben, Wartesignale, Zustand danach.", "neutral automation model: windows, selectors by stability, inputs, wait signals, state afterwards.")), (Loc.L("Entwürfe", "Drafts"), Loc.L("FlaUI, pywinauto und Playwright.", "FlaUI, pywinauto and Playwright.")), ("testbarkeit.md", Loc.L("Bedienelemente ohne AutomationId oder eindeutigen Namen.", "controls without AutomationId or unique name.")), ("README_TEST_KI.md", Loc.L("Regeln für den KI-Assistenten.", "rules for the AI assistant.")) }),
             "ahk" => (Loc.L("AutoHotkey – Ablauf automatisch wiederholen", "AutoHotkey – replay the sequence automatically"), Loc.L("Ein AutoHotkey-v2-Skript, das die aufgenommenen Schritte nachspielt. Zum Ausführen muss AutoHotkey v2 installiert sein.", "An AutoHotkey v2 script that replays the recorded steps. AutoHotkey v2 must be installed to run it."),
                 new[] { (Loc.L("<Titel>.ahk", "<title>.ahk"), Loc.L("das Skript: findet Fenster über ahk_class/ahk_exe und Steuerelemente über ClassNN, wartet wie in der Aufnahme und prüft das Ergebnis. Getippte Werte stehen als Parameter oben, Passwörter werden beim Start abgefragt. Abbruch mit Strg+Esc.", "the script: finds windows via ahk_class/ahk_exe and controls via ClassNN, waits as in the recording and checks the result. Typed values are parameters at the top, passwords are asked for at start. Cancel with Ctrl+Esc.")), (Loc.L("bilder\\", "bilder\\"), Loc.L("Bildausschnitte als Rückfall, falls ein Element nicht gefunden wird.", "image details as fallback if an element is not found.")) }),
             _ => (Loc.L("HTML – eine einzige Datei für den Browser", "HTML – a single file for the browser"), Loc.L("Zum Verschicken per E-Mail, für das Intranet oder zum Ansehen ohne weitere Programme.", "For email, the intranet or viewing without other programs."),

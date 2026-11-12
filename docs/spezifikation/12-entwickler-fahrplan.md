@@ -98,8 +98,8 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | 13 | Kontext IV: Protokolldateien | V-41 | M | Aufzeichnungskern, Startfenster | 12 | nur bei Zuordnung zu Schritten | erledigt |
 | 14 | Bereitschaft und Modus „Fehler nachstellen“ | V-43 | M | Oberfläche, Lebenszyklus | (10 für den vollen Modus) | nein | erledigt |
 | 15 | Befehlspalette und Sofort-Bildschirmfoto | V-43 | M | Editor | – | nein | erledigt |
-| 16 | UI-Tests I: Automationsmodell, FlaUI, Testbarkeits-Bericht | V-42 | L | Export | – | nein | geplant |
-| 17 | UI-Tests II: pywinauto, Playwright, Test-KI-Paket | V-42 | M–L | Export, MCP | 16 | nein | geplant |
+| 16 | UI-Tests I: Automationsmodell, FlaUI, Testbarkeits-Bericht | V-42 | L | Export | – | nein | erledigt |
+| 17 | UI-Tests II: pywinauto, Playwright, Test-KI-Paket | V-42 | M–L | Export, MCP | 16 | nein | erledigt |
 | 18 | Doku im Repository | V-44 | M | Export, Editor | – | nein | geplant |
 | 19 | Visueller Vergleich | V-44 | M–L | Vergleich, Editor | 9 | nein | geplant |
 
