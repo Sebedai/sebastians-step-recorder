@@ -212,7 +212,7 @@ sealed class CompareWindow : Window
         return lines.Count == 0 ? (p.Str("status") is "onlyA" or "onlyB" ? Loc.L("Dieser Schritt hat auf der anderen Seite kein Gegenstück.", "This step has no counterpart on the other side.") : Loc.L("Keine Unterschiede.", "No differences.")) : string.Join("\n", lines);
     }
 
-    static string Target(ViewStep? s) => s?.Json.Obj("target")?.Obj("el") is { } el ? $"{el.Str("ct")} „{el.Str("name")}“" : "–";
+    static string Target(ViewStep? s) => s?.Json.Obj("target")?.Obj("el") is { } el ? Loc.F("{0} „{1}“", "{0} \"{1}\"", el.Str("ct"), el.Str("name")) : "–";
     static string Opened(ViewStep? s) => string.Join(", ", s?.Json.Obj("effect")?.Arr("windowsOpened")?.Select(w => w.Str("title")) ?? Array.Empty<string?>()) is { Length: > 0 } t ? t : "–";
 
     void NextDifference(int dir)
