@@ -154,6 +154,9 @@ sealed class UiApp : Application
         foreach (var hk in s.EffectiveHotkeys().Values)
             if (Hotkeys.Parse(hk, out var m, out var vk)) o.SelfHotkeys.Add((m, vk));
         foreach (var (key, _, _) in RecordingOptions.Channels) if (!s.Records(key)) o.Off.Add(key);
+        // Entwickler-Kontext (Pakete 12, 13): ab Werk aus; in „Streng“ wirkungslos (RecordingOptions.ContentSources)
+        o.EventLogText = s.EventLogText; o.ClipboardContent = s.ClipboardContent; o.LogFiles = new List<string>(s.LogFiles);
+        o.SettingsPrivacyLevel = s.PrivacyLevel;
         return o;
     }
 
@@ -182,6 +185,11 @@ sealed class UiApp : Application
         if (Opt("--after-stop") is { } after) o.AfterStop = after;
         // --skip moves,typing … schaltet Eingabearten nur für diese Aufnahme ab
         if (Opt("--skip") is { } skip) foreach (var k in skip.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) o.Off.Add(k);
+        // --log <Datei> (mehrfach): Protokolldateien nur für diese Aufnahme mitlesen (Paket 13)
+        for (int i = 1; i + 1 < a.Length; i++) if (a[i] == "--log") o.LogFiles.Add(a[++i]);
+        // schwächerer Schutz als in den Einstellungen: vor dem Start auf stderr (02 §12.5)
+        if (o.Weakens(AppSettings.Load().PrivacyLevel) is { Count: > 0 } weak)
+            try { Console.Error.WriteLine(Loc.F("Hinweis: Diese Aufnahme schützt schwächer als die Einstellungen: {0}", "Note: this recording protects less than the settings: {0}", string.Join(", ", weak.Select(w => RecordingOptions.WeakenName(w, Loc.Lang))))); } catch { }
         return o;
     }
 

@@ -282,6 +282,12 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             if (StepRecorder.ReadLayer.Timing.Of(j) is { } tm && tm.LongN("reactionMs") is long rct) parts.Insert(0, Loc.F("erste Reaktion nach {0} ms", "first reaction after {0} ms", rct));
             if (parts.Count > 0) info(Loc.L("Warten", "Waiting"), ReadOnlyText(string.Join("\n", parts), Theme.Fg, Theme.FsHint));
         }
+        // Freitext der Ereignisanzeige zu einem Programm-Schritt (Paket 12) und Protokollzeilen um den Schritt (Paket 13)
+        foreach (var rel in j.Obj("seq")?.Arr("related")?.Select(x => x?.GetValue<long>() ?? 0) ?? Enumerable.Empty<long>())
+            if (_view.Session.BySeq(rel) is { } ev && ev.Str("type") == "eventlog.entry" && _view.EventLogText(_view.EventForOutput(ev)) is { Length: > 0 } evText)
+                info(Loc.F("Ereignisanzeige {0}", "Event log {0}", ev.Long("eventId")), ReadOnlyText(evText, Theme.Fg, Theme.FsHint));
+        if (StepRecorder.ReadLayer.DeveloperContext.LogLines(_view, s.TFrom - 1_000_000, s.TTo + 3_000_000) is { Count: > 0 } logLines)
+            info(Loc.L("Protokollzeilen", "Log lines"), ReadOnlyText(string.Join("\n", logLines.OfType<System.Text.Json.Nodes.JsonObject>().Select(l => $"[{l.Str("file")}]\n{l.Str("lines")}")), Theme.Fg, Theme.FsHint));
         // Wortlaut des Fensters (Text-Schnappschuss, Paket 11) – markierbar und kopierbar
         foreach (var sn in _view.SnapshotsOf(s))
             info(Loc.F("Text im Fenster „{0}“", "Window text “{0}”", sn.title.Length > 40 ? sn.title[..40] + "…" : sn.title), ReadOnlyText(sn.text + (sn.incomplete ? Loc.L("\n(unvollständig)", "\n(incomplete)") : ""), Theme.Fg, Theme.FsHint));

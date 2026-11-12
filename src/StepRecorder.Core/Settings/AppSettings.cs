@@ -136,6 +136,14 @@ public sealed class AppSettings
     /// <summary>Was aufgezeichnet wird (Schlüssel aus <see cref="Capture.RecordingOptions.Channels"/>); fehlende Schlüssel gelten als eingeschaltet.</summary>
     public Dictionary<string, bool> Record { get; set; } = new();
     public bool Records(string channel) => Record.GetValueOrDefault(channel, true);
+    /// <summary>Entwickler-Kontext (Paket 12): Freitext der Ereignisanzeige mitlesen – ab Werk aus, schwächt den Schutz.</summary>
+    public bool EventLogText { get; set; }
+    /// <summary>Inhalt der Zwischenablage (nur Text, gekürzt) aufzeichnen – ab Werk aus (10 §9), schwächt den Schutz.</summary>
+    public bool ClipboardContent { get; set; }
+    /// <summary>Protokolldateien, die während der Aufnahme mitgelesen werden (Paket 13) – leer = keine.</summary>
+    public List<string> LogFiles { get; set; } = new();
+    /// <summary>Im Infobereich bereit bleiben, wenn das letzte Fenster schließt (Paket 14) – ab Werk aus.</summary>
+    public bool StayInTray { get; set; }
     /// <summary>Modus „Eigene“: erweiterter Programmkontext.</summary>
     public bool CustomAppContext { get; set; } = true;
     /// <summary>Modus „Eigene“: was nach dem Stopp passiert (viewer | export | supportPackage | folder).</summary>

@@ -1417,6 +1417,8 @@ Programm-Kontext (Paket 10 aus [12](12-entwickler-fahrplan.md)); MINOR-Erweiteru
 | `window.hang` | `phase` (`start`, `end`), `win`, `proc`, `process`, `durationMs`, `untilStop` | Ein sichtbares Fenster des Programms reagiert nicht (`IsHungAppWindow`) |
 | `eventlog.entry` | `proc`, `process`, `win`, `eventId` (1000, 1002, 1026), `recordId`, `provider`, `facts` (`app`, `appVersion`, `module`, `moduleVersion`, `exceptionCode`, `offset`, `exceptionType`); `text` nur mit Paket 12 | Eintrag des Anwendungsprotokolls zu einem aufgenommenen Programm, im Zeitraum der Aufnahme |
 
+Mit der Quelle „Fehlertexte der Ereignisanzeige“ (Paket 12) trägt `eventlog.entry` für 1000 und 1026 zusätzlich `text` (Beschreibung des Eintrags, Profilpfade ersetzt, höchstens 8 000 Zeichen, `truncated`) – inhaltstragend und prüfpflichtig.
+
 `process.*`, `window.hang` und `eventlog.entry` sind **nicht** strukturell (`Redactor.Structural`): Ein geschwärzter Zeitraum leert sie. `text` ist inhaltstragend und unterliegt der Durchsicht (Paket 12).
 
 ```json
@@ -1424,6 +1426,20 @@ Programm-Kontext (Paket 10 aus [12](12-entwickler-fahrplan.md)); MINOR-Erweiteru
 {"seq":980,"t":41250000,"tSrc":"sys","type":"process.exit","proc":"p1","pid":4242,"process":"MyApp.exe","win":"w3","exitCode":3221225477,"exitCodeHex":"0xC0000005","class":"crash"}
 {"seq":984,"t":41900000,"tSrc":"sys","type":"eventlog.entry","proc":"p1","process":"MyApp.exe","win":"w3","eventId":1000,"recordId":88231,"provider":"Application Error","facts":{"app":"MyApp.exe","appVersion":"2.3.1.0","module":"ntdll.dll","exceptionCode":"0xC0000005","offset":"0x00000000000a1b2c"}}
 ```
+
+<a id="ev-log"></a>
+### 9.21 `log.source`, `log.lines`
+
+Mitgelesene Protokolldateien (Paket 13 aus [12](12-entwickler-fahrplan.md)); Quelle `LogWatch`. Nur Zeilen, die während der Aufnahme dazukommen; nur lokale Festplatten; höchstens 5 Dateien, 2 000 Zeichen je Zeile, 256 KB je Datei, 200 Zeilen je Ereignis.
+
+| Typ | Felder | Bedeutung |
+|---|---|---|
+| `log.source` | `log` (`l<n>`), `file` (nur Dateiname), `startLength` | Eine mitgelesene Datei, beim Start |
+| `log.lines` | `log`, `file`, `lines` (durch `\n` getrennt), `count`, `truncated`, `dropped` (übersprungene Zeilen: Grenzen, Pause, Privattaste), `rotated` | Neue Zeilen; `t` ist der Zeitpunkt der Beobachtung, nicht der Zeitstempel der Anwendung |
+
+`lines` ist inhaltstragend: prüfpflichtig, in geschwärzten Zeiträumen geleert, nie im Suchindex.
+
+**Leser-Mindestversion.** Eine Aufnahme mit inhaltstragender Quelle trägt im Manifest `requires: {"reader": "0.13.0", "reason": "contentEvents"}`. Ein Programm älterer Version, das diese Angabe kennt, öffnet die Sitzung nicht (`NotSupportedException`); Programme bis 0.12 kennen sie nicht – deshalb ist sie seit 0.13 eingebaut, und die Durchsicht der neuen Ereignisse gibt es erst ab dieser Version (Entscheidung O-16).
 
 ---
 
@@ -2626,6 +2642,7 @@ Die folgenden Angaben sind **Erweiterungen im Sinn von 15.2**: neue optionale Fe
 | Verallgemeinerungen | `edits.substitutions[]`; `substituted` am Ereignis; `key: "Substituted"`, `placeholder`; Token `{ "placeholder": … }`; `masks[].why: "substituted"` | nichts verallgemeinert |
 | Ignorierte Fundstellen | `edits.qualityIgnores[]` | nichts ignoriert |
 | Suchindex | `cache/search/` | wird bei Bedarf erzeugt |
+| Programm-Kontext und mitgelesene Inhalte (Pakete 10–13) | `process.*`, `window.hang`, `eventlog.entry`, `ui.snapshot`, `log.*`, `clipboard.content`; `manifest.requires`; `edits.review.inputs[].key`; Kommentarart `agent` | keine solchen Ereignisse |
 
 Eine Umbenennung ist darunter: Der Wert `marker` von `marker.kind` heißt jetzt `note`. Leser nehmen beide an.
 

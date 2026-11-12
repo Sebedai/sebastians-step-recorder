@@ -22,6 +22,7 @@ Aufruf:
       --title <Text>   --goal <Text>   --expected <Text>   --reference <Text>
       --protection balanced|strict   --profile anleitung|support|ki-spur|eigene   --out <Ordner>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
+      --log <Datei>…   Protokolldatei mitlesen (Zeilen während der Aufnahme; prüfpflichtig; nicht in „Streng“)
       gibt am Ende den Aufnahmeordner aus (mit --json als JSON); Exit 5, wenn die Aufnahme verworfen wurde
   SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Aufnahmeordner aus)
   SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
@@ -61,6 +62,7 @@ Usage:
       --title <text>   --goal <text>   --expected <text>   --reference <text>
       --protection balanced|strict   --profile guide|support|aitrace|custom   --out <folder>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
+      --log <file>…   read a log file along (lines during the recording; requires review; not in "strict")
       prints the recording folder at the end (JSON with --json); exit 5 if the recording was discarded
   SebastiansStepRecorder.exe record --stop           stop the running recording (prints its folder)
   SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
@@ -137,7 +139,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
     /// <summary>Prüft die Optionen von <c>record</c>; null = in Ordnung.</summary>
     public static string? ValidateRecordArgs(string[] args)
     {
-        var c = CliArgs.Parse(args, 1, RecordValues, new[] { "--json" });
+        var c = CliArgs.Parse(args, 1, RecordValues, new[] { "--json" }, "--log");
         if (c.Error != null) return c.Error;
         if (c.Positional.Count > 0) return Loc.F("Unerwartete Angabe: {0}", "Unexpected argument: {0}", c.Positional[0]);
         if (c["--scope"] is { } sc && sc is not ("screen" or "app" or "region")) return Loc.L("--scope muss screen, app oder region sein.", "--scope must be screen, app or region.");
@@ -155,6 +157,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         if (c["--skip"] is { } sk)
             foreach (var k in sk.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 if (!Capture.RecordingOptions.Channels.Any(ch => ch.key == k)) return Loc.F("--skip: unbekannte Eingabeart „{0}“", "--skip: unknown input type \"{0}\"", k);
+        foreach (var lf in c.All("--log")) if (string.IsNullOrWhiteSpace(lf) || lf.Length > 500) return Loc.L("--log: Pfad einer Protokolldatei (Platzhalter * und ? im Dateinamen)", "--log: path of a log file (wildcards * and ? in the file name)");
         foreach (var t in new[] { "--title", "--goal", "--expected", "--reference" })
             if (c[t] is { Length: > 2000 }) return Loc.F("{0} ist zu lang (höchstens 2000 Zeichen).", "{0} is too long (at most 2000 characters).", t);
         return null;

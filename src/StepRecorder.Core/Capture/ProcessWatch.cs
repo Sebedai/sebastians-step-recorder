@@ -34,6 +34,7 @@ public sealed class ProcessWatch : IDisposable
     readonly DateTime _startUtc;
     readonly Action<JsonObject> _emit;
     readonly bool _fileContext;
+    readonly bool _eventText;
     readonly HashSet<long> _seenRecords = new();
     long _eventLogDueTick;
     int _next = 1;
@@ -41,9 +42,10 @@ public sealed class ProcessWatch : IDisposable
 
     /// <param name="emit">Schreibt ein Ereignis unter der Sperre der Aufnahme (verwirft es, wenn die Aufnahme schon endet).</param>
     /// <param name="fileContext">Programmdatei und <c>.git</c> lesen („Erweiterter Programmkontext“).</param>
-    public ProcessWatch(Func<long> now, DateTime startUtc, Action<JsonObject> emit, bool fileContext)
+    /// <param name="eventText">Freitext der Einträge (z. B. .NET-Stacktrace) mitlesen – inhaltstragend, prüfpflichtig (Paket 12).</param>
+    public ProcessWatch(Func<long> now, DateTime startUtc, Action<JsonObject> emit, bool fileContext, bool eventText = false)
     {
-        _now = now; _startUtc = startUtc; _emit = emit; _fileContext = fileContext;
+        _now = now; _startUtc = startUtc; _emit = emit; _fileContext = fileContext; _eventText = eventText;
         _worker = new Thread(Work) { IsBackground = true, Name = "Process.Watch", Priority = ThreadPriority.BelowNormal };
         _worker.Start();
     }
@@ -205,7 +207,17 @@ public sealed class ProcessWatch : IDisposable
                         long ago = (long)((DateTime.UtcNow - created.ToUniversalTime()).TotalMilliseconds * 1000);
                         if (ago > 0) t = Math.Max(0, t - ago);
                     }
-                    _emit(new JsonObject { ["t"] = t, ["tSrc"] = "sys", ["type"] = "eventlog.entry", ["proc"] = tr.Id, ["process"] = tr.Process, ["win"] = tr.LastWin, ["eventId"] = rec.Id, ["recordId"] = rid, ["provider"] = rec.ProviderName, ["facts"] = facts }.Clean());
+                    var entry = new JsonObject { ["t"] = t, ["tSrc"] = "sys", ["type"] = "eventlog.entry", ["proc"] = tr.Id, ["process"] = tr.Process, ["win"] = tr.LastWin, ["eventId"] = rec.Id, ["recordId"] = rid, ["provider"] = rec.ProviderName, ["facts"] = facts };
+                    if (_eventText && rec.Id is 1000 or 1026)
+                    {
+                        string? text = null;
+                        try { text = rec.FormatDescription(); } catch { }
+                        text ??= string.Join("\n", props.Select(x => x?.ToString() ?? ""));
+                        text = Win32Detail.ProfilePath(text.Replace("\r\n", "\n"));
+                        entry["text"] = text.Length > 8000 ? text[..8000] : text;
+                        if (text.Length > 8000) entry["truncated"] = true;
+                    }
+                    _emit(entry.Clean());
                     n++;
                 }
             }

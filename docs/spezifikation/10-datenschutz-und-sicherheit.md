@@ -201,7 +201,11 @@ Ein Aufnahmeprofil ist eine benannte Voreinstellung für eine Aufnahme ([07](07-
 |---|---|---|---|
 | Schutzstufe | „Schutznetz“ gilt, wo ohne Profil „Streng“ gälte | `privacyLevel` | `profile:<Name>` |
 | Inhalt der Zwischenablage | er wird aufgezeichnet, wo er ohne Profil nicht aufgezeichnet würde | `clipboardContent` | `profile:<Name>` |
+| Fehlertexte der Ereignisanzeige (Paket 12 aus [12](12-entwickler-fahrplan.md)) | sie werden mitgelesen | `eventLogText` | – (nicht Teil der Austauschdatei) |
+| Protokolldateien (Paket 13) | mindestens eine Datei wird mitgelesen | `logFiles` | – (nicht Teil der Austauschdatei) |
 | Ausschlussliste | ihr fehlen Einträge, die bisher gelten | – (ein Profil kann der Liste nur hinzufügen) | `excluded` |
+
+*Stand der Umsetzung:* `RecordingOptions.Weakens` vergleicht die Aufnahme mit der Schutzstufe der Einstellungen und zählt jede inhaltstragende Quelle (`ContentSources`: Fehlertexte der Ereignisanzeige, Inhalt der Zwischenablage, Protokolldateien) als schwächer. Das Ergebnis steht in `manifest.profile.weakens`, in der Startmeldung der Leiste („Schwächer als die Einstellungen: …“), bei `record` auf stderr; solange eine Quelle mitliest, zeigt die Leiste ein Auge mit Erklärung. In „Streng“ sind alle Quellen abgeschaltet. Einschalten lassen sie sich nur in den Einstellungen (Reiter „Entwickler“, mit Rückfrage) und Protokolldateien zusätzlich mit `record --log`; die Austauschdatei enthält sie nicht.
 
 Beim Import wird ein Profil mit dem gleichnamigen vorhandenen verglichen, sonst mit den geltenden Einstellungen ([13.4](#134-einstellungen-und-profile-weitergeben)).
 
@@ -545,6 +549,8 @@ Die Zähler helfen zu verstehen, warum der Zustand der Anwendung sich nach der L
 
 ## 9. Zwischenablage
 
+*Stand der Umsetzung (Paket 12):* Der Inhalt wird nur mit eingeschalteter Quelle aufgezeichnet (ab Werk aus, nie in „Streng“, nie im Privatmodus): nur Text, höchstens `valueMaxChars` Zeichen (`content`, `size`, `truncated`), nie aus ausgeschlossenen Programmen und nie, wenn die Quelle die Formate `ExcludeClipboardContentFromMonitorProcessing`, `CanIncludeInClipboardHistory` oder `CanUploadToCloudClipboard` setzt. Gelesen wird auf einem eigenen Thread mit 300 ms Frist (VE-18). Der Inhalt ist ein Prüfposten der Durchsicht (11.1).
+
 | Nr. | Regel |
 |---|---|
 | Z1 | **Herkunft immer:** Jede Änderung der Zwischenablage wird mit laufender Nummer, Zeit, Liste der Formate, Quellanwendung und der Größe je Format, soweit ohne Abruf des Inhalts feststellbar, vermerkt. So bleibt nachvollziehbar, *dass* und *woher* kopiert und eingefügt wurde. Nach heutigem Kenntnisstand lässt sich die Größe eines Formats mit dokumentierten Mitteln nur durch seinen Abruf bestimmen; ohne Inhaltsaufzeichnung fehlt sie dann (Z6). Ob es einen Weg ohne Abruf gibt, klärt die Prüfung Z-14 in M0 ([03](03-aufzeichnungskern.md#zwischenablage), VE-14 in [11](11-roadmap-tests-risiken.md)). |
@@ -734,6 +740,8 @@ Eine **Verallgemeinerung** ersetzt einen bestimmten Wert – den eigenen Benutze
 ## 11. Prüfung vor dem Export
 
 ### 11.1 Durchsicht aller Eingaben
+
+*Stand der Umsetzung (Paket 12 aus [12](12-entwickler-fahrplan.md)):* Neben auffälligen Tippläufen kennt die Durchsicht **Prüfposten** (`SessionView.ReviewItems`): jeder mitgelesene Inhalt (Freitext der Ereignisanzeige, Protokollzeilen, Inhalt der Zwischenablage) ist immer prüfpflichtig; Kommentare, Hinweise, Marker-Bezeichnungen und Ziel-Angaben werden es, sobald die Musterprüfung anschlägt. Ungeprüfte Posten erscheinen in Ausgaben ohne Oberfläche als `{unreviewed:N}` (Inhalt) bzw. ersetzen nur die auffällige Stelle; Exporte aus dem Editor, Fehlerbericht und bereinigte Kopie warten auf die Durchsicht. „Schwärzen“ legt für Inhalte eine Zeitraum-Schwärzung auf das Ereignis, setzt einen Hinweis auf „Intern“ bzw. leert eine Ziel-Angabe. Die Entscheidungen stehen in `edits.review.inputs[]` mit `key`.
 
 Der Viewer bietet eine Liste **aller Texte, die über die Tastatur oder die Zwischenablage in die Sitzung gelangt sind**: Tippläufe, Feldinhalte, aufgezeichnete Zwischenablage-Inhalte, dazu die Texte des Autors: seine Kommentare, seine Ziel-Angaben (Ziel der Aufnahme, erwartetes Ergebnis, Bezug) und die Bezeichnungen seiner Marker. Die Bedienung beschreibt [08](08-viewer.md#13-durchsicht-der-eingaben); hier steht, was sie leisten muss.
 

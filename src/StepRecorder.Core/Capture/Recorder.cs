@@ -43,6 +43,9 @@ public sealed partial class Recorder : IDisposable
     UiaService _uia = null!;
     WindowRegistry _reg = null!;
     ProcessWatch? _procs;
+    LogWatch? _logs;
+    /// <summary>Gefundene Protokolldateien (Startmeldung der Leiste).</summary>
+    public IReadOnlyList<string> LogFiles => _logs?.Files ?? Array.Empty<string>();
     Topology _topo = null!;
     readonly KeyTranslator _keys = new();
     long _qpc0; readonly double _usPerTick = 1_000_000.0 / Stopwatch.Frequency;
@@ -108,13 +111,18 @@ public sealed partial class Recorder : IDisposable
             ["history"] = new JsonArray(new JsonObject { ["atUtc"] = Json.Utc(_startUtc), ["action"] = "created", ["tool"] = "StepRecorder " + AppInfo.Version })
         };
         if (Options.GoalJson() is { } goal) manifest["goal"] = goal;
+        if (Options.ContentSources().Count > 0) manifest["requires"] = new JsonObject { ["reader"] = Session.ContentReaderVersion, ["reason"] = "contentEvents" };
         manifest.Clean();
         _w = SessionWriter.Create(folder, manifest);
 
         _uia = new UiaService(Now, r => _topo.RectJson(r), Options.ValueMaxChars);
         _reg = new WindowRegistry(Options, Emit, Now, () => _topo, _ownPids) { ScopeTest = InScope };
         // Programm-Kontext: Start, Ende, Hänger, Ereignisanzeige (12, Paket 10)
-        _procs = new ProcessWatch(Now, _startUtc, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, Options.AppContext);
+        var sources = Options.ContentSources();
+        _procs = new ProcessWatch(Now, _startUtc, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, Options.AppContext, sources.Contains("eventLogText"));
+        // Protokolldateien (Paket 13): nur Zeilen während der Aufnahme, nicht in Pause und Privattaste
+        if (sources.Contains("logFiles"))
+            _logs = new LogWatch(Options.LogFiles, Now, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, () => State == RecorderState.Recording && !PrivacyMode);
         _reg.Registered = (e, t) => _procs.Observe(e, t);
 
         // Hooks setzen → Bestätigung = t0
@@ -167,6 +175,7 @@ public sealed partial class Recorder : IDisposable
         _inputThread = new Thread(InputLoop) { IsBackground = true, Name = "Input.Processing", Priority = ThreadPriority.AboveNormal };
         _inputThread.Start();
         SetState(RecorderState.Recording);
+        try { _logs?.Start(); } catch { }
         if (fgEntry != null) CheckForegroundGaps(fgEntry, 0);
         return folder;
     }
@@ -511,6 +520,7 @@ public sealed partial class Recorder : IDisposable
         }
         StopObservers();
         try { _procs?.Final(); } catch { }
+        try { _logs?.Dispose(); } catch { }
         long t = Now();
         if (State != RecorderState.Paused) _frames.Immediate("sessionStop", null);
         _frames.StopAndDrain();

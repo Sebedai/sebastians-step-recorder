@@ -177,6 +177,22 @@ sealed partial class ViewerWindow
             var review = e["review"] as JsonObject ?? new JsonObject();
             var inputs = review["inputs"] as JsonArray ?? new JsonArray();
             var redactions = e["redactions"] as JsonArray ?? new JsonArray();
+            // Prüfposten außerhalb getippter Eingaben (Programmausgaben, auffällige Texte des Autors – Paket 12)
+            foreach (var (item, status) in w.ItemDecisions)
+            {
+                inputs.Add(new JsonObject { ["kind"] = item.Kind, ["key"] = item.Key, ["status"] = status, ["flagged"] = new JsonArray(item.FlagReason ?? item.Source), ["atUtc"] = Json.UtcNow() });
+                if (status != "redacted") continue;
+                if (item.Key.StartsWith("seq:") && item.Seq > 0)
+                    redactions.Add(new JsonObject { ["id"] = NextId(e, "redactions", "r") + "_i" + item.Seq, ["kind"] = "range", ["origin"] = "review", ["seqRanges"] = new JsonArray(new JsonArray(item.Seq, item.Seq)), ["images"] = false, ["createdUtc"] = Json.UtcNow(), ["by"] = "user" });
+                else if (item.Key.StartsWith("comment:") && e["comments"] is JsonArray cs)
+                    foreach (var c in cs.OfType<JsonObject>().Where(c => "comment:" + c.Str("id") == item.Key)) c["kind"] = "internal";
+                else if (item.Key.StartsWith("goal:"))
+                {
+                    var g = e["goal"] as JsonObject ?? new JsonObject();
+                    g[item.Key[5..]] = "";
+                    e["goal"] = g;
+                }
+            }
             foreach (var (step, status) in w.Decisions)
             {
                 inputs.Add(new JsonObject { ["kind"] = "typed", ["anchor"] = step.Anchor, ["seqRange"] = new JsonArray(step.Anchor, step.Anchor), ["status"] = status, ["flagged"] = new JsonArray(step.FlagReason ?? ""), ["atUtc"] = Json.UtcNow() });
@@ -282,6 +298,7 @@ sealed class InputDialog : Window
 sealed class ReviewWindow : Window
 {
     public List<(ViewStep step, string status)> Decisions { get; } = new();
+    public List<(ReviewItem item, string status)> ItemDecisions { get; } = new();
 
     public ReviewWindow(SessionView view)
     {
@@ -308,6 +325,30 @@ sealed class ReviewWindow : Window
                 U.Text(Loc.L("Grund: ", "Reason: ") + Patterns.KindName(s.FlagReason ?? "", Loc.Lang), Theme.FsHint, fg: Theme.Warn)));
             list.Children.Add(U.Card(dock, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 12)));
         }
+        // Programmausgaben und auffällige Texte des Autors (Paket 12)
+        var itemChoices = new List<(ReviewItem, RadioButton[])>();
+        var openItems = view.ReviewItems.Where(i => i.Required && !i.Reviewed).ToList();
+        if (openItems.Count > 0)
+            list.Children.Add(U.SectionLabel(Loc.F("Mitgelesene Inhalte und Texte ({0})", "Content read along and texts ({0})", openItems.Count), new Thickness(0, 6, 0, 10)));
+        foreach (var it in openItems)
+        {
+            var (track, items) = U.Segmented("rvi" + it.Key.Replace(':', '_'), -1, (Theme.ICheck, Loc.L("In Ordnung", "OK")), (Theme.IRedact, Loc.L("Schwärzen", "Redact")));
+            track.VerticalAlignment = VerticalAlignment.Center;
+            itemChoices.Add((it, items));
+            var dock = new DockPanel();
+            DockPanel.SetDock(track, Dock.Right); dock.Children.Add(track);
+            string source = it.Source switch
+            {
+                "eventlog.entry" => Loc.L("Fehlertext der Ereignisanzeige", "Event log error text"), "log.lines" => Loc.L("Protokollzeilen", "Log lines"), "clipboard" => Loc.L("Inhalt der Zwischenablage", "Clipboard content"),
+                "comment" => Loc.L("Kommentar aus der Aufnahme", "Comment from the recording"), "marker" => Loc.L("Bezeichnung eines Markers", "Marker label"), "note" => Loc.L("Hinweis", "Note"), "goal" => Loc.L("Ziel der Aufnahme", "Goal of the recording"), _ => it.Source
+            };
+            string preview = it.Text.Length > 600 ? it.Text[..600] + "…" : it.Text;
+            dock.Children.Add(U.Col(
+                U.Text(source, Theme.FsHint, fg: Theme.Muted),
+                new TextBlock { Text = preview, FontFamily = Theme.Mono, FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 12, 4), MaxHeight = 220 },
+                U.Text(it.FlagReason != null ? Loc.L("Grund: ", "Reason: ") + Patterns.KindName(it.FlagReason, Loc.Lang) : Loc.L("Mitgelesener Inhalt – vor der Weitergabe bestätigen", "Content read along – confirm before sharing"), Theme.FsHint, fg: Theme.Warn)));
+            list.Children.Add(U.Card(dock, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 12)));
+        }
         // Viele Terminal-Befehle: übrige Klartext-Eingaben gesammelt freigeben (Musterfunde brauchen weiter eine Einzelentscheidung)
         var plain = choices.Where(c => c.Item1.FlagReason == "plaintextWindow").ToList();
         if (plain.Count > 1)
@@ -332,8 +373,9 @@ sealed class ReviewWindow : Window
         }
         var ok = U.Primary(Loc.L("Fertig", "Done"), () =>
         {
-            if (choices.Any(c => c.Item2.All(r => r.IsChecked != true))) { Msg.Show(Loc.L("Noch nicht alles entschieden\n\nBitte für jede auffällige Eingabe „In Ordnung“ oder „Schwärzen“ wählen.", "Not everything decided yet\n\nPlease choose “OK” or “Redact” for every conspicuous input."), Loc.L("Durchsicht", "Review"),MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            if (choices.Any(c => c.Item2.All(r => r.IsChecked != true)) || itemChoices.Any(c => c.Item2.All(r => r.IsChecked != true))) { Msg.Show(Loc.L("Noch nicht alles entschieden\n\nBitte für jede auffällige Eingabe „In Ordnung“ oder „Schwärzen“ wählen.", "Not everything decided yet\n\nPlease choose “OK” or “Redact” for every conspicuous input."), Loc.L("Durchsicht", "Review"),MessageBoxButton.OK, MessageBoxImage.Information); return; }
             foreach (var (s, items) in choices) Decisions.Add((s, items[0].IsChecked == true ? "kept" : "redacted"));
+            foreach (var (it, items) in itemChoices) ItemDecisions.Add((it, items[0].IsChecked == true ? "kept" : "redacted"));
             DialogResult = true;
         });
         var cancel = U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false);

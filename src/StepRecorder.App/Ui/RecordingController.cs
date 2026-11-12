@@ -100,7 +100,12 @@ sealed class RecordingController
         string protection = _o.PrivacyLevel == "balanced"
             ? Loc.F("Schutznetz – Passwortfelder werden maskiert; Eingaben im Terminal und in Remote-Desktop müssen vor der Weitergabe durchgesehen werden (Privattaste {0}).", "Safety net – password fields are masked; input in terminals and remote desktops must be reviewed before sharing (privacy key {0}).", Key("privacy"))
             : Loc.L("Streng – Eingaben in unbekannten Feldern, Terminals und Remote-Desktop werden maskiert.", "Strict – input in unknown fields, terminals and remote desktops is masked.");
-        _bar.Message((selfTest ? Loc.L("Unsichtbarkeit geprüft · ", "Invisibility checked · ") : _hiddenMode ? Loc.L("Ausgeblendete Anzeige – Achtung: eingeblendet ist die Leiste auf den Bildern zu sehen · ", "Hidden display – note: when shown, the bar appears in the images · ") : Loc.L("Unsichtbarkeit nicht bestätigt · ", "Invisibility not confirmed · ")) + protection, !selfTest);
+        // Nie unbemerkt schwächer (10 §4.4): Abweichungen und mitgelesene Quellen in der Startmeldung und dauerhaft in der Leiste
+        var weak = _o.Weakens(_o.SettingsPrivacyLevel ?? AppSettings.Load().PrivacyLevel);
+        string weakText = weak.Count == 0 ? "" : " · " + Loc.F("Schwächer als die Einstellungen: {0}", "Less protected than the settings: {0}", string.Join(", ", weak.Select(w => RecordingOptions.WeakenName(w, Loc.Lang))))
+            + (_rec.LogFiles.Count > 0 ? Loc.F(" ({0})", " ({0})", string.Join(", ", _rec.LogFiles)) : _o.LogFiles.Count > 0 && _o.ContentSources().Contains("logFiles") ? Loc.L(" (keine Protokolldatei gefunden)", " (no log file found)") : "");
+        if (_o.ContentSources() is { Count: > 0 } src) _bar.SetSources(Loc.F("Liest mit: {0} – vor der Weitergabe durchsehen", "Reading along: {0} – review before sharing", string.Join(", ", src.Select(w => RecordingOptions.WeakenName(w, Loc.Lang)))));
+        _bar.Message((selfTest ? Loc.L("Unsichtbarkeit geprüft · ", "Invisibility checked · ") : _hiddenMode ? Loc.L("Ausgeblendete Anzeige – Achtung: eingeblendet ist die Leiste auf den Bildern zu sehen · ", "Hidden display – note: when shown, the bar appears in the images · ") : Loc.L("Unsichtbarkeit nicht bestätigt · ", "Invisibility not confirmed · ")) + protection + weakText, !selfTest || weak.Count > 0);
         return true;
     }
 
@@ -410,6 +415,16 @@ sealed class RecordingBar : Window
     readonly Border _msgRow;
     readonly Button _privacy;
     readonly TextBlock _pauseIcon = new(), _privacyIcon = new(), _dictIcon = new();
+    readonly Border _sources = new() { Visibility = Visibility.Collapsed, Margin = new Thickness(6, 0, 2, 0), VerticalAlignment = VerticalAlignment.Center };
+
+    /// <summary>Dauerhafte Anzeige, solange inhaltstragende Quellen mitgelesen werden (Pakete 12, 13).</summary>
+    public void SetSources(string tooltip)
+    {
+        _sources.Child = new TextBlock { Text = Theme.IEye, FontFamily = Theme.Icons, FontSize = 15, Foreground = WarnFg, VerticalAlignment = VerticalAlignment.Center };
+        _sources.ToolTip = tooltip;
+        System.Windows.Automation.AutomationProperties.SetName(_sources, tooltip);
+        _sources.Visibility = Visibility.Visible;
+    }
     readonly Button _dictBtn;
 
     /// <summary>Diktat-Anzeige: Mikrofon-Symbol rot, solange das Mikrofon offen ist.</summary>
@@ -476,7 +491,7 @@ sealed class RecordingBar : Window
         more.Click += (_, _) => { menu.PlacementTarget = more; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var e in new UIElement[] { grip, status, countChip, Sep(), pause, stop, Sep(), comment, _dictBtn, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
+        foreach (var e in new UIElement[] { grip, status, countChip, _sources, Sep(), pause, stop, Sep(), comment, _dictBtn, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
         _msgRow = new Border { Child = _msg, Padding = new Thickness(10, 4, 10, 4), Visibility = Visibility.Collapsed };
         _msg.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = row });
         Content = new Border

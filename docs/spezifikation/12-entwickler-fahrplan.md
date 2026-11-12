@@ -94,8 +94,8 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | 9 | Reaktionszeiten | V-45 | S | Editor, Vergleich, Ausgaben | – | nein | erledigt |
 | 10 | Kontext I: Programmende, Hänger, Build-Stand | V-41 | M | Aufzeichnungskern, Schritte | V | ja (1.7) | erledigt |
 | 11 | Kontext II: Fehlertext | V-41 | M (L bei zweitem UIA-Arbeiter) | Aufzeichnungskern, Schritte | 10 | ja | erledigt |
-| 12 | Kontext III: prüfbare Programmausgaben | V-41 | L | Leseschicht, Durchsicht, Datenschutz | 10 | ja | geplant |
-| 13 | Kontext IV: Protokolldateien | V-41 | M | Aufzeichnungskern, Startfenster | 12 | nur bei Zuordnung zu Schritten | geplant |
+| 12 | Kontext III: prüfbare Programmausgaben | V-41 | L | Leseschicht, Durchsicht, Datenschutz | 10 | ja | erledigt |
+| 13 | Kontext IV: Protokolldateien | V-41 | M | Aufzeichnungskern, Startfenster | 12 | nur bei Zuordnung zu Schritten | erledigt |
 | 14 | Bereitschaft und Modus „Fehler nachstellen“ | V-43 | M | Oberfläche, Lebenszyklus | (10 für den vollen Modus) | nein | geplant |
 | 15 | Befehlspalette und Sofort-Bildschirmfoto | V-43 | M | Editor | – | nein | geplant |
 | 16 | UI-Tests I: Automationsmodell, FlaUI, Testbarkeits-Bericht | V-42 | L | Export | – | nein | geplant |
@@ -363,8 +363,8 @@ Beim Durchgang durch den Code sind Abweichungen zwischen Grundsätzen und Umsetz
 | A-2 | Befehlszeile aufgenommener Programme wird gespeichert (bereinigt) | `Win32Detail.AppInfo` (`commandLine`) | 10 §3: Befehlszeilen fremder Prozesse „bewusst nicht erhoben“ | Code: weglassen oder nur hinter „Erweiterter Programmkontext“ und als schwächer gemeldet | erledigt (Paket V): nur mit „Erweitertem Programmkontext“ (`Win32Detail.KeepCommandLine`) |
 | A-3 | Listen- und Baumeinträge werden über Speicher des fremden Prozesses gelesen | `Win32Detail.Extra.cs` (`VirtualAllocEx`, `ReadProcessMemory`) | [10 §2](10-datenschutz-und-sicherheit.md#2-grundsätze) P9: kein Lesen fremden Prozessspeichers | Code: auf UI Automation und MSAA umstellen | erledigt (Paket V): Texte über UI Automation (`Win32Detail.Uia.cs`), Test `Core_DoesNotReadForeignProcessMemory` |
 | A-4 | Abschaltbare Suche nach Updates (ab Werk aus) | `UpdateCheck.cs` | P2: kein Update-Check | Spezifikation: Ausnahme ausdrücklich beschreiben (ab Werk aus, nur Release-Seite, ohne Kennung) | erledigt (Paket V): Ausnahme in P2 beschrieben |
-| A-5 | Durchsicht erfasst nur getippte Eingaben | `SessionView` (Schrittart `type`) | [10 §11.1](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben): auch Kommentare, Ziel-Angaben, Marker | Code, in Paket 12 | – |
-| A-6 | „Nie unbemerkt schwächer“ nicht gebaut; Einstellung `ClipboardContent` wirkungslos | `RecordingOptions.ProfileJson` (ohne `weakens`) | 10 §4.4 | Code, in Paket 12 | – |
+| A-5 | Durchsicht erfasst nur getippte Eingaben | `SessionView` (Schrittart `type`) | [10 §11.1](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben): auch Kommentare, Ziel-Angaben, Marker | erledigt (Paket 12) |
+| A-6 | „Nie unbemerkt schwächer“ nicht gebaut; Einstellung `ClipboardContent` wirkungslos | `RecordingOptions.ProfileJson` (ohne `weakens`) | 10 §4.4 | erledigt (Paket 12) |
 | A-7 | `ui.value` ist für Terminals nicht eigens gesperrt | `Recorder.System.ApplyFocus`, `Recorder.Input.PollValue` | [03 §7.4](03-aufzeichnungskern.md#74-rückfall-und-undurchsichtige-oberflächen): Terminaltext nie als Feldinhalt | Test belegt, dass kein Konsoleninhalt entsteht; sonst Sperre | erledigt (Paket V): kein `ui.value` in Terminal, Remote-Desktop und VM |
 | A-8 | Regelversion: Code 1.6.0, Spezifikation 1.5.0 | `StepModel.cs`, 05 §15.1 | – | Spezifikation nachziehen | erledigt (Paket V) |
 | A-9 | Terminals gelten im Code als `partial`, in 03 als undurchsichtig | `WindowRegistry.SurfaceOf` | 03 §7.4 | Spezifikation nachziehen, Wirkung auf die Durchsicht beschreiben | erledigt (Paket V): 03 §7.4 nennt den Stand |

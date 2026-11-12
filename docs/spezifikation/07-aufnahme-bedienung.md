@@ -109,6 +109,7 @@ SebastiansStepRecorder.exe record --self-test
 | `--after-stop <viewer\|folder\|none>` | Was nach dem Stopp geschieht | aus den Einstellungen |
 | `--max-duration <Minuten>` | Aufnahme endet von selbst (Kann) | – |
 | `--json` | Abschlusszeile als JSON | aus |
+| `--log <Datei>` | Protokolldatei mitlesen (mehrfach; `*` und `?` im Dateinamen); schwächt den Schutz, nicht in „Streng“ (Paket 13) | – |
 
 - **Auch `record` zeigt Leiste und Rahmen.** Eine Aufnahme ohne sichtbare Anzeige gibt es in keiner Betriebsart.
 - Fehlt bei `--scope app` die Angabe `--app`, öffnet sich die Fensterwahl; fehlt bei `--scope region` das Rechteck, die Bereichswahl. Es wird nie stillschweigend der ganze Bildschirm aufgenommen. `--region last` nimmt den gemerkten Bereich, wenn er auf den heutigen Monitoren unverändert passt (auch an anderer Stelle des Desktops, solange er auf seinem Monitor gleich liegt); ist er nur noch beschnitten möglich, öffnet sich die Bereichswahl im Anpassmodus mit diesem Bereich als Vorgabe, und gibt es keinen gemerkten oder passenden Bereich, die Bereichswahl ohne Vorgabe. Läuft eine mit `--app` genannte Anwendung nicht, endet der Aufruf mit Exit-Code 7 (Voraussetzung nicht erfüllt).
@@ -547,6 +548,8 @@ Die Meldezeile zeigt, was zuletzt erkannt wurde: die Zeile „Aktion“ im Proto
 - Die Rückmeldung lässt sich in den Einstellungen abschalten.
 
 ### 7.4 Hinweise und Warnungen
+
+*Mitgelesene Inhalte (Pakete 12, 13 aus [12](12-entwickler-fahrplan.md)):* Schützt eine Aufnahme schwächer als die Einstellungen, nennt die Startmeldung jede Abweichung („Schwächer als die Einstellungen: …“, bei Protokolldateien mit den gefundenen Dateinamen). Solange eine inhaltstragende Quelle mitliest, steht neben der Schrittzahl dauerhaft ein Auge; der Tooltip nennt die Quellen und dass sie vor der Weitergabe durchgesehen werden müssen.
 
 Hinweise und Warnungen stehen in der Meldezeile, solange der Anlass besteht. Sie unterbrechen die Aufnahme nie durch einen Dialog.
 

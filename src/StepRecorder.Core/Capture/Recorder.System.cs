@@ -231,9 +231,35 @@ public sealed partial class Recorder
         }
     }
 
+    /// <summary>
+    /// Zwischenablage-Inhalt (Paket 12, nur mit eingeschalteter Quelle, nie in „Streng“): nur Text, nie aus ausgeschlossenen
+    /// Programmen, nie bei Formaten, mit denen Passwortmanager „nicht protokollieren“ melden; Lesen auf einem eigenen
+    /// STA-Thread mit 300 ms Frist (eine träge Quelle hält die Aufnahme nicht auf). Prüfpflichtig in jeder Ausgabe.
+    /// </summary>
+    string? ReadClipboardContent(List<string> formats)
+    {
+        if (!Options.ContentSources().Contains("clipboardContent") || PrivacyMode) return null;
+        if (!formats.Contains("CF_UNICODETEXT") && !formats.Contains("CF_TEXT")) return null;
+        if (formats.Contains("ExcludeClipboardContentFromMonitorProcessing") || formats.Contains("CanIncludeInClipboardHistory") || formats.Contains("CanUploadToCloudClipboard")) return null;
+        nint owner = GetClipboardOwner();
+        if (owner != 0)
+        {
+            GetWindowThreadProcessId(WindowRegistry.Root(owner), out uint pid);
+            string exe = Path.GetFileName(GetProcessPath(pid) ?? "");
+            if (exe.Length > 0 && Options.ExcludedProcesses.Any(p => string.Equals(p, exe, StringComparison.OrdinalIgnoreCase))) return null;
+        }
+        string? text = null;
+        var th = new Thread(() => { try { if (System.Windows.Forms.Clipboard.ContainsText()) text = System.Windows.Forms.Clipboard.GetText(System.Windows.Forms.TextDataFormat.UnicodeText); } catch { } }) { IsBackground = true };
+        th.SetApartmentState(ApartmentState.STA);
+        th.Start();
+        return th.Join(300) ? text : null;
+    }
+
     void OnClipboard()
     {
         long t = Now();
+        string? content = null;
+        try { content = ReadClipboardContent(ClipboardFormats()); } catch { }
         lock (_gate)
         {
             if (_w.Closed || State != RecorderState.Recording) return;
@@ -250,7 +276,14 @@ public sealed partial class Recorder
             var ev = new JsonObject { ["t"] = t, ["type"] = "clipboard", ["clip"] = "cb" + ++_clipN, ["seqNo"] = GetClipboardSequenceNumber(), ["kind"] = kind, ["formats"] = new JsonArray(formats.Take(20).Select(f => (JsonNode)f).ToArray()) };
             if (ownerWin != null && !ownerWin.Excluded) ev["ownerWin"] = ownerWin.Id;
             if (sensitive) ev["sensitive"] = true;
-            if (kind != "empty") ev["withheld"] = ownerWin is { Excluded: true } ? "excludedApp" : PrivacyMode ? "privacyMode" : sensitive ? "sensitiveFormat" : "optOut";
+            if (content != null && !PrivacyMode && !sensitive && ownerWin is not { Excluded: true } && kind is "text" or "mixed")
+            {
+                int max = Math.Max(100, Options.ValueMaxChars);
+                ev["size"] = content.Length;
+                ev["content"] = content.Length > max ? content[..max] : content;
+                if (content.Length > max) ev["truncated"] = true;
+            }
+            else if (kind != "empty") ev["withheld"] = ownerWin is { Excluded: true } ? "excludedApp" : PrivacyMode ? "privacyMode" : sensitive ? "sensitiveFormat" : "optOut";
             Emit(ev);
         }
     }

@@ -32,7 +32,7 @@ static class SettingsPage
         return g;
     }
 
-    public static readonly string[] TabIds = { "general", "recording", "keys", "custom", "storage" };
+    public static readonly string[] TabIds = { "general", "recording", "keys", "custom", "storage", "developer" };
 
     /// <summary>Baut die Seite. <paramref name="rebuild"/> baut sie mit dem genannten Bereich neu auf (Verwerfen, nach Import oder Zurücksetzen).</summary>
     public static FrameworkElement Build(Window owner, int tab, Action<int> rebuild)
@@ -81,6 +81,12 @@ static class SettingsPage
             ToolTip = Loc.L("Überflüssige Schritte werden nur ausgeblendet, nicht gelöscht – im Editor rückgängig mit Strg+Z oder über ⋯ › Aufräumen.", "Unnecessary steps are only hidden, not deleted – undo in the editor with Ctrl+Z or via ⋯ › Clean up.") };
         var updates = new CheckBox { Content = Loc.L("Beim Start nach einer neuen Version suchen", "Check for a new version at startup"), IsChecked = s.CheckUpdates, VerticalAlignment = VerticalAlignment.Center,
             ToolTip = Loc.L("Fragt nur die öffentliche Release-Seite auf GitHub ab – ohne Kennung oder persönliche Daten. Heruntergeladen wird nichts.", "Only queries the public release page on GitHub – without any identifier or personal data. Nothing is downloaded.") };
+        // Entwickler-Kontext (Pakete 12, 13): ab Werk aus, jede Quelle schwächt den Schutz und wird bei jedem Start gemeldet
+        var evText = new CheckBox { Content = new TextBlock { Text = Loc.L("Fehlertexte der Windows-Ereignisanzeige mitlesen (z. B. Stacktraces von .NET-Programmen)", "Read error texts from the Windows event log (e.g. stack traces of .NET programs)"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.EventLogText };
+        var clip = new CheckBox { Content = new TextBlock { Text = Loc.L("Inhalt der Zwischenablage aufzeichnen (nur Text, gekürzt; nie aus ausgeschlossenen Programmen und Passwortmanagern)", "Record clipboard content (text only, truncated; never from excluded programs and password managers)"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.ClipboardContent, Margin = new Thickness(0, 8, 0, 0) };
+        var logs = new TextBox { Text = string.Join(Environment.NewLine, s.LogFiles), AcceptsReturn = true, Height = 74, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = Theme.FsHint,
+            ToolTip = Loc.L("Eine Datei je Zeile; * und ? im Dateinamen, Umgebungsvariablen erlaubt, z. B. %LOCALAPPDATA%\\MeineApp\\logs\\*.log", "One file per line; * and ? in the file name and environment variables allowed, e.g. %LOCALAPPDATA%\\MyApp\\logs\\*.log") };
+        var tray = new CheckBox { Content = new TextBlock { Text = Loc.L("Nach dem Schließen im Infobereich bereit bleiben – „Sofort aufnehmen“ wirkt dann jederzeit (kein Autostart, im Leerlauf keine Erfassung)", "Stay ready in the notification area after closing – \"Record now\" then works at any time (no autostart, nothing captured while idle)"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.StayInTray, Margin = new Thickness(0, 8, 0, 0) };
         var checkNow = U.Btn(Theme.ISearch, Loc.L("Jetzt suchen", "Check now"), () => _ = UpdateCheck.CheckInteractiveAsync(), Loc.L("Einmalig auf GitHub nach einer neuen Version suchen", "Check GitHub once for a new version"), "Link");
         checkNow.Margin = new Thickness(12, 0, 0, 0);
 
@@ -90,7 +96,7 @@ static class SettingsPage
                                 U.Field(Loc.L("Sprache der Anleitungstexte", "Language of guide texts"), lang, Loc.L("Für neue Aufnahmen und Exporte; im Editor je Aufnahme umschaltbar.", "For new recordings and exports; switchable per recording in the editor.")),
                                 U.Field(Loc.L("Anrede in Anleitungen", "Form of address (German guides)"), address)),
                             U.Field(Loc.L("Begriffe in automatischen Texten", "Terms in automatic texts"), glossary, Loc.L("„Fundstelle=Ersatz“ je Zeile – z. B. für Firmenbegriffe oder sprechende Namen von Programmen.", "\"Match=Replacement\" per line – e.g. for company terms or meaningful program names.")),
-                            U.Row(updates, checkNow));
+                            U.Row(updates, checkNow), tray);
         var recording = U.Col(Two(U.Field(Loc.L("Schutzstufe", "Protection level"), level, Loc.L("Was bei Eingaben maskiert wird.", "What is masked when typing.")),
                                   U.Field(Loc.L("Countdown vor der Aufnahme", "Countdown before recording"), countdown, Loc.L("Bei ausgeblendeter Anzeige mindestens 3 Sekunden.", "At least 3 seconds with hidden display.")),
                                   U.Field(Loc.L("Signaltöne", "Sound cues"), sounds, Loc.L("Bei Start, Stopp, Pause, Markern und Erinnerungen.", "On start, stop, pause, markers and reminders.")),
@@ -115,9 +121,12 @@ static class SettingsPage
                             U.Field(Loc.L("Ausgeschlossene Programme", "Excluded programs"), excl, Loc.L("Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet.", "One process name per line – nothing is recorded from these programs.")),
                             U.Field(Loc.L("Einstellungen austauschen", "Exchange settings"), exchange),
                             Note(AppPaths.Portable ? Loc.F("Portabler Modus – Einstellungen liegen neben der EXE ({0}).", "Portable mode – settings are stored next to the EXE ({0}).", AppPaths.DataDir) : Loc.F("Einstellungen liegen in {0}.", "Settings are stored in {0}.", AppPaths.DataDir)));
-        var pages = new UIElement[] { general, recording, keys, custom, storage };
+        var developer = U.Col(U.Hint(Loc.L("Hält fest, was das getestete Programm tat – über Bild, Programmende und Fehlermeldungen hinaus. Jede Quelle ist ab Werk aus, schwächt den Schutz, wird bei jedem Start in der Leiste gemeldet, ist in „Streng“ abgeschaltet und muss vor der Weitergabe durchgesehen werden.", "Records what the program under test did – beyond images, program exits and error messages. Every source is off by default, weakens protection, is reported in the bar at every start, is switched off in \"strict\" and must be reviewed before sharing."), new Thickness(0, 0, 0, 12)),
+                              evText, clip,
+                              U.Field(Loc.L("Protokolldateien mitlesen", "Read log files along"), logs, Loc.L("Nur Zeilen, die während der Aufnahme dazukommen; nur lokale Festplatten; höchstens 5 Dateien. Für eine einzelne Aufnahme auch: record --log <Datei>.", "Only lines added during the recording; local disks only; at most 5 files. For a single recording also: record --log <file>."), margin: new Thickness(0, 14, 0, 0)));
+        var pages = new UIElement[] { general, recording, keys, custom, storage, developer };
         var (tabTrack, tabs) = U.Segmented("settab", current, (Theme.ISettings, Loc.L("Allgemein", "General")), (Theme.IRecord, Loc.L("Aufnahme", "Recording")), (Theme.IKeyboard, Loc.L("Tastenkürzel", "Shortcuts")),
-            (Theme.IChecklist, Loc.L("Modus „Eigene“", "Custom mode")), (Theme.IFolder, Loc.L("Speicher und Schutz", "Storage and protection")));
+            (Theme.IChecklist, Loc.L("Modus „Eigene“", "Custom mode")), (Theme.IFolder, Loc.L("Speicher und Schutz", "Storage and protection")), (Theme.IWrench, Loc.L("Entwickler", "Developer")));
         tabTrack.Margin = new Thickness(-4, 0, 0, 20);
         var host = new Grid();
         foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Reiter gleich hoch
@@ -133,6 +142,12 @@ static class SettingsPage
             var newExcl = excl.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
             var removed = s.Excluded.Where(x => !newExcl.Contains(x, StringComparer.OrdinalIgnoreCase)).ToList();
             if (removed.Count > 0 && Msg.Show(Loc.L("Schutz abschwächen?\n\nFolgende Ausschlüsse werden entfernt und deren Eingaben künftig aufgezeichnet:\n", "Weaken protection?\n\nThe following exclusions will be removed and their input recorded from now on:\n") + string.Join(", ", removed), Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+            var newLogs = logs.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var newSources = new List<string>();
+            if (evText.IsChecked == true && !s.EventLogText) newSources.Add(Loc.L("Fehlertexte der Ereignisanzeige", "event log error texts"));
+            if (clip.IsChecked == true && !s.ClipboardContent) newSources.Add(Loc.L("Inhalt der Zwischenablage", "clipboard content"));
+            if (newLogs.Except(s.LogFiles, StringComparer.OrdinalIgnoreCase).Any()) newSources.Add(Loc.L("Protokolldateien", "log files"));
+            if (newSources.Count > 0 && Msg.Show(Loc.L("Schutz abschwächen?\n\nKünftig werden zusätzlich aufgezeichnet: ", "Weaken protection?\n\nFrom now on the following will also be recorded: ") + string.Join(", ", newSources) + Loc.L("\n\nDie Leiste zeigt das bei jeder Aufnahme; vor der Weitergabe ist eine Durchsicht nötig.", "\n\nThe bar shows this for every recording; a review is required before sharing."), Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             if (level.SelectedIndex == 0 && s.PrivacyLevel == "strict" && Msg.Show(Loc.L("Schutz abschwächen?\n\nSchutzstufe von „Streng“ auf „Schutznetz“ senken?", "Weaken protection?\n\nLower the protection level from \"strict\" to \"safety net\"?"), Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
             string newTheme = theme.SelectedIndex switch { 1 => "light", 2 => "system", _ => "dark" };
             string newUi = uiLang.SelectedIndex switch { 1 => "de", 2 => "en", _ => "system" };
@@ -149,6 +164,7 @@ static class SettingsPage
             s.PrivacyReminderSeconds = privValues[Math.Max(0, priv.SelectedIndex)];
             s.Glossary = glossary.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Contains('=') && x.Length > 2).ToList();
             s.AutoCleanup = cleanup.IsChecked == true; s.CheckUpdates = updates.IsChecked == true;
+            s.EventLogText = evText.IsChecked == true; s.ClipboardContent = clip.IsChecked == true; s.LogFiles = newLogs; s.StayInTray = tray.IsChecked == true;
             s.Excluded = newExcl;
             s.Hotkeys = new Dictionary<string, string>(hotkeys.Map);
             s.LoadNotice = null;

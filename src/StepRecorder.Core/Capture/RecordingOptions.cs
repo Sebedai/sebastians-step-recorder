@@ -22,6 +22,45 @@ public sealed class RecordingOptions
     public Rectangle? Region { get; set; }
     public string PrivacyLevel { get; set; } = "balanced";
     public bool ClipboardContent { get; set; }
+    /// <summary>Freitext der Ereignisanzeige (z. B. .NET-Stacktrace) zu aufgenommenen Programmen mitlesen (Paket 12).</summary>
+    public bool EventLogText { get; set; }
+    /// <summary>Mitgelesene Protokolldateien (Pfade oder Muster im Dateinamen, Paket 13).</summary>
+    public List<string> LogFiles { get; set; } = new();
+
+    /// <summary>Wirksame inhaltstragende Quellen: in „Streng“ keine.</summary>
+    public List<string> ContentSources()
+    {
+        var l = new List<string>();
+        if (PrivacyLevel == "strict") return l;
+        if (EventLogText) l.Add("eventLogText");
+        if (ClipboardContent) l.Add("clipboardContent");
+        if (LogFiles.Count > 0) l.Add("logFiles");
+        return l;
+    }
+
+    /// <summary>
+    /// Worin diese Aufnahme schwächer schützt als die Einstellungen (10 §4.4): niedrigere Schutzstufe und jede inhaltstragende
+    /// Quelle. Wird vor dem Start gemeldet und steht im Manifest unter <c>profile.weakens</c>.
+    /// </summary>
+    public List<string> Weakens(string settingsPrivacyLevel)
+    {
+        var l = new List<string>();
+        if (settingsPrivacyLevel == "strict" && PrivacyLevel != "strict") l.Add("privacyLevel");
+        l.AddRange(ContentSources());
+        return l;
+    }
+
+    /// <summary>Schutzstufe der Einstellungen zum Vergleich (vom Aufrufer gesetzt; null = wie die Aufnahme).</summary>
+    public string? SettingsPrivacyLevel { get; set; }
+
+    public static string WeakenName(string id, string lang) => (id, lang == "de") switch
+    {
+        ("privacyLevel", true) => "Schutzstufe Schutznetz statt Streng", ("privacyLevel", false) => "protection level safety net instead of strict",
+        ("eventLogText", true) => "Fehlertexte der Ereignisanzeige", ("eventLogText", false) => "event log error texts",
+        ("clipboardContent", true) => "Inhalt der Zwischenablage", ("clipboardContent", false) => "clipboard content",
+        ("logFiles", true) => "Protokolldateien", ("logFiles", false) => "log files",
+        _ => id
+    };
     public List<string> ExcludedProcesses { get; set; } = new(DefaultExcluded);
     public string ChangeFrames { get; set; } = "normal"; // few | normal | many
     /// <summary>Erweiterter Programmkontext (Menüpfade, Listen, Explorer, Browser, Office, Statusleiste, MSAA).</summary>
@@ -111,7 +150,7 @@ public sealed class RecordingOptions
         ["scope"] = scope.DeepClone(),
         ["privacy"] = new JsonObject
         {
-            ["level"] = PrivacyLevel, ["clipboardContent"] = ClipboardContent,
+            ["level"] = PrivacyLevel, ["clipboardContent"] = ClipboardContent && PrivacyLevel != "strict", ["eventLogText"] = EventLogText && PrivacyLevel != "strict", ["logFiles"] = PrivacyLevel != "strict" ? LogFiles.Count : 0,
             ["excluded"] = new JsonArray(ExcludedProcesses.Select(p => (JsonNode)new JsonObject { ["process"] = p }).ToArray()),
             ["recordIdentity"] = false, ["maskPasswordFieldsInFrames"] = true, ["storeMaskedCount"] = true, ["privacyModeSuspendsFrames"] = false
         },
@@ -143,13 +182,15 @@ public sealed class RecordingOptions
         ["name"] = ProfileName, ["id"] = ProfileId, ["builtIn"] = ProfileId is "guide" or "support" or "aiTrace",
         ["effective"] = new JsonObject
         {
-            ["scopeMode"] = Scope.ToString().ToLowerInvariant(), ["privacyLevel"] = PrivacyLevel, ["clipboardContent"] = ClipboardContent,
+            ["scopeMode"] = Scope.ToString().ToLowerInvariant(), ["privacyLevel"] = PrivacyLevel, ["clipboardContent"] = ClipboardContent && PrivacyLevel != "strict",
+            ["contentSources"] = new JsonArray(ContentSources().Select(x => (JsonNode)x).ToArray()),
             ["afterStop"] = new JsonObject { ["action"] = AfterStop }, ["showGoalFields"] = ProfileId != "guide",
             ["detail"] = new JsonObject
             {
                 ["level"] = DetailLevel, ["changeFrames"] = ChangeFrames, ["appContext"] = AppContext,
                 ["off"] = new JsonArray(Off.OrderBy(x => x).Select(x => (JsonNode)x).ToArray())
             }
-        }
+        },
+        ["weakens"] = Weakens(SettingsPrivacyLevel ?? PrivacyLevel) is { Count: > 0 } w ? new JsonArray(w.Select(x => (JsonNode)x).ToArray()) : null
     };
 }

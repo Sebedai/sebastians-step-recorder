@@ -82,7 +82,13 @@ public sealed class Session : IDisposable
         var v = man.Str("schemaVersion") ?? "1.0";
         if (!int.TryParse(v.Split('.')[0], out int major) || major > 1)
             throw new NotSupportedException(Loc.F("Sitzungsformat {0} wird nicht unterstützt (benötigt neuere Programmversion).", "Session format {0} is not supported (needs a newer program version).", v));
+        // Mindestversion des Lesers (inhaltstragende Ereignisse, 12 Paket 12): ältere Programme dürfen sie nicht ungeprüft ausgeben
+        if (man.Obj("requires")?.Str("reader") is { } need && Version.TryParse(need, out var nv) && Version.TryParse(AppInfo.Version, out var have) && nv > have)
+            throw new NotSupportedException(Loc.F("Diese Aufnahme braucht Programmversion {0} oder neuer.", "This recording needs program version {0} or later.", need));
     }
+
+    /// <summary>Leser-Mindestversion für Aufnahmen mit inhaltstragenden Quellen (Freitext der Ereignisanzeige, Zwischenablage, Protokolldateien).</summary>
+    public const string ContentReaderVersion = "0.13.0";
 
     public static bool IsLockAlive(string folder)
     {
