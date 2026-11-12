@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using StepRecorder.Data;
 using StepRecorder.Export;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -80,9 +81,9 @@ sealed partial class ViewerWindow
         var play = new Button { Style = Theme.Style("Ghost"), Content = U.Row(_playIcon, new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }), ToolTip = "Schritte nacheinander zeigen (F5)", Margin = new Thickness(2, 0, 2, 0) };
         play.Click += (_, _) => TogglePlay();
         var copy = MenuButton(Theme.ICopy, "Kopieren", "Bild oder Text dieses Schritts in die Zwischenablage", null, () => new (string, Action)[]
-            { ("Bild (Strg+C)", CopyImage), ("Bild mit Text (Strg+Umschalt+C)", CopyImageWithText), ("Nur Text (Strg+Umschalt+T)", CopyText), ("Als Markdown (Strg+M)", CopyMarkdown), ("Originalbild (Strg+Umschalt+O)", CopyOriginal), ("-", () => { }), ("Ganze Anleitung", CopyWholeGuide), ("Bild speichern … (Strg+Umschalt+S)", SaveImage) });
+            { M("copyImage", Loc.L("Bild", "Image")), M("copyImageText", Loc.L("Bild mit Text", "Image with text")), M("copyText"), M("copyMarkdown"), M("copyOriginal", Loc.L("Originalbild", "Original image")), ("-", () => { }), (Loc.L("Ganze Anleitung", "Whole guide"), CopyWholeGuide), M("saveImage") });
         var privacy = MenuButton(Theme.IShield, "Schwärzen", "Persönliche Daten aus Bildern und Texten entfernen", null, () => new (string, Action)[]
-            { ("Persönliche Daten in Bildern suchen …", ScanImagesForPersonalData), ("Bereich im Bild schwärzen – Werkzeug X", () => SelectTool("redact")), ("Diesen Schritt schwärzen (Umschalt+Entf)", RedactStep), ("Text überall schwärzen …", RedactText), ("Werte verallgemeinern … (Strg+Umschalt+G)", Generalize), ("-", () => { }), ("Endgültig schwärzen …", FinalRedact) });
+            { (Loc.L("Persönliche Daten in Bildern suchen …", "Find personal data in images …"), ScanImagesForPersonalData), M("toolRedact", Loc.L("Bereich im Bild schwärzen", "Redact area in image")), M("redactStep", Loc.L("Diesen Schritt schwärzen", "Redact this step")), (Loc.L("Text überall schwärzen …", "Redact text everywhere …"), RedactText), M("generalize"), ("-", () => { }), (Loc.L("Endgültig schwärzen …", "Redact permanently …"), FinalRedact) });
         var review = new Button { Style = Theme.Style("Ghost"), ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", Margin = new Thickness(2, 0, 2, 0) };
         var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, "Durchsicht");
         _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
@@ -92,7 +93,7 @@ sealed partial class ViewerWindow
         var preview = new Button { Style = Theme.Style("Ghost"), Content = U.IconText(Theme.IEye, "Vorschau"), ToolTip = "Anleitung als HTML im Browser ansehen", Margin = new Thickness(2, 0, 2, 0) };
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
-            { ("Neue Aufnahme (Strg+N)", () => UiApp.Instance.ShowStart()), ("-", () => { }), ("Suchen und Ersetzen … (Strg+H)", ShowSearchReplace), ("Übersicht und Vollständigkeit", ShowOverview), ("Mit anderer Aufnahme vergleichen (F7)", Compare), ("-", () => { }), ("Alle Tastenkürzel", ShowShortcuts) });
+            { M("newRecording"), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
         var export = MenuButton(Theme.IExport, "Exportieren", "Als Anleitung, KI-Paket oder Skript speichern (Strg+E)", "Primary", () => new (string, Action)[]
             { ("HTML …", () => ShowExportDialog("html")), ("Markdown …", () => ShowExportDialog("md")), ("Word (DOCX) …", () => ShowExportDialog("docx")), ("PDF …", () => ShowExportDialog("pdf")), ("-", () => { }),
               ("KI-Paket …", () => ShowExportDialog("ki")), ("AutoHotkey-Skript …", () => ShowExportDialog("ahk")), ("Support-Paket (ZIP) …", StartSupportFlow) });
@@ -155,7 +156,7 @@ sealed partial class ViewerWindow
         _beforeBtn = ba[0]; _afterBtn = ba[1];
         foreach (var rb in ba) rb.Checked += (_, _) => { if (_syncBA) return; _variantOverride = _afterBtn.IsChecked == true ? "after" : "before"; if (IsLoaded) ShowStep(); };
         baTrack.ToolTip = "Bild vor oder nach der Aktion (W)";
-        var disp = new ComboBox { Items = { "Ganzer Bildschirm", "Anwendungsfenster", "Ausschnitt" }, SelectedIndex = 0, MinWidth = 170, ToolTip = "Bildausschnitt" };
+        var disp = _dispBox = new ComboBox { Items = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Ausschnitt", "Detail") }, SelectedIndex = 0, MinWidth = 170, ToolTip = Loc.L("Bildausschnitt", "Image area") };
         disp.SelectionChanged += (_, _) => { _display = disp.SelectedIndex switch { 1 => "window", 2 => "crop", _ => "screen" }; ShowStep(); };
         var marksContent = (StackPanel)U.IconText(Theme.IMouse, "Markierungen");
         marksContent.Children.Add(new TextBlock { Text = Theme.IDown, FontFamily = Theme.Icons, FontSize = 9, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 });
@@ -297,6 +298,7 @@ sealed partial class ViewerWindow
         {
             var line = new Border { Background = Theme.Line }; Grid.SetColumn(line, col); grid.Children.Add(line);
             var split = new GridSplitter { Width = 7, Margin = new Thickness(-3, 0, -3, 0), HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, Cursor = Cursors.SizeWE };
+            split.DragCompleted += (_, _) => { _prefLeft = _leftCol.ActualWidth; _prefRight = _rightCol.ActualWidth; };
             Grid.SetColumn(split, col); Panel.SetZIndex(split, 10); grid.Children.Add(split);
         }
 
@@ -309,7 +311,7 @@ sealed partial class ViewerWindow
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
         Content = root;
-        Closing += (_, _) => InlineCommit(now: true);
+        Closing += (_, _) => { InlineCommit(now: true); SaveUiState(); };
         Closed += (_, _) => _closed = true;
         UpdateUndo();
     }
@@ -329,21 +331,15 @@ sealed partial class ViewerWindow
         foreach (var (label, action) in items)
         {
             if (label == "-") { m.Items.Add(new Separator()); continue; }
-            var mt = System.Text.RegularExpressions.Regex.Match(label, @"^(.*?)\s*\((K|[^()]*(?:Strg|Alt|Umschalt|Entf|Einfg|F\d)[^()]*)\)$");
-            var mi = new MenuItem { Header = mt.Success ? mt.Groups[1].Value : label, InputGestureText = mt.Success ? mt.Groups[2].Value : "" };
+            var (header, gesture) = SplitLabel(label);
+            var mi = new MenuItem { Header = header, InputGestureText = gesture };
             mi.Click += (_, _) => { try { action(); } catch (Exception ex) { UiApp.ShowError(ex); } };
             m.Items.Add(mi);
         }
         return m;
     }
 
-    void ShowShortcuts() => Msg.Show(
-        "Tastenkürzel im Editor\n\n" +
-        "Schritte:  ↑ ↓ wechseln · F2 Text bearbeiten · K Kommentar · Entf aus-/einblenden · Alt+↑/↓ verschieben · Strg+↑/↓ Wichtigkeit · Umschalt+Entf schwärzen\n\n" +
-        "Bild:  W Vorher/Nachher · H Mausmarkierung dieses Schritts · V Auswahl · A Pfeil · R Rahmen · E Ellipse · M Hervorheben · T Text · N Nummer · X Schwärzen · Entf löscht die ausgewählte Markierung · Esc hebt die Auswahl auf\n\n" +
-        "Kopieren:  Strg+C Bild · Strg+Umschalt+C Bild mit Text · Strg+Umschalt+T Text · Strg+M Markdown · Strg+Umschalt+S Bild speichern\n\n" +
-        "Allgemein:  Strg+Z/Strg+Y rückgängig/wiederholen · Strg+F suchen · Strg+E exportieren · F5 abspielen · F7 vergleichen · Strg+N neue Aufnahme",
-        "Tastenkürzel", MessageBoxButton.OK, MessageBoxImage.Information);
+    void ShowShortcuts() => ShortcutsWindow.Show(this, Cmds);
 
     // =====================================================================================
     // Schrittliste
@@ -364,11 +360,12 @@ sealed partial class ViewerWindow
         keepId ??= Sel?.Id;
         _list.Items.Clear();
         _thumbTargets.Clear(); _thumbQueue.Clear();
-        string q = _search.Text.Trim();
+        var query = SearchQuery.Parse(_search.Text);
         int n = 0;
-        foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true))
+        // Reihenfolge der Anleitung (umsortierte Schritte stehen dort, wo sie im Export erscheinen); ausgeblendete bleiben sichtbar
+        foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true))
         {
-            if (q.Length > 0 && !(s.Title + " " + s.Protocol + " " + s.AuthorTitle + " " + string.Join(" ", s.Comments.Select(c => c.Str("text")))).Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!StepSearch.Matches(s, query)) continue;
             n++;
             bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
             var g = new Grid();
@@ -419,7 +416,7 @@ sealed partial class ViewerWindow
         }
         var sel = _list.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((ViewStep)i.Tag).Id == keepId) ?? _list.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((ViewStep)i.Tag).Importance == "primary");
         if (sel != null) { _list.SelectedItem = sel; _list.ScrollIntoView(sel); }
-        _listCount.Text = q.Length > 0 ? $"{n} Treffer" : $"{n} Schritte";
+        _listCount.Text = query.IsEmpty ? Loc.N(n, "1 Schritt", "{0} Schritte", "1 step", "{0} steps") : Loc.N(n, "1 Treffer", "{0} Treffer", "1 match", "{0} matches");
         UpdateStatus();
         PumpThumbs();
     }
@@ -450,17 +447,17 @@ sealed partial class ViewerWindow
         }
         var items = new List<(string, Action)>
         {
-            ("Überschrift und Text bearbeiten (F2)", FocusInlineTitle), ("Kommentar hinzufügen (K)", AddComment), (s.ChapterTitle == null ? "Hier ein Kapitel beginnen" : "Kapitel hier entfernen", () => ToggleChapter(s.Anchor, s.ChapterTitle == null)), (s.Hidden ? "Einblenden (Entf)" : "Ausblenden (Entf)", ToggleHidden), ("-", () => { }),
-            ("Wichtiger (Strg+↑)", () => ChangeImportance(+1)), ("Unwichtiger (Strg+↓)", () => ChangeImportance(-1)), ("Nach oben (Alt+↑)", () => Move(-1)), ("Nach unten (Alt+↓)", () => Move(+1)), ("-", () => { }),
-            ("Großansicht (F11)", OpenLightbox), ("Bild kopieren (Strg+C)", CopyImage), ("Text kopieren (Strg+Umschalt+T)", CopyText), ("-", () => { }),
-            ("Zuschneiden (C)", () => SelectTool("crop")), ("Bild ersetzen oder neu aufnehmen …", () => ReplaceImageMenu(s)),
-            ("-", () => { }), ("Schritt danach einfügen …", () => InsertMenu(_list)),
+            M("editText"), M("comment"), (s.ChapterTitle == null ? Loc.L("Hier ein Kapitel beginnen", "Start a chapter here") : Loc.L("Kapitel hier entfernen", "Remove chapter here"), () => ToggleChapter(s.Anchor, s.ChapterTitle == null)), M("hide", s.Hidden ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide")), ("-", () => { }),
+            M("moreImportant"), M("lessImportant"), M("moveUp", Loc.L("Nach oben", "Move up")), M("moveDown", Loc.L("Nach unten", "Move down")), ("-", () => { }),
+            M("lightbox"), M("copyImage"), M("copyText", Loc.L("Text kopieren", "Copy text")), ("-", () => { }),
+            M("toolCrop"), (Loc.L("Bild ersetzen oder neu aufnehmen …", "Replace or retake image …"), () => ReplaceImageMenu(s)),
+            ("-", () => { }), (Loc.L("Schritt danach einfügen …", "Insert step after …"), () => InsertMenu(_list)),
         };
-        if (s.Manual) items.Add(("Eingefügten Schritt löschen", () => DeleteManual(new List<ViewStep> { s })));
-        if (_view.CropFor(s) != null) items.InsertRange(items.FindIndex(x => x.Item1.StartsWith("Zuschneiden")) + 1, new (string, Action)[] { ("Zuschnitt entfernen", () => RemoveCrop(s)), ("Zuschnitt auf alle Schritte übertragen", CropToAll) });
+        if (s.Manual) items.Add((Loc.L("Eingefügten Schritt löschen", "Delete inserted step"), () => DeleteManual(new List<ViewStep> { s })));
+        if (_view.CropFor(s) != null) items.InsertRange(items.IndexOf(M("toolCrop")) + 1, new (string, Action)[] { (Loc.L("Zuschnitt entfernen", "Remove crop"), () => RemoveCrop(s)), (Loc.L("Zuschnitt auf alle Schritte übertragen", "Apply crop to all steps"), CropToAll) });
         items.AddRange(new (string, Action)[] {
             ("-", () => { }),
-            ("Schritt schwärzen (Umschalt+Entf)", RedactStep)
+            M("redactStep")
         });
         var m = Menu(items);
         m.Placement = PlacementMode.MousePoint;
@@ -469,12 +466,13 @@ sealed partial class ViewerWindow
 
     void MoveTo(ViewStep src, ViewStep dst)
     {
-        var seq = _view.Effective(guide: true, importance: "all", includeManual: true).Select(x => x.Anchor).ToList();
+        // dieselbe Folge wie in der Liste (samt ausgeblendeten Schritten, die so ihren Platz behalten)
+        var seq = _view.Effective(importance: "all", includeManual: true, ordered: true).Select(x => x.Anchor).ToList();
         int from = seq.IndexOf(src.Anchor), to = seq.IndexOf(dst.Anchor);
         if (from < 0 || to < 0 || from == to) return;
         seq.RemoveAt(from); seq.Insert(to, src.Anchor);
         Change(e => e["order"] = new JsonArray(seq.Select(x => (JsonNode)x).ToArray()));
-        _status.Text = $"Schritt verschoben – rückgängig mit Strg+Z";
+        _status.Text = Loc.F("Schritt verschoben – rückgängig mit {0}", "Step moved – undo with {0}", Cmd("undo").Gesture);
     }
 
     // ---------------- Vorschaubilder ----------------

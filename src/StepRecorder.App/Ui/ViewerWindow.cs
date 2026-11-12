@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
@@ -31,6 +31,7 @@ sealed partial class ViewerWindow : Window
     readonly TextBlock _status = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBox _search = new() { Tag = "Schritte durchsuchen", Padding = new Thickness(32, 7, 8, 7), ToolTip = "Suche (Strg+F)" };
     ToggleButton _allToggle = null!;
+    ComboBox _dispBox = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
     readonly TextBlock _titleBlock = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBlock _metaBlock = new() { FontSize = 12, Margin = new Thickness(0, 1, 0, 0) };
@@ -63,11 +64,14 @@ sealed partial class ViewerWindow : Window
         Width = Math.Min(1480, wa.Width - 40); Height = Math.Min(920, wa.Height - 40); MinWidth = Math.Min(760, wa.Width - 40); MinHeight = Math.Min(520, wa.Height - 40);
         SizeChanged += (_, _) => Adapt();
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        WindowPlacer.Attach(this, "viewer");
         _status.Foreground = Theme.Muted; _metaBlock.Foreground = Theme.Muted; _listCount.Foreground = Theme.Muted; _noImage.Foreground = Theme.Muted; _reviewCount.Foreground = Theme.Warn;
         _imgCaptionPill = new Border { Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x17, 0x16, 0x14)), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 5, 12, 6), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
         Load();
         BuildLayout();
+        RestoreLayoutState();
         Fill();
+        RestoreStep();
         PreviewKeyDown += OnKey;
         _play.Tick += (_, _) => { if (_list.SelectedIndex < _list.Items.Count - 1) _list.SelectedIndex++; else StopPlay(); };
         AllowDrop = true;
@@ -99,8 +103,8 @@ sealed partial class ViewerWindow : Window
         foreach (var (label, action) in items)
         {
             if (label == "-") { m.Items.Add(new Separator()); continue; }
-            var mt = System.Text.RegularExpressions.Regex.Match(label, @"^(.*?)\s*\((K|[^()]*(?:Strg|Alt|Umschalt|Entf|Einfg|F\d)[^()]*)\)$");
-            var mi = new MenuItem { Header = mt.Success ? mt.Groups[1].Value : label, InputGestureText = mt.Success ? mt.Groups[2].Value : "" };
+            var (header, gesture) = SplitLabel(label);
+            var mi = new MenuItem { Header = header, InputGestureText = gesture };
             mi.Click += (_, _) => { try { action(); } catch (Exception ex) { UiApp.ShowError(ex); } };
             m.Items.Add(mi);
         }
@@ -312,7 +316,7 @@ sealed partial class ViewerWindow : Window
     ColumnDefinition _leftCol = null!, _rightCol = null!;
     bool? _narrow;
 
-    /// <summary>Passt die Oberfläche an schmale Fenster an: Beschriftungen ausblenden, Seitenleisten schmaler.</summary>
+    /// <summary>Passt die Oberfläche an schmale Fenster an: Beschriftungen ausblenden, Seitenleisten höchstens schmaler als gemerkt.</summary>
     void Adapt()
     {
         double w = ActualWidth;
@@ -320,8 +324,8 @@ sealed partial class ViewerWindow : Window
         bool narrow = w < 1180;
         if (_leftCol == null || narrow == _narrow) return;
         _narrow = narrow;
-        _leftCol.Width = new GridLength(narrow ? 250 : 310);
-        _rightCol.Width = new GridLength(narrow ? 290 : 360);
+        _leftCol.Width = new GridLength(narrow ? Math.Min(_prefLeft, 250) : _prefLeft);
+        _rightCol.Width = new GridLength(narrow ? Math.Min(_prefRight, 290) : _prefRight);
     }
 
     static string MouseSummary(string kind, JsonObject mi)
@@ -520,14 +524,13 @@ sealed partial class ViewerWindow : Window
         Change(e => StepEdit(e, s.Anchor)["importance"] = order[i]);
     }
 
+    /// <summary>Um einen sichtbaren Listenplatz verschieben (unsichtbare Spur-Schritte dazwischen zählen nicht).</summary>
     void Move(int dir)
     {
-        var s = Sel; if (s == null) return;
-        var seq = _view.Effective(guide: true, importance: "all", includeManual: true).Select(x => x.Anchor).ToList();
-        int i = seq.IndexOf(s.Anchor), j = i + dir;
-        if (i < 0 || j < 0 || j >= seq.Count) return;
-        (seq[i], seq[j]) = (seq[j], seq[i]);
-        Change(e => e["order"] = new JsonArray(seq.Select(x => (JsonNode)x).ToArray()));
+        var s = Sel; if (s == null || _list.SelectedItems.Count > 1) return;
+        int j = _list.SelectedIndex + dir;
+        if (j < 0 || j >= _list.Items.Count || ((ListBoxItem)_list.Items[j]).Tag is not ViewStep dst) return;
+        MoveTo(s, dst);
     }
 
     void RedactStep()
@@ -643,69 +646,6 @@ sealed partial class ViewerWindow : Window
             });
             e["redactions"] = arr;
         }, refill: false);
-    }
-
-    // =====================================================================================
-    // Tastatur
-    // =====================================================================================
-
-    void OnKey(object sender, KeyEventArgs e)
-    {
-        if (Keyboard.FocusedElement is TextBox && e.Key is not (Key.F2 or Key.F5)) return;
-        if (_zoom.HandleKey(e)) { e.Handled = true; return; }
-        var m = Keyboard.Modifiers;
-        bool handled = true;
-        switch (e.Key)
-        {
-            case Key.C when m == ModifierKeys.Control: CopyImage(); break;
-            case Key.C when m == (ModifierKeys.Control | ModifierKeys.Shift): CopyImageWithText(); break;
-            case Key.T when m == (ModifierKeys.Control | ModifierKeys.Shift): CopyText(); break;
-            case Key.O when m == (ModifierKeys.Control | ModifierKeys.Shift): CopyOriginal(); break;
-            case Key.S when m == (ModifierKeys.Control | ModifierKeys.Shift): SaveImage(); break;
-            case Key.S when m == ModifierKeys.Control: _status.Text = "Automatisch gespeichert"; break;
-            case Key.M when m == ModifierKeys.Control: CopyMarkdown(); break;
-            case Key.E when m == ModifierKeys.Control: ShowExportDialog("html"); break;
-            case Key.R when m == (ModifierKeys.Control | ModifierKeys.Shift): ShowReview(); break;
-            case Key.G when m == (ModifierKeys.Control | ModifierKeys.Shift): Generalize(); break;
-            case Key.Z when m == ModifierKeys.Control: Undo(); break;
-            case Key.Y when m == ModifierKeys.Control: Redo(); break;
-            case Key.F when m == ModifierKeys.Control: _search.Focus(); break;
-            case Key.H when m == ModifierKeys.Control: ShowSearchReplace(); break;
-            case Key.Insert when m == ModifierKeys.Shift: InsertManual(null); break;
-            case Key.N when m == ModifierKeys.Control: UiApp.Instance.ShowStart(); break;
-            case Key.W when m == ModifierKeys.Control: Close(); break;
-            case Key.Up when m == ModifierKeys.Control: ChangeImportance(+1); break;
-            case Key.Down when m == ModifierKeys.Control: ChangeImportance(-1); break;
-            case Key.System when e.SystemKey == Key.Up && m == ModifierKeys.Alt: Move(-1); break;
-            case Key.System when e.SystemKey == Key.Down && m == ModifierKeys.Alt: Move(+1); break;
-            case Key.Delete when m == ModifierKeys.Shift: RedactStep(); break;
-            case Key.Delete when _selAnn != null: DeleteSelectedOrAll(); break;
-            case Key.Delete: ToggleHidden(); break;
-            case Key.F2: FocusInlineTitle(); break;
-            case Key.V when m == ModifierKeys.None: SelectTool("select"); break;
-            case Key.A when m == ModifierKeys.None: SelectTool("arrow"); break;
-            case Key.R when m == ModifierKeys.None: SelectTool("rect"); break;
-            case Key.E when m == ModifierKeys.None: SelectTool("ellipse"); break;
-            case Key.M when m == ModifierKeys.None: SelectTool("highlight"); break;
-            case Key.T when m == ModifierKeys.None: SelectTool("text"); break;
-            case Key.N when m == ModifierKeys.None: SelectTool("badge"); break;
-            case Key.X when m == ModifierKeys.None: SelectTool("redact"); break;
-            case Key.Escape when _selAnn != null: _selAnn = null; DrawSelection(); break;
-            case Key.F5: TogglePlay(); break;
-            case Key.F11: OpenLightbox(); break;
-            case Key.P when m == ModifierKeys.None: SelectTool("pixelate"); break;
-            case Key.C when m == ModifierKeys.None: SelectTool("crop"); break;
-            case Key.F7: Compare(); break;
-            case Key.Insert: InsertNote(); break;
-            case Key.K when m == ModifierKeys.None: AddComment(); break;
-            case Key.H when m == ModifierKeys.None: ToggleStepMarks(); break;
-            case Key.W when m == ModifierKeys.None: ToggleBeforeAfter(); break;
-            case Key.Escape: StopPlay(); break;
-            case Key.Down or Key.Right when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: if (_list.SelectedIndex < _list.Items.Count - 1) _list.SelectedIndex++; break;
-            case Key.Up or Key.Left when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: if (_list.SelectedIndex > 0) _list.SelectedIndex--; break;
-            default: handled = false; break;
-        }
-        if (handled) e.Handled = true;
     }
 
     void ToggleBeforeAfter() => (_showAfter ? _beforeBtn : _afterBtn).IsChecked = true;

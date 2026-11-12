@@ -74,6 +74,7 @@ static class DevSnapshots
                 Save(v);
             }
             v.DevDemo(() => Save(v));
+            v.DevShowShortcuts();
             new ExportDialog("html", "de") { Owner = v }.ShowDialog();
             new ExportDialog("ki", "de") { Owner = v }.ShowDialog();
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();

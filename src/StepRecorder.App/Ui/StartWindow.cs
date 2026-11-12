@@ -49,6 +49,7 @@ sealed class StartWindow : Window
         Width = Math.Min(1180, wa.Width - 24); Height = Math.Min(760, wa.Height - 24);
         MinWidth = Math.Min(640, wa.Width - 24); MinHeight = Math.Min(460, wa.Height - 24);
         WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.CanResize;
+        WindowPlacer.Attach(this, "start");
         AllowDrop = true;
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && Session.LooksLikeSession(f[0])) UiApp.Instance.OpenViewer(f[0]); };
         var s = AppSettings.Load();
