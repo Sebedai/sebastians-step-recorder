@@ -110,6 +110,7 @@ sealed class UiApp : Application
         var o = new RecordingOptions
         {
             Scope = scope, Language = s.Language, PrivacyLevel = s.PrivacyLevel, ChangeFrames = s.ChangeFrames, Monitors = "active",
+            IdleReminderMinutes = s.IdleReminderMinutes, PrivacyReminderSeconds = s.PrivacyReminderSeconds,
             ExcludedProcesses = s.Excluded.Count > 0 ? new List<string>(s.Excluded) : new List<string>(RecordingOptions.DefaultExcluded)
         };
         // alle wirksamen Kürzel (auch nicht gespeicherte Standardwerte) als eigene markieren – sonst würden sie als Schritt aufgezeichnet

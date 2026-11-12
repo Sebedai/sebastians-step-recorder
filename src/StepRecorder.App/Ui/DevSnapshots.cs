@@ -78,7 +78,7 @@ static class DevSnapshots
             new ExportDialog("ki", "de") { Owner = v }.ShowDialog();
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();
-            for (int tab = 0; tab < 4; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();
+            for (int tab = 0; tab < 5; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();
             new CommentWindow().ShowDialog();
             Msg.Show("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Aufnahme verwerfen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             var bar = new RecordingBar(new RecordingController(new RecordingOptions()));

@@ -115,8 +115,7 @@ sealed class StartWindow : Window
         var main = Panel("Neue Aufnahme", Theme.IRecord, U.Col(stepOne, modes, _strip, areaHead, tiles), null);
 
         // ---------- Seitenkasten mit Reitern ----------
-        var hk = s.Hotkeys;
-        string HK(string key, string def) => De(hk.GetValueOrDefault(key, def));
+        string HK(string id) => RecordingController.Key(id);
         var keyGrid = new Grid();
         keyGrid.ColumnDefinitions.Add(new ColumnDefinition()); keyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         int kr = 0;
@@ -127,11 +126,15 @@ sealed class StartWindow : Window
             var k = U.Kbd(combo); Grid.SetRow(l, kr); Grid.SetRow(k, kr); Grid.SetColumn(k, 1);
             keyGrid.Children.Add(l); keyGrid.Children.Add(k); kr++;
         }
-        K("Sofort starten · Pause", HK("instantPause", "Ctrl+Shift+F9"));
-        K("Beenden", HK("stop", "Ctrl+Shift+F10"));
-        K("Fehlerstelle markieren", HK("markerError", "Ctrl+Shift+F1"));
-        K("Kommentar", HK("comment", "Ctrl+Shift+F12"));
-        K("Privattaste", HK("privacy", "Ctrl+Shift+F8"));
+        foreach (var id in new[] { "instantPause", "stop", "markerError", "comment", "privacy" })
+            if (HK(id) is { Length: > 0 } combo) K(HotkeyActions.Label(HotkeyActions.ById(id)!), combo);
+        if (UiApp.Instance.HotkeyFailures.Count > 0)
+        {
+            keyGrid.RowDefinitions.Add(new RowDefinition());
+            var warnChip = U.Chip(Loc.F("belegt: {0}", "taken: {0}", string.Join(", ", UiApp.Instance.HotkeyFailures)), Theme.WarnSoft, Theme.Warn, Theme.IWarn);
+            warnChip.Margin = new Thickness(0, 6, 0, 0); warnChip.HorizontalAlignment = HorizontalAlignment.Left;
+            Grid.SetRow(warnChip, kr); Grid.SetColumnSpan(warnChip, 2); keyGrid.Children.Add(warnChip); kr++;
+        }
         var keysTab = U.Col(keyGrid, U.Text("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", 12, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)));
 
         var (tabTrack, tabs) = U.Segmented("stab", 0, (Theme.IHistory, "Zuletzt"), (Theme.IKeyboard, "Tastenkürzel"));
@@ -396,8 +399,6 @@ sealed class StartWindow : Window
         ShowCustomDialog();
     }
 
-    /// <summary>„Ctrl+Shift+F9“ → „Strg+Umschalt+F9“.</summary>
-    static string De(string combo) => string.Join("+", combo.Split('+').Select(p => p.Trim() switch { "Ctrl" => "Strg", "Shift" => "Umschalt", var x => x }));
 
     /// <summary>Detailstreifen zum gewählten Modus.</summary>
     void UpdateProfile()
@@ -446,7 +447,7 @@ sealed class StartWindow : Window
         {
             int n = 0;
             foreach (var (head, text) in new[] { ("Modus wählen", "Im Zweifel „Anleitung“."), ("Bereich anklicken", "Die Aufnahme startet sofort."),
-                                                   ("Vorführen und beenden", De(AppSettings.Load().Hotkeys.GetValueOrDefault("stop", "Ctrl+Shift+F10")) + " stoppt."), ("Nachbearbeiten", "Texte anpassen, als PDF oder Word speichern.") })
+                                                   ("Vorführen und beenden", RecordingController.Key("stop") + " stoppt."), ("Nachbearbeiten", "Texte anpassen, als PDF oder Word speichern.") })
             {
                 var num = new Border { Width = 22, Height = 22, CornerRadius = new CornerRadius(11), Background = Theme.AccentSoft, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Top,
                     Child = new TextBlock { Text = (++n).ToString(), FontFamily = Theme.Mono, FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.AccentText, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } };
@@ -547,8 +548,9 @@ sealed class StartWindow : Window
 
     public void ShowSupport()
     {
-        var r = Msg.Show("Problem aufnehmen\n\n1. Aufnahme starten und das Problem vorführen.\n2. Fehlerstelle mit Strg+Umschalt+F1 markieren, mit Strg+Umschalt+F10 beenden.\n3. Eingaben durchsehen und das ZIP erstellen.\n\nDas Programm versendet nichts – Sie geben das ZIP selbst weiter. Aufnahme jetzt starten?",
-            "Support-Paket", MessageBoxButton.OKCancel, MessageBoxImage.Information);
+        var r = Msg.Show(Loc.F("Problem aufnehmen\n\n1. Aufnahme starten und das Problem vorführen.\n2. Fehlerstelle mit {0} markieren, mit {1} beenden.\n3. Eingaben durchsehen und das ZIP erstellen.\n\nDas Programm versendet nichts – Sie geben das ZIP selbst weiter. Aufnahme jetzt starten?",
+                "Record a problem\n\n1. Start recording and demonstrate the problem.\n2. Mark the error with {0}, stop with {1}.\n3. Review the input and create the ZIP.\n\nThe program sends nothing – you pass the ZIP on yourself. Start recording now?", RecordingController.Key("markerError"), RecordingController.Key("stop")),
+            Loc.L("Support-Paket", "Support package"), MessageBoxButton.OKCancel, MessageBoxImage.Information);
         if (r != MessageBoxResult.OK) return;
         _profiles[1].IsChecked = true;
         Begin(ScopeMode.Screen);

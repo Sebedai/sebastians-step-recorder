@@ -26,6 +26,9 @@ public sealed partial class Recorder : IDisposable
     /// <summary>Wird nach dem Entsperren ausgelöst; die Aufnahme läuft erst nach Bestätigung weiter.</summary>
     public event Action? ResumeConfirmationNeeded;
     public event Action<string>? Warning;
+    /// <summary>Erinnerung (Aufnahme läuft noch / Privattaste noch an) – nur Hinweis, keine Wirkung auf die Aufnahme.</summary>
+    public event Action<ReminderKind, int>? Reminder;
+    ReminderClock? _reminder;
     public bool PrivacyMode { get; private set; }
     public int ActionCount { get; private set; }
     public bool SelfTestPassed { get; set; } = true;
@@ -113,6 +116,7 @@ public sealed partial class Recorder : IDisposable
         if (!_host.Command(InputRing.TargetRun, 1500))
             throw new InvalidOperationException("Capture-Host hat die Hooks nicht bestätigt.");
         _qpc0 = Stopwatch.GetTimestamp();
+        _reminder = new ReminderClock(Options.IdleReminderMinutes, Options.PrivacyReminderSeconds, 0);
         var part0 = (JsonObject)manifest["parts"]![0]!;
         part0["qpcAtStart"] = _qpc0; part0["tickCountAtStart"] = (long)GetTickCount64();
         _w.SaveManifest();
@@ -390,6 +394,7 @@ public sealed partial class Recorder : IDisposable
                 Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "privacyMode", ["active"] = false, ["trigger"] = trigger, ["end"] = "toggle", ["gapId"] = gid });
                 PrivacyMode = false;
             }
+            _reminder?.Privacy(PrivacyMode, t);
         }
     }
 
@@ -545,11 +550,23 @@ public sealed partial class Recorder : IDisposable
         ["uiaQueries"] = _uia.Queries, ["uiaTimeouts"] = _uia.Timeouts, ["uiaWorkersReplaced"] = _uia.WorkersReplaced,
     };
 
-    /// <summary>Verwirft die Aufnahme vollständig (Ordner wird gelöscht).</summary>
-    public void Discard()
+    /// <summary>
+    /// Verwirft die Aufnahme: Ordner in den Papierkorb. Ohne Papierkorb (USB-Stick, Netzlaufwerk) nur mit
+    /// <paramref name="allowPermanentDelete"/> endgültig löschen; sonst bleibt der Ordner und <paramref name="folder"/> nennt ihn.
+    /// </summary>
+    /// <summary>Aufnahmeordner (nach dem Start).</summary>
+    public string? Folder => _w?.Folder;
+
+    public Native.RecycleResult Discard(bool allowPermanentDelete, out string folder)
     {
-        var folder = Stop("discarded");
-        try { if (Directory.Exists(folder)) Directory.Delete(folder, true); } catch { }
+        folder = Stop("discarded");
+        if (!Directory.Exists(folder)) return Native.RecycleResult.Recycled;
+        var r = Native.RecycleBin.Delete(new[] { folder }, out _);
+        if (r == Native.RecycleResult.NoRecycleBin && allowPermanentDelete)
+        {
+            try { Directory.Delete(folder, true); return Native.RecycleResult.Recycled; } catch { return Native.RecycleResult.Failed; }
+        }
+        return r;
     }
 
     public void Dispose()

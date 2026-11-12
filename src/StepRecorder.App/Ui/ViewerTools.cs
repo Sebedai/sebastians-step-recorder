@@ -545,7 +545,9 @@ static class Tones
     static readonly Lazy<byte[]> _stop = new(() => Wave((880, 90), (0, 30), (520, 180)));
     static readonly Lazy<byte[]> _pause = new(() => Wave((600, 120)));
     static readonly Lazy<byte[]> _tick = new(() => Wave((1000, 45)));
+    static readonly Lazy<byte[]> _remind = new(() => Wave((740, 80), (0, 60), (740, 80), (0, 60), (740, 80)));
 
+    public static void Remind() => Play(_remind.Value);
     public static void Start() => Play(_start.Value);
     public static void Stop() => Play(_stop.Value);
     public static void Pause() => Play(_pause.Value);

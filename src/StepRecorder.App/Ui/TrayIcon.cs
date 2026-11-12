@@ -135,6 +135,13 @@ sealed class TrayIcon : IDisposable
                 float bw = s * 0.15f, bh = s * 0.46f, y = (s - bh) / 2;
                 g.FillRectangle(w, s * 0.31f, y, bw, bh); g.FillRectangle(w, s * 0.54f, y, bw, bh);
             }
+            else if (state == "remind")
+            {
+                // Erinnerung: heller Ring statt Punkt (blinkt im Wechsel mit dem normalen Symbol)
+                using var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0xFF, 0xC5, 0x3D), Math.Max(2, s / 7f));
+                float d = s * 0.56f;
+                g.DrawEllipse(pen, (s - d) / 2, (s - d) / 2, d, d);
+            }
             else
             {
                 var c = state == "private" ? System.Drawing.Color.FromArgb(0xFF, 0xC5, 0x3D) : System.Drawing.Color.FromArgb(0xF0, 0x3E, 0x4F);

@@ -42,6 +42,12 @@ public sealed class RecordingOptions
     public int ValueMaxChars { get; set; } = 2000;
     public int SnapshotMaxNodes { get; set; } = 300;
     public int HoldMaxMs { get; set; } = 1500;
+    /// <summary>Erinnerung „Aufnahme läuft noch“ nach so vielen Minuten ohne Eingabe (0 = aus).</summary>
+    public int IdleReminderMinutes { get; set; } = 10;
+    /// <summary>Erinnerung „Privattaste noch an“ nach so vielen Sekunden ohne Taste.</summary>
+    public int PrivacyReminderSeconds { get; set; } = 60;
+    /// <summary>Wer das Ziel formuliert hat: author (Person) | agent (über MCP angefragt).</summary>
+    public string GoalStatedBy { get; set; } = "author";
     /// <summary>Hotkeys des Recorders als (Modifier, VK) – Tasten werden als <c>self</c> markiert.</summary>
     public List<(uint mods, uint vk)> SelfHotkeys { get; set; } = new();
     /// <summary>Abgeschaltete Eingabearten (Schlüssel aus <see cref="Channels"/>); deren Ereignisse werden nicht gespeichert.</summary>

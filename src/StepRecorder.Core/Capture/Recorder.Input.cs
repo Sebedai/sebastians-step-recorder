@@ -27,7 +27,7 @@ public sealed partial class Recorder
                     FlushPendingKeys(force: false);
                     Idle();
                 }
-                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); }
+                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollReminder(); }
             }
             catch (Exception ex) { Warning?.Invoke("Eingabeverarbeitung: " + ex.Message); }
         }
@@ -53,6 +53,22 @@ public sealed partial class Recorder
             // Zustandsprobe 700 ms nach der letzten Aktion (Grundlage für Erfolgsprüfungen)
             if (r.Kind == RingKind.Keyboard || r.Message != WM_MOUSEMOVE) _stateDue = Now() + StateProbeDelayUs;
         }
+        if (_batch.Count > 0 && _reminder != null)
+        {
+            long t = Now();
+            if (_batch.Any(r => r.Kind == RingKind.Keyboard)) _reminder.Key(t); else _reminder.Activity(t);
+        }
+    }
+
+    /// <summary>Erinnerungen prüfen (im 250-ms-Takt); während Pause und Lücken stehen die Uhren.</summary>
+    void PollReminder()
+    {
+        if (_reminder == null) return;
+        long t = Now();
+        bool suspended;
+        lock (_gate) suspended = State != RecorderState.Recording || _gaps.ContainsKey("sessionLocked") || _gaps.ContainsKey("sessionDisconnected") || _gaps.ContainsKey("secureDesktop") || _gaps.ContainsKey("suspend");
+        _reminder.Suspend(suspended, t);
+        if (_reminder.Poll(t) is { } rem) { try { Reminder?.Invoke(rem.kind, rem.value); } catch { } }
     }
 
     // ---------------- Fensterbezogene Lücken (ausgeschlossen, außerhalb, erhöht) ----------------
