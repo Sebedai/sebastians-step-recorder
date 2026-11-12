@@ -33,6 +33,8 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
 
     public static int Run(string[] args)
     {
+        Settings.Loc.Init(Settings.AppSettings.Load().UiLanguage);
+        Settings.AppLog.InstallCrashHandlers();
         try
         {
             switch (args[0].ToLowerInvariant())

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using StepRecorder.Data;
 
 namespace StepRecorder.Settings;
@@ -86,8 +87,14 @@ public static class AppPaths
 /// <summary>Programmeinstellungen (versioniert, tolerant gelesen, atomar geschrieben; unbekannte Schlüssel bleiben erhalten).</summary>
 public sealed class AppSettings
 {
-    public int Version { get; set; } = 1;
+    /// <summary>Aktuelle Version der Einstellungsdatei; ältere werden beim Lesen schrittweise angehoben.</summary>
+    public const int CurrentVersion = 2;
+
+    public int Version { get; set; } = CurrentVersion;
+    /// <summary>Sprache der automatisch erzeugten Anleitungstexte (de | en).</summary>
     public string Language { get; set; } = "de";
+    /// <summary>Sprache der Programmoberfläche: system (wie Windows) | de | en. Gilt ab dem nächsten Start.</summary>
+    public string UiLanguage { get; set; } = "system";
     public string? SessionsFolder { get; set; }
     public string PrivacyLevel { get; set; } = "balanced";
     public List<string> Excluded { get; set; } = new(Capture.RecordingOptions.DefaultExcluded);
@@ -105,12 +112,13 @@ public sealed class AppSettings
     public string SoundCues { get; set; } = "hidden";
     /// <summary>Farbschema der Oberfläche: dark (Standard) | light | system (wie Windows).</summary>
     public string Theme { get; set; } = "dark";
-    public Dictionary<string, string> Hotkeys { get; set; } = new()
-    {
-        ["instantPause"] = "Ctrl+Shift+F9", ["stop"] = "Ctrl+Shift+F10", ["snapshot"] = "Ctrl+Shift+F11", ["comment"] = "Ctrl+Shift+F12",
-        ["privacy"] = "Ctrl+Shift+F8", ["marker"] = "Ctrl+Shift+F7", ["discard"] = "Ctrl+Shift+F6", ["bar"] = "Ctrl+Shift+F4",
-        ["markerError"] = "Ctrl+Shift+F1", ["markerExpected"] = "Ctrl+Shift+F2"
-    };
+    public Dictionary<string, string> Hotkeys { get; set; } = HotkeyActions.Defaults();
+
+    /// <summary>Wirksames Tastenkürzel einer Aktion: gespeichert, sonst Standard; leer = bewusst ohne Kürzel.</summary>
+    public string Hotkey(string id) => Hotkeys.TryGetValue(id, out var v) ? v ?? "" : HotkeyActions.ById(id)?.Default ?? "";
+
+    /// <summary>Alle wirksamen Kürzel (auch nicht gespeicherte Standardwerte).</summary>
+    public Dictionary<string, string> EffectiveHotkeys() => HotkeyActions.All.ToDictionary(a => a.Id, a => Hotkey(a.Id));
     /// <summary>Was aufgezeichnet wird (Schlüssel aus <see cref="Capture.RecordingOptions.Channels"/>); fehlende Schlüssel gelten als eingeschaltet.</summary>
     public Dictionary<string, bool> Record { get; set; } = new();
     public bool Records(string channel) => Record.GetValueOrDefault(channel, true);
@@ -121,29 +129,114 @@ public sealed class AppSettings
     public List<string> RecentSessions { get; set; } = new();
     public JsonObject? Extra { get; set; }
 
+    /// <summary>Schlüssel, die diese Version nicht kennt (z. B. von einer neueren) – bleiben beim Speichern erhalten.</summary>
+    [JsonExtensionData] public Dictionary<string, JsonElement>? Unknown { get; set; }
+
+    /// <summary>Hinweis vom Laden (beschädigte Datei beiseitegelegt, einzelne Werte verworfen) – einmal anzeigen.</summary>
+    [JsonIgnore] public string? LoadNotice { get; set; }
+    /// <summary>Fehler beim letzten Speichern (null = gespeichert).</summary>
+    [JsonIgnore] public string? LastSaveError { get; private set; }
+
     static AppSettings? _cached;
     static readonly JsonSerializerOptions Opt = new(Json.Indented) { PropertyNameCaseInsensitive = true };
 
-    public static AppSettings Load()
+    public static AppSettings Load() => _cached ??= Read(AppPaths.SettingsFile);
+
+    /// <summary>Verwirft den Zwischenspeicher (nach Import oder Zurücksetzen von außen).</summary>
+    public static void Reload() => _cached = null;
+
+    /// <summary>Liest eine Einstellungsdatei tolerant: Migration, einzelne ungültige Werte werden verworfen statt der ganzen Datei.</summary>
+    public static AppSettings Read(string path)
     {
-        if (_cached != null) return _cached;
-        var path = AppPaths.SettingsFile;
-        try
+        if (!File.Exists(path)) return new AppSettings();
+        JsonObject? raw;
+        try { raw = JsonNode.Parse(File.ReadAllText(path), documentOptions: new JsonDocumentOptions { MaxDepth = 64, CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject; }
+        catch { raw = null; }
+        if (raw == null)
         {
-            if (File.Exists(path)) return _cached = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(path), Opt) ?? new AppSettings();
+            string bak = path + ".defekt-" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            try { File.Move(path, bak, true); } catch { }
+            AppLog.Write("Einstellungen beschädigt – beiseitegelegt: " + Path.GetFileName(bak));
+            return new AppSettings { LoadNotice = Loc.L("Die Einstellungsdatei war beschädigt und wurde beiseitegelegt; es gelten die Standardwerte.", "The settings file was damaged and has been set aside; defaults apply.") };
         }
-        catch
+        int fileVersion = (int)(Key(raw, "version")?.GetValueKind() == JsonValueKind.Number ? Key(raw, "version")!.GetValue<int>() : 1);
+        SettingsMigrations.Run(raw, fileVersion);
+        var dropped = new List<string>();
+        for (int attempt = 0; attempt < 12; attempt++)
         {
-            try { File.Move(path, path + ".defekt-" + DateTime.Now.ToString("yyyyMMddHHmmss"), true); } catch { }
+            try
+            {
+                var s = JsonSerializer.Deserialize<AppSettings>(raw.ToJsonString(), Opt) ?? new AppSettings();
+                s.Version = Math.Max(fileVersion, CurrentVersion);
+                s.Hotkeys ??= HotkeyActions.Defaults();
+                s.Excluded ??= new(Capture.RecordingOptions.DefaultExcluded);
+                s.DocTemplates ??= new(); s.Record ??= new(); s.RecentSessions ??= new();
+                if (dropped.Count > 0)
+                {
+                    AppLog.Write("Einstellungen: ungültige Werte verworfen: " + string.Join(", ", dropped));
+                    s.LoadNotice = Loc.F("Einige Einstellungen waren ungültig und wurden zurückgesetzt: {0}", "Some settings were invalid and have been reset: {0}", string.Join(", ", dropped));
+                }
+                return s;
+            }
+            catch (JsonException ex) when (ex.Path is { Length: > 1 })
+            {
+                dropped.Add(ex.Path!.TrimStart('$', '.'));
+                if (!RemovePath(raw, ex.Path!)) break;
+            }
+            catch { break; }
         }
-        // Zuletzt verwendete Sitzungen liegen im Zustand, nicht in den Einstellungen
-        return _cached = new AppSettings();
+        AppLog.Write("Einstellungen nicht lesbar – Standardwerte");
+        return new AppSettings { LoadNotice = Loc.L("Die Einstellungen konnten nicht gelesen werden; es gelten die Standardwerte.", "Settings could not be read; defaults apply.") };
     }
 
-    public void Save()
+    static JsonNode? Key(JsonObject o, string name) => o.FirstOrDefault(kv => string.Equals(kv.Key, name, StringComparison.OrdinalIgnoreCase)).Value;
+
+    /// <summary>Entfernt den Wert an einem JSON-Pfad wie „$.countdown“ oder „$.hotkeys.stop“.</summary>
+    static bool RemovePath(JsonObject root, string path)
     {
-        _cached = this;
-        try { Json.WriteAtomic(AppPaths.SettingsFile, JsonSerializer.Serialize(this, Opt)); } catch { }
+        var segs = path.TrimStart('$').Split('.', StringSplitOptions.RemoveEmptyEntries);
+        if (segs.Length == 0) return false;
+        JsonNode? cur = root;
+        for (int i = 0; i < segs.Length; i++)
+        {
+            string seg = segs[i];
+            int b = seg.IndexOf('[');
+            string name = b >= 0 ? seg[..b] : seg;
+            bool last = i == segs.Length - 1;
+            if (cur is not JsonObject o) return false;
+            var key = o.Select(kv => kv.Key).FirstOrDefault(k => string.Equals(k, name, StringComparison.OrdinalIgnoreCase));
+            if (key == null) return false;
+            if (last && b < 0) { o.Remove(key); return true; }
+            if (b >= 0 && o[key] is JsonArray arr && int.TryParse(seg[(b + 1)..^1], out int idx) && idx < arr.Count)
+            {
+                if (last) { arr.RemoveAt(idx); return true; }
+                cur = arr[idx];
+            }
+            else if (b >= 0) { o.Remove(key); return true; }
+            else cur = o[key];
+        }
+        return false;
+    }
+
+    public bool Save() => Write(AppPaths.SettingsFile, setCache: true);
+
+    /// <summary>Speichert atomar; Fehler werden protokolliert und in <see cref="LastSaveError"/> gemeldet.</summary>
+    public bool Write(string path, bool setCache = false)
+    {
+        if (setCache) _cached = this;
+        try
+        {
+            Version = Math.Max(Version, CurrentVersion);
+            Json.WriteAtomic(path, JsonSerializer.Serialize(this, Opt));
+            LastSaveError = null;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            LastSaveError = ex.Message;
+            AppLog.Write("Einstellungen nicht gespeichert: " + ex.GetType().Name + " " + ex.Message);
+            return false;
+        }
     }
 
     public void AddRecent(string path)
@@ -152,5 +245,40 @@ public sealed class AppSettings
         RecentSessions.Insert(0, path);
         if (RecentSessions.Count > 15) RecentSessions.RemoveRange(15, RecentSessions.Count - 15);
         Save();
+    }
+
+    public void RemoveRecent(string path)
+    {
+        if (RecentSessions.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) > 0) Save();
+    }
+}
+
+/// <summary>Schrittweise Anhebung älterer Einstellungsdateien (vor dem Einlesen, auf dem rohen JSON).</summary>
+public static class SettingsMigrations
+{
+    static readonly (int From, Action<JsonObject> Step)[] Steps =
+    {
+        // 1 → 2: Tastenkürzel in kanonische Schreibweise, unlesbare entfernen (dann gilt der Standard)
+        (1, raw =>
+        {
+            var key = raw.Select(kv => kv.Key).FirstOrDefault(k => string.Equals(k, "hotkeys", StringComparison.OrdinalIgnoreCase));
+            if (key == null || raw[key] is not JsonObject hk) return;
+            foreach (var (id, val) in hk.ToList())
+            {
+                string? text = val is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
+                if (text is { Length: 0 }) continue;
+                if (text != null && HotkeyCombo.TryParse(text, out var c)) hk[id] = c.ToString();
+                else hk.Remove(id);
+            }
+        }),
+    };
+
+    public static void Run(JsonObject raw, int fromVersion)
+    {
+        foreach (var (from, step) in Steps)
+            if (fromVersion <= from) { try { step(raw); } catch { } }
+        var vk = raw.Select(kv => kv.Key).FirstOrDefault(k => string.Equals(k, "version", StringComparison.OrdinalIgnoreCase));
+        if (vk != null) raw.Remove(vk);
+        raw["version"] = Math.Max(fromVersion, AppSettings.CurrentVersion);
     }
 }

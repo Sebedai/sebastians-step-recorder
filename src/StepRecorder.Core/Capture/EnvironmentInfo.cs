@@ -39,7 +39,8 @@ public static class EnvironmentInfo
         return new JsonObject
         {
             ["os"] = new JsonObject { ["product"] = product, ["version"] = Environment.OSVersion.Version.ToString(), ["displayVersion"] = display },
-            ["locale"] = new JsonObject { ["ui"] = CultureInfo.CurrentUICulture.Name, ["formats"] = CultureInfo.CurrentCulture.Name },
+            // Windows-Sprache, nicht die (umschaltbare) Sprache der Programmoberfläche
+            ["locale"] = new JsonObject { ["ui"] = Settings.Loc.SystemUiCulture.Name, ["formats"] = Settings.Loc.SystemCulture.Name },
             ["keyboardLayouts"] = new JsonArray(new JsonObject { ["hkl"] = KeyTranslator.HklHex(hkl), ["name"] = SafeLayoutName(hkl) }),
             ["inputSettings"] = input,
             ["accessibility"] = new JsonObject { ["highContrast"] = System.Windows.Forms.SystemInformation.HighContrast },
@@ -50,6 +51,14 @@ public static class EnvironmentInfo
 
     static string SafeLayoutName(nint hkl)
     {
-        try { return new CultureInfo((int)((long)hkl & 0xFFFF)).DisplayName; } catch { return ""; }
+        try
+        {
+            // Anzeigename in der Windows-Sprache, unabhängig von der Programmoberfläche
+            var prev = CultureInfo.CurrentUICulture;
+            CultureInfo.CurrentUICulture = Settings.Loc.SystemUiCulture;
+            try { return new CultureInfo((int)((long)hkl & 0xFFFF)).DisplayName; }
+            finally { CultureInfo.CurrentUICulture = prev; }
+        }
+        catch { return ""; }
     }
 }

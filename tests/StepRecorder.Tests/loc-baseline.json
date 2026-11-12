@@ -1,0 +1,17 @@
+{
+  "src/StepRecorder.App/Cli.cs": 16,
+  "src/StepRecorder.App/Program.cs": 4,
+  "src/StepRecorder.App/Ui/Controls.cs": 2,
+  "src/StepRecorder.App/Ui/DevSnapshots.cs": 7,
+  "src/StepRecorder.App/Ui/ImageViewing.cs": 9,
+  "src/StepRecorder.App/Ui/Infrastructure.cs": 1,
+  "src/StepRecorder.App/Ui/RecordingController.cs": 65,
+  "src/StepRecorder.App/Ui/StartWindow.cs": 117,
+  "src/StepRecorder.App/Ui/Theme.cs": 1,
+  "src/StepRecorder.App/Ui/UiApp.cs": 1,
+  "src/StepRecorder.App/Ui/ViewerActions.cs": 126,
+  "src/StepRecorder.App/Ui/ViewerDocument.cs": 94,
+  "src/StepRecorder.App/Ui/ViewerLayout.cs": 136,
+  "src/StepRecorder.App/Ui/ViewerTools.cs": 57,
+  "src/StepRecorder.App/Ui/ViewerWindow.cs": 70
+}

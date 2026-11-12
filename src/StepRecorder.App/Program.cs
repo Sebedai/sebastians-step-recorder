@@ -65,6 +65,8 @@ static class McpMode
         var stderr = new StreamWriter(Console.OpenStandardError(), new UTF8Encoding(false)) { AutoFlush = true };
         Console.SetOut(stderr); // versehentliche Ausgaben landen nicht im Protokoll
         Console.SetError(stderr);
+        try { Settings.Loc.Init(Settings.AppSettings.Load().UiLanguage); } catch { }
+        Settings.AppLog.InstallCrashHandlers();
         try
         {
             var o = new Mcp.McpOptions();

@@ -20,6 +20,8 @@ sealed class UiApp : Application
             bool fwd = SingleInstance.Forward(args.Length == 0 ? new[] { "--activate" } : args);
             return fwd ? 0 : 6;
         }
+        Loc.Init(AppSettings.Load().UiLanguage, applyToThreads: true);
+        AppLog.InstallCrashHandlers(TryEmergencyStop);
         var app = new UiApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (_, e) => { ShowError(e.Exception); e.Handled = true; };
         app.Startup += (_, _) => app.OnStart(args);
@@ -51,7 +53,7 @@ sealed class UiApp : Application
     void HandleArgs(string[] args)
     {
         // nur Befehl und Optionsnamen protokollieren – Werte (Titel, Ziel, Pfade) können Vertrauliches enthalten
-        Log("args: " + string.Join(" ", args.Select((a, i) => i == 0 && !a.StartsWith('-') && !Session.LooksLikeSession(a) ? a : a.StartsWith("--") ? a : "…")));
+        Log("args: " + AppLog.ArgNames(args));
         if (args.Length == 0 || args[0] == "--activate")
         {
             if (Recording != null) { Recording.ShowRunningNotice(); return; }
@@ -178,9 +180,12 @@ sealed class UiApp : Application
         if (!Recording.Start()) { Recording = null; RegisterGlobalHotkeys(); ShowStart(); }
     }
 
-    public static void Log(string text)
+    public static void Log(string text) => AppLog.Write(text);
+
+    /// <summary>Bei einem fatalen Fehler: laufende Aufnahme so weit wie möglich sauber beenden (Rest übernimmt die Wiederherstellung).</summary>
+    static void TryEmergencyStop()
     {
-        try { File.AppendAllText(Path.Combine(AppPaths.StateDir, "StepRecorder.log"), $"{DateTime.Now:O} {text}{Environment.NewLine}"); } catch { }
+        try { (Current as UiApp)?.Recording?.EmergencyStop(); } catch { }
     }
 
     public static void ShowError(Exception ex)

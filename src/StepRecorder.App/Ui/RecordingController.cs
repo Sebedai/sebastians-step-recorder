@@ -260,6 +260,9 @@ sealed class RecordingController
 
     public void ShowRunningNotice() => _bar?.Message("Es läuft bereits eine Aufnahme.", true);
 
+    /// <summary>Fataler Programmfehler: Aufnahme so weit wie möglich abschließen (Recorder.Dispose stoppt mit Grund „error“).</summary>
+    public void EmergencyStop() { try { _rec?.Dispose(); } catch { } }
+
     public void Discard()
     {
         if (Msg.Show("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Aufnahme verwerfen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;

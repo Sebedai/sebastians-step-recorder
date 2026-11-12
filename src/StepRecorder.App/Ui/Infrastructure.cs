@@ -6,6 +6,7 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using StepRecorder.Data;
 using StepRecorder.Native;
 
 namespace StepRecorder.App.Ui;
@@ -131,22 +132,22 @@ sealed class Hotkeys : IDisposable
     public static bool Parse(string combo, out uint mods, out uint vk)
     {
         mods = 0; vk = 0;
-        foreach (var p in combo.Split('+').Select(x => x.Trim()))
-        {
-            switch (p.ToLowerInvariant())
-            {
-                case "ctrl" or "strg": mods |= Win32.MOD_CONTROL; break;
-                case "shift" or "umschalt": mods |= Win32.MOD_SHIFT; break;
-                case "alt": mods |= Win32.MOD_ALT; break;
-                case "win": mods |= Win32.MOD_WIN; break;
-                default:
-                    if (p.Length >= 2 && (p[0] == 'F' || p[0] == 'f') && int.TryParse(p[1..], out int f)) vk = (uint)(0x6F + f);
-                    else if (p.Length == 1) vk = char.ToUpperInvariant(p[0]);
-                    else if (p.Equals("Pause", StringComparison.OrdinalIgnoreCase)) vk = 0x13;
-                    break;
-            }
-        }
-        return vk != 0;
+        if (!Settings.HotkeyCombo.TryParse(combo, out var c)) return false;
+        mods = c.Mods; vk = c.Vk;
+        return true;
+    }
+
+    /// <summary>
+    /// Ist die Kombination frei? Probe-Registrierung an einem eigenen Fenster und sofortige Freigabe.
+    /// Erkennt nur RegisterHotKey-Belegungen anderer Programme, keine Tastatur-Hooks.
+    /// </summary>
+    public static bool Probe(string combo)
+    {
+        if (!Parse(combo, out var mods, out var vk)) return false;
+        using var src = new HwndSource(new HwndSourceParameters("StepRecorder.HotkeyProbe") { ParentWindow = new IntPtr(-3) });
+        if (!Win32.RegisterHotKey(src.Handle, 0x7F00, mods | Win32.MOD_NOREPEAT, vk)) return false;
+        Win32.UnregisterHotKey(src.Handle, 0x7F00);
+        return true;
     }
 
     public bool Register(string name, string combo, Action action)
@@ -226,25 +227,21 @@ static class SingleInstance
     public static int SendStop()
     {
         var stateFile = Settings.AppPaths.StateFile;
-        var before = File.Exists(stateFile) ? File.GetLastWriteTimeUtc(stateFile) : DateTime.MinValue;
-        if (!Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine("Keine laufende Aufnahme."); return 7; }
+        // Erkennung über den Zeitstempel „atUtc“ des Stopps – andere Zustandsänderungen (Fensterlage …) zählen nicht
+        string? before = Data.Json.ReadObject(stateFile).Str("atUtc");
+        if (!Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine(Settings.Loc.L("Keine laufende Aufnahme.", "No recording in progress.")); return 7; }
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < 30000)
         {
             Thread.Sleep(200);
-            if (File.Exists(stateFile) && File.GetLastWriteTimeUtc(stateFile) > before)
-            {
-                var path = Data.Json.ReadObject(stateFile)?["lastStopped"]?.GetValue<string>();
-                if (path != null) { Console.WriteLine(path); return 0; }
-            }
+            var o = Data.Json.ReadObject(stateFile);
+            if (o.Str("atUtc") is { } at && at != before && o.Str("lastStopped") is { } path) { Console.WriteLine(path); return 0; }
         }
         return 1;
     }
 
     public static void WriteLastStopped(string path)
-    {
-        try { Data.Json.WriteAtomic(Settings.AppPaths.StateFile, Data.Json.Pretty(new System.Text.Json.Nodes.JsonObject { ["lastStopped"] = path, ["atUtc"] = Data.Json.UtcNow() })); } catch { }
-    }
+        => Settings.AppState.Update(s => { s.LastStopped = path; s.AtUtc = Data.Json.UtcNow(); });
 
     [StructLayout(LayoutKind.Sequential)] struct COPYDATASTRUCT { public IntPtr dwData; public int cbData; public IntPtr lpData; }
     [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? cls, string? title);
