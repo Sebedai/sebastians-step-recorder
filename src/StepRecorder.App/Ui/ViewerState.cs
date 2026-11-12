@@ -44,6 +44,13 @@ sealed partial class ViewerWindow
     public string SessionPath => _path;
 
     /// <summary>Aus der Bibliothek: zum Schritt springen; mit Suchbegriff wird die Liste darauf gefiltert.</summary>
+    /// <summary>Ersten Schritt auswählen (Sofort-Bildschirmfoto: gleich die Zeichenwerkzeuge).</summary>
+    public void SelectFirstStep()
+    {
+        if (_view.Manual.FirstOrDefault() is { } m) JumpTo(m.Anchor, null);
+        else if (_view.All.FirstOrDefault() is { } s) JumpTo(s.Anchor, null);
+    }
+
     /// <summary>Modus „Fehler nachstellen“: zum ersten Marker „Fehler“, sonst zum ersten Absturz oder Hänger springen.</summary>
     public void JumpToFailure()
     {

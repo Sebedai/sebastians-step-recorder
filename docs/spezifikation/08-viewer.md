@@ -977,7 +977,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Support-Paket | Geführter Ablauf nach einer Support-Aufnahme, siehe [12.2](#122-support-paket-geführter-ablauf) | Soll |
 | Volltextsuche über alle Sitzungen | Siehe [11.2](#112-volltextsuche-über-alle-sitzungen) | Soll |
 | Schritt neu bebildern | „Bild neu aufnehmen“ ersetzt das Bild eines Schritts durch einen frischen Schnappschuss | Kann |
-| Befehlspalette | `Strg+Umschalt+P` findet jeden Befehl über seinen Namen | Kann |
+| Befehlspalette | `Strg+Umschalt+P` findet jeden Befehl über seinen Namen | Kann – *umgesetzt (Paket 15 aus [12](12-entwickler-fahrplan.md)): Suche über Namen und Gruppe, zuletzt benutzte zuerst, Kürzel daneben; auch im Menü „Hilfe“* |
 | Lesezeichen | Schritte mit einem Stern merken und danach filtern | Kann |
 | Textbausteine | Häufige Hinweise per Kürzel einfügen | Kann |
 | Rechtschreibprüfung | In Schritttexten und Kommentaren, soweit Windows die Sprache bereitstellt | Kann |

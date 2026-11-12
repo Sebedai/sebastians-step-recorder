@@ -109,6 +109,7 @@ SebastiansStepRecorder.exe record --self-test
 | `--after-stop <viewer\|folder\|none>` | Was nach dem Stopp geschieht | aus den Einstellungen |
 | `--max-duration <Minuten>` | Aufnahme endet von selbst (Kann) | – |
 | `--json` | Abschlusszeile als JSON | aus |
+| *Sofort-Bildschirmfoto* | Globales Kürzel `Strg+Umschalt+F3` (einstellbar, Paket 15 aus [12](12-entwickler-fahrplan.md)): ohne laufende Aufnahme Bereich wählen → eine Aufnahme mit genau einem Bildschritt → Editor mit Zeichenwerkzeugen; während einer Aufnahme wirkt es wie der Schnappschuss | – |
 | `--log <Datei>` | Protokolldatei mitlesen (mehrfach; `*` und `?` im Dateinamen); schwächt den Schutz, nicht in „Streng“ (Paket 13) | – |
 
 - **Auch `record` zeigt Leiste und Rahmen.** Eine Aufnahme ohne sichtbare Anzeige gibt es in keiner Betriebsart.

@@ -129,7 +129,7 @@ sealed class RecordingController
     {
         "instantPause" => TogglePause, "stop" => Stop, "snapshot" => () => Marker("snapshot"), "comment" => Comment, "privacy" => TogglePrivacy,
         "marker" => () => Marker("note"), "discard" => DiscardPrevious, "bar" => ToggleBar, "markerError" => () => Marker("error"),
-        "markerExpected" => () => Marker("expected"), "dictation" => ToggleDictation, _ => () => { }
+        "markerExpected" => () => Marker("expected"), "dictation" => ToggleDictation, "screenshot" => () => Marker("snapshot"), _ => () => { }
     };
 
     void RegisterHotkeys()

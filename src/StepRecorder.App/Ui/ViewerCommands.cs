@@ -115,6 +115,7 @@ sealed partial class ViewerWindow
             new("compare", "general", Loc.L("Mit anderer Aufnahme vergleichen", "Compare with another recording"), Key.F7, N, Compare),
             new("stopPlay", "general", Loc.L("Abspielen beenden", "Stop playback"), Key.Escape, N, StopPlay, Listed: false),
             new("shortcuts", "general", Loc.L("Alle Tastenkürzel", "All shortcuts"), Key.F1, N, () => ShortcutsWindow.Show(this, Cmds), InText: true),
+            new("palette", "general", Loc.L("Befehlspalette", "Command palette"), Key.P, CS, () => CommandPalette.Show(this, Cmds), InText: true),
             // Nur in Menüs (ohne Tastenkürzel) – damit Menüleiste, Rechtsklick und Knöpfe dieselben Namen tragen
             new("rename", "general", Loc.L("Umbenennen …", "Rename …"), Key.None, N, Rename, Listed: false),
             new("preview", "copy", Loc.L("Vorschau im Browser", "Preview in browser"), Key.None, N, PreviewDocument, Listed: false),

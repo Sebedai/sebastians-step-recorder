@@ -30,7 +30,7 @@ sealed partial class ViewerWindow
         ["replaceFile"] = Theme.IOpen, ["replaceClip"] = Theme.ICopy, ["restoreImage"] = Theme.IUndo, ["deleteMark"] = Theme.IDelete, ["saveImage"] = Theme.ISave,
         ["beforeAfter"] = Theme.ICompare, ["stepMarks"] = Theme.IMouse, ["play"] = Theme.IPlay, ["lightbox"] = Theme.IFullScreen, ["zoomIn"] = Theme.IZoomIn, ["zoomOut"] = Theme.IZoomOut,
         ["zoomFit"] = Theme.IFit, ["zoom100"] = Theme.IActual, ["review"] = Theme.IChecklist, ["quality"] = Theme.ICheck, ["piiScan"] = Theme.ISearch, ["redactStep"] = Theme.IShield,
-        ["overview"] = Theme.IInfo, ["finalRedact"] = Theme.IWarn, ["shortcuts"] = Theme.IKeyboard, ["help"] = Theme.IHelp, ["prev"] = Theme.IPrev, ["next"] = Theme.INext,
+        ["overview"] = Theme.IInfo, ["finalRedact"] = Theme.IWarn, ["shortcuts"] = Theme.IKeyboard, ["palette"] = Theme.ISearch, ["help"] = Theme.IHelp, ["prev"] = Theme.IPrev, ["next"] = Theme.INext,
         ["compare"] = Theme.ICompare,
     };
 
@@ -100,7 +100,7 @@ sealed partial class ViewerWindow
         Top(Loc.L("B_ild", "_Image"), ImageMenu);
         Top(Loc.L("_Ansicht", "_View"), ViewMenu);
         Top(Loc.L("_Prüfen", "_Review"), ReviewMenu);
-        Top(Loc.L("_Hilfe", "_Help"), () => new() { Item("shortcuts"), Item("aiConnect"), Sep(), Item("help") });
+        Top(Loc.L("_Hilfe", "_Help"), () => new() { Item("palette"), Item("shortcuts"), Item("aiConnect"), Sep(), Item("help") });
         return bar;
     }
 

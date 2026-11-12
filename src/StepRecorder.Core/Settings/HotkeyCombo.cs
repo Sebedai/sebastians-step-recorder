@@ -96,6 +96,7 @@ public static class HotkeyActions
         new("privacy", "Privattaste (Eingaben nur zählen)", "Privacy key (count input only)", "Ctrl+Shift+F8", false),
         new("discard", "Letzten Schritt verwerfen", "Discard last step", "Ctrl+Shift+F6", false),
         new("bar", "Leiste ein-/ausblenden", "Show/hide bar", "Ctrl+Shift+F4", false),
+        new("screenshot", "Sofort-Bildschirmfoto (ohne Aufnahme) · während der Aufnahme: Schnappschuss", "Instant screenshot (without recording) · while recording: snapshot", "Ctrl+Shift+F3", false),
     };
 
     public static Action? ById(string id) => All.FirstOrDefault(a => a.Id == id);

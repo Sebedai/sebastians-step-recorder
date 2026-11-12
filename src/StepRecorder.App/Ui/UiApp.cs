@@ -65,8 +65,12 @@ sealed class UiApp : Application
         string combo = s.Hotkey("instantPause");
         if (combo.Length > 0)
             _globalHotkeys.Register("instant", combo, () => { if (Recording == null) { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); } });
+        // Sofort-Bildschirmfoto (Paket 15): Bereich wählen → eine Aufnahme mit einem Bildschritt → Editor
+        string shot = s.Hotkey("screenshot");
+        if (shot.Length > 0) _globalHotkeys.Register("screenshot", shot, () => { if (Recording == null) QuickScreenshot(); });
         HotkeyFailures.Clear();
         if (_globalHotkeys.Failed.Contains("instant")) HotkeyFailures.Add(Loc.Keys(combo));
+        if (_globalHotkeys.Failed.Contains("screenshot")) HotkeyFailures.Add(Loc.Keys(shot));
     }
 
     public void UnregisterGlobalHotkeys() => _globalHotkeys?.UnregisterAll();
@@ -114,6 +118,22 @@ sealed class UiApp : Application
 
     public void HideStart() => _start?.Hide();
 
+    /// <summary>Sofort-Bildschirmfoto: Bereich wählen, aufnehmen, als Aufnahme mit einem Bildschritt im Editor öffnen.</summary>
+    public void QuickScreenshot()
+    {
+        var rect = RegionPicker.Pick(null);
+        if (rect is not { } r || r.Width < 4 || r.Height < 4) { if (_start == null) MaybeShutdown(); return; }
+        // Auswahlfenster ist geschlossen und ohnehin aus Bildschirmfotos ausgeschlossen; kurz warten, bis es verschwunden ist
+        Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.Render);
+        System.Threading.Thread.Sleep(80);
+        using var bmp = StepRecorder.Native.ScreenGrabber.TryCapture(r, out int err);
+        if (bmp == null) { ShowError(new InvalidOperationException(Loc.F("Bildschirmfoto fehlgeschlagen (Fehler {0}).", "Screenshot failed (error {0}).", err))); return; }
+        var s = AppSettings.Load();
+        string folder = StepRecorder.ReadLayer.QuickShot.Create(AppPaths.DefaultSessionsFolder(), bmp, s.Language);
+        var v = OpenViewer(folder);
+        v.SelectFirstStep();
+    }
+
     TrayIcon? _readyTray;
 
     /// <summary>
@@ -141,6 +161,8 @@ sealed class UiApp : Application
         var m = U.MenuScope(new System.Windows.Controls.ContextMenu());
         string combo = AppSettings.Load().Hotkey("instantPause");
         m.Items.Add(U.Mi(Loc.L("Sofort aufnehmen", "Record now"), combo.Length > 0 ? Loc.Keys(combo) : null, () => { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); }, Theme.IRecord));
+        string shotKey = AppSettings.Load().Hotkey("screenshot");
+        m.Items.Add(U.Mi(Loc.L("Bildschirmfoto …", "Screenshot …"), shotKey.Length > 0 ? Loc.Keys(shotKey) : null, QuickScreenshot, Theme.ICamera));
         m.Items.Add(U.Mi(Loc.L("Neue Aufnahme …", "New recording …"), null, () => ShowStart(), Theme.IAdd));
         m.Items.Add(U.Mi(Loc.L("Alle Aufnahmen …", "All recordings …"), null, () => ShowLibrary(), Theme.IFolder));
         m.Items.Add(U.Mi(Loc.L("Einstellungen …", "Settings …"), null, () => { ShowStart(); _start?.ShowPage("settings"); }, Theme.ISettings));
