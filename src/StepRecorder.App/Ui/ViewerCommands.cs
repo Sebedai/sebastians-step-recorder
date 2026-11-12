@@ -108,6 +108,9 @@ sealed partial class ViewerWindow
             new("lightbox", "image", Loc.L("Großansicht", "Full view"), Key.F11, N, OpenLightbox),
             // Allgemein (Funktionstasten)
             new("play", "general", Loc.L("Abspielen / anhalten", "Play / pause"), Key.F5, N, TogglePlay, InText: true),
+            new("quality", "general", Loc.L("Qualitätsprüfung", "Quality check"), Key.F8, N, ShowQuality, InText: true),
+            new("nextFinding", "general", Loc.L("Nächster Befund", "Next finding"), Key.F4, N, () => NextFinding(+1), InText: true),
+            new("prevFinding", "general", Loc.L("Vorheriger Befund", "Previous finding"), Key.F4, S, () => NextFinding(-1), InText: true),
             new("compare", "general", Loc.L("Mit anderer Aufnahme vergleichen", "Compare with another recording"), Key.F7, N, Compare),
             new("stopPlay", "general", Loc.L("Abspielen beenden", "Stop playback"), Key.Escape, N, StopPlay, Listed: false),
             new("shortcuts", "general", Loc.L("Alle Tastenkürzel", "All shortcuts"), Key.F1, N, () => ShortcutsWindow.Show(this, Cmds), InText: true),

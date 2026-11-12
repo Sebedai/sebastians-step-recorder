@@ -305,7 +305,11 @@ sealed partial class ViewerWindow
         }
 
         // ---------------- Statuszeile ----------------
-        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 6, 16, 7), Child = _status };
+        var statusDock = new DockPanel();
+        var qlink = BuildQualityLink(); DockPanel.SetDock(qlink, Dock.Right); statusDock.Children.Add(qlink);
+        _status.TextTrimming = TextTrimming.CharacterEllipsis;
+        statusDock.Children.Add(_status);
+        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 4, 12, 5), Child = statusDock };
 
         var root = new DockPanel();
         Anim.Appear(top, 0, -6, 360); Anim.Appear(left, 60, 10); Anim.Appear(center, 130, 10); Anim.Appear(detPanel, 200, 10);
@@ -376,6 +380,7 @@ sealed partial class ViewerWindow
         _thumbTargets.Clear(); _thumbQueue.Clear();
         var query = SearchQuery.Parse(_search.Text);
         int n = 0;
+        var qualityWarn = Findings().Where(f => f.Severity == "warning" && f.Anchor != null).GroupBy(f => f.Anchor!.Value).ToDictionary(g => g.Key, g => g.First());
         // Reihenfolge der Anleitung (umsortierte Schritte stehen dort, wo sie im Export erscheinen); ausgeblendete bleiben sichtbar
         foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true))
         {
@@ -419,6 +424,7 @@ sealed partial class ViewerWindow
             if (merge is { lead: true } ml) meta.Children.Add(U.Chip(Loc.F("{0} zusammengefasst", "{0} merged", ml.count), Theme.AccentSoft, Theme.AccentText, Theme.ICompare));
             else if (merge is { lead: false } mm) meta.Children.Add(U.Chip(Loc.F("→ Schritt {0}", "→ step {0}", mm.leadNumber), Theme.Surface2, Theme.Muted));
             if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
+            else if (qualityWarn.TryGetValue(s.Anchor, out var qf)) { var qc = U.Chip(qf.Rule, Theme.WarnSoft, Theme.Warn, Theme.IChecklist); qc.ToolTip = qf.Text(Loc.Lang); meta.Children.Add(qc); }
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
             if (s.Hidden) meta.Children.Add(U.Chip("ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye));
             if (s.Discarded) meta.Children.Add(U.Chip("verworfen", Theme.DangerSoft, Theme.Danger));
@@ -436,6 +442,7 @@ sealed partial class ViewerWindow
         if (sel != null) { _list.SelectedItem = sel; _list.ScrollIntoView(sel); }
         _listCount.Text = query.IsEmpty ? Loc.N(n, "1 Schritt", "{0} Schritte", "1 step", "{0} steps") : Loc.N(n, "1 Treffer", "{0} Treffer", "1 match", "{0} matches");
         UpdateStatus();
+        UpdateQualityLink();
         PumpThumbs();
     }
 

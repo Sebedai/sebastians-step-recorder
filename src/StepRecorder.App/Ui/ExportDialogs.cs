@@ -52,6 +52,24 @@ sealed class ExportDialog : Window
     readonly CheckBox _markKeys = new() { Content = Loc.L("Tastatur: gedrückte Tasten und getippten Text als Tasten", "Keyboard: pressed keys and typed text as key caps"), IsChecked = true };
 
     readonly StackPanel _info = new();
+    readonly Border _qualityRow = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(12, 8, 8, 8), CornerRadius = new CornerRadius(6), Margin = new Thickness(0, -6, 0, 14) };
+    bool _hasQuality;
+
+    /// <summary>Zeile „Qualität: …“ mit Sprung in die Qualitätsprüfung (nur bei Anleitungsformaten sichtbar).</summary>
+    public void ShowQuality(string text, bool warn, Action open)
+    {
+        _hasQuality = true;
+        var link = U.Btn(null, Loc.L("Ansehen (F8)", "View (F8)"), () => { DialogResult = false; open(); }, null, "Link");
+        link.Margin = new Thickness(0);
+        var dock = new DockPanel();
+        DockPanel.SetDock(link, Dock.Right); dock.Children.Add(link);
+        var label = U.Text(text, 12.5, fg: warn ? Theme.Warn : Theme.Fg2, margin: new Thickness(8, 0, 0, 0)); label.VerticalAlignment = VerticalAlignment.Center;
+        var icon = U.Icon(Theme.IChecklist, 13, warn ? Theme.Warn : Theme.Muted); icon.VerticalAlignment = VerticalAlignment.Center;
+        dock.Children.Add(U.Row(icon, label));
+        _qualityRow.Child = dock;
+        _qualityRow.Background = warn ? Theme.WarnSoft : Theme.Surface2;
+        _qualityRow.Visibility = IsGuide ? Visibility.Visible : Visibility.Collapsed;
+    }
     readonly TextBlock _impHint = Hint(), _viewHint = Hint(), _detailHint = Hint(), _profileHint = Hint(), _presetHint = Hint();
 
     static TextBlock Hint() => U.Text("", 11.5, fg: Theme.Muted, margin: new Thickness(0, 5, 0, 0));
@@ -160,6 +178,7 @@ sealed class ExportDialog : Window
             fImp.Visibility = fView.Visibility = guide ? Visibility.Visible : Visibility.Collapsed;
             fMissing.Visibility = guide && Format != "gif" ? Visibility.Visible : Visibility.Collapsed;
             fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            _qualityRow.Visibility = _hasQuality && guide ? Visibility.Visible : Visibility.Collapsed;
             _impHint.Text = _imp.SelectedIndex switch
             {
                 1 => Loc.L("Zusätzlich Nebenschritte wie Scrollen, Navigationstasten und Fensterwechsel.", "Also secondary steps such as scrolling, navigation keys and window switches."),
@@ -203,7 +222,7 @@ sealed class ExportDialog : Window
         _zip.Checked += (_, _) => Upd(); _zip.Unchecked += (_, _) => Upd();
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, targetField, options, gifOpts, marksOpts, ahkOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, gifOpts, marksOpts, ahkOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 

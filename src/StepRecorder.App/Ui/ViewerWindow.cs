@@ -81,6 +81,7 @@ sealed partial class ViewerWindow : Window
     void Load()
     {
         _view?.Dispose();
+        _findings = null;
         _view = SessionView.Open(_path, headless: false, lang: AppSettings.Load().Language);
         if (_view.Edits.Obj("guide")?["address"] == null && AppSettings.Load().Address == "informal")
         { var g = _view.Edits.Obj("guide") ?? new JsonObject(); g["address"] = "informal"; _view.Edits["guide"] = g; _view.Rebuild(); }
@@ -431,6 +432,7 @@ sealed partial class ViewerWindow : Window
         if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen."); }
         bool allImages = before != ImageEdits();
         if (allImages) _thumbs.Clear(); else if (Sel is { } cur) _thumbs.Remove(cur.Id);
+        QualityInvalidate();
         if (refill) Fill();
         else { ShowStep(); if (allImages) InvalidateAllThumbs(); else InvalidateThumb(Sel); }
         UpdateUndo();
@@ -447,6 +449,7 @@ sealed partial class ViewerWindow : Window
         foreach (var kv in restored.ToList()) { restored.Remove(kv.Key); _view.Edits[kv.Key] = kv.Value; }
         _view.SaveEdits();
         _thumbs.Clear(); _selAnn = null;
+        QualityInvalidate();
         Fill();
     }
 

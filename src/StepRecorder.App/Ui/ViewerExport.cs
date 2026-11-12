@@ -59,6 +59,8 @@ sealed partial class ViewerWindow
         var last = st.PeekSession(SessionKey)?.Export;
         string? lastTarget = last != null && Exporter.Normalize(last.Str("format") ?? "") == format ? last.Str("target") : null;
         var d = new ExportDialog(initial, DefaultTargetFor, lastTarget) { Owner = this };
+        var findings = Findings();
+        if (findings.Count > 0) d.ShowQuality(QualitySummary(findings), findings.Any(f => f.Severity == "warning"), ShowQuality);
         if (d.ShowDialog() != true) return;
         var req = d.Request;
         Remember(req, d.FolderChoice);
