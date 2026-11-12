@@ -62,7 +62,7 @@ static class Invisibility
         {
             probe = new Window
             {
-                WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Topmost = true, ShowActivated = false,
+                Style = Theme.PlainWindowStyle, WindowStyle = WindowStyle.None, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Topmost = true, ShowActivated = false,
                 Width = 64, Height = 64, Left = 40, Top = 40, Background = new SolidColorBrush(Color.FromRgb(0xFF, 0x00, 0xF7))
             };
             bool rendered = false;

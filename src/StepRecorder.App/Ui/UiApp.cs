@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using StepRecorder.Capture;
 using StepRecorder.Data;
 using StepRecorder.Settings;
@@ -91,34 +91,24 @@ sealed class UiApp : Application
         ShowStart();
     }
 
-    public void ShowStart()
+    /// <summary>Startfenster zeigen, auf Wunsch gleich mit einer bestimmten Seite (new | sessions | settings | help).</summary>
+    public void ShowStart(string page = "new")
     {
         if (_start == null || !_start.IsLoaded) { _start = new StartWindow(); _start.Closed += (_, _) => { _start = null; MaybeShutdown(); }; }
         _start.Show();
         _start.Activate();
+        _start.ShowPage(page);
     }
 
     public void HideStart() => _start?.Hide();
 
     public void MaybeShutdown()
     {
-        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow or LibraryWindow)) Shutdown();
+        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown();
     }
 
-    LibraryWindow? _library;
-
-    /// <summary>„Alle Aufnahmen“ (ein Fenster; ein zweiter Aufruf holt es nach vorn und aktualisiert).</summary>
-    public void ShowLibrary()
-    {
-        if (_library == null || !_library.IsLoaded)
-        {
-            _library = new LibraryWindow();
-            _library.Closed += (_, _) => { _library = null; MaybeShutdown(); };
-            _library.Show();
-        }
-        else { _library.Rescan(); if (_library.WindowState == WindowState.Minimized) _library.WindowState = WindowState.Normal; }
-        _library.Activate();
-    }
+    /// <summary>„Alle Aufnahmen“: Seite „Aufnahmen“ im Startfenster.</summary>
+    public void ShowLibrary() => ShowStart("sessions");
 
     static string Norm(string p) { try { return Path.GetFullPath(p).TrimEnd('\\', '/'); } catch { return p; } }
 
@@ -132,7 +122,7 @@ sealed class UiApp : Application
         if (v == null)
         {
             v = new ViewerWindow(path);
-            v.Closed += (_, _) => { MaybeShutdown(); _library?.Rescan(); };
+            v.Closed += (_, _) => { MaybeShutdown(); _start?.RescanLibrary(); };
             v.Show();
             AppSettings.Load().AddRecent(path);
         }

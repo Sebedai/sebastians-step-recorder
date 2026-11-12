@@ -27,6 +27,13 @@ static class Accessibility
         try
         {
             string? tip = e.ToolTip as string ?? (e.ToolTip as ToolTip)?.Content as string;
+            // Fensterknöpfe der WPF-UI-Titelleiste haben nur eine Kennung, keinen Namen
+            string? sys = AutomationProperties.GetAutomationId(e) switch
+            {
+                "TitleBarMinimizeButton" => Loc.L("Minimieren", "Minimize"), "TitleBarMaximizeButton" => Loc.L("Maximieren", "Maximize"),
+                "TitleBarCloseButton" => Loc.L("Schließen", "Close"), "TitleBarHelpButton" => Loc.L("Hilfe", "Help"), _ => null
+            };
+            if (sys != null) { Set(e, sys); return; }
             if (e is ButtonBase b)
             {
                 if (b.Content is string) { if (tip != null) Help(e, tip); return; }
@@ -36,7 +43,7 @@ static class Accessibility
             }
             else if (e is TextBox or ComboBox or Slider)
             {
-                Set(e, e.Tag as string ?? tip ?? LabelBefore(e));
+                Set(e, e.Tag as string ?? (e is Wpf.Ui.Controls.TextBox { PlaceholderText.Length: > 0 } ub ? ub.PlaceholderText : null) ?? tip ?? LabelBefore(e));
                 if (tip != null) Help(e, tip);
             }
             else if (e is ListBoxItem li && li.Content is not string)

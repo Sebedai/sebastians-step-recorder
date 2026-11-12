@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using StepRecorder.Capture;
@@ -6,8 +6,11 @@ using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
-/// <summary>Einstellungen: Darstellung, Sprachen, Schutzstufe, Erinnerungen, Tastenkürzel, Modus „Eigene“, Speicher, Austausch.</summary>
-sealed class SettingsWindow : Window
+/// <summary>
+/// Seite „Einstellungen“ im Startfenster: Darstellung, Sprachen, Schutzstufe, Erinnerungen, Tastenkürzel, Modus „Eigene“,
+/// Speicher, Austausch. Die Bereiche stehen als Auswahlleiste oben, unten „Speichern“ und „Verwerfen“.
+/// </summary>
+static class SettingsPage
 {
     static DockPanel Note(string text)
     {
@@ -29,20 +32,19 @@ sealed class SettingsWindow : Window
         return g;
     }
 
-    /// <summary>Nach Import oder Zurücksetzen neu öffnen (Inhalte haben sich geändert).</summary>
-    public bool ReopenRequested { get; private set; }
+    public static readonly string[] TabIds = { "general", "recording", "keys", "custom", "storage" };
 
-    public SettingsWindow(int tab = 0)
+    /// <summary>Baut die Seite. <paramref name="rebuild"/> baut sie mit dem genannten Bereich neu auf (Verwerfen, nach Import oder Zurücksetzen).</summary>
+    public static FrameworkElement Build(Window owner, int tab, Action<int> rebuild)
     {
-        var wa = Theme.ActiveWorkArea();
-        Title = Loc.L("Einstellungen", "Settings"); Width = Math.Min(880, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
-        Theme.Prepare(this, Theme.Surface);
+        string Title = Loc.L("Einstellungen", "Settings");
         var s = AppSettings.Load();
+        int current = Math.Clamp(tab, 0, TabIds.Length - 1);
+        var page = new StackPanel { Width = 880, HorizontalAlignment = HorizontalAlignment.Left };
         // Solange die Einstellungen offen sind, ist das eigene Sofort-Kürzel abgemeldet (sonst gälte es bei der Prüfung als „belegt“)
-        bool hkPaused = UiApp.Instance.Recording == null;
-        if (hkPaused) UiApp.Instance.UnregisterGlobalHotkeys();
-        Closed += (_, _) => { if (hkPaused && UiApp.Instance.Recording == null) UiApp.Instance.RegisterGlobalHotkeys(); };
+        bool hkPaused = false;
+        page.Loaded += (_, _) => { if (!hkPaused && UiApp.Instance.Recording == null) { hkPaused = true; UiApp.Instance.UnregisterGlobalHotkeys(); } };
+        page.Unloaded += (_, _) => { if (hkPaused && UiApp.Instance.Recording == null) UiApp.Instance.RegisterGlobalHotkeys(); hkPaused = false; };
 
         var uiLang = new ComboBox { Items = { Loc.L("Wie Windows", "Like Windows"), "Deutsch", "English" }, SelectedIndex = s.UiLanguage switch { "de" => 1, "en" => 2, _ => 0 } };
         var lang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.Language == "en" ? 1 : 0 };
@@ -58,7 +60,7 @@ sealed class SettingsWindow : Window
         var browse = U.Btn(Theme.IFolder, null, () =>
         {
             var d = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Directory.Exists(folder.Text) ? folder.Text : null, Title = Loc.L("Aufnahmeordner wählen", "Choose recordings folder") };
-            if (d.ShowDialog(this) == true) folder.Text = d.FolderName;
+            if (d.ShowDialog(owner) == true) folder.Text = d.FolderName;
         }, Loc.L("Ordner wählen …", "Choose folder …"));
         browse.Margin = new Thickness(8, 0, 0, 0);
         var folderRow = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); folderRow.Children.Add(browse); folderRow.Children.Add(folder);
@@ -99,32 +101,32 @@ sealed class SettingsWindow : Window
                            RecordChoice.Build(rec, null), U.Field(Loc.L("Zusatzbilder ohne Eingabe", "Extra images without input"), U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
 
         var exchange = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
-        exchange.Children.Add(U.Btn(Theme.IExport, Loc.L("Exportieren …", "Export …"), () => SettingsExchangeDialogs.Export(this), Loc.L("Einstellungen, Tastenkürzel, Vorlagen und Ausschlussliste als Datei speichern – ohne persönliche Angaben", "Save settings, shortcuts, templates and exclusion list to a file – without personal data")));
-        exchange.Children.Add(U.Btn(Theme.IOpen, Loc.L("Importieren …", "Import …"), () => { if (SettingsExchangeDialogs.Import(this)) { ReopenRequested = true; Close(); } }));
-        exchange.Children.Add(U.Btn(Theme.IUndo, Loc.L("Zurücksetzen …", "Reset …"), () => { if (SettingsExchangeDialogs.Reset(this)) { ReopenRequested = true; Close(); } }, Loc.L("Auslieferungszustand – Aufnahmeordner und Zuletzt-Liste bleiben", "Factory settings – recordings folder and recent list stay")));
+        exchange.Children.Add(U.Btn(Theme.IExport, Loc.L("Exportieren …", "Export …"), () => SettingsExchangeDialogs.Export(owner), Loc.L("Einstellungen, Tastenkürzel, Vorlagen und Ausschlussliste als Datei speichern – ohne persönliche Angaben", "Save settings, shortcuts, templates and exclusion list to a file – without personal data")));
+        exchange.Children.Add(U.Btn(Theme.IOpen, Loc.L("Importieren …", "Import …"), () => { if (SettingsExchangeDialogs.Import(owner)) rebuild(current); }));
+        exchange.Children.Add(U.Btn(Theme.IUndo, Loc.L("Zurücksetzen …", "Reset …"), () => { if (SettingsExchangeDialogs.Reset(owner)) rebuild(current); }, Loc.L("Auslieferungszustand – Aufnahmeordner und Zuletzt-Liste bleiben", "Factory settings – recordings folder and recent list stay")));
         if (SettingsExchange.CanUndo(AppPaths.SettingsFile))
             exchange.Children.Add(U.Btn(Theme.IHistory, Loc.L("Letzten Import zurücknehmen", "Undo last import"), () =>
             {
                 if (Msg.Show(Loc.L("Einstellungen vor dem letzten Import oder Zurücksetzen wiederherstellen?", "Restore the settings from before the last import or reset?"), Title, MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                if (SettingsExchange.UndoLastImport(AppPaths.SettingsFile)) { ReopenRequested = true; Close(); }
+                if (SettingsExchange.UndoLastImport(AppPaths.SettingsFile)) rebuild(current);
             }, null, "Ghost"));
-        exchange.Children.Add(U.Btn(Theme.IWrench, Loc.L("Diagnose-Paket …", "Diagnostics package …"), () => DiagnosticsDialog.Create(this), Loc.L("Protokoll und Systemangaben für eine Fehlermeldung – ohne Aufnahmen", "Log and system information for a bug report – without recordings"), "Ghost"));
+        exchange.Children.Add(U.Btn(Theme.IWrench, Loc.L("Diagnose-Paket …", "Diagnostics package …"), () => DiagnosticsDialog.Create(owner), Loc.L("Protokoll und Systemangaben für eine Fehlermeldung – ohne Aufnahmen", "Log and system information for a bug report – without recordings"), "Ghost"));
         var storage = U.Col(U.Field(Loc.L("Aufnahmeordner", "Recordings folder"), U.Col(folderRow, warn)),
                             U.Field(Loc.L("Ausgeschlossene Programme", "Excluded programs"), excl, Loc.L("Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet.", "One process name per line – nothing is recorded from these programs.")),
                             U.Field(Loc.L("Einstellungen austauschen", "Exchange settings"), exchange),
                             Note(AppPaths.Portable ? Loc.F("Portabler Modus – Einstellungen liegen neben der EXE ({0}).", "Portable mode – settings are stored next to the EXE ({0}).", AppPaths.DataDir) : Loc.F("Einstellungen liegen in {0}.", "Settings are stored in {0}.", AppPaths.DataDir)));
         var pages = new UIElement[] { general, recording, keys, custom, storage };
-        var (tabTrack, tabs) = U.Segmented("settab", 0, (Theme.ISettings, Loc.L("Allgemein", "General")), (Theme.IRecord, Loc.L("Aufnahme", "Recording")), (Theme.IKeyboard, Loc.L("Tastenkürzel", "Shortcuts")),
+        var (tabTrack, tabs) = U.Segmented("settab", current, (Theme.ISettings, Loc.L("Allgemein", "General")), (Theme.IRecord, Loc.L("Aufnahme", "Recording")), (Theme.IKeyboard, Loc.L("Tastenkürzel", "Shortcuts")),
             (Theme.IChecklist, Loc.L("Modus „Eigene“", "Custom mode")), (Theme.IFolder, Loc.L("Speicher und Schutz", "Storage and protection")));
-        tabTrack.Margin = new Thickness(0, 0, 0, 24);
+        tabTrack.Margin = new Thickness(-4, 0, 0, 20);
         var host = new Grid();
         foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Reiter gleich hoch
-        general.Visibility = Visibility.Visible;
-        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; Anim.Refresh(pages[k], 0.2, 200); }; }
+        pages[current].Visibility = Visibility.Visible;
+        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; current = k; }; }
         var body = U.Col(tabTrack, host);
         if (s.LoadNotice != null) body.Children.Insert(0, new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(14, 10, 14, 10), Margin = new Thickness(0, 0, 0, 16), Child = U.Text(s.LoadNotice, Theme.FsHint, fg: Theme.Warn) });
-        if (tab > 0 && tab < tabs.Length) tabs[tab].IsChecked = true;
-        U.Dialog(this, null, body, U.Primary(Loc.L("Speichern", "Save"), () =>
+        var saved = U.Text("", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(14, 0, 0, 0)); saved.VerticalAlignment = VerticalAlignment.Center;
+        var save = U.Primary(Loc.L("Speichern", "Save"), () =>
         {
             var hkIssues = hotkeys.Issues;
             if (hkIssues.Count > 0) { tabs[2].IsChecked = true; Msg.Show(Loc.L("Tastenkürzel prüfen\n\n", "Check shortcuts\n\n") + string.Join("\n", hkIssues.Select(i => i.Text).Distinct()), Title, MessageBoxButton.OK, MessageBoxImage.Warning); return; }
@@ -152,8 +154,14 @@ sealed class SettingsWindow : Window
             s.LoadNotice = null;
             if (!s.Save()) { Msg.Show(Loc.L("Einstellungen nicht gespeichert\n\n", "Settings not saved\n\n") + s.LastSaveError, Title, MessageBoxButton.OK, MessageBoxImage.Error); return; }
             if (restart) Msg.Show(Loc.L("Gilt ab dem nächsten Start\n\nDarstellung und Sprache der Oberfläche ändern sich, wenn das Programm neu gestartet wird.", "Applies after the next start\n\nAppearance and interface language change when the program is restarted."), Title, MessageBoxButton.OK, MessageBoxImage.Information);
-            Close();
-        }), U.Btn(Loc.L("Abbrechen", "Cancel"), Close));
-        U.FitDialog(this);
+            saved.Text = Loc.L("Gespeichert", "Saved");
+        });
+        var discard = U.Btn(Loc.L("Verwerfen", "Discard"), () => rebuild(current), Loc.L("Nicht gespeicherte Änderungen zurücknehmen", "Undo unsaved changes"));
+        var foot = U.Row(save, discard, saved);
+        foot.Margin = new Thickness(-3, 8, 0, 0);
+        page.Children.Add(U.Heading(Title, Theme.FsHero, new Thickness(0, 0, 0, 16)));
+        page.Children.Add(body);
+        page.Children.Add(foot);
+        return page;
     }
 }

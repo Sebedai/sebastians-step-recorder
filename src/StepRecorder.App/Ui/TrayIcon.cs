@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows.Interop;
 
 namespace StepRecorder.App.Ui;
@@ -111,7 +111,7 @@ sealed class TrayIcon : IDisposable
         _icon?.Dispose();
     }
 
-    /// <summary>Symbol zeichnen: Aufnahme (roter Punkt), Pause (zwei Balken), Privat (gelber Punkt) auf dunklem Grund mit Indigo-Rand (Farben aus <see cref="Theme.Night"/>).</summary>
+    /// <summary>Symbol zeichnen: Aufnahme (roter Punkt), Pause (zwei Balken), Privat (gelber Punkt) auf dunkler Kachel mit feinem grauem Rand (Farben aus <see cref="Theme.Night"/>).</summary>
     public static System.Drawing.Icon Render(string state)
     {
         int s = Math.Max(16, GetSystemMetrics(49 /*SM_CXSMICON*/));
@@ -127,7 +127,7 @@ sealed class TrayIcon : IDisposable
                 path.AddArc(s - 2 * r - 1, s - 2 * r - 1, 2 * r, 2 * r, 0, 90); path.AddArc(0, s - 2 * r - 1, 2 * r, 2 * r, 90, 90); path.CloseFigure();
                 using var bg = new System.Drawing.SolidBrush(D(Theme.Night.BgColor));
                 g.FillPath(bg, path);
-                using var border = new System.Drawing.Pen(D(Theme.Night.AccentColor), Math.Max(1, s / 16f));
+                using var border = new System.Drawing.Pen(D(System.Windows.Media.Color.FromRgb(0x48, 0x48, 0x48)), Math.Max(1, s / 16f));
                 g.DrawPath(border, path);
             }
             if (state == "paused")

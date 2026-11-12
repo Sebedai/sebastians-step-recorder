@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+﻿﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,19 +14,18 @@ using StepRecorder.Settings;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Startfenster („Dashboard“): Begrüßung, links „Neue Aufnahme“ (① Modus, ② Bereich – ein Klick startet),
-/// rechts ein Kasten mit Reitern „Zuletzt“ und „Tastenkürzel“. Passt immer ins Fenster: Reicht der Platz nicht,
-/// wird der Inhalt gleichmäßig verkleinert statt gescrollt.
+/// Startfenster als kleine Windows-11-App (WPF-UI, Mica, eigene Titelleiste) mit linker Navigation:
+/// „Neue Aufnahme“ (Zweck und Bereich – ein Klick startet, rechts „Zuletzt“), „Aufnahmen“, „Einstellungen“, „Hilfe“.
+/// Die Seite „Neue Aufnahme“ passt immer ins Fenster: Reicht der Platz nicht, wird sie gleichmäßig verkleinert.
 /// </summary>
-sealed class StartWindow : Window
+sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 {
     readonly RadioButton[] _profiles;
-    readonly Border[] _modeBadges;
     string _goalText = "", _expectedText = "", _referenceText = "", _titleText = "";
     readonly ComboBox _monitor = new() { MinWidth = 220 };
     readonly StackPanel _recent = new();
-    readonly TextBlock _stats = new() { FontSize = Theme.FsHint, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBlock _protection = new() { FontSize = Theme.FsHint, Foreground = Theme.Muted, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.NoWrap };
+    readonly TextBlock _stats = new() { FontSize = Theme.FsCaption, Foreground = Theme.Muted, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 10) };
+    readonly TextBlock _protection = new() { FontSize = Theme.FsCaption, Foreground = Theme.Muted, VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.NoWrap };
     static readonly string[] Ids = { "guide", "support", "aiTrace", "custom" };
     static readonly (string glyph, string name, string audience, string text)[] Modes =
     {
@@ -35,22 +34,22 @@ sealed class StartWindow : Window
         (Theme.IRobot, Loc.L("KI-Spur", "AI trace"), Loc.L("für KI und Skripte", "for AI and scripts"), Loc.L("Vollständig – so genau wie möglich, für KI-Assistenten und AutoHotkey.", "Complete – as precise as possible, for AI assistants and AutoHotkey.")),
         (Theme.ISettings, Loc.L("Eigene", "Custom"), Loc.L("selbst festgelegt", "user-defined"), Loc.L("Selbst festgelegt – „Einstellen …“ öffnet die Auswahl.", "User-defined – “Set up …” opens the options.")),
     };
-    readonly TextBlock _modeText = new() { TextWrapping = TextWrapping.Wrap, FontSize = Theme.FsBody, Foreground = Theme.Fg2, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _modeText = new() { TextWrapping = TextWrapping.Wrap, FontSize = Theme.FsBody, Foreground = Theme.Fg, VerticalAlignment = VerticalAlignment.Center };
     readonly StackPanel _meter = new() { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
     readonly WrapPanel _chips = new() { VerticalAlignment = VerticalAlignment.Center };
     Button _recLink = null!, _goalLink = null!;
     Border _strip = null!;
     /// <summary>Mindestbreite des Inhalts; schmalere Fenster verkleinern ihn gleichmäßig.</summary>
-    const double MinContentWidth = 1100;
+    const double MinContentWidth = 1000;
 
     int ProfileIndex => Math.Max(0, Array.FindIndex(_profiles, r => r.IsChecked == true));
 
     public StartWindow()
     {
         Title = AppInfo.DisplayName;
-        Theme.Prepare(this, Theme.Bg);
+        Theme.Prepare(this);
         var wa = Theme.ActiveWorkArea();
-        Width = Math.Min(1200, wa.Width - 24); Height = Math.Min(780, wa.Height - 24);
+        Width = Math.Min(1180 + NavWidth, wa.Width - 24); Height = Math.Min(780, wa.Height - 24);
         MinWidth = Math.Min(640, wa.Width - 24); MinHeight = Math.Min(460, wa.Height - 24);
         WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.CanResize;
         WindowPlacer.Attach(this, "start");
@@ -58,44 +57,30 @@ sealed class StartWindow : Window
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && Session.LooksLikeSession(f[0])) UiApp.Instance.OpenViewer(f[0]); };
         var s = AppSettings.Load();
 
-        // ---------- Kopfleiste ----------
-        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 20) };
-        var actions = U.Row(U.Ghost(Theme.IOpen, Loc.L("Öffnen", "Open"), OpenSession, Loc.L("Aufnahme öffnen (Strg+O) – oder einen Aufnahmeordner hierher ziehen", "Open a recording (Ctrl+O) – or drag a recording folder here")), U.Ghost(Theme.ISettings, Loc.L("Einstellungen", "Settings"), ShowSettings), U.Ghost(Theme.IHelp, Loc.L("Hilfe", "Help"), ShowHelp));
-        actions.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(actions, Dock.Right); header.Children.Add(actions);
-        var logo = Theme.Logo(32); logo.Margin = new Thickness(0, 0, 12, 0);
-        DockPanel.SetDock(logo, Dock.Left); header.Children.Add(logo);
-        header.Children.Add(Theme.Wordmark(18));
+        // ---------- Seitenkopf ----------
+        var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
+        header.Children.Add(U.Heading(Loc.L("Neue Aufnahme", "New recording"), Theme.FsHero, new Thickness(0)));
 
-        // ---------- Begrüßung ----------
-        var hello = new TextBlock { FontFamily = Theme.Display, FontSize = Theme.FsHero, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-        hello.Inlines.Add(new System.Windows.Documents.Run(Greeting() + " ") { FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg });
-        hello.Inlines.Add(new System.Windows.Documents.Run(Loc.L("Was möchten Sie festhalten?", "What would you like to capture?")) { Foreground = Theme.Muted });
-        _stats.Margin = new Thickness(1, 6, 0, 0);
-        var hero = U.Col(hello, _stats);
-        hero.Margin = new Thickness(0, 0, 0, 20);
-
-        // ---------- ① Wofür ist die Aufnahme? ----------
+        // ---------- Zweck ----------
         int sel = Math.Max(0, Array.IndexOf(Ids, s.LastProfile));
-        var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(-5, 0, -5, 0) };
-        _modeBadges = new Border[Modes.Length];
-        _profiles = Modes.Select((m, i) => ModeCard(m.glyph, m.name, m.audience, i == sel, out _modeBadges[i])).ToArray();
+        var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = 4, Margin = new Thickness(-4, 0, -4, 0) };
+        _profiles = Modes.Select((m, i) => ModeCard(m.name, m.audience, i == sel)).ToArray();
         for (int k = 0; k < _profiles.Length; k++) _profiles[k].ToolTip = $"{Modes[k].name} – {Modes[k].audience}\n{Modes[k].text}";
-        foreach (var r in _profiles) { r.Margin = new Thickness(5, 0, 5, 0); modes.Children.Add(r); r.Checked += (_, _) => UpdateProfile(); }
+        foreach (var r in _profiles) { r.Margin = new Thickness(4, 0, 4, 0); modes.Children.Add(r); r.Checked += (_, _) => UpdateProfile(); }
 
-        // Detailstreifen: Zeile 1 Beschreibung + Detailgrad, Zeile 2 Chips + „Anpassen …“
+        // Detailkarte: Zeile 1 Beschreibung + Detailgrad, Zeile 2 was aufgezeichnet wird + „Anpassen …“
         _recLink = U.Btn(Theme.IEdit, Loc.L("Anpassen …", "Customize …"), CustomizeFromPreset, null, "Link");
         _recLink.Margin = new Thickness(12, 0, -8, 0); _recLink.VerticalAlignment = VerticalAlignment.Center;
         _meter.ToolTip = Loc.L("Detailgrad: wie genau aufgezeichnet wird", "Level of detail: how precisely input is recorded");
         _meter.Margin = new Thickness(20, 0, 0, 0);
         var stripTop = new DockPanel();
         DockPanel.SetDock(_meter, Dock.Right); stripTop.Children.Add(_meter); stripTop.Children.Add(_modeText);
-        var stripBottom = new DockPanel { Margin = new Thickness(0, 10, 0, 0) };
+        var stripBottom = new DockPanel { Margin = new Thickness(0, 8, 0, 0) };
         DockPanel.SetDock(_recLink, Dock.Right); stripBottom.Children.Add(_recLink); stripBottom.Children.Add(_chips);
-        _strip = U.Inset(U.Col(stripTop, stripBottom), new Thickness(16, 12, 16, 12), new Thickness(0, 12, 0, 0));
+        _strip = U.Card(U.Col(stripTop, stripBottom), new Thickness(16, 12, 16, 10), new Thickness(0, 8, 0, 0));
         _strip.ToolTip = DetailPresets.BaseRule() + Loc.L(" Passwortfelder werden in allen Modi maskiert.", " Password fields are masked in all modes.");
 
-        // ---------- ② Was soll aufgenommen werden? ----------
+        // ---------- Bereich ----------
         _monitor.Items.Add(Loc.L("Monitor mit Aktivität", "Monitor with activity")); _monitor.Items.Add(Loc.L("Alle Monitore", "All monitors"));
         foreach (var m in ScreenGrabber.GetMonitors())
             _monitor.Items.Add(m.Primary
@@ -104,123 +89,92 @@ sealed class StartWindow : Window
         _monitor.SelectedIndex = 0;
         _monitor.ToolTip = Loc.L("Welcher Bildschirm bei „Ganzer Bildschirm“ aufgenommen wird", "Which screen is recorded for “Full screen”");
         _goalLink = U.Btn(Theme.IFlag, Loc.L("Ziel und Titel …", "Goal and title …"), ShowGoalDialog, Loc.L("Optional: was die Aufnahme zeigen soll – hilft Menschen und KI beim Verstehen", "Optional: what the recording should show – helps people and AI understand it"), "Link");
-        _goalLink.Margin = new Thickness(8, 0, -8, 0);
-        var areaHead = new DockPanel { Margin = new Thickness(0, 22, 0, 12) };
-        var areaOpts = U.Row(_monitor, _goalLink); areaOpts.VerticalAlignment = VerticalAlignment.Center;
+        _goalLink.Margin = new Thickness(8, 0, 0, 0);
+        var areaHead = new DockPanel { Margin = new Thickness(0, 24, 0, 8) };
+        var areaOpts = U.Row(_monitor, _goalLink); areaOpts.VerticalAlignment = VerticalAlignment.Bottom;
         DockPanel.SetDock(areaOpts, Dock.Right); areaHead.Children.Add(areaOpts);
-        areaHead.Children.Add(StepLabel("2", Loc.L("Was soll aufgenommen werden?", "What should be recorded?")));
-
-        var tiles = new Grid();
-        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.25, GridUnitType.Star) });
-        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-        tiles.ColumnDefinitions.Add(new ColumnDefinition());
-        tiles.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
-        tiles.ColumnDefinitions.Add(new ColumnDefinition());
-        void Place(UIElement e, int col) { Grid.SetColumn(e, col); tiles.Children.Add(e); }
-        Place(StartTile(), 0);
-        Place(Tile(Theme.IApp, Loc.L("Eine Anwendung", "One application"), Loc.L("danach Fenster anklicken", "then click a window"), Loc.L("Nur die Fenster eines Programms aufnehmen – alles andere bleibt außen vor", "Record only the windows of one program – everything else stays out"), () => Begin(ScopeMode.App)), 2);
-        Place(Tile(Theme.ICrop, Loc.L("Bereich", "Area"), Loc.L("danach Rechteck aufziehen", "then drag a rectangle"), Loc.L("Einen festen Ausschnitt des Bildschirms aufnehmen", "Record a fixed part of the screen"), () => Begin(ScopeMode.Region)), 4);
-
+        var areaLabel = U.SectionLabel(Loc.L("Bereich", "Area"), new Thickness(0)); areaLabel.VerticalAlignment = VerticalAlignment.Bottom;
+        areaHead.Children.Add(areaLabel);
+        var screenCard = AreaCard(Theme.IMonitor, Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Alles auf dem Monitor, auf dem gerade gearbeitet wird", "Everything on the monitor you are working on"), Loc.L("Ganzer Bildschirm – Eingabetaste startet", "Full screen – Enter starts"), () => Begin(ScopeMode.Screen), enter: true);
+        var appCard = AreaCard(Theme.IApp, Loc.L("Eine Anwendung", "One application"), Loc.L("Danach ein Fenster anklicken – nur dieses Programm wird aufgenommen", "Then click a window – only this program is recorded"), Loc.L("Nur die Fenster eines Programms aufnehmen – alles andere bleibt außen vor", "Record only the windows of one program – everything else stays out"), () => Begin(ScopeMode.App));
+        var regionCard = AreaCard(Theme.ICrop, Loc.L("Bereich", "Area"), Loc.L("Danach ein Rechteck aufziehen – ein fester Ausschnitt", "Then drag a rectangle – a fixed area"), Loc.L("Einen festen Ausschnitt des Bildschirms aufnehmen", "Record a fixed part of the screen"), () => Begin(ScopeMode.Region));
         _lastRegionLink = U.Btn(Theme.ICrop, "", () => BeginLastRegion(), Loc.L("Den zuletzt gewählten Bereich anpassen und aufnehmen – gestartet wird erst mit Eingabe", "Adjust and record the last selected area – recording starts only with Enter"), "Link");
-        _lastRegionLink.HorizontalAlignment = HorizontalAlignment.Right; _lastRegionLink.Margin = new Thickness(0, 6, -8, -6);
+        _lastRegionLink.HorizontalAlignment = HorizontalAlignment.Right; _lastRegionLink.Margin = new Thickness(0, 2, -8, -6);
         UpdateLastRegionLink();
+        var areas = U.Col(screenCard, appCard, regionCard, _lastRegionLink);
 
-        var stepOne = StepLabel("1", Loc.L("Wofür ist die Aufnahme?", "What is the recording for?")); stepOne.Margin = new Thickness(0, 0, 0, 12);
-        var main = U.Card(U.Col(stepOne, modes, _strip, areaHead, tiles, _lastRegionLink), new Thickness(22, 20, 22, 22));
-        main.VerticalAlignment = VerticalAlignment.Top;
+        var purposeLabel = U.SectionLabel(Loc.L("Zweck", "Purpose"), new Thickness(0, 0, 0, 8));
+        var main = U.Col(purposeLabel, modes, _strip, areaHead, areas);
 
-        // ---------- Seitenkasten mit Reitern ----------
-        string HK(string id) => RecordingController.Key(id);
-        var keyGrid = new Grid();
-        keyGrid.ColumnDefinitions.Add(new ColumnDefinition()); keyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        int kr = 0;
-        void K(string label, string combo)
-        {
-            keyGrid.RowDefinitions.Add(new RowDefinition());
-            var l = U.Text(label, Theme.FsBody, fg: Theme.Fg2, margin: new Thickness(0, 5, 12, 5)); l.VerticalAlignment = VerticalAlignment.Center;
-            var k = U.Kbd(combo); Grid.SetRow(l, kr); Grid.SetRow(k, kr); Grid.SetColumn(k, 1);
-            keyGrid.Children.Add(l); keyGrid.Children.Add(k); kr++;
-        }
-        foreach (var id in new[] { "instantPause", "stop", "markerError", "comment", "dictation", "privacy" })
-            if (HK(id) is { Length: > 0 } combo) K(HotkeyActions.Label(HotkeyActions.ById(id)!), combo);
-        if (UiApp.Instance.HotkeyFailures.Count > 0)
-        {
-            keyGrid.RowDefinitions.Add(new RowDefinition());
-            var warnChip = U.Chip(Loc.F("belegt: {0}", "taken: {0}", string.Join(", ", UiApp.Instance.HotkeyFailures)), Theme.WarnSoft, Theme.Warn, Theme.IWarn);
-            warnChip.Margin = new Thickness(0, 8, 0, 0); warnChip.HorizontalAlignment = HorizontalAlignment.Left;
-            Grid.SetRow(warnChip, kr); Grid.SetColumnSpan(warnChip, 2); keyGrid.Children.Add(warnChip); kr++;
-        }
-        var keysTab = U.Col(keyGrid, U.Hint(Loc.L("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", "All commands are also available by right-clicking the icon in the notification area."), new Thickness(0, 12, 0, 0)));
-
-        var (tabTrack, tabs) = U.Segmented("stab", 0, (Theme.IHistory, Loc.L("Zuletzt", "Recent")), (Theme.IKeyboard, Loc.L("Tastenkürzel", "Shortcuts")));
-        var openFolder = U.Btn(Theme.IFolder, null, () => { var d = AppPaths.DefaultSessionsFolder(); Directory.CreateDirectory(d); Process.Start("explorer.exe", $"\"{d}\""); }, Loc.L("Aufnahmeordner im Explorer öffnen", "Open the recordings folder in Explorer"), "Ghost");
-        openFolder.Margin = new Thickness(0);
-        var allRec = U.Btn(Theme.IHistory, null, () => UiApp.Instance.ShowLibrary(), Loc.L("Alle Aufnahmen (Strg+L): suchen, umbenennen, packen, löschen", "All recordings (Ctrl+L): search, rename, pack, delete"), "Ghost");
-        allRec.Margin = new Thickness(0);
-        var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
-        var headButtons = U.Row(allRec, openFolder); headButtons.Margin = new Thickness(0, 0, -6, 0);
-        DockPanel.SetDock(headButtons, Dock.Right); sideHead.Children.Add(headButtons); sideHead.Children.Add(tabTrack);
-        var tabHost = new Grid();
-        tabHost.Children.Add(_recent); tabHost.Children.Add(keysTab);
-        keysTab.Visibility = Visibility.Hidden;   // „Hidden“ statt „Collapsed“: beide Reiter gleich hoch, nichts springt
-        tabs[0].Checked += (_, _) => { _recent.Visibility = Visibility.Visible; keysTab.Visibility = Visibility.Hidden; Anim.Refresh(_recent); };
-        tabs[1].Checked += (_, _) => { _recent.Visibility = Visibility.Hidden; keysTab.Visibility = Visibility.Visible; Anim.Refresh(keysTab); };
-        var side = U.Card(U.Col(sideHead, tabHost), new Thickness(20, 18, 20, 18));
+        // ---------- Seitenkarte: Zuletzt ----------
+        var allLink = U.Btn(Theme.INext, Loc.L("Alle Aufnahmen", "All recordings"), () => ShowPage("sessions"), Loc.L("Alle Aufnahmen: suchen, umbenennen, packen, löschen (Strg+L)", "All recordings: search, rename, pack, delete (Ctrl+L)"), "Link");
+        allLink.Margin = new Thickness(0, -4, -8, 0);
+        var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        DockPanel.SetDock(allLink, Dock.Right); sideHead.Children.Add(allLink);
+        var recentLabel = U.SectionLabel(Loc.L("Zuletzt", "Recent"), new Thickness(0)); recentLabel.VerticalAlignment = VerticalAlignment.Center;
+        sideHead.Children.Add(recentLabel);
+        var side = U.Card(U.Col(sideHead, _stats, _recent), new Thickness(16, 14, 16, 12));
         side.VerticalAlignment = VerticalAlignment.Top;
 
         var columns = new Grid();
-        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.5, GridUnitType.Star) });
-        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.4, GridUnitType.Star) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
         columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 290 });
         columns.Children.Add(main);
         Grid.SetColumn(side, 2); columns.Children.Add(side);
 
-        // ---------- Fuß: Speicherort und Schutz links, Version rechts ----------
-        string folder = AppPaths.DefaultSessionsFolder();
-        var foot = new DockPanel { Margin = new Thickness(2, 16, 0, 0) };
-        var ver = U.Text(Loc.F("Version {0} · offline · kostenlos", "Version {0} · offline · free", AppInfo.Version), Theme.FsHint, fg: Theme.Muted);
-        ver.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(ver, Dock.Right); foot.Children.Add(ver);
+        // ---------- Fuß: Schutzhinweis, belegte Kürzel, bei Bedarf neue Version ----------
+        var foot = new DockPanel { Margin = new Thickness(0, 20, 0, 0) };
         var update = U.Btn(Theme.IGlobe, Loc.L("Neue Version verfügbar", "New version available"), UpdateCheck.OpenReleases, Loc.L("Release-Seite auf GitHub öffnen", "Open release page on GitHub"), "Link");
-        update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, 14, -4);
+        update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, -8, -4);
         DockPanel.SetDock(update, Dock.Right); foot.Children.Add(update);
         if (AppSettings.Load().CheckUpdates)
             Loaded += async (_, _) =>
             {
                 var r = await UpdateCheck.CheckAsync();
-                if (r.Newer) { update.Content = U.IconText(Theme.IGlobe, Loc.F("Version {0} verfügbar", "Version {0} available", r.Latest)); update.Visibility = Visibility.Visible; Anim.Appear(update); }
+                if (r.Newer) { update.Content = U.IconText(Theme.IGlobe, Loc.F("Version {0} verfügbar", "Version {0} available", r.Latest)); update.Visibility = Visibility.Visible; }
             };
-        var folderText = U.Text(folder, Theme.FsHint, fg: Theme.Muted, margin: new Thickness(8, 0, 0, 0)); folderText.TextWrapping = TextWrapping.NoWrap; folderText.TextTrimming = TextTrimming.CharacterEllipsis; folderText.ToolTip = folder;
-        folderText.MaxWidth = 460; folderText.VerticalAlignment = VerticalAlignment.Center;
-        var footLeft = U.Row(U.Icon(Theme.IFolder, 14, Theme.Muted), folderText);
-        if (AppPaths.LooksSynced(folder)) { var sync = U.Chip(Loc.L("synchronisierter Ordner", "synced folder"), Theme.WarnSoft, Theme.Warn, Theme.IWarn); sync.Margin = new Thickness(10, 0, 0, 0); footLeft.Children.Add(sync); }
-        var shield = U.Icon(Theme.IShield, 14, Theme.Muted); shield.Margin = new Thickness(20, 0, 8, 0);
-        footLeft.Children.Add(shield); footLeft.Children.Add(_protection);
+        var shield = U.Icon(Theme.IShield, 14, Theme.Muted); shield.Margin = new Thickness(0, 0, 8, 0);
+        var footLeft = U.Row(shield, _protection);
+        if (UiApp.Instance.HotkeyFailures.Count > 0)
+        {
+            var warnChip = U.Chip(Loc.F("Tastenkürzel belegt: {0}", "Shortcuts taken: {0}", string.Join(", ", UiApp.Instance.HotkeyFailures)), Theme.WarnSoft, Theme.Warn, Theme.IWarn);
+            warnChip.Margin = new Thickness(16, 0, 0, 0); warnChip.ToolTip = Loc.L("Ändern: Einstellungen › Tastenkürzel", "Change: Settings › Shortcuts");
+            footLeft.Children.Add(warnChip);
+        }
         foot.Children.Add(footLeft);
 
-        var root = new StackPanel { Margin = new Thickness(32, 22, 32, 18) };
-        root.Children.Add(header); root.Children.Add(hero); root.Children.Add(columns); root.Children.Add(foot);
+        var root = new StackPanel { Margin = new Thickness(28, 8, 32, 20) };
+        root.Children.Add(header); root.Children.Add(columns); root.Children.Add(foot);
         // Immer ganz sichtbar, ohne Scrollen: Breite folgt dem Fenster; reicht die Höhe nicht, wird gleichmäßig verkleinert –
         // und der Inhalt so verbreitert, dass er nach dem Verkleinern wieder die ganze Fensterbreite füllt.
         var fit = new Viewbox { Child = root, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
         var host = new Grid(); host.Children.Add(fit);
         host.SizeChanged += (_, e) => FitWidth(root, e.NewSize);
-        Content = Anim.WithAmbientGlow(host, Theme.AccentColor);
+        _newPage = host;
+        // Fenster: Windows-Titelleiste (WPF-UI), darunter Navigation links und die Seite rechts
+        var titleBar = new Wpf.Ui.Controls.TitleBar { Title = AppInfo.DisplayName, Icon = new Wpf.Ui.Controls.ImageIcon { Source = Theme.LogoImage(32), Width = 16, Height = 16 } };
+        var body = new DockPanel();
+        var nav = BuildNav();
+        DockPanel.SetDock(nav, Dock.Left); body.Children.Add(nav); body.Children.Add(_pageHost);
+        var frame = new DockPanel();
+        DockPanel.SetDock(titleBar, Dock.Top); frame.Children.Add(titleBar); frame.Children.Add(body);
+        Content = frame;
+        ShowPage("new");
 
-        Anim.Appear(header, 0, 6); Anim.Appear(hero, 70, 12); Anim.Appear(main, 160, 14); Anim.Appear(side, 240, 14); Anim.Appear(foot, 320, 6);
-        UpdateProfile();
-        FillRecent();
+        Anim.Appear(root, 0, 4, 220);
         // Fenster so hoch öffnen, wie der Inhalt braucht (höchstens der Arbeitsbereich)
-        root.Width = Math.Max(MinContentWidth, Width);
+        root.Width = Math.Max(MinContentWidth, Width - NavWidth);
         root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-        Height = Math.Min(wa.Height - 24, Math.Max(MinHeight, root.DesiredSize.Height + SystemParameters.WindowCaptionHeight + 2 * SystemParameters.ResizeFrameHorizontalBorderHeight + 8));
+        Height = Math.Min(wa.Height - 24, Math.Max(MinHeight, root.DesiredSize.Height + 48 + 2 * SystemParameters.ResizeFrameHorizontalBorderHeight + 8));
+        SizeChanged += (_, _) => AdaptNav();
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter && !(Keyboard.FocusedElement is TextBox or Button or ComboBox)) { Begin(ScopeMode.Screen); e.Handled = true; }
+            if (e.Key == Key.Enter && _page == "new" && !(Keyboard.FocusedElement is TextBox or Button or ComboBox or RadioButton)) { Begin(ScopeMode.Screen); e.Handled = true; }
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control) { OpenSession(); e.Handled = true; }
-            if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control) { UiApp.Instance.ShowLibrary(); e.Handled = true; }
+            if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("sessions"); e.Handled = true; }
         };
-        Activated += (_, _) => { UpdateProfile(); FillRecent(); UpdateLastRegionLink(); };
+        Activated += (_, _) => { if (_page == "new") { UpdateProfile(); FillRecent(); UpdateLastRegionLink(); } };
     }
 
     /// <summary>
@@ -249,70 +203,35 @@ sealed class StartWindow : Window
     // Bausteine
     // =====================================================================================
 
-    /// <summary>Begrüßung je Tageszeit, wenn möglich mit Vornamen aus dem Windows-Konto.</summary>
-    static string Greeting()
+    /// <summary>Moduskarte: Optionskreis, Name und Zielgruppe (Fluent-Karte, ausgewählt mit Akzentrand).</summary>
+    static RadioButton ModeCard(string title, string audience, bool selected)
     {
-        int h = DateTime.Now.Hour;
-        string g = h < 5 ? Loc.L("Guten Abend", "Good evening") : h < 11 ? Loc.L("Guten Morgen", "Good morning") : h < 18 ? Loc.L("Guten Tag", "Good afternoon") : Loc.L("Guten Abend", "Good evening");
-        string? first = null;
-        try
+        var name = U.Text(title, Theme.FsBody, true); name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
+        var aud = U.Meta(audience); aud.Margin = new Thickness(0, 2, 0, 0);
+        return new RadioButton { GroupName = "purpose", Style = Theme.Style("PurposeCard"), Content = U.Col(name, aud), IsChecked = selected };
+    }
+
+    /// <summary>Bereichs-Karte (WPF-UI CardAction): Symbol, Titel, Beschreibung, Pfeil – ein Klick startet die Aufnahme.</summary>
+    Wpf.Ui.Controls.CardAction AreaCard(string glyph, string title, string description, string tip, Action click, bool enter = false)
+    {
+        var text = U.Col(U.Text(title, Theme.FsBody, true), U.Text(description, Theme.FsCaption, fg: Theme.Muted, margin: new Thickness(0, 2, 0, 0)));
+        var content = new DockPanel();
+        if (enter)
         {
-            var sb = new System.Text.StringBuilder(256); int len = sb.Capacity;
-            if (GetUserNameEx(3 /*NameDisplay*/, sb, ref len) && sb.ToString().Trim() is { Length: > 0 } full)
-                first = full.Contains(',') ? full.Split(',')[1].Trim().Split(' ')[0] : full.Split(' ')[0];
+            var hint = U.Row(U.Kbd(Loc.Keys("Enter")), U.Text(Loc.L("startet", "starts"), Theme.FsCaption, fg: Theme.Muted, margin: new Thickness(2, 0, 4, 0)));
+            ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
+            hint.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(hint, Dock.Right); content.Children.Add(hint);
         }
-        catch { }
-        return first is { Length: > 1 } && first.All(c => char.IsLetter(c) || c == '-') ? $"{g}, {first}." : $"{g}.";
-    }
-
-    [DllImport("secur32.dll", CharSet = CharSet.Unicode)] static extern bool GetUserNameEx(int format, System.Text.StringBuilder name, ref int size);
-
-    /// <summary>„① Titel“ – Schritt innerhalb der neuen Aufnahme.</summary>
-    static FrameworkElement StepLabel(string n, string title)
-    {
-        var num = U.NumberBadge(n, 26); num.Margin = new Thickness(0, 0, 12, 0);
-        var t = U.Text(title, Theme.FsSub, true); t.FontFamily = Theme.Display; t.VerticalAlignment = VerticalAlignment.Center;
-        return U.Row(num, t);
-    }
-
-    /// <summary>Moduskarte: rundes Symbol links, Name und Zielgruppe rechts (Auswahl mit Haken, Symbol dann in Indigo).</summary>
-    static RadioButton ModeCard(string glyph, string title, string audience, bool selected, out Border badge)
-    {
-        var name = U.Text(title, Theme.FsBody, true); name.FontFamily = Theme.Display; name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis;
-        var aud = U.Meta(audience); aud.Margin = new Thickness(0, 1, 0, 0);
-        var text = U.Col(name, aud); text.Margin = new Thickness(10, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center;
-        var row = new DockPanel();
-        badge = U.IconBadge(glyph, 32, Theme.Surface2, Theme.Fg2, 15);
-        DockPanel.SetDock(badge, Dock.Left); row.Children.Add(badge); row.Children.Add(text);
-        return new RadioButton { GroupName = "purpose", Style = Theme.Style("PurposeCard"), Content = row, IsChecked = selected, VerticalContentAlignment = VerticalAlignment.Top, Padding = new Thickness(12, 11, 10, 11) };
-    }
-
-    /// <summary>Hauptkachel: ganzer Bildschirm – Indigo-Verlauf, Eingabetaste startet.</summary>
-    Button StartTile()
-    {
-        var on = Theme.OnAccent;
-        var icon = U.Icon(Theme.IMonitor, 22, on); icon.HorizontalAlignment = HorizontalAlignment.Left;
-        var head = U.Text(Loc.L("Ganzer Bildschirm", "Full screen"), 17, true, on, new Thickness(0, 10, 0, 0)); head.FontFamily = Theme.Display;
-        var hint = U.Row(U.Kbd(Loc.Keys("Enter"), new SolidColorBrush(Color.FromArgb(46, 255, 255, 255)), on, new SolidColorBrush(Color.FromArgb(110, 255, 255, 255))), U.Text(Loc.L("Aufnahme starten", "Start recording"), Theme.FsHint, fg: on, margin: new Thickness(4, 0, 0, 0)));
-        ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
-        hint.Margin = new Thickness(0, 8, 0, 0);
-        var rest = Theme.AccentGradient(1);
-        var hot = Theme.AccentGradient(0.4);
-        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, hint), Background = rest, BorderBrush = Brushes.Transparent, Foreground = on, MinHeight = 104, Padding = new Thickness(18, 16, 18, 16), ToolTip = Loc.L("Alles auf dem Monitor, auf dem gerade gearbeitet wird (Eingabetaste)", "Everything on the monitor you are working on (Enter key)") };
-        b.MouseEnter += (_, _) => b.Background = hot;
-        b.MouseLeave += (_, _) => b.Background = rest;
-        Anim.Glow(b, Theme.AccentColor, Theme.Dark ? 0.30 : 0.22, Theme.Dark ? 0.55 : 0.4, 30);
-        b.Click += (_, _) => { try { Begin(ScopeMode.Screen); } catch (Exception ex) { UiApp.ShowError(ex); } };
-        return b;
-    }
-
-    static Button Tile(string glyph, string title, string hint, string tip, Action click)
-    {
-        var icon = U.Icon(glyph, 22, Theme.AccentText); icon.HorizontalAlignment = HorizontalAlignment.Left;
-        var head = U.Text(title, Theme.FsSub, true, margin: new Thickness(0, 10, 0, 2)); head.FontFamily = Theme.Display;
-        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, U.Text(hint, Theme.FsHint, fg: Theme.Muted)), MinHeight = 104, Background = Theme.Surface, Padding = new Thickness(18, 16, 18, 16), ToolTip = tip };
-        b.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-        return b;
+        content.Children.Add(text);
+        var card = new Wpf.Ui.Controls.CardAction
+        {
+            Icon = new Wpf.Ui.Controls.FontIcon { Glyph = glyph, FontFamily = Theme.Icons, FontSize = 22 },
+            Content = content, ToolTip = tip, Margin = new Thickness(0, 0, 0, 4), HorizontalContentAlignment = HorizontalAlignment.Stretch
+        };
+        System.Windows.Automation.AutomationProperties.SetName(card, title);
+        card.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
+        return card;
     }
 
     /// <summary>Detailgrad als vier Balken plus Bezeichnung.</summary>
@@ -320,20 +239,19 @@ sealed class StartWindow : Window
     {
         target.Children.Clear();
         for (int i = 0; i < 4; i++)
-            target.Children.Add(new Border { Width = 18, Height = 6, CornerRadius = new CornerRadius(3), Margin = new Thickness(0, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Background = i < bars ? Theme.Accent : Theme.LineStrong });
-        target.Children.Add(U.Text(label, Theme.FsHint, true, Theme.Fg, new Thickness(8, 0, 0, 1)));
+            target.Children.Add(new Border { Width = 16, Height = 4, CornerRadius = new CornerRadius(2), Margin = new Thickness(0, 0, 3, 0), VerticalAlignment = VerticalAlignment.Center, Background = i < bars ? Theme.Accent : Theme.LineStrong });
+        target.Children.Add(U.Text(label, Theme.FsCaption, true, Theme.Fg, new Thickness(8, 0, 0, 1)));
     }
 
-    /// <summary>Was wird aufgezeichnet – als kurze Chips (Einzelheiten im Tooltip).</summary>
+    /// <summary>Was wird aufgezeichnet – schlichte Angaben mit Haken (Einzelheiten im Tooltip).</summary>
     static void DetailChips(WrapPanel target, ICollection<string> off, string changeFrames, bool appContext)
     {
         target.Children.Clear();
         bool On(params string[] keys) => keys.Any(k => !off.Contains(k));
         void C(string text, bool on, string tip)
         {
-            var c = on ? U.Chip(text, Theme.Surface, Theme.Fg2, Theme.ICheck) : U.Chip(text, Brushes.Transparent, Theme.Muted);
-            c.Margin = new Thickness(0, 2, 6, 2); c.ToolTip = tip;
-            if (!on) { c.BorderBrush = Theme.LineStrong; c.BorderThickness = new Thickness(1); }
+            var c = on ? U.Chip(text, Brushes.Transparent, Theme.Fg2, Theme.ICheck) : U.Chip(text, Brushes.Transparent, Theme.Muted);
+            c.Margin = new Thickness(0, 2, 16, 2); c.ToolTip = tip;
             target.Children.Add(c);
         }
         C(Loc.L("Klicks", "Clicks"), On("clicks", "wheel"), Loc.L("Mausklicks mit Bild und angeklicktem Element, Scrollen", "Mouse clicks with image and clicked element, scrolling"));
@@ -395,7 +313,7 @@ sealed class StartWindow : Window
     /// <summary>„Ziel und Titel“: optionale Angaben zur Aufnahme in einem kleinen Fenster.</summary>
     void ShowGoalDialog()
     {
-        TextBox Box(string v, string tag, bool multi) => new() { Text = v, Tag = tag, MaxLength = multi ? 2000 : 200, AcceptsReturn = multi, TextWrapping = TextWrapping.Wrap, MinHeight = multi ? 60 : 0, VerticalContentAlignment = multi ? VerticalAlignment.Top : VerticalAlignment.Center };
+        TextBox Box(string v, string tag, bool multi) => new Wpf.Ui.Controls.TextBox { Text = v, PlaceholderText = tag, ClearButtonEnabled = false, MaxLength = multi ? 2000 : 200, AcceptsReturn = multi, TextWrapping = TextWrapping.Wrap, MinHeight = multi ? 60 : 0, VerticalContentAlignment = multi ? VerticalAlignment.Top : VerticalAlignment.Center };
         var goal = Box(_goalText, Loc.L("z. B. Neuen Kontakt im Adressbuch anlegen", "e.g. Create a new contact in the address book"), true);
         var expected = Box(_expectedText, Loc.L("z. B. Der Kontakt erscheint in der Liste", "e.g. The contact appears in the list"), true);
         var reference = Box(_referenceText, Loc.L("z. B. Ticketnummer", "e.g. Ticket number"), false);
@@ -444,14 +362,7 @@ sealed class StartWindow : Window
     {
         if (_profiles == null || _recLink == null) return;
         int i = ProfileIndex;
-        bool changed = _modeText.Text != Modes[i].text && _modeText.Text.Length > 0;
         _modeText.Text = Modes[i].text;
-        if (changed) { Anim.Refresh(_strip, 0.3, 260); Anim.Stagger(_chips, 40, 35, 4); }
-        for (int k = 0; k < _modeBadges.Length; k++)
-        {
-            _modeBadges[k].Background = k == i ? Theme.Accent : Theme.Surface2;
-            ((TextBlock)_modeBadges[k].Child).Foreground = k == i ? Theme.OnAccent : Theme.Fg2;
-        }
         _recLink.Content = U.IconText(Theme.IEdit, i == 3 ? Loc.L("Einstellen …", "Set up …") : Loc.L("Anpassen …", "Customize …"));
         _recLink.ToolTip = i == 3 ? Loc.L("Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ festlegen", "Set input types, extra images, program context and “after stopping”") : Loc.L("Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen", "Use this level of detail as the starting point for the “Custom” mode");
         if (i == 3)
@@ -485,8 +396,7 @@ sealed class StartWindow : Window
             try { parts.Add(Loc.F("zuletzt {0}", "last {0}", Loc.Relative(Json.ParseUtc(last.Str("createdUtc")).ToLocalTime()))); } catch { }
         if (parts.Count == 0) parts.Add(Loc.L("Noch keine Aufnahmen", "No recordings yet"));
         _protection.Text = AppSettings.Load().PrivacyLevel == "strict" ? Loc.L("Schutz: streng", "Protection: strict") : Loc.L("Passwortfelder werden maskiert", "Password fields are masked");
-        _stats.Inlines.Add(new System.Windows.Documents.Run("●  ") { Foreground = Theme.Success });
-        _stats.Inlines.Add(new System.Windows.Documents.Run(string.Join("  ·  ", parts)) { Foreground = Theme.Muted });
+        _stats.Inlines.Add(new System.Windows.Documents.Run(string.Join(" · ", parts)) { Foreground = Theme.Muted });
 
         if (list.Count == 0)
         {
@@ -494,7 +404,7 @@ sealed class StartWindow : Window
             foreach (var (head, text) in new[] { (Loc.L("Modus wählen", "Choose a mode"), Loc.L("Im Zweifel „Anleitung“.", "When in doubt, “Guide”.")), (Loc.L("Bereich anklicken", "Click an area"), Loc.L("Die Aufnahme startet sofort.", "Recording starts right away.")),
                                                    (Loc.L("Vorführen und beenden", "Demonstrate and stop"), Loc.F("{0} stoppt.", "{0} stops it.", RecordingController.Key("stop"))), (Loc.L("Nachbearbeiten", "Edit afterwards"), Loc.L("Texte anpassen, als PDF oder Word speichern.", "Adjust texts, save as PDF or Word.")) })
             {
-                var num = U.NumberBadge((++n).ToString()); num.Margin = new Thickness(0, 0, 12, 0); num.VerticalAlignment = VerticalAlignment.Top;
+                var num = U.Text($"{++n}.", Theme.FsBody, true, Theme.Fg2); num.Width = 20; num.VerticalAlignment = VerticalAlignment.Top;
                 var row = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
                 DockPanel.SetDock(num, Dock.Left); row.Children.Add(num);
                 row.Children.Add(U.Col(U.Text(head, Theme.FsBody, true), U.Text(text, Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 2, 0, 0))));
@@ -620,18 +530,9 @@ sealed class StartWindow : Window
         }
     }
 
-    void ShowSettings()
-    {
-        for (int i = 0; i < 3; i++)
-        {
-            var w = new SettingsWindow(i == 0 ? 0 : 4) { Owner = this };
-            w.ShowDialog();
-            if (!w.ReopenRequested) break;
-        }
-        FillRecent(); UpdateProfile();
-    }
+    void ShowSettings() => ShowPage("settings");
 
-    void ShowHelp() => HelpDialog.Show(this);
+    void ShowHelp() => ShowPage("help");
 
     protected override void OnClosed(EventArgs e) { base.OnClosed(e); UiApp.Instance.MaybeShutdown(); }
 }
@@ -699,11 +600,11 @@ static class OverlayUi
 
     public static Border Pill(string glyph, string text)
     {
-        var row = U.Row(U.Icon(glyph, 16, Theme.Night.AccentText), U.Text(text, Theme.FsBody, false, Theme.Night.Fg, new Thickness(10, 0, 16, 0)), U.Kbd("Esc", Theme.Night.Chip, Theme.Night.Fg, Theme.Night.Line), U.Text(Loc.L("abbrechen", "cancel"), Theme.FsHint, false, Theme.Night.Muted, new Thickness(2, 0, 0, 0)));
+        var row = U.Row(U.Icon(glyph, 16, Theme.Night.Fg), U.Text(text, Theme.FsBody, false, Theme.Night.Fg, new Thickness(10, 0, 16, 0)), U.Kbd("Esc", Theme.Night.Chip, Theme.Night.Fg, Theme.Night.Line), U.Text(Loc.L("abbrechen", "cancel"), Theme.FsHint, false, Theme.Night.Muted, new Thickness(2, 0, 0, 0)));
         foreach (var c in row.Children.OfType<FrameworkElement>()) c.VerticalAlignment = VerticalAlignment.Center;
         return new Border
         {
-            Background = PillBg, BorderBrush = Theme.Night.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(999), Padding = new Thickness(20, 11, 20, 11), Child = row,
+            Background = PillBg, BorderBrush = Theme.Night.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RCard), Padding = new Thickness(20, 11, 20, 11), Child = row,
             HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 48), Effect = Theme.Shadow(24, 4, 0.4)
         };
     }

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Documents;
 using System.Windows.Input;
@@ -13,14 +13,18 @@ using StepRecorder.Settings;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// „Alle Aufnahmen“: Liste aller Aufnahmen im Aufnahmeordner mit Vorschaubild (über die Leseschicht, also geschwärzt),
-/// Filter nach Titel oder Suche in den Inhalten, Umbenennen, Packen, Löschen (Papierkorb), Entpacken von .steprec.
+/// Seite „Aufnahmen“ im Startfenster: Liste aller Aufnahmen im Aufnahmeordner mit Vorschaubild (über die Leseschicht,
+/// also geschwärzt), Filter nach Titel oder Suche in den Inhalten, Umbenennen, Packen, Löschen (Papierkorb), Entpacken von .steprec.
 /// </summary>
-sealed class LibraryWindow : Window
+sealed class LibraryPage : ContentControl
 {
+    /// <summary>Fenster, in dem die Seite steht (Besitzer für Dialoge).</summary>
+    Window Win => Window.GetWindow(this) ?? Application.Current.MainWindow;
+    static string Title => Loc.L("Aufnahmen", "Recordings");
+
     readonly string _root;
     readonly ListBox _list = new() { SelectionMode = SelectionMode.Extended, BorderThickness = new Thickness(0) };
-    readonly TextBox _filter = new() { Padding = new Thickness(32, 7, 8, 7) };
+    readonly Wpf.Ui.Controls.TextBox _filter = new() { Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
     RadioButton _modeTitles = null!, _modeContents = null!;
     readonly ComboBox _sort = new() { MinWidth = 170 };
     readonly TextBlock _count = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
@@ -41,14 +45,9 @@ sealed class LibraryWindow : Window
 
     IEnumerable<SessionInfo> Selected => _list.SelectedItems.OfType<ListBoxItem>().Select(i => i.Tag switch { SessionInfo s => s, (SessionInfo s, SearchHit) => s, _ => null }).Where(s => s != null).Distinct()!;
 
-    public LibraryWindow()
+    public LibraryPage()
     {
-        Title = Loc.L("Alle Aufnahmen", "All recordings") + " – " + AppInfo.DisplayName;
-        Theme.Prepare(this, Theme.Surface);
-        var wa = Theme.ActiveWorkArea();
-        Width = Math.Min(1080, wa.Width - 40); Height = Math.Min(760, wa.Height - 40); MinWidth = 640; MinHeight = 420;
-        WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        WindowPlacer.Attach(this, "library");
+        Focusable = false;
         _root = AppPaths.DefaultSessionsFolder();
         Build();
         Loaded += (_, _) => { Rescan(); _filter.Focus(); };
@@ -59,32 +58,29 @@ sealed class LibraryWindow : Window
             if (e.Data.GetData(DataFormats.FileDrop) is not string[] files) return;
             foreach (var f in files)
             {
-                if (File.Exists(f) && f.EndsWith(".steprec", StringComparison.OrdinalIgnoreCase)) _ = SessionImport.Unpack(this, f, Rescan);
+                if (File.Exists(f) && f.EndsWith(".steprec", StringComparison.OrdinalIgnoreCase)) _ = SessionImport.Unpack(Win, f, Rescan);
                 else if (Session.LooksLikeSession(f)) UiApp.Instance.OpenViewer(f);
             }
         };
-        Closed += (_, _) => { _scanCts?.Cancel(); _searchCts?.Cancel(); _workCts?.Cancel(); };
+        Unloaded += (_, _) => { _scanCts?.Cancel(); _searchCts?.Cancel(); _workCts?.Cancel(); };
     }
 
     void Build()
     {
         // Kopf
-        var logo = Theme.Logo(26); logo.Margin = new Thickness(0, 0, 12, 0); logo.VerticalAlignment = VerticalAlignment.Center;
-        var head = U.Text(Loc.L("Alle Aufnahmen", "All recordings"), 17, true); head.FontFamily = Theme.Display; head.VerticalAlignment = VerticalAlignment.Center;
+        var head = U.Heading(Loc.L("Aufnahmen", "Recordings"), Theme.FsHero, new Thickness(0)); head.VerticalAlignment = VerticalAlignment.Center;
         var import = U.Btn(Theme.IOpen, Loc.L("Entpacken …", "Unpack …"), ImportDialog, Loc.L(".steprec-Datei entpacken und öffnen (oder hierher ziehen)", "Unpack and open a .steprec file (or drop it here)"), "Ghost");
         var refresh = U.Btn(Theme.IRedo, null, Rescan, Loc.L("Aktualisieren (F5)", "Refresh (F5)"), "Ghost");
         var folder = U.Btn(Theme.IFolder, null, () => { Directory.CreateDirectory(_root); Shell.Reveal(_root); }, Loc.L("Aufnahmeordner im Explorer öffnen", "Open recordings folder in Explorer"), "Ghost");
-        var top = new DockPanel { Margin = new Thickness(20, 14, 16, 10) };
+        var top = new DockPanel { Margin = new Thickness(28, 8, 32, 12) };
         var right = U.Row(import, refresh, folder); right.VerticalAlignment = VerticalAlignment.Center;
         DockPanel.SetDock(right, Dock.Right); top.Children.Add(right);
-        DockPanel.SetDock(logo, Dock.Left); top.Children.Add(logo); top.Children.Add(head);
+        top.Children.Add(head);
 
         // Filterzeile
-        _filter.Tag = Loc.L("Titel filtern (Strg+F) · in Inhalten suchen (Strg+Umschalt+F)", "Filter titles (Ctrl+F) · search contents (Ctrl+Shift+F)");
+        _filter.PlaceholderText = Loc.L("Titel filtern (Strg+F) · in Inhalten suchen (Strg+Umschalt+F)", "Filter titles (Ctrl+F) · search contents (Ctrl+Shift+F)");
         var filterHost = new Grid { MinWidth = 320 };
         filterHost.Children.Add(_filter);
-        var icon = U.Icon(Theme.ISearch, 13, Theme.Muted); icon.HorizontalAlignment = HorizontalAlignment.Left; icon.Margin = new Thickness(12, 0, 0, 0); icon.IsHitTestVisible = false;
-        filterHost.Children.Add(icon);
         var (modeTrack, modes) = U.Segmented("libmode", AppState.Load().Library.Mode == "contents" ? 1 : 0, (null, Loc.L("Titel", "Titles")), (null, Loc.L("Inhalte", "Contents")));
         _modeTitles = modes[0]; _modeContents = modes[1];
         modeTrack.ToolTip = Loc.L("Titel: Liste nach Titel filtern. Inhalte: in Schritten, Fenstern, Eingaben und Kommentaren aller Aufnahmen suchen – Geschwärztes und Ungeprüftes wird nie gefunden.",
@@ -95,7 +91,7 @@ sealed class LibraryWindow : Window
         foreach (var m in modes) m.Checked += (_, _) => { if (!IsLoaded) return; AppState.Update(st => st.Library.Mode = _modeContents.IsChecked == true ? "contents" : "titles"); Refilter(); };
         _filter.TextChanged += (_, _) => { if (_modeContents.IsChecked == true) { _debounce.Stop(); _debounce.Start(); } else Fill(); };
         _debounce.Tick += (_, _) => { _debounce.Stop(); Fill(); };
-        var filterRow = new DockPanel { Margin = new Thickness(20, 0, 16, 10) };
+        var filterRow = new DockPanel { Margin = new Thickness(28, 0, 32, 10) };
         var sortBox = U.Row(_sort); sortBox.Margin = new Thickness(10, 0, 0, 0);
         DockPanel.SetDock(sortBox, Dock.Right); filterRow.Children.Add(sortBox);
         modeTrack.Margin = new Thickness(10, 0, 0, 0);
@@ -112,26 +108,27 @@ sealed class LibraryWindow : Window
         var more = U.Btn(Theme.IMore, null, () => { }, Loc.L("Weitere Aktionen", "More actions"), "Ghost");
         more.Click += (_, _) =>
         {
-            var m = new ContextMenu { PlacementTarget = more, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom };
-            void I(string label, Action a) { var mi = new MenuItem { Header = label }; mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } }; m.Items.Add(mi); }
+            var m = U.MenuScope(new ContextMenu { PlacementTarget = more, Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom });
+            void I(string label, Action a) => m.Items.Add(U.Mi(label, null, a));
             I(Loc.L("Exporte löschen …", "Delete exports …"), DeleteExports);
             I(Loc.L("Aus „Zuletzt“ entfernen", "Remove from \"Recent\""), () => { var s = AppSettings.Load(); foreach (var x in Selected) s.RemoveRecent(x.Path); _status.Text = Loc.L("Aus „Zuletzt“ entfernt", "Removed from \"Recent\""); });
             I(Loc.L("Pfad kopieren", "Copy path"), () => Shell.CopyPath(string.Join(Environment.NewLine, Selected.Select(x => x.Path))));
             m.IsOpen = true;
         };
         _actions.Children.Add(more);
-        var actionRow = new DockPanel { Margin = new Thickness(16, 0, 16, 6) };
+        var actionRow = new DockPanel { Margin = new Thickness(24, 0, 32, 6) };
         DockPanel.SetDock(_count, Dock.Right); actionRow.Children.Add(_count); actionRow.Children.Add(_actions);
-        _count.Foreground = Theme.Muted; _status.Foreground = Theme.Muted; _count.FontFamily = Theme.Mono;
+        _count.Foreground = Theme.Muted; _status.Foreground = Theme.Muted;
 
-        _list.Background = Theme.Surface;
+        _list.Background = Brushes.Transparent;
+        _list.ItemContainerStyle = Theme.Style("StepItem");
         _list.SelectionChanged += (_, _) => UpdateActions();
         _list.MouseDoubleClick += (_, e) => { if (ItemAt(e.OriginalSource) != null) OpenSelected(); };
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
 
-        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 6, 16, 7), Child = _status };
-        var listBorder = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Child = _list };
-        var root = new DockPanel { Background = Theme.Surface };
+        var statusBar = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(28, 6, 32, 7), Child = _status };
+        var listBorder = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(18, 4, 22, 0), Child = _list };
+        var root = new DockPanel();
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         DockPanel.SetDock(filterRow, Dock.Top); root.Children.Add(filterRow);
         DockPanel.SetDock(actionRow, Dock.Top); root.Children.Add(actionRow);
@@ -358,7 +355,7 @@ sealed class LibraryWindow : Window
         var s = Selected.FirstOrDefault(); if (s == null) return;
         if (s.Archive) { Msg.Show(Loc.L("Ein .steprec-Archiv ist schreibgeschützt. Zum Umbenennen bitte entpacken.", "A .steprec archive is read-only. Unpack it to rename."), Title); return; }
         if (s.Recording) return;
-        var d = new InputDialog(Loc.L("Titel der Aufnahme (der Ordnername bleibt)", "Title of the recording (the folder name stays)"), s.Title) { Owner = this };
+        var d = new InputDialog(Loc.L("Titel der Aufnahme (der Ordnername bleibt)", "Title of the recording (the folder name stays)"), s.Title) { Owner = Win };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         if (UiApp.Instance.ViewerFor(s.Path) is { } v) v.RenameTo(d.Value.Trim());
         else if (!SessionEdits.SetTitle(s.Path, d.Value)) { Msg.Show(Loc.L("Die Aufnahme wurde gerade an anderer Stelle geändert; bitte erneut versuchen.", "The recording was just changed elsewhere; please try again."), Title); return; }
@@ -369,7 +366,7 @@ sealed class LibraryWindow : Window
     {
         var s = Selected.FirstOrDefault(); if (s == null) return;
         if (s.Archive) { Msg.Show(Loc.L("Das ist bereits ein .steprec-Archiv.", "This already is a .steprec archive."), Title); return; }
-        PackDialog.Show(this, s.Path);
+        PackDialog.Show(Win, s.Path);
     }
 
     async void DeleteSelected()
@@ -383,7 +380,7 @@ sealed class LibraryWindow : Window
                 Loc.L("Löschen", "Delete"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         var paths = sel.Select(s => s.Path).ToList();
         string? error = null;
-        var result = await ExportProgressWindow.Run(this, Loc.L("Wird gelöscht …", "Deleting …"), (_, _) => RecycleBin.Delete(paths, out error));
+        var result = await ExportProgressWindow.Run(Win, Loc.L("Wird gelöscht …", "Deleting …"), (_, _) => RecycleBin.Delete(paths, out error));
         if (result == RecycleResult.NoRecycleBin)
         {
             if (Msg.Show(Loc.F("Für dieses Laufwerk gibt es keinen Papierkorb.\n\n{0} endgültig löschen? Das lässt sich nicht rückgängig machen.", "This drive has no recycle bin.\n\nDelete {0} permanently? This cannot be undone.", what),
@@ -407,7 +404,7 @@ sealed class LibraryWindow : Window
                 Loc.L("Exporte löschen", "Delete exports"), MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
         var dirs = sel.Select(s => Path.Combine(s.Path, "export")).ToList();
         string? error = null;
-        var r = await ExportProgressWindow.Run(this, Loc.L("Wird gelöscht …", "Deleting …"), (_, _) => RecycleBin.Delete(dirs, out error));
+        var r = await ExportProgressWindow.Run(Win, Loc.L("Wird gelöscht …", "Deleting …"), (_, _) => RecycleBin.Delete(dirs, out error));
         if (r == RecycleResult.NoRecycleBin && Msg.Show(Loc.L("Kein Papierkorb auf diesem Laufwerk. Exporte endgültig löschen?", "No recycle bin on this drive. Delete exports permanently?"), Title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
             foreach (var d in dirs) try { Directory.Delete(d, true); } catch { }
         else if (r == RecycleResult.Failed) Msg.Show(error ?? "?", Title);
@@ -417,7 +414,7 @@ sealed class LibraryWindow : Window
     void ImportDialog()
     {
         var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.L("Aufnahme-Archiv (*.steprec)|*.steprec", "Recording archive (*.steprec)|*.steprec") };
-        if (dlg.ShowDialog(this) == true) _ = SessionImport.Unpack(this, dlg.FileName, Rescan);
+        if (dlg.ShowDialog(Win) == true) _ = SessionImport.Unpack(Win, dlg.FileName, Rescan);
     }
 
     void OnKey(object sender, KeyEventArgs e)
@@ -430,7 +427,7 @@ sealed class LibraryWindow : Window
             case Key.F when m == (ModifierKeys.Control | ModifierKeys.Shift): _modeContents.IsChecked = true; _filter.Focus(); _filter.SelectAll(); break;
             case Key.F5: Rescan(); break;
             case Key.Escape when inText && _filter.Text.Length > 0: _filter.Clear(); break;
-            case Key.Escape: Close(); break;
+            case Key.Escape: if (_filter.Text.Length > 0) _filter.Clear(); break;
             case Key.Enter when !inText || _list.SelectedItems.Count > 0: OpenSelected(); break;
             case Key.F2 when !inText: RenameSelected(); break;
             case Key.Delete when !inText: DeleteSelected(); break;

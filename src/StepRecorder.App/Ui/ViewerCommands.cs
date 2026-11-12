@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using StepRecorder.Settings;
@@ -69,6 +69,7 @@ sealed partial class ViewerWindow
             new("insertStep", "steps", Loc.L("Schritt einfügen …", "Insert step …"), Key.Insert, S, () => InsertManual(null)),
             new("newRecording", "general", Loc.L("Neue Aufnahme", "New recording"), Key.N, C, () => UiApp.Instance.ShowStart()),
             new("library", "general", Loc.L("Alle Aufnahmen …", "All recordings …"), Key.L, C, () => UiApp.Instance.ShowLibrary()),
+            new("open", "general", Loc.L("Öffnen …", "Open …"), Key.O, C, OpenSessionDialog),
             new("close", "general", Loc.L("Fenster schließen", "Close window"), Key.W, C, Close),
             // Schritte
             new("moreImportant", "steps", Loc.L("Wichtiger", "More important"), Key.Up, C, () => ChangeImportance(+1)),
@@ -78,11 +79,11 @@ sealed partial class ViewerWindow
             new("merge", "steps", Loc.L("Schritte zusammenfassen", "Merge steps"), Key.J, C, MergeSelected),
             new("unmerge", "steps", Loc.L("Zusammenfassung aufheben", "Dissolve merge"), Key.J, CS, UnmergeSelected),
             new("redactStep", "steps", Loc.L("Schritt schwärzen", "Redact step"), Key.Delete, S, RedactStep),
-            new("deleteMark", "image", Loc.L("Ausgewählte Markierung löschen", "Delete selected markup"), Key.Delete, N, DeleteSelectedOrAll, () => _selAnn != null),
+            new("deleteMark", "image", Loc.L("Ausgewählte Zeichnung löschen", "Delete selected drawing"), Key.Delete, N, DeleteSelectedOrAll, () => _selAnn != null),
             new("hide", "steps", Loc.L("Schritt aus-/einblenden", "Hide/show step"), Key.Delete, N, ToggleHidden),
             new("editText", "steps", Loc.L("Überschrift und Text bearbeiten", "Edit heading and text"), Key.F2, N, FocusInlineTitle, InText: true),
-            new("comment", "steps", Loc.L("Kommentar hinzufügen", "Add comment"), Key.K, N, AddComment),
-            new("note", "steps", Loc.L("Hinweis einfügen …", "Insert note …"), Key.Insert, N, InsertNote),
+            new("comment", "steps", Loc.L("Hinweis hinzufügen …", "Add note …"), Key.K, N, AddComment),
+            new("note", "steps", Loc.L("Hinweis hinzufügen (zweite Taste)", "Add note (second key)"), Key.Insert, N, InsertNote),
             new("next", "steps", Loc.L("Nächster Schritt", "Next step"), Key.Down, N, Next, ListUnfocused),
             new("prev", "steps", Loc.L("Vorheriger Schritt", "Previous step"), Key.Up, N, Prev, ListUnfocused),
             new("next2", "steps", Loc.L("Nächster Schritt", "Next step"), Key.Right, N, Next, ListUnfocused, Listed: false),
@@ -103,8 +104,8 @@ sealed partial class ViewerWindow
             new("toolPixelate", "image", Loc.L("Verpixeln", "Pixelate"), Key.P, N, () => SelectTool("pixelate")),
             new("toolCrop", "image", Loc.L("Zuschneiden", "Crop"), Key.C, N, () => SelectTool("crop")),
             new("deselect", "image", Loc.L("Auswahl aufheben", "Clear selection"), Key.Escape, N, () => { _selAnn = null; DrawSelection(); }, () => _selAnn != null),
-            new("beforeAfter", "image", Loc.L("Vorher-/Nachher-Bild", "Before/after image"), Key.W, N, ToggleBeforeAfter),
-            new("stepMarks", "image", Loc.L("Mausmarkierungen dieses Schritts", "Mouse markers of this step"), Key.H, N, ToggleStepMarks),
+            new("beforeAfter", "image", Loc.L("Vorher/Nachher wechseln", "Switch before/after"), Key.W, N, ToggleBeforeAfter),
+            new("stepMarks", "image", Loc.L("Mausmarken dieses Schritts ein/aus", "Mouse marks for this step on/off"), Key.H, N, ToggleStepMarks),
             new("lightbox", "image", Loc.L("Großansicht", "Full view"), Key.F11, N, OpenLightbox),
             // Allgemein (Funktionstasten)
             new("play", "general", Loc.L("Abspielen / anhalten", "Play / pause"), Key.F5, N, TogglePlay, InText: true),
@@ -114,6 +115,42 @@ sealed partial class ViewerWindow
             new("compare", "general", Loc.L("Mit anderer Aufnahme vergleichen", "Compare with another recording"), Key.F7, N, Compare),
             new("stopPlay", "general", Loc.L("Abspielen beenden", "Stop playback"), Key.Escape, N, StopPlay, Listed: false),
             new("shortcuts", "general", Loc.L("Alle Tastenkürzel", "All shortcuts"), Key.F1, N, () => ShortcutsWindow.Show(this, Cmds), InText: true),
+            // Nur in Menüs (ohne Tastenkürzel) – damit Menüleiste, Rechtsklick und Knöpfe dieselben Namen tragen
+            new("rename", "general", Loc.L("Umbenennen …", "Rename …"), Key.None, N, Rename, Listed: false),
+            new("preview", "copy", Loc.L("Vorschau im Browser", "Preview in browser"), Key.None, N, PreviewDocument, Listed: false),
+            new("support", "copy", Loc.L("Support-Paket erstellen …", "Create support package …"), Key.None, N, StartSupportFlow, Listed: false),
+            new("continueRec", "general", Loc.L("Aufnahme fortsetzen", "Continue recording"), Key.None, N, ContinueRecording, Listed: false),
+            new("append", "general", Loc.L("Aufnahme anhängen …", "Append recording …"), Key.None, N, AppendSession, Listed: false),
+            new("pack", "general", Loc.L("Als .steprec packen …", "Pack as .steprec …"), Key.None, N, () => { if (_view.Session.ReadOnly) Msg.Show(Loc.L("Das ist bereits ein .steprec-Archiv.", "This already is a .steprec archive.")); else PackDialog.Show(this, _path); }, Listed: false),
+            new("showFolder", "general", Loc.L("Aufnahmeordner zeigen", "Show recording folder"), Key.None, N, () => Shell.Reveal(_view.Session.Path), Listed: false),
+            new("aiConnect", "general", Loc.L("Mit KI verbinden …", "Connect to AI …"), Key.None, N, () => AiConnect.Show(this), Listed: false),
+            new("settings", "general", Loc.L("Einstellungen …", "Settings …"), Key.None, N, () => UiApp.Instance.ShowStart("settings"), Listed: false),
+            new("history", "general", Loc.L("Bearbeitungsstände …", "Edit history …"), Key.None, N, ShowHistory, Listed: false),
+            new("copyGuide", "copy", Loc.L("Ganze Anleitung kopieren", "Copy whole guide"), Key.None, N, CopyWholeGuide, Listed: false),
+            new("copyBugReport", "copy", Loc.L("Als Fehlerbericht kopieren (Markdown)", "Copy as bug report (Markdown)"), Key.None, N, CopyBugReport, Listed: false),
+            new("saveClip", "copy", Loc.L("Kurzen Clip speichern (GIF) …", "Save short clip (GIF) …"), Key.None, N, SaveClip, Listed: false),
+            new("insertFile", "steps", Loc.L("Bild aus Datei …", "Image from file …"), Key.None, N, () => { if (PickImageFile() is { } b) using (b) InsertManual(b); }, Listed: false),
+            new("insertClip", "steps", Loc.L("Bild aus der Zwischenablage", "Image from clipboard"), Key.None, N, () => { if (ClipboardImage() is { } b) using (b) InsertManual(b); else Msg.Show(Loc.L("In der Zwischenablage ist kein Bild.", "There is no image on the clipboard.")); }, Listed: false),
+            new("insertShot", "steps", Loc.L("Bildschirmfoto in 3 Sekunden …", "Screenshot in 3 seconds …"), Key.None, N, () => CaptureAfterCountdown(b => InsertManual(b)), Listed: false),
+            new("deleteInserted", "steps", Loc.L("Eingefügten Schritt löschen", "Delete inserted step"), Key.None, N, () => DeleteManual(SelSteps), Listed: false),
+            new("chapter", "steps", Loc.L("Kapitel hier beginnen", "Start chapter here"), Key.None, N, () => { if (Sel is { } s) ToggleChapter(s.Anchor, s.ChapterTitle == null); }, Listed: false),
+            new("cropRemove", "image", Loc.L("Zuschnitt entfernen", "Remove crop"), Key.None, N, () => { if (Sel is { } s) RemoveCrop(s); }, Listed: false),
+            new("cropAll", "image", Loc.L("Zuschnitt auf alle Schritte übertragen", "Apply crop to all steps"), Key.None, N, CropToAll, Listed: false),
+            new("replaceShot", "image", Loc.L("Bildschirmfoto in 3 Sekunden …", "Screenshot in 3 seconds …"), Key.None, N, () => { if (Sel is { } s) CaptureAfterCountdown(b => ReplaceImage(s, b)); }, Listed: false),
+            new("replaceFile", "image", Loc.L("Bild aus Datei …", "Image from file …"), Key.None, N, () => { if (Sel is { } s && PickImageFile() is { } b) using (b) ReplaceImage(s, b); }, Listed: false),
+            new("replaceClip", "image", Loc.L("Bild aus der Zwischenablage", "Image from clipboard"), Key.None, N, () => { if (Sel is not { } s) return; if (ClipboardImage() is { } b) using (b) ReplaceImage(s, b); else Msg.Show(Loc.L("In der Zwischenablage ist kein Bild.", "There is no image on the clipboard.")); }, Listed: false),
+            new("restoreImage", "image", Loc.L("Originalbild wiederherstellen", "Restore original image"), Key.None, N, () => { if (Sel is { } s) Change(e => StepEdit(e, s.Anchor).Remove("frameChoice"), refill: false); }, Listed: false),
+            new("clearDrawings", "image", Loc.L("Alle Zeichnungen dieses Bilds löschen", "Delete all drawings on this image"), Key.None, N, () => { _selAnn = null; DeleteSelectedOrAll(); }, Listed: false),
+            new("zoomIn", "image", Loc.L("Vergrößern", "Zoom in"), Key.None, N, () => _zoom.ZoomIn(), Listed: false),
+            new("zoomOut", "image", Loc.L("Verkleinern", "Zoom out"), Key.None, N, () => _zoom.ZoomOut(), Listed: false),
+            new("zoomFit", "image", Loc.L("Einpassen", "Fit"), Key.None, N, () => _zoom.FitNow(), Listed: false),
+            new("zoom100", "image", Loc.L("Originalgröße (100 %)", "Actual size (100 %)"), Key.None, N, () => _zoom.Actual(), Listed: false),
+            new("piiScan", "general", Loc.L("Persönliche Daten in Bildern suchen …", "Find personal data in images …"), Key.None, N, ScanImagesForPersonalData, Listed: false),
+            new("redactText", "general", Loc.L("Text überall schwärzen …", "Redact text everywhere …"), Key.None, N, RedactText, Listed: false),
+            new("cleanup", "general", Loc.L("Aufräumen …", "Clean up …"), Key.None, N, ShowCleanup, Listed: false),
+            new("overview", "general", Loc.L("Übersicht und Vollständigkeit …", "Overview and completeness …"), Key.None, N, ShowOverview, Listed: false),
+            new("finalRedact", "general", Loc.L("Endgültig schwärzen …", "Redact permanently …"), Key.None, N, FinalRedact, Listed: false),
+            new("help", "general", Loc.L("Hilfe und Info", "Help and info"), Key.None, N, () => UiApp.Instance.ShowStart("help"), Listed: false),
         };
     }
 

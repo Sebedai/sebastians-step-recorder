@@ -25,7 +25,7 @@ sealed partial class ViewerWindow
             if (st.Viewer.Left is double l && l >= _leftCol.MinWidth) _prefLeft = l;
             if (st.Viewer.Right is double r && r >= _rightCol.MinWidth) _prefRight = r;
             _leftCol.Width = new GridLength(_prefLeft); _rightCol.Width = new GridLength(_prefRight);
-            if (st.Viewer.Tab is > 0 and < 3) _tabBtns[st.Viewer.Tab].IsChecked = true;
+            if (st.Viewer.Tab > 0 && st.Viewer.Tab < _tabBtns.Length) _tabBtns[st.Viewer.Tab].IsChecked = true;
             if (st.PeekSession(SessionKey) is { } ss)
             {
                 if (ss.All) _allToggle.IsChecked = true;
