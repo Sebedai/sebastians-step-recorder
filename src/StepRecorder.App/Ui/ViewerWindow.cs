@@ -32,6 +32,8 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     readonly Wpf.Ui.Controls.TextBox _search = new() { PlaceholderText = Loc.L("Schritte durchsuchen", "Search steps"), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)"), Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
     Wpf.Ui.Controls.TitleBar? _titleBar;
     ToggleButton _allToggle = null!;
+    /// <summary>Filter „Langsam“: nur Schritte, nach denen die Anwendung mindestens <see cref="StepRecorder.ReadLayer.Timing.SlowMs"/> brauchte (Paket 9).</summary>
+    System.Windows.Controls.Primitives.ToggleButton _slowToggle = null!;
     ComboBox _dispBox = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
     readonly TextBlock _titleBlock = new() { FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Loc.L("Klicken zum Umbenennen", "Click to rename"), TextTrimming = TextTrimming.CharacterEllipsis };
@@ -277,6 +279,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             if (sy.LongN("settleMs") is long st) parts.Add(Loc.F("Bild ruhig nach {0} ms", "Image settled after {0} ms", st));
             if (sy.LongN("readyMs") is long rd) parts.Add(Loc.F("bereit nach {0} ms", "ready after {0} ms", rd));
             if (sy.LongN("thinkMs") is long th) parts.Add(Loc.F("Denkpause {0} ms", "Thinking pause {0} ms", th));
+            if (StepRecorder.ReadLayer.Timing.Of(j) is { } tm && tm.LongN("reactionMs") is long rct) parts.Insert(0, Loc.F("erste Reaktion nach {0} ms", "first reaction after {0} ms", rct));
             if (parts.Count > 0) info(Loc.L("Warten", "Waiting"), ReadOnlyText(string.Join("\n", parts), Theme.Fg, Theme.FsHint));
         }
         if (j.Obj("verify") is { } vf)

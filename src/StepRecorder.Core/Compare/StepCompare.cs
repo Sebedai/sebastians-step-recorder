@@ -100,6 +100,9 @@ public static class StepCompare
         if (wa != wb) d.Add("effect");
         long da = a.TTo - a.TFrom, db = b.TTo - b.TFrom;
         if (Math.Abs(da - db) > 2_000_000 && Math.Max(da, db) > 2 * Math.Max(1, Math.Min(da, db))) d.Add("duration");
+        // Reaktion der Anwendung (12, Paket 9): mehr als 1 s und mindestens doppelt so lang bzw. halb so lang
+        if (!a.Redacted && !b.Redacted && ReadLayer.Timing.WaitMsOf(a.Json) is long wa2 && ReadLayer.Timing.WaitMsOf(b.Json) is long wb2
+            && Math.Abs(wa2 - wb2) > 1000 && Math.Max(wa2, wb2) >= 2 * Math.Max(1, Math.Min(wa2, wb2))) d.Add("response");
         return d;
     }
 
@@ -108,7 +111,9 @@ public static class StepCompare
         ["status"] = status, ["kind"] = (a ?? b)!.Kind, ["group"] = (a ?? b)!.Kind == "gap" ? "gap" : "core",
         ["a"] = a?.Number, ["b"] = b?.Number, ["aRef"] = a?.Id, ["bRef"] = b?.Id, ["score"] = score,
         ["differences"] = new JsonArray(diffs.Select(x => (JsonNode)x).ToArray()),
-        ["details"] = new JsonObject { ["a"] = a?.Title, ["b"] = b?.Title }.Clean()
+        ["details"] = new JsonObject { ["a"] = a?.Title, ["b"] = b?.Title }.Clean(),
+        ["responseMs"] = a == null || b == null || a.Redacted || b.Redacted ? null
+            : ReadLayer.Timing.WaitMsOf(a.Json) is long wa && ReadLayer.Timing.WaitMsOf(b.Json) is long wb ? new JsonObject { ["a"] = wa, ["b"] = wb } : null
     }.Clean();
 
     public static string Markdown(JsonObject r, string lang)
@@ -126,7 +131,9 @@ public static class StepCompare
             string st = de ? p.Str("status") switch { "same" => "gleich", "changed" => "geändert", "onlyA" => "nur A", _ => "nur B" } : p.Str("status")!;
             string a = p["a"] != null ? $"{p.Long("a")}. {p.Obj("details").Str("a")}" : "–";
             string b = p["b"] != null ? $"{p.Long("b")}. {p.Obj("details").Str("b")}" : "–";
-            sb.Append($"| {st} | {a.Replace("|", "\\|")} | {b.Replace("|", "\\|")} | {string.Join(", ", p.StrList("differences"))} |\n");
+            var diffs = p.StrList("differences").Select(x => x == "response" && p.Obj("responseMs") is { } rm
+                ? (de ? "Reaktion " : "response ") + ReadLayer.Timing.Ms(rm.Long("a"), de) + " → " + ReadLayer.Timing.Ms(rm.Long("b"), de) : x);
+            sb.Append($"| {st} | {a.Replace("|", "\\|")} | {b.Replace("|", "\\|")} | {string.Join(", ", diffs)} |\n");
         }
         return sb.ToString();
     }

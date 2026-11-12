@@ -104,7 +104,17 @@ sealed partial class ViewerWindow
         langTrack.ToolTip = Loc.L("Sprache der Texte: Überschriften, Anleitungstexte, Kapitel und Dokumenttexte gibt es je Sprache – so entstehen aus einer Aufnahme eine deutsche und eine englische Anleitung.", "Language of the texts: headings, guide texts, chapters and document texts exist per language – so one recording yields a German and an English guide.");
         langs[0].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("de"); }; langs[1].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("en"); };
         var filterRow = new DockPanel { Margin = new Thickness(16, 0, 16, 8) };
-        DockPanel.SetDock(langTrack, Dock.Right); filterRow.Children.Add(langTrack); filterRow.Children.Add(impTrack);
+        _slowToggle = new System.Windows.Controls.Primitives.ToggleButton
+        {
+            Content = U.Row(U.Icon(Theme.IStopwatch, 13, Theme.Fg2), U.Text(Loc.L("Langsam", "Slow"), Theme.FsCaption, margin: new Thickness(5, 0, 0, 0))),
+            Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
+            ToolTip = Loc.F("Nur Schritte, nach denen die Anwendung mindestens {0} brauchte, bis sie bereit war", "Only steps after which the application needed at least {0} to be ready", StepRecorder.ReadLayer.Timing.Ms(StepRecorder.ReadLayer.Timing.SlowMs, Loc.Lang == "de"))
+        };
+        System.Windows.Automation.AutomationProperties.SetName(_slowToggle, Loc.L("Nur langsame Schritte", "Slow steps only"));
+        _slowToggle.Checked += (_, _) => { if (IsLoaded) Fill(); }; _slowToggle.Unchecked += (_, _) => { if (IsLoaded) Fill(); };
+        DockPanel.SetDock(langTrack, Dock.Right); filterRow.Children.Add(langTrack);
+        DockPanel.SetDock(_slowToggle, Dock.Right); filterRow.Children.Add(_slowToggle);
+        filterRow.Children.Add(impTrack);
         _list.SelectionMode = SelectionMode.Extended;
         _list.ItemContainerStyle = Theme.Style("StepItem");
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
@@ -383,6 +393,8 @@ sealed partial class ViewerWindow
         foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true))
         {
             if (!StepSearch.Matches(s, query)) continue;
+            long? waitMs = s.Redacted || s.Manual ? null : StepRecorder.ReadLayer.Timing.WaitMsOf(s.Json);
+            if (_slowToggle.IsChecked == true && (waitMs ?? 0) < StepRecorder.ReadLayer.Timing.SlowMs) continue;
             n++;
             bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
             var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
@@ -426,6 +438,13 @@ sealed partial class ViewerWindow
             if (s.Unreviewed) meta.Children.Add(U.Chip(Loc.L("ungeprüft", "unreviewed"), Theme.WarnSoft, Theme.Warn, Theme.IWarn));
             else if (qualityWarn.TryGetValue(s.Anchor, out var qf)) { var qc = U.Chip(qf.Rule, Theme.WarnSoft, Theme.Warn, Theme.IChecklist); qc.ToolTip = qf.Text(Loc.Lang); meta.Children.Add(qc); }
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip(Loc.L("nur Eingabe", "input only"), Theme.Surface2, Theme.Muted));
+            if (waitMs is long wm && wm >= 500)
+            {
+                bool slow = wm >= StepRecorder.ReadLayer.Timing.SlowMs;
+                var tc = U.Chip(StepRecorder.ReadLayer.Timing.Ms(wm, Loc.Lang == "de"), slow ? Theme.WarnSoft : Theme.Surface2, slow ? Theme.Warn : Theme.Muted, Theme.IStopwatch);
+                tc.ToolTip = StepRecorder.ReadLayer.Timing.Of(s.Json) is { } tj ? Loc.L("Reaktion der Anwendung: ", "Application response: ") + StepRecorder.ReadLayer.Timing.Text(tj, Loc.Lang) : null;
+                meta.Children.Add(tc);
+            }
             if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? Loc.L("aufgeräumt", "cleaned up") : Loc.L("ausgeblendet", "hidden"), Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
             if (s.Discarded) meta.Children.Add(U.Chip(Loc.L("verworfen", "discarded"), Theme.DangerSoft, Theme.Danger));
             if (NotesOf(s).Count is int nc && nc > 0) meta.Children.Add(U.Chip(nc.ToString(), Theme.Surface2, Theme.Muted, Theme.IComment));

@@ -33,7 +33,7 @@ public static class SyntheticSession
     /// <summary>Im Terminal getippter Befehl (withTerminal).</summary>
     public const string TerminalCanary = "echo kanarie42";
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false)
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -105,7 +105,8 @@ public static class SyntheticSession
         w.Append(new JsonObject { ["t"] = t + 50_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w2" });
         w.Append(new JsonObject { ["t"] = t + 100_000, ["type"] = "window.close", ["win"] = "w2", ["destroyed"] = true });
         w.Append(new JsonObject { ["t"] = t + 120_000, ["type"] = "window.title", ["win"] = "w1", ["title"] = "notiz.txt – Editor" });
-        Frame(t + 400_000, "f000005", "settle", enter, Color.Green);
+        Frame(t + enterSettleUs, "f000005", "settle", enter, Color.Green);
+        if (enterSettleUs > 400_000) t += enterSettleUs;
         if (withError)
             w.Append(new JsonObject { ["t"] = t + 600_000, ["type"] = "marker", ["id"] = "mk0", ["kind"] = "error", ["label"] = "Fehlermeldung erscheint", ["frame"] = "f000005" });
         if (withPassword)

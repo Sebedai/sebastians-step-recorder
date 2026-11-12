@@ -644,6 +644,7 @@ Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt
 | Q18 | Hinweis | „Vor diesem Schritt passt der Zustand nicht nahtlos.“ | `seam` – etwa nach einer Neuaufnahme oder einer angehängten Aufnahme | Bilder vergleichen · Hinweisschritt einfügen | Art der Nahtstelle |
 | Q19 | Hinweis | „Für diesen Schritt wurde keine Wirkung beobachtet.“ | `noEffect` | Prüfen, ob der Schritt nötig ist · ausblenden | – |
 | Q20 | Hinweis | „Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.“ | `stepNumberInComment` | Kommentar prüfen | – |
+| Q21 | Hinweis | „Die Anwendung brauchte nach diesem Schritt … bis sie bereit war.“ – Wartezeit (bereit, sonst Bild ruhig, sonst erste Reaktion) eines Hauptschritts ab 2 s (`Timing.SlowMs`; Paket 9 aus [12](12-entwickler-fahrplan.md)) | Schritt | Zum Schritt | – |
 
 Wirkung der Schwere – dieselbe wie in der Tabelle oben:
 
@@ -966,7 +967,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-123 | Ungeprüfte Eingaben auf der Kommandozeile | Muss | Ungeprüfte auffällige Eingaben erscheinen in der Ausgabe als `{unreviewed:N}` und sind im JSON-Objekt gezählt; es gibt keine Option, die sie im Klartext ausgibt. Nach der Durchsicht im Viewer erscheinen sie im Klartext bzw. geschwärzt. |
 | EXP-130 | Dauer des Exports | Soll | Die Zeiten aus Abschnitt 15 sind auf System A und – mit dem dort genannten Faktor – auf System B eingehalten. |
 | EXP-131 | Bedienbarkeit während des Exports | Soll | Während eines Exports der Sitzung M reagiert der Viewer auf Schrittwechsel in höchstens 150 ms. |
-| EXP-140 | Qualitätsprüfung nach Regelkatalog | Soll | (Q15 und Q18 teilweise, siehe 12.1.) An einer Testsitzung mit je einer vorbereiteten Fundstelle meldet jede Regel Q01 bis Q20 genau diese, mit Nummer, Schwere und Meldetext der Tabelle in 12.1; eine Sitzung ohne Fundstellen ergibt keine Meldung. |
+| EXP-140 | Qualitätsprüfung nach Regelkatalog | Soll | (Q15 und Q18 teilweise, siehe 12.1.) An einer Testsitzung mit je einer vorbereiteten Fundstelle meldet jede Regel Q01 bis Q21 genau diese, mit Nummer, Schwere und Meldetext der Tabelle in 12.1; eine Sitzung ohne Fundstellen ergibt keine Meldung. |
 | EXP-141 | Schwere wirkt einheitlich | Soll | Ein Hinweis hält keinen Export auf; eine Warnung öffnet beim Ein-Klick-Export den Dialog und führt mit `--strict` zu Exit-Code 9. Regeln, die schon bisher geprüft wurden (Q02, Q03, Q04, Q10, Q13, Q16), behalten ihre Schwere. |
 | EXP-142 | Ignorierte Fundstellen | Soll | Eine in `edits.qualityIgnores` eingetragene Fundstelle erscheint weder im Dialog noch in der Ausgabe der Kommandozeile und zählt nicht für `--strict`; nach dem Entfernen des Eintrags erscheint sie wieder. Das Ignorieren von Q12 hebt weder die Sperre im Viewer noch `{unreviewed:N}` auf. |
 | EXP-143 | Regelnummern in der Ausgabe, stabil | Soll | Jede Meldung der Qualitätsprüfung nennt im Dialog die Regelnummer und im JSON-Objekt `rule`, `step` und gegebenenfalls `key`; zwischen zwei Programmversionen ändert keine Regel ihre Nummer. |

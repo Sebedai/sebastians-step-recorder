@@ -208,6 +208,13 @@ sealed partial class ViewerWindow
         sb.AppendLine(Loc.F("  Bilder: {0} angefordert · {1} gespeichert · {2} unverändert · Vorher-Bild garantiert {3}/{4}", "  Images: {0} requested · {1} stored · {2} unchanged · Before image guaranteed {3}/{4}", fr.Long("requested"), fr.Long("stored"), fr.Long("same"), fr.Long("preGuaranteed"), fr.Long("preGuaranteed") + fr.Long("preNotGuaranteed")));
         foreach (var gp in _view.Steps.Arr("gaps") ?? new JsonArray())
             sb.AppendLine($"  – {Fmt.Time(gp.Long("tFrom"), Loc.Lang)}: {Steps.TextTemplates.CauseText(gp.Str("cause") ?? "", Loc.Lang)}");
+        var (waitMs, thinkMs, slow) = ReadLayer.Timing.Totals(_view.All.Where(s => !s.Redacted && s.Importance != "trace").Select(s => s.Json));
+        if (waitMs + thinkMs > 0)
+        {
+            bool de = Loc.Lang == "de";
+            sb.AppendLine(Loc.F("  Reaktionszeiten: Anwendung wartete {0} · Denkzeit {1} · {2} langsame Schritte (ab {3})", "  Response times: application waited {0} · thinking time {1} · {2} slow steps (from {3})",
+                ReadLayer.Timing.Ms(waitMs, de), ReadLayer.Timing.Ms(thinkMs, de), slow, ReadLayer.Timing.Ms(ReadLayer.Timing.SlowMs, de)));
+        }
         sb.AppendLine();
         long bytes = 0; try { bytes = new DirectoryInfo(_view.Session.Path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length); } catch { }
         sb.AppendLine(Loc.F("Speicher: {0:0.0} MB · {1}", "Storage: {0:0.0} MB · {1}", bytes / 1024.0 / 1024.0, _view.Session.Path));

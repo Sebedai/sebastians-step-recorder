@@ -152,6 +152,9 @@ public static class QualityCheck
             // Q19
             if (s.Importance == "primary" && s.Kind is "click" or "doubleClick" or "rightClick" or "hotkey" && s.Json.Obj("effect") is { } eff && eff["observed"] is JsonValue ov && ov.TryGetValue<bool>(out var observed) && !observed)
                 Add("Q19", "hint", s, null, "Für diesen Schritt wurde keine Wirkung beobachtet.", "No effect was observed for this step.", "hide");
+            // Q21: die Anwendung reagierte langsam (Hinweis; 12, Paket 9)
+            if (!s.Redacted && s.Importance == "primary" && Timing.WaitMsOf(s.Json) is long waitMs && waitMs >= Timing.SlowMs)
+                Add("Q21", "hint", s, null, $"Die Anwendung brauchte nach diesem Schritt {Timing.Ms(waitMs, true)}, bis sie bereit war.", $"The application needed {Timing.Ms(waitMs, false)} after this step to be ready.", "none");
             // Q20
             if (reordered && s.Comments.Any(c => StepRef.IsMatch(c.Str("text") ?? "")))
                 Add("Q20", "hint", s, null, "Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.", "A comment mentions a step number that may have shifted.", "editText");

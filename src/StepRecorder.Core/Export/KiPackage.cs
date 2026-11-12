@@ -542,6 +542,7 @@ public static class KiPackage
             L((de ? "- Tasten: " : "- Keys: ") + (input.Str("combo") ?? input.Str("key")) + (input.Int("count", 1) > 1 ? $" ×{input.Int("count")}" : ""));
         if (j.Obj("clipboard") is { } clip) L((de ? "- Zwischenablage: " : "- Clipboard: ") + $"{clip.Str("op")} {clip.Str("clip")}" + (de ? " (Inhalt nicht aufgezeichnet)" : " (content not recorded)"));
         if (j.Obj("effect") is { } eff) L((de ? "- Wirkung: " : "- Effect: ") + EffectText(view, eff, lang));
+        if (Timing.Of(j) is { } tim && Timing.Text(tim, lang) is { Length: > 0 } tt) L((de ? "- Reaktion: " : "- Response: ") + tt);
         if (j.Obj("effect")?.Obj("focus") is { } ff && ff.Obj("el") is { } fel)
             L((de ? "- Fokus danach: " : "- Focus after: ") + $"{fel.Str("ct")} {Fmt.Quote(fel.Str("name") ?? "", lang, 80)}");
         foreach (var line in ContextLines(j, j.Obj("target")?.Obj("win32"), de, lang)) L(line);

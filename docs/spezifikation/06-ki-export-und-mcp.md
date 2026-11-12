@@ -183,7 +183,7 @@ Verhalten:
 - **Die Leseschicht gilt wie überall:** Schwärzungen werden angewendet, verallgemeinerte Werte stehen als Platzhalter, interne und ausgeblendete Kommentare fehlen, und es gilt die wirksame Schrittfolge. Einen Schalter dafür gibt es nicht.
 - **Ungeprüfte auffällige Eingaben** erscheinen als `{unreviewed:N}` und sind im Kopf von `trace.md` ausgewiesen ([5.1](#51-kopf)). Der Aufruf gelingt trotzdem (Exit-Code 0) und nennt ihre Zahl auf der Fehlerausgabe und im JSON-Objekt. Mit `--strict` bricht er stattdessen ab, ohne etwas zu schreiben (Exit-Code 9). **Eine Option, die solche Eingaben im Klartext ausgibt, gibt es nicht.**
 - Die Warnungen aus [10.2](#102-anzeige-vor-dem-export) (viele Bilder, sehr großes Paket, Profil `original`) stehen als Warnungen auf der Fehlerausgabe und im JSON-Objekt.
-- **Qualitätsprüfung:** Die Vorprüfung läuft wie bei jedem Export. Fundstellen des Regelkatalogs Q01 bis Q20 ([09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog)) stehen als Hinweise unter `notices` und als Warnungen unter `warnings` – jeweils mit Regelnummer, Kennung des Schritts und Schlüssel; ignorierte Fundstellen fehlen. Mit `--strict` führen Warnungen wie ungeprüfte Eingaben zum Abbruch (Exit-Code 9).
+- **Qualitätsprüfung:** Die Vorprüfung läuft wie bei jedem Export. Fundstellen des Regelkatalogs Q01 bis Q21 ([09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog)) stehen als Hinweise unter `notices` und als Warnungen unter `warnings` – jeweils mit Regelnummer, Kennung des Schritts und Schlüssel; ignorierte Fundstellen fehlen. Mit `--strict` führen Warnungen wie ungeprüfte Eingaben zum Abbruch (Exit-Code 9).
 - Exportiert werden nur abgeschlossene Sitzungen. Zwischendateien liegen unter `export/.tmp/` der Sitzung, nie in `%TEMP%`; ein abgebrochener Export hinterlässt kein unvollständiges Paket.
 
 | Exit-Code | Bedeutung |
@@ -2683,6 +2683,8 @@ Der Viewer erzeugt die Einrichtung des Servers als Text zum Kopieren ([08](08-vi
 - Der Dialog sagt in einfachen Worten, was ein Agent sieht und was nicht, und dass der Server selbst kein Netzwerk nutzt.
 - **Das Programm trägt nichts selbst ein:** Es schreibt keine fremde Konfigurationsdatei und startet nichts. Einstiege: Startfenster, Menü „…“ im Editor und der Exportdialog des KI-Pakets.
 - **Weitere Programme** (Paket 8 aus [12](12-entwickler-fahrplan.md)): Eine Auswahl „Programm“ zeigt die Einrichtung für Claude Code (`.mcp.json`), Claude Desktop (`claude_desktop_config.json`), VS Code (`.vscode/mcp.json` mit `servers` und `"type": "stdio"`), Cursor (`.cursor/mcp.json`) und Codex CLI (Abschnitt `[mcp_servers.steprecorder]` in `%USERPROFILE%\.codex\config.toml`, TOML-Zeichenketten in einfachen Anführungszeichen). `McpConfig.Clients` ist die einzige Liste; die Formate sind gegen die Dokumentation der Programme vom November 2026 geprüft und bei jeder Version erneut zu prüfen.
+
+**Reaktionszeiten (Paket 9):** Jeder Schrittblock in `trace.md` hat bei vorhandenen Messwerten die Zeile `- Reaktion:` (`- Response:`) mit erster Reaktion, Mauszeiger beschäftigt und „bereit nach“ – bei abgebrochener Beobachtung als „mehr als …“. MCP liefert dieselben Werte als `timing` (`reactionMs`, `settleMs`, `busyMs`, `windowAfterMs`, `readyMs`, `thinkMs`, `waitMs`, `atLeast`); `compare_sessions` kennt den Unterschied `response` mit `responseMs` je Paar. Gemessen wird sichtbare Reaktion der Oberfläche, nicht Rechenzeit.
 
 ### 19.12 `get_failure_context`
 

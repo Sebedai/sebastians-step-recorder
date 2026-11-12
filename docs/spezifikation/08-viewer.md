@@ -323,6 +323,8 @@ Die Galerie zeigt die Bilder aller Schritte als Raster – für den schnellen Ü
 
 ### 5.6 Suche und Filter
 
+*Reaktionszeiten (Paket 9 aus [12](12-entwickler-fahrplan.md)):* Schritte, nach denen die Anwendung mindestens 0,5 s brauchte, tragen in der Schrittliste ein Abzeichen mit der Wartezeit (ab 2 s hervorgehoben, Tooltip mit erster Reaktion und „bereit nach“). Der Umschalter „Langsam“ über der Liste zeigt nur Schritte ab 2 s. Der Detailbereich nennt unter „Warten“ zusätzlich die erste Reaktion; die Sitzungsübersicht die Summe aus Wartezeit der Anwendung und Denkzeit sowie die Zahl langsamer Schritte. Der Vergleich (5.9) meldet deutlich verschiedene Reaktionszeiten als Unterschied „Reaktion a → b“.
+
 - **Suche** (`Strg+F`) durchsucht Überschrift und Text der Schritte (Anleitungs- und Protokolltext, eigene Texte), die Titel und Texte der Kapitel, Elementnamen, getippten Text, Fenstertitel, Kommentare einschließlich interner Notizen und die Text-Schnappschüsse neuer Fenster. Treffer sind in der Schrittliste hervorgehoben; `F3` und `Umschalt+F3` springen weiter.
 - **Suchregeln:** Ohne Beachtung der Groß- und Kleinschreibung. Mehrere durch Leerzeichen getrennte Wörter müssen **alle** vorkommen (UND); Wörter in Anführungszeichen („…“ oder "…") suchen die genaue **Wortfolge**. Mehrfache Leerzeichen und Zeilenumbrüche zählen als ein Leerzeichen. Dieselben Regeln gelten in der Kürzelübersicht (`F1`) und in der Bibliothek ([11.2](#112-volltextsuche-über-alle-sitzungen)).
 - Maskierte und geschwärzte Inhalte sind nicht durchsuchbar.

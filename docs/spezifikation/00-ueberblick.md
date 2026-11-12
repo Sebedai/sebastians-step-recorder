@@ -206,7 +206,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | **Overlay / `edits.json`** | Alle Bearbeitungen getrennt von den Rohdaten |
 | **Bearbeitungsstand** | Automatische Sicherung des Overlays (`history\`), aus der sich eine frühere Fassung wiederherstellen lässt; Schwärzungen und Durchsicht bleiben auf heutigem Stand |
 | **Zusammenfassung** | Mehrere aufeinanderfolgende Schritte, die eine Anleitung als einen Schritt zeigt; KI-Paket und Rohdaten behalten die Einzelschritte |
-| **Qualitätsprüfung** | Regeln Q01–Q20, die Anleitung und Aufnahme auf Mängel prüfen (Editor F8, Kommandozeile `check`); Befunde sind Warnungen oder Hinweise |
+| **Qualitätsprüfung** | Regeln Q01–Q21, die Anleitung und Aufnahme auf Mängel prüfen (Editor F8, Kommandozeile `check`); Befunde sind Warnungen oder Hinweise |
 | **Bibliothek** | Fenster „Alle Aufnahmen“: finden, durchsuchen, umbenennen, packen, löschen |
 | **`.steprec`** | Eine Aufnahme als ZIP-Datei, bereinigt oder vollständig; nur ansehen, zum Bearbeiten entpacken |
 | **Bereinigte Kopie** | Neue Aufnahme aus der Sicht der Leseschicht, ohne Geschwärztes, Regelwerte und interne Kommentare |
