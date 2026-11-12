@@ -94,9 +94,7 @@ sealed partial class ViewerWindow
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
             { M("newRecording"), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
-        var export = MenuButton(Theme.IExport, "Exportieren", "Als Anleitung, KI-Paket oder Skript speichern (Strg+E)", "Primary", () => new (string, Action)[]
-            { ("HTML …", () => ShowExportDialog("html")), ("Markdown …", () => ShowExportDialog("md")), ("Word (DOCX) …", () => ShowExportDialog("docx")), ("PDF …", () => ShowExportDialog("pdf")), ("-", () => { }),
-              ("KI-Paket …", () => ShowExportDialog("ki")), ("AutoHotkey-Skript …", () => ShowExportDialog("ahk")), ("Support-Paket (ZIP) …", StartSupportFlow) });
+        var export = MenuButton(Theme.IExport, Loc.L("Exportieren", "Export"), Loc.F("Als Anleitung, KI-Paket oder Skript speichern ({0}) · letzten Export wiederholen ({1})", "Save as guide, AI package or script ({0}) · repeat last export ({1})", Cmd("export").Gesture, Cmd("repeatExport").Gesture), "Primary", ExportMenuItems);
         export.Margin = new Thickness(8, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, Sep(), play, preview, copy, privacy, review, Sep(), more, export }) cmds.Children.Add(e);
         void Lbl(Button b, int level) { if (b.Content is StackPanel sp && sp.Children.Count > 1 && sp.Children[1] is TextBlock t) _labels.Add((t, level)); }

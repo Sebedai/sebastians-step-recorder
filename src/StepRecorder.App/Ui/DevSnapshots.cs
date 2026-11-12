@@ -1,8 +1,9 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using StepRecorder.Capture;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -75,8 +76,12 @@ static class DevSnapshots
             }
             v.DevDemo(() => Save(v));
             v.DevShowShortcuts();
-            new ExportDialog("html", "de") { Owner = v }.ShowDialog();
-            new ExportDialog("ki", "de") { Owner = v }.ShowDialog();
+            static string Target(StepRecorder.Export.ExportRequest r, string? f) => @"C:\Recordings\Example\export\" + r.Format + @"\Guide." + StepRecorder.Export.Exporter.Extension(r.Format);
+            new ExportDialog(new StepRecorder.Export.ExportRequest { Format = "html", Language = "de" }, Target) { Owner = v }.ShowDialog();
+            new ExportDialog(new StepRecorder.Export.ExportRequest { Format = "ki", Language = "de" }, Target) { Owner = v }.ShowDialog();
+            var demo = new StepRecorder.Export.ExportResult { Path = @"C:\Recordings\Example\export\pdf\Guide.pdf" };
+            demo.Notices.Add(Loc.L("12 Schritte, 11 Bilder", "12 steps, 11 images"));
+            ExportResultDialog.Show(v, demo, "pdf");
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();
             for (int tab = 0; tab < 5; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();

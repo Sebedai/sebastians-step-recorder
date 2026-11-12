@@ -57,6 +57,7 @@ sealed partial class ViewerWindow
             new("saveImage", "copy", Loc.L("Bild speichern …", "Save image …"), Key.S, CS, SaveImage),
             new("copyMarkdown", "copy", Loc.L("Als Markdown kopieren", "Copy as Markdown"), Key.M, C, CopyMarkdown),
             new("export", "copy", Loc.L("Exportieren …", "Export …"), Key.E, C, () => ShowExportDialog(AppState.Load().Export.LastFormat ?? "html")),
+            new("repeatExport", "copy", Loc.L("Letzten Export wiederholen", "Repeat last export"), Key.E, CS, RepeatLastExport),
             new("save", "general", Loc.L("Speichern (geschieht automatisch)", "Save (automatic)"), Key.S, C, () => _status.Text = Loc.L("Automatisch gespeichert", "Saved automatically"), Listed: false),
             // Allgemein
             new("review", "general", Loc.L("Durchsicht der Eingaben", "Review input"), Key.R, CS, ShowReview),

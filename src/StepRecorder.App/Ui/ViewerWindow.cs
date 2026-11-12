@@ -86,6 +86,7 @@ sealed partial class ViewerWindow : Window
         { var g = _view.Edits.Obj("guide") ?? new JsonObject(); g["address"] = "informal"; _view.Edits["guide"] = g; _view.Rebuild(); }
         ApplyDefaultTemplate();
         Title = _view.Title + " – " + AppInfo.DisplayName;
+        if (!_view.Session.ReadOnly) Exporter.CleanStaleJobs(_view.Session.Path);
     }
 
     Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
