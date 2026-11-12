@@ -8,7 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>StepRecorder</RootNamespace>
-    <Version>0.10.0</Version>
+    <Version>0.11.0</Version>
     <NoWarn>$(NoWarn);CA1416</NoWarn>
   </PropertyGroup>
 
