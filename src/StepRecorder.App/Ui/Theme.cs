@@ -44,12 +44,14 @@ static class Theme
     public const double LineFactor = 1.45;
 
     public static readonly FontFamily Icons = new("Segoe Fluent Icons, Segoe MDL2 Assets");
-    public static readonly FontFamily UiFont = new("Segoe UI Variable Text, Segoe UI");
+    public static readonly FontFamily UiFont = new FontFamily("Segoe UI Variable Text, Segoe UI");
     /// <summary>Überschriften: engere Display-Variante (Windows 11), sonst Segoe UI.</summary>
     public static readonly FontFamily Display = new("Segoe UI Variable Display, Segoe UI");
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
     public const string IArrowUp = "", IArrowDown = "";
-    public const string IZoomIn = "", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "", IStroke = "";
+    /// <summary>Freihand (Stift), Spotlight (Helligkeit), Lupe.</summary>
+    public const string IInk = "", ISpot = "", IMagnifier = "";
+    public const string IZoomIn ="", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "", IStroke = "";
 
     // Symbole (Segoe Fluent Icons / MDL2)
     public const string IRecord = "", IStop = "", IPause = "", IPlay = "", ISettings = "", IOpen = "", IFolder = "",

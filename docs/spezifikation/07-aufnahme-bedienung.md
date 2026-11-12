@@ -96,7 +96,7 @@ SebastiansStepRecorder.exe record --self-test
 | `--monitor <active\|all\|M1,M2…>` | Bei `screen`: Monitor mit Aktivität, alle oder bestimmte; bei `region`: Monitor des Rechtecks | `active` |
 | `--app <Prozessname>` | Bei `app`: aufzunehmende Anwendung, mehrfach angebbar | – |
 | `--window <Titeltext>` | Bei `app`: nur das Fenster, dessen Titel den Text enthält | – |
-| `--region <x,y,b,h>` | Bei `region`: Rechteck in Pixeln des Monitors | – |
+| `--region <x,y,b,h\|last>` | Bei `region`: Rechteck in Pixeln des Monitors, oder `last` für den zuletzt verwendeten Bereich ([5.3](#53-bereich)) | – |
 | `--out <Ordner>` | Aufnahmeordner | aus den Einstellungen |
 | `--title <Text>` | Titel der Sitzung | automatisch |
 | `--goal <Text>` | Ziel der Aufnahme: was gezeigt wird ([4.8](#48-ziel-der-aufnahme)) | – |
@@ -111,7 +111,7 @@ SebastiansStepRecorder.exe record --self-test
 | `--json` | Abschlusszeile als JSON | aus |
 
 - **Auch `record` zeigt Leiste und Rahmen.** Eine Aufnahme ohne sichtbare Anzeige gibt es in keiner Betriebsart.
-- Fehlt bei `--scope app` die Angabe `--app`, öffnet sich die Fensterwahl; fehlt bei `--scope region` das Rechteck, die Bereichswahl. Läuft eine mit `--app` genannte Anwendung nicht, endet der Aufruf mit Exit-Code 7 (Voraussetzung nicht erfüllt).
+- Fehlt bei `--scope app` die Angabe `--app`, öffnet sich die Fensterwahl; fehlt bei `--scope region` das Rechteck, die Bereichswahl. Es wird nie stillschweigend der ganze Bildschirm aufgenommen. `--region last` nimmt den gemerkten Bereich, wenn er auf den heutigen Monitoren unverändert passt (auch an anderer Stelle des Desktops, solange er auf seinem Monitor gleich liegt); ist er nur noch beschnitten möglich, öffnet sich die Bereichswahl im Anpassmodus mit diesem Bereich als Vorgabe, und gibt es keinen gemerkten oder passenden Bereich, die Bereichswahl ohne Vorgabe. Läuft eine mit `--app` genannte Anwendung nicht, endet der Aufruf mit Exit-Code 7 (Voraussetzung nicht erfüllt).
 - Der Aufruf kehrt zurück, wenn die Aufnahme endet – durch Tastenkürzel, Leiste oder `record --stop` aus einem zweiten Aufruf. Auf der Standardausgabe steht dann der Pfad der Sitzung.
 - Bricht der Autor im Countdown ab, lehnt er den Ausweichmodus ab oder verwirft er die Aufnahme, endet der Aufruf mit Exit-Code 5. Läuft bereits eine Aufnahme, mit Exit-Code 6.
 - `--fallback deny` beendet den Aufruf mit Exit-Code 7, statt im Ausweichmodus aufzunehmen; `allow` nimmt ohne Rückfrage im Ausweichmodus auf.
@@ -199,6 +199,8 @@ Jede Kachel ist ein Startknopf: Ein Klick beginnt die Aufnahme in dieser Art. De
 
 Die flache Kachel **Support-Paket** (Soll) ist kein Startknopf: Sie öffnet den Support-Start, in dem die Aufnahme erklärt und dann begonnen wird ([4.9](#49-support-paket-aufnehmen)).
 
+Unter den Kacheln steht, sobald ein Bereich gemerkt ist und auf den heutigen Monitoren noch passt, der Link **Letzter Bereich · B × H** (bei beschnittenem Bereich mit dem Zusatz „angepasst“). Er öffnet die Bereichswahl im Anpassmodus ([4.6](#46-bereichswahl)); passt der Bereich nicht mehr, fehlt der Link.
+
 ### 4.3 Vorbelegung und Sofortaufnahme
 
 - Die zuletzt gewählte Kachel ist hervorgehoben und Standardschaltfläche: Die **Eingabetaste** löst sie aus. Nach dem Erststart ist das „Ganzer Bildschirm“.
@@ -217,8 +219,8 @@ Die flache Kachel **Support-Paket** (Soll) ist kein Startknopf: Sie öffnet den 
 - **Ziel der Aufnahme** (Soll): aufklappbarer Bereich mit drei freiwilligen Textfeldern ([4.8](#48-ziel-der-aufnahme)).
 - **Mehr Optionen** (eingeklappt): Countdown (0, 3 oder 5 Sekunden), Sitzungsname, „an bestehende Sitzung anhängen“, Zwischenablage-Inhalt aufzeichnen.
 - **Statuszeile:** Schutzstufe und Speicherort. Ein Klick führt in die jeweilige Einstellung. Zur Schutzstufe „Schutznetz“ steht dort in einem Satz ihre Grenze: In Terminal-, Remote- und VM-Fenstern werden Eingaben lesbar aufgezeichnet ([10](10-datenschutz-und-sicherheit.md#4-schutzstufen)). Liegt der Speicherort in einem synchronisierten Ordner oder ist wenig Platz frei, steht dort ein Warnzeichen mit Erklärung.
-- **Zuletzt verwendet:** bis zu fünf Sitzungen – zuletzt aufgenommene und zuletzt geöffnete, die jüngste oben; ein Klick öffnet sie im Viewer. Die Liste liegt in der Zustandsdatei des Programms ([02](02-architektur.md#konfiguration)). **Alle Aufnahmen** öffnet die Sitzungsbibliothek ([08](08-viewer.md#11-sitzungen-verwalten)).
-- **Einstellungen** und **Hilfe** (mit der vollständigen Kürzelübersicht) sind Seiten der Navigation, ebenso die Sitzungsbibliothek **Aufnahmen**.
+- **Zuletzt verwendet:** bis zu fünf Sitzungen – zuletzt aufgenommene und zuletzt geöffnete, die jüngste oben; ein Klick öffnet sie im Viewer. Die Liste liegt in der Zustandsdatei des Programms ([02](02-architektur.md#konfiguration)). **Alle Aufnahmen** (oder `Strg+L`) öffnet die Seite **Aufnahmen** mit der Sitzungsbibliothek ([08](08-viewer.md#11-sitzungen-verwalten)). Die Vorschaubilder dort und in der Liste zeigen den Stand der Leseschicht, also mit allen Schwärzungen, nie das Rohbild.
+- **Einstellungen** und **Hilfe** sind Seiten der Navigation, ebenso die Sitzungsbibliothek **Aufnahmen**. Die Hilfe zeigt die aktuell eingestellten Kürzel der Aufnahme; die Kürzel des Editors zeigt dort `F1`.
 - Sind Tastenkürzel durch andere Programme belegt, steht das als Hinweiszeile über den Kacheln (siehe [8.3](#83-konflikte)).
 
 ### 4.5 Fensterwahl
@@ -254,11 +256,12 @@ Die flache Kachel **Support-Paket** (Soll) ist kein Startknopf: Sie öffnet den 
             │                                   │
             └───────────────────────────────────┘
 
- Ziehen = Rechteck · Griffe = anpassen · Pfeiltasten = 1 px · Eingabe = starten · Esc = abbrechen
+ Ziehen = Rechteck · Griffe = anpassen · Pfeiltasten = 1 px (Umschalt: 10 px) · Eingabe = starten · Esc = abbrechen
 ```
 
 - Ziehen mit der Maus spannt das Rechteck auf; die Größe in Pixeln wird angezeigt. Mindestgröße 64 × 64 Pixel.
 - Standard: Beim Loslassen beginnt die Aufnahme. Mit der Option „erst nach Bestätigung starten“ lässt sich das Rechteck vorher an Griffen und mit den Pfeiltasten anpassen; die Eingabetaste beginnt die Aufnahme.
+- **Anpassmodus:** Wird die Bereichswahl mit einem Vorschlag geöffnet – über den Link „Letzter Bereich“ oder durch `--region last` bei einem beschnittenen Bereich –, ist das Rechteck schon eingezeichnet. Es lässt sich verschieben, an acht Griffen (vier Ecken, vier Kantenmitten) in der Größe ändern und mit den Pfeiltasten verschieben (1 Pixel, mit Umschalt 10). Erst die Eingabetaste beginnt die Aufnahme; das Loslassen der Maus tut es hier nicht. Ein neues Rechteck lässt sich außerhalb des alten aufziehen. Esc bricht ab.
 - Das Rechteck rastet an Fensterkanten ein (Soll). Es liegt vollständig auf einem Monitor.
 
 ### 4.7 Aufnahmeprofile
@@ -395,6 +398,7 @@ Kommt während der Aufnahme ein Monitor hinzu oder fällt einer weg, läuft die 
 ### 5.3 Bereich
 
 - Gespeichert wird nur das Rechteck. Es ist fest an seine Position auf dem Monitor gebunden und folgt keinem Fenster.
+- **Letzter Bereich:** Das Programm merkt sich das zuletzt aufgenommene Rechteck relativ zu seinem Monitor (Gerät, Größe, Lage, Skalierung) in der Zustandsdatei. Beim Wiederverwenden wird es auf die heutigen Monitore abgebildet: *exakt* (unverändert), *verschoben* (Monitor liegt anderswo auf dem Desktop, das Rechteck bleibt auf seinem Monitor gleich), *beschnitten* (ragt über den Monitor hinaus; mindestens 64 × 64 Pixel bleiben) oder *verloren* (Monitor fehlt oder nichts Passendes bleibt). Exakt und verschoben starten ohne Rückfrage; bei beschnitten öffnet sich die Bereichswahl im Anpassmodus ([4.6](#46-bereichswahl)); bei verloren gibt es keinen Link und keinen Vorschlag.
 - Eine Mauseingabe zählt, wenn sie im Rechteck liegt; eine Tastatureingabe zählt, wenn das fokussierte Element das Rechteck berührt. Alles andere ist „außerhalb“. Die genaue Regel steht in [03](03-aufzeichnungskern.md#aufnahmebereiche).
 - Der Rahmen zeigt das Rechteck während der gesamten Aufnahme.
 
@@ -551,7 +555,8 @@ Hinweise und Warnungen stehen in der Meldezeile, solange der Anlass besteht. Sie
 | Klartext-Fenster hat den Fokus, Schutzstufe „Schutznetz“ | „Klartext – Passwörter hier nicht erkennbar.“ | Privattaste, hervorgehoben | keine; mit Privatmodus maskierte Eingaben |
 | Klartext-Fenster hat den Fokus, Schutzstufe „Streng“ | „Streng – Eingaben hier werden maskiert.“ | Freigabetaste | maskierte Eingaben; nach Freigabe Klartext bis zum Fensterwechsel |
 | Privatmodus aktiv | „Privat – Eingaben werden nicht gespeichert.“ | Privatmodus beenden | maskierte Eingaben |
-| Privatmodus seit 60 s ohne Tastendruck | „Privatmodus ist noch aktiv.“ | Privatmodus beenden | – |
+| Privatmodus seit 60 s ohne Tastendruck (einstellbar) | „Privatmodus ist noch aktiv – Eingaben werden nicht gespeichert. Ausschalten: <Kürzel>“ | Privatmodus beenden | – |
+| Keine Eingabe seit 10 Minuten (einstellbar) | „Aufnahme läuft noch – seit N Minuten keine Eingabe. Beenden: <Kürzel>“ | Stopp | – |
 | Passwortabfrage im Terminal erkannt | „Passwortabfrage erkannt – Eingabe wird maskiert.“ | – | maskierte Eingabe bis zur Eingabetaste |
 | Eingabeziel außerhalb des Aufnahmebereichs | „Außerhalb des Aufnahmebereichs.“ | Bereich wechseln | Lücke „außerhalb“ |
 | Ausgeschlossene Anwendung im Vordergrund | „Ausgeschlossene Anwendung – wird nicht aufgezeichnet.“ | – | Lücke |
@@ -564,6 +569,19 @@ Hinweise und Warnungen stehen in der Meldezeile, solange der Anlass besteht. Sie
 | Datenträger voll | „Aufnahme pausiert – Datenträger voll.“ | Stopp · Fortsetzen | Pause und Lücke |
 | Aufgenommene Anwendung beendet | „Anwendung beendet.“ | Bereich wechseln · Stopp | Lücke „außerhalb“ |
 | Monitor hinzugefügt oder entfernt | „Monitoranordnung geändert – Aufnahme läuft weiter.“ | – | `display.topology` |
+
+**Erinnerungen.** Die beiden Erinnerungen der Tabelle (Leerlauf, Privattaste) **erinnern nur**: Sie pausieren und beenden nichts. Sie laufen über drei Kanäle:
+
+| Kanal | Verhalten |
+|---|---|
+| Leiste | Die Meldezeile zeigt den Text und bleibt stehen, bis der Autor etwas tut (kein Zeitablauf). |
+| Infobereich | Das Symbol des Recorders im Infobereich blinkt zehn Sekunden lang. |
+| Ton | Ein Erinnerungston, wenn die Leiste ausgeblendet ist oder die Töne auf „immer“ stehen; bei „nie“ bleibt er aus. |
+
+- Bei ausgeblendeter Leiste (ohne Ausweichmodus) erscheint der Text zusätzlich zehn Sekunden lang als Schildchen am Rahmen. Eine Windows-Benachrichtigung gibt es nicht, weil sie im Bild erscheinen würde.
+- **Leerlauf:** Gezählt wird die Zeit ohne jede Eingabe, auch ohne Mausbewegung und auch außerhalb des Aufnahmebereichs. Wählbar sind aus, 5, 10 oder 30 Minuten (Standard 10). Die Erinnerung wiederholt sich im selben Abstand, höchstens dreimal je Leerlaufphase; jede Eingabe beginnt eine neue Phase.
+- **Privattaste:** Einmal je Einschalten, nach 30, 60 oder 120 Sekunden ohne Tastendruck (Standard 60).
+- **Nie in Pause oder Lücke:** In der Pause, bei gesperrtem Rechner, auf dem sicheren Desktop und in Lücken stehen die Uhren; danach beginnen sie von vorn.
 
 Mit Aufnahmeprofilen und Support-Start kommen zwei Meldungen zu Beginn der Aufnahme hinzu (Soll):
 
@@ -643,7 +661,10 @@ Bekannte Überschneidungen: SAP GUI nutzt `Strg+Umschalt+F1` bis `F12` als Funkt
 
 ### 8.4 Eigene Belegung
 
-- Jede Funktion lässt sich in den Einstellungen neu belegen: Feld anklicken, Kombination drücken.
+- Jede Funktion lässt sich in den Einstellungen neu belegen, im Reiter **Tastenkürzel**: Feld anklicken (oder Eingabetaste), dann die Kombination drücken. Esc bricht ab, die Rücktaste löscht das Kürzel. „Standard wiederherstellen“ setzt alle zurück. Gespeichert wird mit „Speichern“; bei Fehlern in der Belegung bleibt das Fenster offen und nennt sie.
+- **Umsetzung:** Der Reiter bietet zehn Funktionen: Sofort aufnehmen und Pause/Fortsetzen (eine Taste), Stopp, Marker „Fehler“, Marker „Erwartet“, Marker (Notiz), Kommentar, Schnappschuss, Privattaste, Letzten Schritt verwerfen, Leiste ein-/ausblenden. Freigabetaste, Aufnahmebereich wechseln und Marker „Wichtig“ haben noch keine einstellbare Belegung; „Letzte Eingabe schwärzen“ ebenfalls nicht.
+- **Prüfung je Zeile:** Neben jedem Feld steht, ob die Kombination frei ist, doppelt vergeben ist (Name der anderen Funktion) oder bei Windows bereits von einem anderen Programm belegt ist. Letzteres erkennt der Reiter nur, wenn das andere Programm die Kombination bei Windows angemeldet hat; fängt es sie anders ab, erscheint nichts. Ungültige Kombinationen, solche ohne Umschalttaste und die in [8.3](#83-konflikte) genannten reservierten Kombinationen (auch gängige Befehle wie `Strg+C`, `Strg+V`, `Strg+S`) lehnt die Prüfung ab. Stopp lässt sich nicht leeren.
+- Alle Aufnahme-Kürzel kommen zur Laufzeit aus den Einstellungen: Leiste, Hilfe, Startfenster und Meldungen nennen die eingestellte Belegung, nicht die Standardbelegung. Das Startfenster zeigt belegte Kürzel mit dem Hinweis „belegt“.
 - Regeln: mindestens eine Umschalttaste (Strg, Umschalt, Alt, Windows) plus eine weitere Taste; ohne Umschalttaste nur `Pause`, `Rollen` und `F13` bis `F24`. Bei Kombinationen mit Alt oder der Windows-Taste erscheint der Hinweis aus [8.2](#82-warum-diese-belegung).
 - Jede Funktion lässt sich auch ganz ohne Kürzel betreiben, mit Ausnahme von Stopp.
 - **Schemata** (Kann): „Funktionstasten“ (Standard) und „Buchstaben“ (`Strg+Umschalt+Alt` + R, S, N, K, P, M, Z, B, L) lassen sich mit einem Klick wählen.
@@ -741,7 +762,7 @@ Die Privattaste ist das wichtigste Werkzeug des Schutznetzes für Klartext-Fenst
 - Im Privatmodus werden Zeichen- und Bearbeitungstasten nur als Anzahl gespeichert; Feldinhalte und Zwischenablage-Inhalte gar nicht. Tastenkombinationen, Klicks, Mausweg und Bilder laufen weiter. Wer auch keine Bilder will, nimmt die Pause. *Kann:* Einstellung „Im Privatmodus auch Bilder aussetzen“.
 - Der Privatmodus wirkt **garantiert ab dem nächsten Tastendruck** nach dem Einschalten. Zusätzlich werden die Tasten des gerade laufenden Tastenlaufs mitmaskiert, soweit sie noch zurückgehalten sind – typischerweise die letzten Zehntelsekunden. Bereits abgeschlossene Eingaben bleiben unberührt.
 - Anzeige: Schloss und „Privat“ in der Leiste, gestrichelter Rahmen mit Schloss. Bei ausgeblendeter Leiste zeigt allein der Rahmen den Zustand.
-- Nach 60 Sekunden ohne Tastendruck erinnert die Meldezeile einmal daran, dass der Privatmodus noch aktiv ist. So fehlt später nicht versehentlich ein ganzer Abschnitt.
+- Nach 60 Sekunden ohne Tastendruck (einstellbar: 30, 60 oder 120) erinnert der Recorder einmal daran, dass der Privatmodus noch aktiv ist – in der Meldezeile, am Symbol im Infobereich und, bei ausgeblendeter Leiste, mit einem Ton ([7.4](#74-hinweise-und-warnungen)). Er schaltet den Privatmodus nie von selbst aus. So fehlt später nicht versehentlich ein ganzer Abschnitt.
 - Im Viewer erscheinen maskierte Eingaben als „Eingabe maskiert (8 Tastenanschläge)“.
 
 **Schutzstufe „Streng“:** Dort werden Eingaben in Klartext-Fenstern von vornherein maskiert. Die **Freigabetaste** (`Strg+Umschalt+F3`) erlaubt Klartext im aktuellen Fenster, bis das Fenster gewechselt wird. Die Leiste zeigt die Freigabe so deutlich wie den Privatmodus.
@@ -770,8 +791,8 @@ Für den Fall, dass die Privattaste zu spät kam (Soll; Regel in [10](10-datensc
 
 - **In keinem Bild erscheint ein Teil des Recorders.** Das gilt für Leiste, Rahmen, Kommentarfeld, Fenster- und Bereichswahl, Bereichsmenü, Tooltips, Menüs, Dialoge und Meldungen.
 - **Der Inhalt hinter den Recorder-Fenstern ist vollständig zu sehen.** Wo die Leiste lag, zeigt das Bild, was darunter war – kein schwarzes Feld, keine Lücke.
-- **Keine Spuren in der Windows-Oberfläche:** Während der Aufnahme hat der Recorder keinen Eintrag in der Taskleiste, keinen in `Alt+Tab` und kein Symbol im Infobereich. Startfenster und Viewer sind verborgen und kommen nach dem Stopp zurück.
-- **Keine Windows-Benachrichtigungen** des Recorders während der Aufnahme; Töne sind standardmäßig aus.
+- **Keine Spuren in der Windows-Oberfläche:** Während der Aufnahme hat der Recorder keinen Eintrag in der Taskleiste und keinen in `Alt+Tab`. Startfenster und Viewer sind verborgen und kommen nach dem Stopp zurück. Der Recorder legt für die Dauer der Aufnahme allerdings ein Symbol im Infobereich an: Es zeigt Aufnahme, Pause oder Privatmodus, blinkt bei einer Erinnerung ([7.4](#74-hinweise-und-warnungen)), blendet per Klick die Leiste ein und aus und bietet per Rechtsklick ein Menü. Es ist Teil der Anzeige für den Autor, auch wenn die Leiste ausgeblendet ist (siehe offener Punkt 8).
+- **Keine Windows-Benachrichtigungen** des Recorders während der Aufnahme; Töne sind standardmäßig nur bei ausgeblendeter Anzeige an (Einstellung „Signaltöne“).
 
 ### 11.2 Woran der Autor die Aufnahme trotzdem erkennt
 
@@ -823,7 +844,7 @@ Die Abnahme der Garantie – ein bekanntes Testmuster muss mit darüberliegenden
 - Danach öffnet sich der **Viewer** mit der neuen Sitzung, der erste Schritt ist ausgewählt. Zeitziele stehen in [08](08-viewer.md#14-geschwindigkeitsziele).
 - Die Sitzung erhält automatisch einen Namen ([08](08-viewer.md#11-sitzungen-verwalten)); gefragt wird nichts.
 - Einstellbar ist, was nach dem Stopp geschieht: Viewer öffnen (Standard), Ordner öffnen oder nichts.
-- **Aufnahme verwerfen** (Menü der Leiste) beendet die Aufnahme nach einer Rückfrage und legt die Sitzung in den Papierkorb.
+- **Aufnahme verwerfen** (Menü der Leiste) beendet die Aufnahme nach einer Rückfrage und verschiebt den Aufnahmeordner in den Papierkorb. Hat das Laufwerk keinen Papierkorb, sagt die Rückfrage ausdrücklich, dass die Aufnahme endgültig gelöscht wird und das nicht rückgängig zu machen ist; es wird nie stillschweigend endgültig gelöscht. Lässt sich der Ordner nicht in den Papierkorb verschieben, bleibt er erhalten, und das Programm nennt den Pfad.
 - **Verwerfen bei einem weiteren Abschnitt:** Läuft die Aufnahme als weiterer Abschnitt einer bestehenden Sitzung – beim Anhängen oder bei „Neu aufnehmen und ersetzen“ ([08](08-viewer.md#93-abschnitt-neu-aufnehmen-und-ersetzen)) –, verwirft derselbe Befehl **nur diesen Abschnitt, nie die Sitzung**. Der Abschnitt wird als verworfen gekennzeichnet und aus allen Ausgaben herausgehalten. Das Journal wird dabei nie gekürzt, und die früheren Abschnitte bleiben, wie sie waren ([03](03-aufzeichnungskern.md#weitere-abschnitte), [04](04-datenformat.md#edits-sections)). Die Rückfrage sagt das: „Nur die eben aufgenommenen Schritte verwerfen? Die Sitzung bleibt erhalten. Die verworfenen Schritte erscheinen in keiner Ausgabe; in den Rohdaten bleiben sie stehen.“ Verworfen heißt also nicht gelöscht: Wer den Sitzungsordner weitergibt, gibt die Rohdaten des Abschnitts mit. Dauerhaft entfernt werden sie erst durch die bereinigte Kopie oder das endgültige Schwärzen ([08](08-viewer.md#76-schwärzen-und-verpixeln)). Im Viewer lässt sich ein verworfener Abschnitt wieder aufnehmen.
 - **Nach einem Absturz** oder Stromausfall findet der nächste Programmstart die unvollständige Sitzung und bietet an: „Öffnen“ (lesbar bis zum letzten Schreibvorgang), „Im Ordner zeigen“ oder „Löschen“.
 
@@ -833,8 +854,9 @@ Die Einstellungen sind eine Seite des Startfensters (Navigation „Einstellungen
 
 | Gruppe | Einstellung | Werte | Standard |
 |---|---|---|---|
-| Allgemein | Sprache | System · Deutsch · English | System |
-| Allgemein | Erscheinungsbild | System · Hell · Dunkel | System |
+| Allgemein | Sprache der Oberfläche | Wie Windows · Deutsch · English; gilt ab dem nächsten Start | Wie Windows |
+| Allgemein | Sprache der Anleitungstexte | Deutsch · English; für neue Aufnahmen und Exporte; je Aufnahme im Editor umschaltbar | Deutsch |
+| Allgemein | Erscheinungsbild | Dunkel · Hell · Wie Windows; gilt ab dem nächsten Start | Dunkel |
 | Allgemein | Nach dem Stopp | Viewer öffnen · Ordner öffnen · nichts | Viewer öffnen |
 | Speicher | Aufnahmeordner | Ordner | `Sessions` neben der EXE, wenn der Ordner beschreibbar ist und in keinem Sync-Ordner liegt; sonst `%LOCALAPPDATA%\StepRecorder\Sessions`. Beim Erststart bestätigt |
 | Speicher | Sitzungsname | Muster aus Datum, Zeit, Anwendung, Fenstertitel | `{Datum} {Zeit} – {Anwendung} – {Titel}` |
@@ -849,19 +871,21 @@ Die Einstellungen sind eine Seite des Startfensters (Navigation „Einstellungen
 | Profile (Soll) | Aufnahmeprofile | Anlegen, ändern, duplizieren, löschen, zurücksetzen – siehe [13.1](#131-profile-bearbeiten) | drei mitgelieferte Profile |
 | Datenschutz | Schutzstufe | Schutznetz · Streng | Schutznetz |
 | Datenschutz | Ausschlussliste | Anwendungen und Fenstertitel | vorbelegt (Passwortmanager, private Browserfenster) |
-| Datenschutz | Erinnerung im Privatmodus | 30 · 60 · 120 Sekunden | 60 |
+| Datenschutz | Erinnerung „Privattaste noch an“ | 30 · 60 · 120 Sekunden ([7.4](#74-hinweise-und-warnungen)) | 60 |
+| Aufnahme | Erinnerung „Aufnahme läuft noch“ | aus · 5 · 10 · 30 Minuten ohne Eingabe ([7.4](#74-hinweise-und-warnungen)) | 10 |
 | Datenschutz | Im Privatmodus auch Bilder aussetzen (Kann) | an · aus | aus |
 | KI-Agenten | MCP-Konfiguration | Öffnet den Dialog mit der kopierbaren Konfiguration ([08](08-viewer.md#111-ki-agenten-anbinden)) | – |
 | Leiste | Form | ausführlich · kompakt · automatisch | automatisch |
 | Leiste | Position | oben Mitte · Ecken · zuletzt verwendet | oben Mitte |
 | Leiste | Folgt dem aktiven Monitor | an · aus | an |
 | Leiste | Rückmeldung zum letzten Schritt | an · aus | an |
-| Leiste | Töne bei Start und Stopp | an · aus | aus |
+| Leiste | Signaltöne bei Start, Stopp, Pause, Markern und Erinnerungen | nur bei ausgeblendeter Anzeige · immer · nie | nur bei ausgeblendeter Anzeige |
 | Leiste | Rahmenstärke | 2 bis 6 Pixel | 3 |
-| Tastenkürzel | Belegung je Funktion, Schema | siehe [Abschnitt 8](#8-tastenkürzel) | Funktionstasten |
+| Tastenkürzel | Belegung je Funktion (eigener Reiter; Schemata sind nicht umgesetzt) | siehe [8.4](#84-eigene-belegung) | Funktionstasten |
 | Erweitert | Diagnoseprotokoll | an · aus | aus |
-| Erweitert | Einstellungen exportieren und importieren (Soll) | siehe [13.2](#132-einstellungen-exportieren-und-importieren) | – |
-| Erweitert | Einstellungen zurücksetzen (Kann) | – | – |
+| Erweitert | Einstellungen exportieren und importieren | siehe [13.2](#132-einstellungen-exportieren-und-importieren) | – |
+| Erweitert | Einstellungen zurücksetzen | Auslieferungszustand; Aufnahmeordner und „Zuletzt“-Liste bleiben; wie ein Import zurücknehmbar | – |
+| Erweitert | Diagnose-Paket | siehe [13.3](#133-diagnose-paket) | – |
 
 Einzelheiten:
 
@@ -906,7 +930,7 @@ Die Gruppe „Profile“ zeigt links die Liste der Aufnahmeprofile ([4.7](#47-au
 
 ### 13.2 Einstellungen exportieren und importieren
 
-Profile, Vorlagen und Belegungen lassen sich als eine Datei weitergeben – etwa vom Helpdesk an alle, die Support-Fälle aufnehmen, oder vom einen Rechner auf den anderen (Soll).
+Profile, Vorlagen und Belegungen lassen sich als eine Datei weitergeben – etwa vom Helpdesk an alle, die Support-Fälle aufnehmen, oder vom einen Rechner auf den anderen. Export, Import, Sicherung und „Letzten Import zurücknehmen“ sind umgesetzt; die Kommandozeile bietet `settings export`, `settings import` und `settings reset`. Die Datei kennt in der Umsetzung fünf Teile: Tastenkürzel, Ausgeschlossene Programme, Dokumentvorlagen, Modus „Eigene“ und Allgemeine Einstellungen (Sprachen, Darstellung, Anrede, Countdown, Signaltöne, Schutzstufe). Aufnahmeprofile, Stilvorlagen für Markierungen und Textbausteine gibt es dort noch nicht; die folgenden Dialogbilder zeigen den Zielzustand.
 
 **Exportieren**
 
@@ -978,6 +1002,14 @@ Profile, Vorlagen und Belegungen lassen sich als eine Datei weitergeben – etwa
 - Export und Import schreiben nichts in die Registry und nutzen kein Netzwerk.
 - **Kommandozeile:** `settings export` und `settings import` stehen in [02](02-architektur.md#befehle-nachgelagert). Ohne `--confirm` zeigt der Import nur, was sich ändern würde; jede schwächende Änderung braucht zusätzlich `--allow-weaker` mit ihrer Kennung.
 
+### 13.3 Diagnose-Paket
+
+Unter „Erweitert“ erzeugt „Diagnose-Paket …“ eine ZIP-Datei für eine Fehlermeldung. Sie entsteht nur auf diesen Befehl, liegt dort, wo der Nutzer sie speichert, und wird nicht versendet.
+
+- **Inhalt:** das Programmprotokoll, Programm- und Systemangaben (Programmversion, Windows, Architektur, Sprachen, Monitoranordnung mit Größen, Adminrechte, Remote-Sitzung, Ergebnis des Selbsttests der Unsichtbarkeit, belegte Tastenkürzel) und die bereinigten Einstellungen. Die Einstellungen kommen nach einer Positivliste: Vorlieben im Klartext, Listen nur als Anzahl.
+- **Nie enthalten:** Aufnahmen, Sitzungsdaten, Bilder, Texte des Autors, Pfade mit Benutzernamen, Rechner- und Domänennamen.
+- **Das Protokoll enthält keine Inhalte.** Es nennt Ereignisse und Fehler des Programms, aber keine Eingaben, Fenstertitel, Dateinamen oder Argumentwerte der Kommandozeile. Jede Datei bleibt bei 1 MB, dazu kommt die vorige Datei; Abstürze in jedem Thread werden mitgeschrieben. Die Regel steht in [10](10-datenschutz-und-sicherheit.md#135-protokoll-und-diagnose-paket).
+
 ## 14 Erststart
 
 Beim ersten Start erscheint einmalig ein einziges Fenster. Es lässt sich überspringen und später über die Hilfe erneut aufrufen.
@@ -1041,7 +1073,7 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 - Die Leiste nimmt absichtlich keinen Fokus und ist deshalb nicht per Tabulator erreichbar; jede ihrer Funktionen hat ein Tastenkürzel. Zustandswechsel werden Bildschirmlesern gemeldet (Soll).
 - Zustände unterscheiden sich durch Zeichen, Text und Linienart, nie nur durch Farbe. Der Windows-Kontrastmodus wird beachtet.
 - Die Oberfläche skaliert mit der Anzeigeskalierung je Monitor.
-- Sprachen der Oberfläche: Deutsch und Englisch.
+- Sprachen der Oberfläche: Deutsch und Englisch. Die Einstellung „Wie Windows“ folgt der Windows-Anzeigesprache und fällt bei anderen Sprachen auf Englisch zurück; Datum, Zahlen, Mehrzahlformen und Tastennamen folgen der Sprache. Die Sprache der Anleitungstexte ist davon getrennt. Das Manifest einer Aufnahme nennt die Windows-Sprache, nicht die Sprache der Oberfläche.
 
 ## 17 Anforderungen
 
@@ -1064,7 +1096,7 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | BED-015 | Fremdinhalte werden nicht gespeichert | Muss | In keinem Bild einer Anwendungs-Aufnahme ist Inhalt einer anderen Anwendung zu sehen; verdeckte Stellen sind neutral gefüllt und gekennzeichnet. |
 | BED-016 | Option „nur dieses Fenster“ | Soll | Mit der Option erscheinen andere Hauptfenster derselben Anwendung nicht in den Bildern. |
 | BED-017 | Bereich aufziehen | Muss | Rechteck ab 64 × 64 Pixel; die Größe wird während des Ziehens angezeigt; Standard: Start beim Loslassen. |
-| BED-018 | Bereich anpassen und wiederverwenden | Soll | Griffe, Pfeiltasten (1 Pixel), Einrasten an Fensterkanten; der letzte Bereich ist aus der Kachel wählbar. |
+| BED-018 | Bereich anpassen und wiederverwenden | Soll | Umgesetzt: Anpassmodus mit Verschieben, acht Griffen und Pfeiltasten (1 Pixel, mit Umschalt 10), Start erst mit der Eingabetaste; der letzte Bereich ist über den Link „Letzter Bereich“ wählbar. Einrasten an Fensterkanten ist nicht umgesetzt. |
 | BED-019 | Umschalten während der Aufnahme | Muss | Über Leiste oder Kürzel nach Ablauf A13; die Aufnahme läuft weiter; im Protokoll steht ein `scope.change`. |
 | BED-020 | Anzeige „außerhalb des Aufnahmebereichs“ | Muss | Liegt das Eingabeziel außerhalb, zeigt die Leiste den Hinweis binnen 0,5 s; im Viewer steht eine Lücke dieses Grundes und kein Inhalt der Eingabe. |
 | BED-021 | Beendete Anwendung | Soll | Die Leiste meldet das Ende und bietet „Bereich wechseln“ und „Stopp“ an; startet dieselbe Anwendung erneut, wird sie ohne Zutun wieder aufgenommen. |
@@ -1085,7 +1117,7 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | BED-051 | Standardbelegung ohne Alt und Windows-Taste | Muss | Bei offenem Menü einer Testanwendung lassen Marker und Schnappschuss das Menü offen. |
 | BED-052 | Kürzel sind keine Schritte | Muss | Nach einer Aufnahme mit allen Kürzeln enthält die Schrittliste keinen Schritt, der eine Recorder-Kombination zeigt. |
 | BED-053 | Konflikte erkennen und melden | Muss | Ist eine Kombination anderweitig belegt, nennt das Startfenster die Funktion und bietet eine Neubelegung an; im Ausweichmodus beginnt keine Aufnahme ohne belegtes Stopp. |
-| BED-054 | Belegung änderbar | Muss | Jede Funktion ist neu belegbar; die Regeln aus 8.4 werden geprüft; die Kürzelübersicht zeigt die aktuelle Belegung. |
+| BED-054 | Belegung änderbar | Muss | Jede Funktion des Reiters „Tastenkürzel“ (8.4) ist neu belegbar; doppelte, ungültige, reservierte und bei Windows bereits belegte Kombinationen werden je Zeile gemeldet; Leiste, Hilfe und Startfenster zeigen die aktuelle Belegung. |
 | BED-055 | Prüfung gegen Tastaturlayouts | Soll | Erzeugt eine Kombination auf einem installierten Layout ein Zeichen, erscheint eine Warnung. |
 | BED-056 | Kürzelschemata | Kann | Zwei Schemata sind mit einem Klick wählbar. |
 | BED-057 | Stopp immer erreichbar | Muss | In jedem Zustand, auch mit einem Adminfenster im Vordergrund und im Ausweichmodus, lässt sich die Aufnahme über mindestens einen der Wege Kürzel, Leiste, erneuter Programmstart beenden. |
@@ -1099,35 +1131,35 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | BED-070 | Pause | Muss | Während der Pause entstehen weder Eingabe- noch Bildereignisse; im Protokoll steht eine Lücke „Pause“ mit Dauer; Stopp und Fortsetzen bleiben verfügbar. |
 | BED-071 | Privattaste als Umschalter | Muss | Dieselbe Taste schaltet den Privatmodus ein und aus; er endet sonst nur beim Stopp, auch nicht mit der Eingabetaste. Ab dem nächsten Tastendruck nach dem Einschalten steht keine Zeichentaste im Klartext im Sitzungsordner. |
 | BED-072 | Privatmodus sichtbar | Muss | Leiste und Rahmen zeigen den Privatmodus; bei ausgeblendeter Leiste zeigt ihn der Rahmen. |
-| BED-073 | Erinnerung im Privatmodus | Soll | Nach der eingestellten Zeit ohne Tastendruck erscheint einmal der Erinnerungstext. |
+| BED-073 | Erinnerung im Privatmodus | Soll | Nach der eingestellten Zeit ohne Tastendruck erscheint einmal der Erinnerungstext in der Meldezeile; das Symbol im Infobereich blinkt, bei ausgeblendeter Leiste ertönt ein Ton. Der Privatmodus bleibt an. |
 | BED-074 | Letzten Schritt verwerfen | Muss | Der betroffene Schritt fehlt in der Anleitung und ist im Viewer und im KI-Paket als verworfen gekennzeichnet; Rohdaten bleiben unverändert; im Viewer rücknehmbar. |
 | BED-075 | Pause bei Sperren, Benutzerwechsel, Trennen | Muss | Nach Sperren und Entsperren, nach einem Benutzerwechsel und nach Trennen und Wiederverbinden der Sitzung ist die Aufnahme pausiert und läuft erst nach Bestätigung weiter; bis dahin entstehen weder Eingabe- noch Bildereignisse. Im Protokoll stehen die Lücke `sessionLocked` bzw. `sessionDisconnected` und danach die Lücke `paused`; es gibt keine Einstellung, die das Fortsetzen ohne Bestätigung erlaubt. |
 | BED-076 | Letzte Eingabe schwärzen | Soll | Nach dem Befehl und der Bestätigung in der Meldezeile gibt keine Ausgabe den zuletzt gespeicherten Tastenlauf mehr her – auch die Meldezeile nicht (Zeitraum-Schwärzung der Art `range`); nach dem Stopp ist er im Sitzungsordner nicht mehr auffindbar, ebenso nach einem erzwungenen Absturz und der Wiederherstellung. Es öffnet sich kein Dialog. |
 | BED-077 | Freigabetaste in der Schutzstufe „Streng“ | Soll | In einem Klartext-Fenster sind Eingaben maskiert, bis die Freigabetaste gedrückt wird; die Freigabe endet beim Fensterwechsel und ist in der Leiste sichtbar. |
 | BED-080 | Recorder nie im Bild | Muss | Eine Abnahmesitzung, die alle Leistenzustände, Fenster- und Bereichswahl, Bereichsmenü, Kommentarfeld, Tooltips und Menü durchläuft, enthält in keinem Bild Recorder-Oberfläche; der Inhalt dahinter ist vollständig. |
-| BED-081 | Keine Spuren in der Windows-Oberfläche | Muss | Während der Aufnahme zeigen Taskleiste, `Alt+Tab` und Infobereich keinen Eintrag des Recorders (geprüft an Bildern der Aufnahme selbst). |
+| BED-081 | Keine Spuren in der Windows-Oberfläche | Muss | Während der Aufnahme zeigen Taskleiste und `Alt+Tab` keinen Eintrag des Recorders (geprüft an Bildern der Aufnahme selbst). Das Symbol im Infobereich ist Teil der Anzeige (siehe 11.1 und offener Punkt 8). |
 | BED-082 | Selbsttest mit Rückfrage | Muss | Bei erzwungenem Fehlschlag erscheint vor Aufnahmebeginn die Rückfrage aus 11.3; ohne Zustimmung beginnt keine Aufnahme. |
 | BED-083 | Ausweichmodus | Muss | Im Ausweichmodus sind Anzeige und Rahmen für den Autor sichtbar, fehlen aber in allen Bildern; die Bedienung über Kürzel ist vollständig; die Sitzung vermerkt den Modus. |
 | BED-084 | Aufnahme immer erkennbar | Muss | In jedem Zustand außer „Bereit“ ist mindestens Rahmen oder Leiste sichtbar; es gibt keine Einstellung, die beides abschaltet. |
 | BED-085 | Startfenster und Viewer verborgen | Muss | Beide sind während der Aufnahme nicht sichtbar und kommen nach dem Stopp zurück. |
-| BED-086 | Keine Benachrichtigungen, Töne aus | Muss | Während der Aufnahme erzeugt der Recorder keine Windows-Benachrichtigung; Töne sind im Auslieferungszustand aus. |
+| BED-086 | Keine Benachrichtigungen, Töne nur bei ausgeblendeter Anzeige | Muss | Während der Aufnahme erzeugt der Recorder keine Windows-Benachrichtigung; Töne erklingen im Auslieferungszustand nur bei ausgeblendeter Anzeige und lassen sich auf „immer“ oder „nie“ stellen. |
 | BED-090 | Stopp öffnet den Viewer | Muss | Nach dem Stopp erscheint ohne weitere Aktion der Viewer mit der neuen Sitzung. |
 | BED-091 | Verhalten nach Stopp einstellbar | Soll | Die drei Varianten aus Abschnitt 13 wirken wie beschrieben. |
-| BED-092 | Aufnahme verwerfen | Soll | Nach Rückfrage endet die Aufnahme und die Sitzung liegt im Papierkorb. Läuft die Aufnahme als weiterer Abschnitt einer bestehenden Sitzung, ist danach nur dieser Abschnitt verworfen: Er erscheint in keiner Ausgabe, das Journal ist nicht gekürzt, und die Sitzung mit ihren früheren Abschnitten ist unverändert vorhanden. |
+| BED-092 | Aufnahme verwerfen | Soll | Nach Rückfrage endet die Aufnahme und der Aufnahmeordner liegt im Papierkorb; ohne Papierkorb nennt die Rückfrage das endgültige Löschen ausdrücklich, nie geschieht es still. Läuft die Aufnahme als weiterer Abschnitt einer bestehenden Sitzung, ist danach nur dieser Abschnitt verworfen: Er erscheint in keiner Ausgabe, das Journal ist nicht gekürzt, und die Sitzung mit ihren früheren Abschnitten ist unverändert vorhanden. |
 | BED-093 | Wiederherstellung nach Absturz | Muss | Nach hartem Beenden des Programms bietet der nächste Start die unvollständige Sitzung an; sie öffnet sich im Viewer bis zum letzten Schreibvorgang. |
 | BED-100 | Einstellungen | Muss | Das Einstellungsfenster enthält die Gruppen und Einstellungen der Tabelle in Abschnitt 13, ausgenommen die als Soll oder Kann gekennzeichneten; Änderungen wirken ohne Neustart. |
 | BED-101 | Speicherort mit Sync-Warnung | Muss | Ein Aufnahmeordner unterhalb eines OneDrive-, Nextcloud-, Dropbox- oder Google-Drive-Ordners löst vor der Aufnahme die Warnung mit den drei Wahlmöglichkeiten aus. Der Standardordner ist `Sessions` neben der EXE, sofern beschreibbar und in keinem erkannten Sync-Ordner, sonst `%LOCALAPPDATA%\StepRecorder\Sessions`. |
 | BED-102 | Schutzstufe wählbar und sichtbar | Muss | Das Startfenster zeigt die Schutzstufe und nennt für „Schutznetz“ in einem Satz die Grenze bei Klartext-Fenstern; die Stufe ist dort und in den Einstellungen umschaltbar. |
 | BED-103 | Einstellungen portabel | Muss | Nach Nutzung aller Einstellungen enthält die Registry keinen Eintrag des Programms. |
 | BED-104 | Oberfläche auf Deutsch | Muss | Alle Texte der Aufnahme-Oberfläche liegen auf Deutsch vor. |
-| BED-105 | Oberfläche auf Englisch | Soll | Alle Texte liegen auch auf Englisch vor; die Sprache ist ohne Neustart umschaltbar. |
-| BED-106 | Einstellungen zurücksetzen | Kann | Zurücksetzen stellt den Auslieferungszustand ohne Neustart her. Sichern und Laden leisten Export und Import (BED-160 bis BED-163). |
+| BED-105 | Oberfläche auf Englisch | Soll | Alle Texte liegen auch auf Englisch vor (Fenster, Meldungen, Kommandozeilen-Hilfe, MCP-Startmeldungen); die Sprache folgt Windows oder ist in den Einstellungen wählbar und gilt ab dem nächsten Start. Ein Test findet unübersetzte Texte; die Pseudo-Sprache `qps` macht sie sichtbar. |
+| BED-106 | Einstellungen zurücksetzen | Kann | Umgesetzt (Einstellungen und `settings reset`): Der Auslieferungszustand wird hergestellt; Aufnahmeordner und „Zuletzt“-Liste bleiben; „Letzten Import zurücknehmen“ stellt den vorigen Stand her. Sichern und Laden leisten Export und Import (BED-160 bis BED-163). |
 | BED-110 | Erststart in einem Fenster | Soll | Der Erststart besteht aus einem Fenster, ist überspringbar und über die Hilfe erneut aufrufbar. |
 | BED-111 | Tastaturbedienung | Muss | Startfenster, Fensterliste, Bereichswahl, Kommentarfeld und Einstellungen sind ohne Maus vollständig bedienbar. |
 | BED-112 | Bildschirmleser, Kontrast | Soll | Alle Bedienelemente tragen Namen; im Windows-Kontrastmodus sind alle Zustände erkennbar. |
 | BED-120 | Aufnahme über die Kommandozeile | Muss | `record` startet mit `--scope`, `--monitor`, `--app`, `--region` und `--out` die jeweilige Aufnahme; nach dem Ende steht der Pfad der Sitzung auf der Standardausgabe; `record --stop` beendet eine laufende Aufnahme. |
 | BED-121 | Anzeige auch bei Kommandozeilen-Aufnahme | Muss | Bei jeder mit `record` gestarteten Aufnahme sind Leiste und Rahmen sichtbar; es gibt keine Option, die das ändert. |
-| BED-122 | Weitere Optionen von `record` | Soll | `--window`, `--append`, `--title`, `--countdown`, `--protection`, `--fallback` und `--after-stop` wirken wie in 3.1 beschrieben; die Exit-Codes 5, 6 und 7 treten in den genannten Fällen auf. |
+| BED-122 | Weitere Optionen von `record` | Soll | `--region last`, `--window`, `--append`, `--title`, `--countdown`, `--protection`, `--fallback` und `--after-stop` wirken wie in 3.1 beschrieben; die Exit-Codes 5, 6 und 7 treten in den genannten Fällen auf. |
 | BED-130 | Ziel-Felder im Startfenster | Soll | Der aufklappbare Bereich bietet „Was wird gezeigt?“, „Erwartetes Ergebnis“ und „Bezug“; ausgefüllte Texte stehen nach der Aufnahme in `manifest.goal`, leere Felder fehlen dort. Nach dem Start sind die Felder leer. |
 | BED-131 | Ziel ist nie Pflicht | Soll | Mit leeren Feldern starten Kachel, Eingabetaste, Sofortaufnahme und `record` ohne Rückfrage; die Höchstzahlen der Abläufe A1 bis A4 sind unverändert erfüllt. |
 | BED-132 | Ziel über die Kommandozeile | Soll | `record --goal`, `--expected` und `--reference` ergeben dieselben Einträge in `manifest.goal` wie die Felder des Startfensters. |
@@ -1146,6 +1178,10 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | BED-161 | Import mit Änderungsvorschau | Soll | Vor jeder Änderung zeigt der Dialog je Teil, was neu, geändert oder unverändert ist; übernommen wird nur das Gewählte; „Abbrechen“ ändert nichts. |
 | BED-162 | Einzelbestätigung schwächender Änderungen | Soll | Jede Änderung der Tabelle in 13.2 steht als eigene, nicht vorangekreuzte Zeile im Dialog; ohne Haken unterbleibt genau sie – das Profil wird nicht übernommen, die Einträge der Ausschlussliste bleiben –, während der Rest eingelesen wird (T-17 in [11](11-roadmap-tests-risiken.md)). |
 | BED-163 | Import prüft und sichert | Soll | Eine Datei mit ungültigen Werten, mit ausführbarem Inhalt in einer Vorlage oder mit höherer Hauptversion ändert nichts; unbekannte Teile werden übergangen und genannt; eine Belegung ohne Stopp-Kürzel wird nicht übernommen; „Letzten Import zurücknehmen“ stellt den vorigen Stand her. |
+| BED-164 | Diagnose-Paket | Soll | Die ZIP-Datei enthält Protokoll, Systemangaben und bereinigte Einstellungen; eine Suche nach Benutzername, Rechnername, Sitzungspfaden und Texten einer Testaufnahme ergibt keinen Treffer; Aufnahmen sind nie enthalten. |
+| BED-165 | Erinnerung „Aufnahme läuft noch“ | Soll | Nach der eingestellten Zeit ohne jede Eingabe erscheint der Text in der Meldezeile, das Symbol im Infobereich blinkt, bei ausgeblendeter Leiste ertönt ein Ton; höchstens dreimal je Leerlaufphase; in Pause, Sperre und Lücke nie; die Aufnahme läuft weiter. |
+| BED-166 | Letzter Bereich | Soll | Nach einer Bereichsaufnahme bietet das Startfenster „Letzter Bereich · B × H“, solange er auf den Monitoren passt; `record --scope region` ohne Rechteck öffnet die Bereichswahl, nie den ganzen Bildschirm; `--region last` nimmt einen unverändert passenden Bereich sofort, einen beschnittenen im Anpassmodus. |
+| BED-167 | Bibliothek im Startfenster | Soll | Knopf „Bibliothek“ und `Strg+L` öffnen die Sitzungsbibliothek; Vorschaubilder zeigen geschwärzte Stände (Leseschicht), nie Rohbilder. |
 
 ## 18 Offene Punkte
 
@@ -1157,4 +1193,5 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | 4 | Bereich über mehrere Monitore | In Version 1 nicht vorgesehen; bei Bedarf später. |
 | 5 | Sichtbarkeit der Anzeige im Ausweichmodus bei sehr hoher Bildfolge | In M0 mitmessen: Wie lange ist die Anzeige je Sekunde verborgen? |
 | 6 | Ein Mausklick auf die Leiste schließt offene Menüs der dokumentierten Anwendung, obwohl sie keinen Fokus nimmt | Hingenommen; die Kürzel sind der störungsfreie Weg. Der Plan hatte das noch anders formuliert. |
-| 7 | Der Marker „Wichtig“ hat kein vorbelegtes Kürzel, weil die Reihe `Strg+Umschalt+F1` bis `F12` belegt ist | Im Test mit Nutzern prüfen, ob ein vierter Typ per Kürzel gebraucht wird; sonst bleibt es bei der freien Belegung. |
+| 7 | Der Marker „Wichtig“ hat kein vorbelegtes Kürzel, weil die Reihe `Strg+Umschalt+F1` bis `F12` belegt ist | Im Test mit Nutzern prüfen, ob ein vierter Typ per Kürzel gebraucht wird; sonst bleibt es bei der freien Belegung. In der Umsetzung ist „Wichtig“ noch gar nicht per Kürzel belegbar, nur über das Menü der Leiste. |
+| 8 | Das Symbol im Infobereich während der Aufnahme widerspricht „kein Symbol im Infobereich“ in [03](03-aufzeichnungskern.md#unsichtbarkeit) (AUF-062) | Entscheiden: Symbol als Teil der Anzeige zulassen und AUF-062 anpassen, oder entfernen. Ob das Symbol auf Bildern des ganzen Bildschirms erscheint, ist zu messen. |

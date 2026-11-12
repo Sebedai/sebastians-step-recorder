@@ -3,6 +3,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using StepRecorder.Capture;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -105,16 +106,31 @@ static class DevSnapshots
             }
             v.DevDemo(() => Save(v));
             v.DevMenus();
-            new ExportDialog("html", "de") { Owner = v }.ShowDialog();
-            new ExportDialog("ki", "de") { Owner = v }.ShowDialog();
-            new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
-            new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();
+            v.DevShowShortcuts();
+            v.DevShowQuality();
+            static string Target(StepRecorder.Export.ExportRequest r, string? f) => @"C:\Recordings\Example\export\" + r.Format + @"\Guide." + StepRecorder.Export.Exporter.Extension(r.Format);
+            new ExportDialog(new StepRecorder.Export.ExportRequest { Format = "html", Language = "de" }, Target) { Owner = v }.ShowDialog();
+            new ExportDialog(new StepRecorder.Export.ExportRequest { Format = "ki", Language = "de" }, Target) { Owner = v }.ShowDialog();
+            var demo = new StepRecorder.Export.ExportResult { Path = @"C:\Recordings\Example\export\pdf\Guide.pdf" };
+            demo.Notices.Add(Loc.L("12 Schritte, 11 Bilder", "12 steps, 11 images"));
+            ExportResultDialog.Show(v, demo, "pdf");
+            PackDialog.Show(v, v.SessionPath);
+            RecordingRequestDialog.Ask(new StepRecorder.Mcp.RecordingRequest
+            {
+                Id = "rq-000000000001", ExpiresUtc = DateTime.UtcNow.AddSeconds(118),
+                Goal = Loc.L("Bitte zeigen Sie, wie man im Editor eine Datei unter neuem Namen speichert.", "Please show how to save a file under a new name in the editor."),
+                Expected = Loc.L("Die Datei liegt danach im Ordner Dokumente.", "The file is then in the Documents folder."),
+                Title = Loc.L("Speichern unter", "Save as")
+            });
+            UiApp.Instance.ShowLibrary();
+            new InputDialog(Loc.L("Kommentar", "Comment"), "", null, kinds: true) { Owner = v }.ShowDialog();
+            new InputDialog(Loc.L("Text des Schritts", "Step text"), Loc.L("Klicken Sie auf „Speichern“.", "Click \"Save\"."), Loc.L("Datei speichern", "Save file")) { Owner = v }.ShowDialog();
             new CommentWindow().ShowDialog();
-            Msg.Show("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Aufnahme verwerfen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
+            Msg.Show(Loc.L("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Discard recording?\n\nThe recording folder is deleted. This cannot be undone."), Loc.L("Aufnahme verwerfen", "Discard recording"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
             var bar = new RecordingBar(new RecordingController(new RecordingOptions()));
             bar.Show();
             bar.SetTime(TimeSpan.FromSeconds(83), 12, RecorderState.Recording, false);
-            bar.Message("Unsichtbarkeit geprüft · Schutznetz – Passwortfelder werden maskiert.");
+            bar.Message(Loc.L("Unsichtbarkeit geprüft · Schutznetz – Passwortfelder werden maskiert.", "Invisibility checked · Safety net – password fields are masked."));
         });
     }
 }

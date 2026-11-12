@@ -54,7 +54,7 @@ sealed class TrayIcon : IDisposable
 
     public void SetTip(string tip)
     {
-        tip = Loc.T(tip);
+        // tip kommt schon in der Oberflächensprache
         if (_disposed || tip == _tip) return;
         _tip = tip;
         var d = Data(NIF_TIP | NIF_SHOWTIP);
@@ -135,6 +135,13 @@ sealed class TrayIcon : IDisposable
                 using var w = new System.Drawing.SolidBrush(D(Theme.Night.FgColor));
                 float bw = s * 0.15f, bh = s * 0.46f, y = (s - bh) / 2;
                 g.FillRectangle(w, s * 0.31f, y, bw, bh); g.FillRectangle(w, s * 0.54f, y, bw, bh);
+            }
+            else if (state == "remind")
+            {
+                // Erinnerung: heller Ring statt Punkt (blinkt im Wechsel mit dem normalen Symbol)
+                using var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0xFF, 0xC5, 0x3D), Math.Max(2, s / 7f));
+                float d = s * 0.56f;
+                g.DrawEllipse(pen, (s - d) / 2, (s - d) / 2, d, d);
             }
             else
             {

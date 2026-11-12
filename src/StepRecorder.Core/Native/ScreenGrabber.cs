@@ -45,18 +45,28 @@ public static class ScreenGrabber
     static Rectangle ToRect(RECT r) => Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom);
 
     /// <summary>Nimmt einen Bereich in physischen Bildschirmkoordinaten auf (32bpp).</summary>
-    public static Bitmap Capture(Rectangle area)
+    public static Bitmap Capture(Rectangle area) => TryCapture(area, out _) ?? new Bitmap(Math.Max(1, area.Width), Math.Max(1, area.Height), PixelFormat.Format32bppRgb);
+
+    /// <summary>
+    /// Wie <see cref="Capture"/>, liefert aber null, wenn Windows die Aufnahme verweigert (z. B. sicherer Desktop
+    /// der Benutzerkontensteuerung, gesperrter Rechner) – statt eines schwarzen Bildes.
+    /// </summary>
+    public static Bitmap? TryCapture(Rectangle area, out int error)
     {
+        error = 0;
         var bmp = new Bitmap(Math.Max(1, area.Width), Math.Max(1, area.Height), PixelFormat.Format32bppRgb);
         nint screenDc = GetDC(0);
+        bool ok;
         try
         {
+            if (screenDc == 0) { bmp.Dispose(); error = -1; return null; }
             using var g = Graphics.FromImage(bmp);
             nint dst = g.GetHdc();
-            try { BitBlt(dst, 0, 0, area.Width, area.Height, screenDc, area.X, area.Y, SRCCOPY | CAPTUREBLT); }
+            try { ok = BitBlt(dst, 0, 0, area.Width, area.Height, screenDc, area.X, area.Y, SRCCOPY | CAPTUREBLT); if (!ok) error = System.Runtime.InteropServices.Marshal.GetLastWin32Error(); }
             finally { g.ReleaseHdc(dst); }
         }
-        finally { ReleaseDC(0, screenDc); }
+        finally { if (screenDc != 0) ReleaseDC(0, screenDc); }
+        if (!ok) { bmp.Dispose(); return null; }
         return bmp;
     }
 

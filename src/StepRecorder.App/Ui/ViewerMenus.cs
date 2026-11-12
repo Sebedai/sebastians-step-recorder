@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using StepRecorder.Data;
+using StepRecorder.Export;
 using StepRecorder.ReadLayer;
 using StepRecorder.Settings;
 
@@ -10,91 +10,49 @@ namespace StepRecorder.App.Ui;
 
 /// <summary>
 /// Menüs des Editors: Menüleiste (Datei · Bearbeiten · Schritt · Bild · Ansicht · Prüfen · Hilfe), Befehlsknöpfe
-/// und Rechtsklick-Menüs. Namen, Symbole und Kürzel kommen aus <see cref="EditorCommands"/>; die Aktionen stehen hier
-/// genau einmal (<see cref="BindCommands"/>).
+/// und Rechtsklick-Menüs. Namen, Kürzel und Aktionen kommen aus der Befehlstabelle (<see cref="BuildCommands"/>),
+/// die Symbole aus <see cref="Glyphs"/> – jeder Befehl heißt überall gleich.
 /// </summary>
 sealed partial class ViewerWindow
 {
-    readonly Dictionary<string, Action> _run = new();
-    ComboBox _dispBox = null!;
     RadioButton[] _langBtns = null!, _filterBtns = null!;
+    Menu? _menuBar;
 
-    void BindCommands()
+    static readonly Dictionary<string, string> Glyphs = new()
     {
-        void B(string id, Action a) => _run[id] = a;
-        void Step(string id, Action<ViewStep> a) => _run[id] = () => { if (Sel is { } s) a(s); };
-        // Datei
-        B("newRec", () => UiApp.Instance.ShowStart());
-        B("open", OpenSessionDialog);
-        B("rename", Rename);
-        B("preview", PreviewDocument);
-        B("export", ShowExport);
-        B("support", StartSupportFlow);
-        B("continueRec", ContinueRecording);
-        B("append", AppendSession);
-        B("showFolder", () => Process.Start("explorer.exe", $"\"{_view.Session.Path}\""));
-        B("settings", () => UiApp.Instance.ShowStart("settings"));
-        B("close", Close);
-        // Bearbeiten
-        B("undo", Undo); B("redo", Redo);
-        B("copyImage", CopyImage); B("copyImageText", CopyImageWithText); B("copyText", CopyText);
-        B("copyMarkdown", CopyMarkdown); B("copyOriginal", CopyOriginal); B("copyGuide", CopyWholeGuide);
-        B("find", () => { _search.Focus(); _search.SelectAll(); });
-        B("replace", ShowSearchReplace);
-        // Schritt
-        B("editText", FocusInlineTitle);
-        B("addNote", AddNote);
-        B("moreImportant", () => ChangeImportance(+1)); B("lessImportant", () => ChangeImportance(-1));
-        Step("chapter", s => ToggleChapter(s.Anchor, s.ChapterTitle == null));
-        B("hide", ToggleHidden);
-        B("moveUp", () => Move(-1)); B("moveDown", () => Move(+1));
-        B("insertText", () => InsertManual(null));
-        B("insertFile", () => { if (PickImageFile() is { } b) using (b) InsertManual(b); });
-        B("insertClip", () => { if (ClipboardImage() is { } b) using (b) InsertManual(b); else Msg.Show("In der Zwischenablage ist kein Bild."); });
-        B("insertShot", () => CaptureAfterCountdown(b => InsertManual(b)));
-        B("deleteInserted", () => DeleteManual(SelSteps));
-        B("prevStep", () => { if (_list.SelectedIndex > 0) _list.SelectedIndex--; else if (_list.SelectedIndex == 0) ShowCover(); });
-        B("nextStep", () => { if (_cover || _list.SelectedIndex < 0) { if (_list.Items.Count > 0) _list.SelectedIndex = 0; } else if (_list.SelectedIndex < _list.Items.Count - 1) _list.SelectedIndex++; });
-        // Bild
-        foreach (var (id, tool) in new[] { ("toolSelect", "select"), ("toolArrow", "arrow"), ("toolRect", "rect"), ("toolEllipse", "ellipse"), ("toolHighlight", "highlight"), ("toolText", "text"), ("toolBadge", "badge"), ("toolRedact", "redact"), ("toolPixelate", "pixelate"), ("crop", "crop") })
-            B(id, () => SelectTool(tool));
-        Step("cropRemove", RemoveCrop);
-        B("cropAll", CropToAll);
-        Step("replaceShot", s => CaptureAfterCountdown(b => ReplaceImage(s, b)));
-        Step("replaceFile", s => { if (PickImageFile() is { } b) using (b) ReplaceImage(s, b); });
-        Step("replaceClip", s => { if (ClipboardImage() is { } b) using (b) ReplaceImage(s, b); else Msg.Show("In der Zwischenablage ist kein Bild."); });
-        Step("restoreImage", s => Change(e => StepEdit(e, s.Anchor).Remove("frameChoice"), refill: false));
-        B("deleteDrawing", DeleteSelectedOrAll);
-        B("clearDrawings", () => { _selAnn = null; DeleteSelectedOrAll(); });
-        B("saveImage", SaveImage); B("saveClip", SaveClip);
-        // Ansicht
-        B("beforeAfter", ToggleBeforeAfter);
-        B("stepMarks", ToggleStepMarks);
-        B("play", TogglePlay);
-        B("lightbox", OpenLightbox);
-        B("zoomIn", () => _zoom.ZoomIn()); B("zoomOut", () => _zoom.ZoomOut()); B("zoomFit", () => _zoom.FitNow()); B("zoom100", () => _zoom.Actual());
-        B("compare", Compare);
-        // Prüfen
-        B("review", ShowReview);
-        B("piiScan", ScanImagesForPersonalData);
-        B("redactText", RedactText);
-        B("redactStep", RedactStep);
-        B("generalize", Generalize);
-        B("cleanup", ShowCleanup);
-        B("overview", ShowOverview);
-        B("finalRedact", FinalRedact);
-        // Hilfe
-        B("shortcuts", ShowShortcuts);
-        B("help", () => UiApp.Instance.ShowStart("help"));
+        ["newRecording"] = Theme.IRecord, ["open"] = Theme.IOpen, ["library"] = Theme.IHistory, ["rename"] = Theme.IEdit, ["preview"] = Theme.IEye, ["export"] = Theme.IExport,
+        ["support"] = Theme.IWrench, ["continueRec"] = Theme.IRecord, ["append"] = Theme.IAdd, ["pack"] = Theme.ISave, ["showFolder"] = Theme.IFolder, ["aiConnect"] = Theme.IRobot,
+        ["settings"] = Theme.ISettings, ["close"] = Theme.IClose, ["undo"] = Theme.IUndo, ["redo"] = Theme.IRedo, ["history"] = Theme.IHistory, ["copyImage"] = Theme.ICopy,
+        ["copyGuide"] = Theme.IDoc, ["find"] = Theme.ISearch, ["editText"] = Theme.IEdit, ["comment"] = Theme.IComment, ["chapter"] = Theme.IDoc, ["hide"] = Theme.IEye,
+        ["moveUp"] = Theme.IArrowUp, ["moveDown"] = Theme.IArrowDown, ["insertStep"] = Theme.IText, ["insertFile"] = Theme.IOpen, ["insertClip"] = Theme.ICopy, ["insertShot"] = Theme.ICamera,
+        ["deleteInserted"] = Theme.IDelete, ["toolSelect"] = Theme.IPointer, ["toolArrow"] = Theme.IArrow, ["toolRect"] = Theme.IRect, ["toolHighlight"] = Theme.IHighlight,
+        ["toolText"] = Theme.IText, ["toolRedact"] = Theme.IRedact, ["toolPixelate"] = Theme.IPixelate, ["toolCrop"] = Theme.ICrop, ["replaceShot"] = Theme.ICamera,
+        ["replaceFile"] = Theme.IOpen, ["replaceClip"] = Theme.ICopy, ["restoreImage"] = Theme.IUndo, ["deleteMark"] = Theme.IDelete, ["saveImage"] = Theme.ISave,
+        ["beforeAfter"] = Theme.ICompare, ["stepMarks"] = Theme.IMouse, ["play"] = Theme.IPlay, ["lightbox"] = Theme.IFullScreen, ["zoomIn"] = Theme.IZoomIn, ["zoomOut"] = Theme.IZoomOut,
+        ["zoomFit"] = Theme.IFit, ["zoom100"] = Theme.IActual, ["review"] = Theme.IChecklist, ["quality"] = Theme.ICheck, ["piiScan"] = Theme.ISearch, ["redactStep"] = Theme.IShield,
+        ["overview"] = Theme.IInfo, ["finalRedact"] = Theme.IWarn, ["shortcuts"] = Theme.IKeyboard, ["help"] = Theme.IHelp, ["prev"] = Theme.IPrev, ["next"] = Theme.INext,
+        ["compare"] = Theme.ICompare,
+    };
+
+    /// <summary>Anzeige-Kürzel: aus der Tabelle; Zoom wird vom Bildbereich selbst behandelt.</summary>
+    string? GestureOf(string id)
+    {
+        var c = Cmd(id);
+        if (c.Gesture.Length > 0) return c.Gesture;
+        return id switch { "zoomIn" => Loc.Keys("Ctrl+Plus"), "zoomOut" => Loc.Keys("Ctrl+Minus"), "zoomFit" => Loc.Keys("Ctrl+0"), "zoom100" => Loc.Keys("Ctrl+1"), _ => null };
     }
 
-    void Run(string id) { try { _run[id](); } catch (Exception ex) { UiApp.ShowError(ex); } }
+    void Run(string id) { try { Cmd(id).Run(); } catch (Exception ex) { UiApp.ShowError(ex); } }
+
+    static string Trim(string label) => label.EndsWith(" …") ? label[..^2] : label;
+
+    /// <summary>Tooltip „Name (Kürzel)“.</summary>
+    string TipOf(string id) => GestureOf(id) is { } g ? $"{Trim(Cmd(id).Label)} ({g})" : Trim(Cmd(id).Label);
 
     /// <summary>Menüeintrag zu einem Befehl; <paramref name="label"/> ersetzt den Namen (z. B. „Einblenden“ statt „Ausblenden“).</summary>
-    MenuItem M(string id, string? label = null, bool enabled = true)
+    MenuItem Item(string id, string? label = null, bool enabled = true)
     {
-        var c = EditorCommands.Get(id);
-        var mi = U.Mi(label ?? c.Label, c.Gesture, () => Run(id), c.Glyph);
+        var mi = U.Mi(label ?? Cmd(id).Label, GestureOf(id), () => Run(id), Glyphs.GetValueOrDefault(id));
         mi.IsEnabled = enabled;
         return mi;
     }
@@ -120,8 +78,6 @@ sealed partial class ViewerWindow
     // Menüleiste
     // =====================================================================================
 
-    Menu? _menuBar;
-
     Menu BuildMenuBar()
     {
         var bar = _menuBar = new Menu { VerticalAlignment = VerticalAlignment.Center, Background = System.Windows.Media.Brushes.Transparent };
@@ -129,7 +85,6 @@ sealed partial class ViewerWindow
         {
             var top = new MenuItem { Header = header };
             top.Items.Add(new MenuItem { Header = "…" });   // Platzhalter, damit sich das Menü öffnen lässt
-            Grid.SetIsSharedSizeScope(top, true);
             top.SubmenuOpened += (_, e) =>
             {
                 if (!ReferenceEquals(e.OriginalSource, top)) return;
@@ -139,19 +94,19 @@ sealed partial class ViewerWindow
             };
             bar.Items.Add(top);
         }
-        Top("_Datei", FileMenu);
-        Top("_Bearbeiten", EditMenu);
-        Top("_Schritt", StepMenuItems);
-        Top("B_ild", ImageMenu);
-        Top("_Ansicht", ViewMenu);
-        Top("_Prüfen", ReviewMenu);
-        Top("_Hilfe", () => new() { M("shortcuts"), M("help") });
+        Top(Loc.L("_Datei", "_File"), FileMenu);
+        Top(Loc.L("_Bearbeiten", "_Edit"), EditMenu);
+        Top(Loc.L("_Schritt", "_Step"), StepMenuItems);
+        Top(Loc.L("B_ild", "_Image"), ImageMenu);
+        Top(Loc.L("_Ansicht", "_View"), ViewMenu);
+        Top(Loc.L("_Prüfen", "_Review"), ReviewMenu);
+        Top(Loc.L("_Hilfe", "_Help"), () => new() { Item("shortcuts"), Item("aiConnect"), Sep(), Item("help") });
         return bar;
     }
 
     List<object> FileMenu()
     {
-        var recent = Sub("Zuletzt geöffnet", Theme.IHistory);
+        var recent = Sub(Loc.L("Zuletzt geöffnet", "Recently opened"), Theme.IHistory);
         foreach (var p in AppSettings.Load().RecentSessions.Where(Session.LooksLikeSession).Where(p => !string.Equals(Path.GetFullPath(p).TrimEnd('\\'), Path.GetFullPath(_path).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)).Take(8))
         {
             string t = Json.ReadObject(Path.Combine(p, "manifest.json"))?.Str("title") is { Length: > 0 } mt ? mt : Path.GetFileName(p);
@@ -160,125 +115,139 @@ sealed partial class ViewerWindow
             recent.Items.Add(mi);
         }
         if (recent.Items.Count == 0) recent.IsEnabled = false;
-        var formats = Sub("Exportieren als", null,
-            U.Mi("HTML …", null, () => ShowExportDialog("html")), U.Mi("Markdown …", null, () => ShowExportDialog("md")), U.Mi("Word (DOCX) …", null, () => ShowExportDialog("docx")),
-            U.Mi("PDF …", null, () => ShowExportDialog("pdf")), U.Mi("GIF-Animation …", null, () => ShowExportDialog("gif")), Sep(),
-            U.Mi("KI-Paket …", null, () => ShowExportDialog("ki")), U.Mi("AutoHotkey-Skript …", null, () => ShowExportDialog("ahk")));
         bool ro = _view.Session.ReadOnly;
+        var formats = Sub(Loc.L("Exportieren als", "Export as"), null, Item("repeatExport"), Sep());
+        foreach (var (f, label) in new[]
+        {
+            ("html", "HTML …"), ("md", "Markdown …"), ("docx", "Word (DOCX) …"), ("pdf", "PDF …"), ("pptx", "PowerPoint …"),
+            ("tour", Loc.L("Klick-Tour …", "Click tour …")), ("bugreport", Loc.L("Fehlerbericht …", "Bug report …")), ("gif", Loc.L("GIF-Animation …", "GIF animation …"))
+        })
+            if (Exporter.IsKnownFormat(f)) { string ff = f; formats.Items.Add(U.Mi(label, null, () => ShowExportDialog(ff))); }
+        formats.Items.Add(Sep());
+        formats.Items.Add(U.Mi(Loc.L("KI-Paket …", "AI package …"), null, () => ShowExportDialog("ki"), Theme.IRobot));
+        formats.Items.Add(U.Mi(Loc.L("AutoHotkey-Skript …", "AutoHotkey script …"), null, () => ShowExportDialog("ahk"), Theme.IScript));
+        formats.Items.Add(Sep());
+        formats.Items.Add(Item("support"));
+        // kurz halten (höchstens ~13 Einträge, sonst scrollt das Menü): Verwandtes in Untermenüs
+        var more = Sub(Loc.L("Weiter aufnehmen", "Continue recording"), Theme.IRecord, Item("continueRec", enabled: !ro), Item("append", enabled: !ro));
         return new()
         {
-            M("newRec"), M("open"), recent, Sep(),
-            M("rename", enabled: !ro), Sep(),
-            M("preview"), M("export"), formats, M("support"), Sep(),
-            M("continueRec", enabled: !ro), M("append", enabled: !ro), Sep(),
-            M("showFolder"), M("settings"), Sep(),
-            M("close"),
+            Item("newRecording"), Item("open"), Item("library"), recent, Sep(),
+            Item("preview"), Item("export"), formats, Sep(),
+            Item("rename", enabled: !ro), more, Item("pack", enabled: !ro), Item("showFolder"), Sep(),
+            Item("settings"), Item("close"),
         };
     }
 
     List<object> EditMenu() => new()
     {
-        M("undo", enabled: _undo.Count > 0), M("redo", enabled: _redo.Count > 0), Sep(),
-        M("copyImage", enabled: _current != null), M("copyImageText", enabled: Sel != null), M("copyText", enabled: Sel != null), M("copyMarkdown", enabled: Sel != null), M("copyOriginal", enabled: Sel != null), M("copyGuide"), Sep(),
-        M("find"), M("replace"),
+        Item("undo", enabled: _undo.Count > 0), Item("redo", enabled: _redo.Count > 0), Item("history"), Sep(),
+        Item("copyImage", enabled: _current != null), Item("copyImageText", enabled: Sel != null), Item("copyText", enabled: Sel != null), Item("copyMarkdown", enabled: Sel != null),
+        Item("copyOriginal", enabled: Sel != null), Item("copyGuide"), Item("copyBugReport"), Sep(),
+        Item("find"), Item("replace"),
     };
 
     /// <summary>Menü „Schritt“ – zugleich Grundlage des Rechtsklick-Menüs.</summary>
     List<object> StepMenuItems()
     {
         var s = Sel;
-        bool has = s != null, ro = _view.Session.ReadOnly, edit = has && !ro;
+        bool ro = _view.Session.ReadOnly, edit = s != null && !ro;
         return new()
         {
-            M("editText", enabled: edit), M("addNote", enabled: edit), Sep(),
+            Item("editText", enabled: edit), Item("comment", enabled: edit), Sep(),
             ImportanceMenu(s, edit),
-            M("chapter", s?.ChapterTitle != null ? "Kapitel entfernen" : null, edit),
-            M("hide", s?.Hidden == true ? "Einblenden" : null, edit),
-            M("moveUp", enabled: edit), M("moveDown", enabled: edit), Sep(),
-            InsertSubMenu("Schritt einfügen", !ro),
-            M("deleteInserted", enabled: !ro && SelSteps.Any(x => x.Manual)),
+            Item("chapter", s?.ChapterTitle != null ? Loc.L("Kapitel entfernen", "Remove chapter") : null, edit),
+            Item("hide", s?.Hidden == true ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), edit),
+            Item("moveUp", enabled: edit), Item("moveDown", enabled: edit), Sep(),
+            Item("merge", enabled: !ro && _list.SelectedItems.Count > 1), Item("unmerge", enabled: edit), Sep(),
+            InsertSubMenu(Loc.L("Schritt einfügen", "Insert step"), !ro),
+            Item("deleteInserted", enabled: !ro && SelSteps.Any(x => x.Manual)),
         };
     }
 
     MenuItem ImportanceMenu(ViewStep? s, bool edit)
     {
-        var sub = Sub("Wichtigkeit", null);
-        foreach (var (imp, name) in new[] { ("primary", "Hauptschritt"), ("secondary", "Nebenschritt"), ("trace", "Spur") })
+        var sub = Sub(Loc.L("Wichtigkeit", "Importance"), null);
+        foreach (var (imp, name) in new[] { ("primary", Loc.L("Hauptschritt", "Main step")), ("secondary", Loc.L("Nebenschritt", "Secondary step")), ("trace", Loc.L("Spur", "Trace")) })
         {
             string target = imp;
             sub.Items.Add(Check(name, s?.Importance == imp, () => BulkEdit(SelSteps.Where(x => !x.Manual), se => se["importance"] = target)));
         }
         sub.Items.Add(Sep());
-        sub.Items.Add(M("moreImportant")); sub.Items.Add(M("lessImportant"));
+        sub.Items.Add(Item("moreImportant")); sub.Items.Add(Item("lessImportant"));
         sub.IsEnabled = edit && s?.Manual == false;
         return sub;
     }
 
     MenuItem InsertSubMenu(string label, bool enabled)
     {
-        var sub = Sub(label, Theme.IAdd, M("insertText"), Sep(), M("insertFile"), M("insertClip"), M("insertShot"));
+        var sub = Sub(label, Theme.IAdd, Item("insertStep", Loc.L("Textschritt", "Text step")), Sep(), Item("insertFile"), Item("insertClip"), Item("insertShot"));
         sub.IsEnabled = enabled;
         return sub;
     }
 
     MenuItem ReplaceSubMenu(ViewStep? s, bool enabled)
     {
-        var sub = Sub(s is { Manual: true, PreFrame: null } ? "Bild hinzufügen" : "Bild ersetzen", Theme.ICamera, M("replaceShot"), M("replaceFile"), M("replaceClip"));
+        var sub = Sub(s is { Manual: true, PreFrame: null } ? Loc.L("Bild hinzufügen", "Add image") : Loc.L("Bild ersetzen", "Replace image"), Theme.ICamera, Item("replaceShot"), Item("replaceFile"), Item("replaceClip"));
         sub.IsEnabled = enabled;
         return sub;
     }
+
+    static readonly (string id, string tool)[] Tools =
+    {
+        ("toolSelect", "select"), ("toolArrow", "arrow"), ("toolLine", "line"), ("toolFreehand", "freehand"), ("toolRect", "rect"), ("toolEllipse", "ellipse"), ("toolHighlight", "highlight"),
+        ("toolText", "text"), ("toolBadge", "badge"), ("toolSpotlight", "spotlight"), ("toolMagnifier", "magnifier"), ("toolRedact", "redact"), ("toolPixelate", "pixelate"),
+    };
 
     List<object> ImageMenu()
     {
         var s = Sel;
         bool img = _current != null, ro = _view.Session.ReadOnly, edit = img && !ro;
-        var tools = Sub("Werkzeug", Theme.IPointer);
-        foreach (var id in new[] { "toolSelect", "toolArrow", "toolRect", "toolEllipse", "toolHighlight", "toolText", "toolBadge", "toolRedact", "toolPixelate" })
+        var tools = Sub(Loc.L("Werkzeug", "Tool"), Theme.IPointer);
+        foreach (var (id, tool) in Tools)
         {
-            var mi = M(id, enabled: edit);
-            if (_tool == ToolOf(id)) mi.Icon = U.Icon(Theme.ICheck, 16, Theme.AccentText);
+            var mi = Item(id, enabled: edit);
+            if (_tool == tool) mi.Icon = U.Icon(Theme.ICheck, 16, Theme.AccentText);
             tools.Items.Add(mi);
         }
         bool cropped = s != null && _view.CropFor(s) != null;
         return new()
         {
             tools, Sep(),
-            M("crop", enabled: edit), M("cropRemove", enabled: cropped && !ro), M("cropAll", enabled: cropped && !ro), Sep(),
-            ReplaceSubMenu(s, s != null && !ro), M("restoreImage", enabled: s?.ImageReplaced == true && !ro), Sep(),
-            M("deleteDrawing", enabled: _selAnn != null && !ro), M("clearDrawings", enabled: img && !ro && _currentMeta != null && AnnotationsFor(_currentMeta.FrameId).Any()), Sep(),
-            M("saveImage", enabled: img), M("saveClip", enabled: s != null),
+            Item("toolCrop", enabled: edit), Item("cropRemove", enabled: cropped && !ro), Item("cropAll", enabled: cropped && !ro), Sep(),
+            ReplaceSubMenu(s, s != null && !ro), Item("restoreImage", enabled: s?.ImageReplaced == true && !ro), Sep(),
+            Item("deleteMark", enabled: _selAnn != null && !ro), Item("clearDrawings", enabled: img && !ro && _currentMeta != null && AnnotationsFor(_currentMeta.FrameId).Any()), Sep(),
+            Item("saveImage", enabled: img), Item("saveClip", enabled: s != null),
         };
     }
 
-    static string ToolOf(string id) => id switch { "toolSelect" => "select", "toolArrow" => "arrow", "toolRect" => "rect", "toolEllipse" => "ellipse", "toolHighlight" => "highlight", "toolText" => "text", "toolBadge" => "badge", "toolRedact" => "redact", "toolPixelate" => "pixelate", _ => "crop" };
-
     List<object> ViewMenu()
     {
-        var disp = Sub("Bildausschnitt", Theme.IMonitor);
-        string[] dispNames = { "Ganzer Bildschirm", "Anwendungsfenster", "Bereich um die Aktion" };
+        var disp = Sub(Loc.L("Bildausschnitt", "Image area"), Theme.IMonitor);
+        string[] dispNames = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Bereich um die Aktion", "Area around the action") };
         for (int i = 0; i < 3; i++) { int k = i; disp.Items.Add(Check(dispNames[i], _dispBox.SelectedIndex == i, () => _dispBox.SelectedIndex = k)); }
-        var lang = Sub("Textsprache", Theme.IGlobe,
-            Check("Deutsch", _view.Language == "de", () => _langBtns[0].IsChecked = true),
-            Check("Englisch", _view.Language == "en", () => _langBtns[1].IsChecked = true));
-        var zoom = Sub("Zoom", Theme.IZoomIn, M("zoomIn"), M("zoomOut"), M("zoomFit"), M("zoom100"));
+        var lang = Sub(Loc.L("Textsprache", "Text language"), Theme.IGlobe,
+            Check(Loc.L("Deutsch", "German"), _view.Language == "de", () => _langBtns[0].IsChecked = true),
+            Check(Loc.L("Englisch", "English"), _view.Language == "en", () => _langBtns[1].IsChecked = true));
+        var zoom = Sub(Loc.L("Zoom", "Zoom"), Theme.IZoomIn, Item("zoomIn"), Item("zoomOut"), Item("zoomFit"), Item("zoom100"));
         return new()
         {
-            M("beforeAfter", enabled: Sel != null), disp, MarksMenu(), Sep(),
-            Check("Schritte", _filterBtns[0].IsChecked == true, () => _filterBtns[0].IsChecked = true),
-            Check("Mit Spur", _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true), Sep(),
+            Item("beforeAfter", enabled: Sel != null), disp, MarksMenu(), Sep(),
+            Check(Loc.L("Schritte", "Steps"), _filterBtns[0].IsChecked == true, () => _filterBtns[0].IsChecked = true),
+            Check(Loc.L("Mit Spur", "With trace"), _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true), Sep(),
             lang, Sep(),
-            M("play", _play.IsEnabled ? "Abspielen beenden" : null), M("lightbox", enabled: _current != null), zoom, Sep(),
-            M("compare"),
+            Item("play", _play.IsEnabled ? Loc.L("Abspielen beenden", "Stop playback") : null), Item("lightbox", enabled: _current != null), zoom, Sep(),
+            Item("compare"),
         };
     }
 
     /// <summary>Untermenü „Mausmarken“: für alle Schritte je Art, dazu nur dieser Schritt.</summary>
-    MenuItem MarksMenu() => Sub("Mausmarken", Theme.IMouse, MarksItems().ToArray());
+    MenuItem MarksMenu() => Sub(Loc.L("Mausmarken", "Mouse marks"), Theme.IMouse, MarksItems().ToArray());
 
     List<object> MarksItems()
     {
         var items = new List<object>();
-        var head = U.Text("Alle Schritte", Theme.FsCaption, true, Theme.Muted);
+        var head = U.Text(Loc.L("Alle Schritte", "All steps"), Theme.FsCaption, true, Theme.Muted);
         items.Add(new MenuItem { Header = head, IsHitTestVisible = false, Focusable = false });
         var all = _view.MarksFor(null);
         foreach (var (key, label) in MarkKeys) { bool on = MarkOf(all, key); string k = key; items.Add(Check(label, on, () => SetMark(null, k, !on))); }
@@ -286,8 +255,8 @@ sealed partial class ViewerWindow
         {
             items.Add(Sep());
             var cur = _view.MarksFor(s);
-            items.Add(M("stepMarks", cur.Any ? $"Bei Schritt {s.Number} ausblenden" : $"Bei Schritt {s.Number} einblenden"));
-            if (StepMarksEdit(s) != null) items.Add(U.Mi("Schritt wieder wie alle", null, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false)));
+            items.Add(Item("stepMarks", cur.Any ? Loc.F("Bei Schritt {0} ausblenden", "Hide for step {0}", s.Number) : Loc.F("Bei Schritt {0} einblenden", "Show for step {0}", s.Number)));
+            if (StepMarksEdit(s) != null) items.Add(U.Mi(Loc.L("Schritt wieder wie alle", "Step like all others again"), null, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false)));
         }
         return items;
     }
@@ -295,13 +264,14 @@ sealed partial class ViewerWindow
     List<object> ReviewMenu()
     {
         bool ro = _view.Session.ReadOnly;
-        var review = M("review", _view.UnreviewedCount > 0 ? $"Durchsicht der Eingaben ({_view.UnreviewedCount} offen) …" : null);
+        var review = Item("review", _view.UnreviewedCount > 0 ? Loc.F("Durchsicht der Eingaben ({0} offen) …", "Review inputs ({0} open) …", _view.UnreviewedCount) : Loc.L("Durchsicht der Eingaben …", "Review inputs …"));
         return new()
         {
             review, Sep(),
-            M("piiScan", enabled: !ro), M("redactText", enabled: !ro), M("redactStep", enabled: Sel != null && !ro), M("generalize", enabled: !ro), Sep(),
-            M("cleanup", enabled: !ro), M("overview"), Sep(),
-            M("finalRedact", enabled: !ro),
+            Item("quality"), Item("nextFinding"), Item("prevFinding"), Sep(),
+            Item("piiScan", enabled: !ro), Item("redactText", enabled: !ro), Item("redactStep", enabled: Sel != null && !ro), Item("generalize", enabled: !ro), Sep(),
+            Item("cleanup", enabled: !ro), Item("overview"), Sep(),
+            Item("finalRedact", enabled: !ro),
         };
     }
 
@@ -318,39 +288,38 @@ sealed partial class ViewerWindow
         if (_list.SelectedItems.Count > 1)
         {
             var multi = SelSteps;
-            Add(U.Mi($"{multi.Count} Schritte ausblenden", null, () => BulkEdit(multi, se => se["hidden"] = true), Theme.IEye),
-                U.Mi($"{multi.Count} Schritte einblenden", null, () => BulkEdit(multi, se => se.Remove("hidden"))), Sep(),
-                ImportanceMenu(s, !ro), M("chapter", "Kapitel vor dem ersten beginnen", !ro),
-                Sub("Bilder in der Anleitung", Theme.ICamera, U.Mi("Bilder zeigen", null, () => BulkEdit(multi, se => se.Remove("showImage"))), U.Mi("Bilder weglassen", null, () => BulkEdit(multi, se => se["showImage"] = false))), Sep(),
-                U.Mi($"Hinweis zu {multi.Count} Schritten hinzufügen …", null, () => AddNoteToMany(multi), Theme.IComment));
-            if (multi.Any(x => x.Manual)) Add(Sep(), M("deleteInserted"));
-            foreach (var it in m.Items.OfType<MenuItem>()) if (ro) it.IsEnabled = false;
+            Add(U.Mi(Loc.F("{0} Schritte ausblenden", "Hide {0} steps", multi.Count), null, () => BulkEdit(multi, se => se["hidden"] = true), Theme.IEye),
+                U.Mi(Loc.F("{0} Schritte einblenden", "Show {0} steps", multi.Count), null, () => BulkEdit(multi, se => se.Remove("hidden"))), Sep(),
+                ImportanceMenu(s, !ro), Item("chapter", Loc.L("Kapitel vor dem ersten beginnen", "Start chapter before the first"), !ro), Item("merge", enabled: !ro),
+                Sub(Loc.L("Bilder in der Anleitung", "Images in the guide"), Theme.ICamera, U.Mi(Loc.L("Bilder zeigen", "Show images"), null, () => BulkEdit(multi, se => se.Remove("showImage"))), U.Mi(Loc.L("Bilder weglassen", "Omit images"), null, () => BulkEdit(multi, se => se["showImage"] = false))), Sep(),
+                U.Mi(Loc.F("Hinweis zu {0} Schritten hinzufügen …", "Add note to {0} steps …", multi.Count), null, () => AddNoteToMany(multi), Theme.IComment));
+            if (multi.Any(x => x.Manual)) Add(Sep(), Item("deleteInserted"));
+            if (ro) foreach (var it in m.Items.OfType<MenuItem>()) it.IsEnabled = false;
             m.IsOpen = true;
             return;
         }
         bool cropped = _view.CropFor(s) != null;
-        var image = Sub("Bild", Theme.ICamera, M("lightbox"), M("crop", enabled: !ro));
-        if (cropped) { image.Items.Add(M("cropRemove", enabled: !ro)); image.Items.Add(M("cropAll", enabled: !ro)); }
+        var image = Sub(Loc.L("Bild", "Image"), Theme.ICamera, Item("lightbox"), Item("toolCrop", enabled: !ro));
+        if (cropped) { image.Items.Add(Item("cropRemove", enabled: !ro)); image.Items.Add(Item("cropAll", enabled: !ro)); }
         image.Items.Add(Sep());
         image.Items.Add(ReplaceSubMenu(s, !ro));
-        if (s.ImageReplaced) image.Items.Add(M("restoreImage", enabled: !ro));
-        var copy = Sub("Kopieren", Theme.ICopy, M("copyImage"), M("copyImageText"), M("copyText"), M("copyMarkdown"));
-        Add(M("editText", enabled: !ro), M("addNote", enabled: !ro), Sep(),
+        if (s.ImageReplaced) image.Items.Add(Item("restoreImage", enabled: !ro));
+        var copy = Sub(Loc.L("Kopieren", "Copy"), Theme.ICopy, Item("copyImage"), Item("copyImageText"), Item("copyText"), Item("copyMarkdown"));
+        Add(Item("editText", enabled: !ro), Item("comment", enabled: !ro), Sep(),
             ImportanceMenu(s, !ro),
-            M("chapter", s.ChapterTitle != null ? "Kapitel entfernen" : null, !ro),
-            M("hide", s.Hidden ? "Einblenden" : null, !ro),
-            Sub("Verschieben", Theme.IMove, M("moveUp", enabled: !ro), M("moveDown", enabled: !ro)), Sep(),
-            copy, image, InsertSubMenu("Schritt danach einfügen", !ro), Sep(),
-            M("redactStep", enabled: !ro));
-        if (s.Manual) Add(M("deleteInserted", enabled: !ro));
+            Item("chapter", s.ChapterTitle != null ? Loc.L("Kapitel entfernen", "Remove chapter") : null, !ro),
+            Item("hide", s.Hidden ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), !ro),
+            Sub(Loc.L("Verschieben", "Move"), Theme.IMove, Item("moveUp", enabled: !ro), Item("moveDown", enabled: !ro)), Sep(),
+            copy, image, InsertSubMenu(Loc.L("Schritt danach einfügen", "Insert step after"), !ro), Sep(),
+            Item("redactStep", enabled: !ro));
+        if (s.Manual) Add(Item("deleteInserted", enabled: !ro));
         m.IsOpen = true;
     }
 
-    /// <summary>Befehlsknopf der Kopfzeile (Name, Symbol und Tooltip aus dem Katalog).</summary>
+    /// <summary>Befehlsknopf der Kopfzeile (Name, Symbol und Tooltip aus der Befehlstabelle).</summary>
     Button CmdButton(string id, string? text, int labelLevel = 0, string style = "Ghost")
     {
-        var c = EditorCommands.Get(id);
-        var b = U.Btn(c.Glyph, text, () => Run(id), EditorCommands.Tip(id), style);
+        var b = U.Btn(Glyphs.GetValueOrDefault(id), text, () => Run(id), TipOf(id), style);
         b.Margin = new Thickness(2, 0, 2, 0);
         if (labelLevel > 0 && b.Content is StackPanel sp && sp.Children.Count > 1 && sp.Children[1] is TextBlock t) _labels.Add((t, labelLevel));
         return b;
@@ -385,12 +354,12 @@ sealed partial class ViewerWindow
             top.IsSubmenuOpen = false; Flush();
         }
         StepMenu(); Flush();
-        DevSnapshots.SaveOpenPopups("Rechtsklick");
-        foreach (var cm in LogicalOpenMenus()) cm.IsOpen = false;
+        DevSnapshots.SaveOpenPopups("Context");
+        foreach (var cm in OpenContextMenus()) cm.IsOpen = false;
         Flush();
     }
 
-    static IEnumerable<ContextMenu> LogicalOpenMenus() => PresentationSource.CurrentSources.OfType<System.Windows.Interop.HwndSource>()
+    static IEnumerable<ContextMenu> OpenContextMenus() => PresentationSource.CurrentSources.OfType<System.Windows.Interop.HwndSource>()
         .Select(s => s.RootVisual).OfType<FrameworkElement>().Select(r => System.Windows.Media.VisualTreeHelper.GetChildrenCount(r) > 0 ? System.Windows.Media.VisualTreeHelper.GetChild(r, 0) : null)
         .OfType<FrameworkElement>().Select(FindMenu).OfType<ContextMenu>().ToList();
 
@@ -403,20 +372,21 @@ sealed partial class ViewerWindow
 
     void OpenSessionDialog()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Aufnahme (manifest.json;*.steprec)|manifest.json;*.steprec", InitialDirectory = AppPaths.DefaultSessionsFolder() };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.L("Aufnahme (manifest.json;*.steprec)|manifest.json;*.steprec", "Recording (manifest.json;*.steprec)|manifest.json;*.steprec"), InitialDirectory = AppPaths.DefaultSessionsFolder() };
         if (dlg.ShowDialog(this) != true) return;
         var p = dlg.FileName.EndsWith("manifest.json", StringComparison.OrdinalIgnoreCase) ? Path.GetDirectoryName(dlg.FileName)! : dlg.FileName;
         UiApp.Instance.OpenViewer(p);
     }
 
-    void ShowShortcuts() => Shortcuts.ShowWindow(this, Shortcuts.Editor());
+    /// <summary>„Exportieren …“: Exportdialog mit dem zuletzt gewählten Format (wie Strg+E).</summary>
+    void ShowExport() => Run("export");
 
     /// <summary>Hinweis zum gewählten Schritt (K oder Einfg): Art und Text im Dialog.</summary>
     void AddNote()
     {
         var s = Sel; if (s == null) return;
         if (_list.SelectedItems.Count > 1) { AddNoteToMany(SelSteps); return; }
-        var d = new InputDialog("Hinweis hinzufügen", "", null, kinds: true) { Owner = this };
+        var d = new InputDialog(Loc.L("Hinweis hinzufügen", "Add note"), "", null, kinds: true) { Owner = this };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         Change(e =>
         {
@@ -429,7 +399,7 @@ sealed partial class ViewerWindow
     void AddNoteToMany(List<ViewStep> steps)
     {
         if (steps.Count == 0) return;
-        var d = new InputDialog($"Hinweis zu {steps.Count} Schritten hinzufügen", "", null, kinds: true) { Owner = this };
+        var d = new InputDialog(Loc.F("Hinweis zu {0} Schritten hinzufügen", "Add note to {0} steps", steps.Count), "", null, kinds: true) { Owner = this };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         Change(e =>
         {

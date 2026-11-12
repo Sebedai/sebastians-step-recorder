@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Nodes;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Data;
 
@@ -56,15 +57,15 @@ public sealed class Session : IDisposable
         if (File.Exists(path) && path.EndsWith(".steprec", StringComparison.OrdinalIgnoreCase))
         {
             var zip = ZipFile.OpenRead(path);
-            var man = ReadZipJson(zip, "manifest.json") ?? throw new InvalidDataException("manifest.json fehlt");
+            var man = ReadZipJson(zip, "manifest.json") ?? throw new InvalidDataException(Loc.L("manifest.json fehlt", "manifest.json is missing"));
             CheckVersion(man);
-            var evEntry = zip.GetEntry("events.jsonl") ?? throw new InvalidDataException("events.jsonl fehlt");
+            var evEntry = zip.GetEntry("events.jsonl") ?? throw new InvalidDataException(Loc.L("events.jsonl fehlt", "events.jsonl is missing"));
             using var s = evEntry.Open();
             var (events, _, _) = ReadJournal(s);
             return new Session(path, man, events, zip);
         }
         if (!Directory.Exists(path)) throw new DirectoryNotFoundException(path);
-        var manifest = Json.ReadObject(System.IO.Path.Combine(path, "manifest.json")) ?? throw new InvalidDataException("manifest.json fehlt oder ist ungültig");
+        var manifest = Json.ReadObject(System.IO.Path.Combine(path, "manifest.json")) ?? throw new InvalidDataException(Loc.L("manifest.json fehlt oder ist ungültig", "manifest.json is missing or invalid"));
         CheckVersion(manifest);
         if (recover && manifest.Str("state") == "recording" && !IsLockAlive(path))
             Recovery.Recover(path);
@@ -80,7 +81,7 @@ public sealed class Session : IDisposable
     {
         var v = man.Str("schemaVersion") ?? "1.0";
         if (!int.TryParse(v.Split('.')[0], out int major) || major > 1)
-            throw new NotSupportedException($"Sitzungsformat {v} wird nicht unterstützt (benötigt neuere Programmversion).");
+            throw new NotSupportedException(Loc.F("Sitzungsformat {0} wird nicht unterstützt (benötigt neuere Programmversion).", "Session format {0} is not supported (needs a newer program version).", v));
     }
 
     public static bool IsLockAlive(string folder)
@@ -163,7 +164,7 @@ public sealed class Session : IDisposable
     /// <summary>Speichert <c>edits.json</c> mit Revisionsprüfung (optimistische Sperre).</summary>
     public bool SaveEdits(JsonObject edits, long expectedRevision, string savedBy)
     {
-        if (ReadOnly) throw new InvalidOperationException("Sitzung ist schreibgeschützt (.steprec)");
+        if (ReadOnly) throw new InvalidOperationException(Loc.L("Sitzung ist schreibgeschützt (.steprec)", "The recording is read-only (.steprec)"));
         var current = LoadEdits();
         long curRev = current?.Long("revision") ?? 0;
         if (curRev != expectedRevision) return false;
@@ -195,9 +196,11 @@ public sealed class Session : IDisposable
     readonly LinkedList<string> _frameLru = new();
     readonly object _imgLock = new();
 
-    static string BlobPath(string blob)
+    /// <summary>Pfad eines Bild-Blobs; null bei einem ungültigen Namen (schützt vor Pfaden außerhalb der Sitzung).</summary>
+    public static string? BlobPath(string blob)
     {
         var hex = blob.StartsWith("sha256:") ? blob[7..] : blob;
+        if (hex.Length != 64 || !hex.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f')) return null;
         return $"frames/{hex[..2]}/{hex}.png";
     }
 
@@ -229,7 +232,7 @@ public sealed class Session : IDisposable
         {
             case "key":
                 {
-                    var bytes = ReadFile(BlobPath(store.Str("blob") ?? ""));
+                    var bytes = BlobPath(store.Str("blob") ?? "") is { } bp ? ReadFile(bp) : null;
                     if (bytes == null) return null;
                     using var ms = new MemoryStream(bytes);
                     using var img = new Bitmap(ms);
@@ -247,7 +250,7 @@ public sealed class Session : IDisposable
             case "delta":
                 {
                     var b = RestoreLocked(store.Str("base") ?? "", depth + 1);
-                    var bytes = ReadFile(BlobPath(store.Str("blob") ?? ""));
+                    var bytes = BlobPath(store.Str("blob") ?? "") is { } bp ? ReadFile(bp) : null;
                     if (b == null || bytes == null) return null;
                     result = new Bitmap(b);
                     var rect = store.Obj("rect");

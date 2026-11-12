@@ -54,6 +54,7 @@ public static partial class Patterns
         "phone" => lang == "de" ? "Telefonnummer" : "Phone number",
         "keyOrToken" => lang == "de" ? "Schlüssel/Token" : "Key/token",
         "passwordInCommand" => lang == "de" ? "Passwort im Befehl" : "Password in command",
+        "plaintextWindow" => lang == "de" ? "Eingabe in einem Fenster ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, VM)" : "Input in a window without recognisable password fields (terminal, remote desktop, VM)",
         _ => kind
     };
 

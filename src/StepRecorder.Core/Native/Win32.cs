@@ -84,7 +84,7 @@ public static unsafe class Win32
     [DllImport("user32.dll")] public static extern bool PostThreadMessage(uint threadId, uint msg, nint w, nint l);
     [DllImport("user32.dll")] public static extern nint SetWinEventHook(uint min, uint max, nint hmod, WinEventProc fn, uint pid, uint tid, uint flags);
     [DllImport("user32.dll")] public static extern bool UnhookWinEvent(nint h);
-    [DllImport("user32.dll")] public static extern bool RegisterHotKey(nint hwnd, int id, uint mods, uint vk);
+    [DllImport("user32.dll", SetLastError = true)] public static extern bool RegisterHotKey(nint hwnd, int id, uint mods, uint vk);
     [DllImport("user32.dll")] public static extern bool UnregisterHotKey(nint hwnd, int id);
 
     [DllImport("user32.dll")] public static extern nint GetForegroundWindow();
@@ -130,7 +130,7 @@ public static unsafe class Win32
     [DllImport("gdi32.dll")] public static extern bool DeleteDC(nint hdc);
     [DllImport("gdi32.dll")] public static extern nint SelectObject(nint hdc, nint obj);
     [DllImport("gdi32.dll")] public static extern bool DeleteObject(nint obj);
-    [DllImport("gdi32.dll")] public static extern bool BitBlt(nint dst, int x, int y, int w, int h, nint src, int sx, int sy, int rop);
+    [DllImport("gdi32.dll", SetLastError = true)] public static extern bool BitBlt(nint dst, int x, int y, int w, int h, nint src, int sx, int sy, int rop);
     [DllImport("gdi32.dll")] public static extern nint CreateDIBSection(nint hdc, ref BITMAPINFOHEADER bmi, uint usage, out nint bits, nint section, uint offset);
 
     [DllImport("kernel32.dll")] public static extern bool QueryFullProcessImageName(nint hProcess, int flags, StringBuilder sb, ref int size);

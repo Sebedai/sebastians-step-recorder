@@ -3,6 +3,8 @@ using System.Net.Http;
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
 
+using StepRecorder.Settings;
+
 namespace StepRecorder.App.Ui;
 
 /// <summary>
@@ -25,10 +27,10 @@ static class UpdateCheck
             http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             var json = JsonNode.Parse(await http.GetStringAsync(Api)) as JsonObject;
             var tag = json?["tag_name"]?.GetValue<string>()?.TrimStart('v', 'V');
-            if (tag == null) return new(false, null, false, "Keine Versionsangabe gefunden.");
+            if (tag == null) return new(false, null, false, Loc.L("Keine Versionsangabe gefunden.", "No version information found."));
             return new(true, tag, IsNewer(tag, AppInfo.Version), null);
         }
-        catch (Exception ex) { return new(false, null, false, ex is HttpRequestException or TaskCanceledException ? "Keine Verbindung zu GitHub." : ex.Message); }
+        catch (Exception ex) { return new(false, null, false, ex is HttpRequestException or TaskCanceledException ? Loc.L("Keine Verbindung zu GitHub.", "No connection to GitHub.") : ex.Message); }
     }
 
     public static bool IsNewer(string latest, string current)
@@ -46,9 +48,9 @@ static class UpdateCheck
     public static async Task CheckInteractiveAsync()
     {
         var r = await CheckAsync();
-        if (!r.Ok) { Msg.Show("Suche nach Updates fehlgeschlagen\n\n" + r.Error, "Updates", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); return; }
-        if (!r.Newer) { Msg.Show($"Sie verwenden die aktuelle Version ({AppInfo.Version}).", "Updates", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); return; }
-        if (Msg.Show($"Version {r.Latest} ist verfügbar (installiert: {AppInfo.Version}).\n\nRelease-Seite auf GitHub öffnen?", "Updates", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Information) == System.Windows.MessageBoxResult.Yes)
+        if (!r.Ok) { Msg.Show(Loc.L("Suche nach Updates fehlgeschlagen\n\n", "Update check failed\n\n") + r.Error, "Updates", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); return; }
+        if (!r.Newer) { Msg.Show(Loc.F("Sie verwenden die aktuelle Version ({0}).", "You are using the current version ({0}).", AppInfo.Version), "Updates", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information); return; }
+        if (Msg.Show(Loc.F("Version {0} ist verfügbar (installiert: {1}).\n\nRelease-Seite auf GitHub öffnen?", "Version {0} is available (installed: {1}).\n\nOpen the release page on GitHub?", r.Latest, AppInfo.Version), "Updates", System.Windows.MessageBoxButton.YesNo, System.Windows.MessageBoxImage.Information) == System.Windows.MessageBoxResult.Yes)
             OpenReleases();
     }
 }

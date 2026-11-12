@@ -20,6 +20,8 @@ sealed class UiApp : Application
             bool fwd = SingleInstance.Forward(args.Length == 0 ? new[] { "--activate" } : args);
             return fwd ? 0 : 6;
         }
+        Loc.Init(AppSettings.Load().UiLanguage, applyToThreads: true);
+        AppLog.InstallCrashHandlers(TryEmergencyStop);
         var app = new UiApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         app.DispatcherUnhandledException += (_, e) => { ShowError(e.Exception); e.Handled = true; };
         app.Startup += (_, _) => app.OnStart(args);
@@ -30,7 +32,6 @@ sealed class UiApp : Application
     {
         if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Recorder.Trace = Log;
         Theme.Init(this);
-        Loc.Init();
         Accessibility.Install();
         DevSnapshots.Install();
         Invisibility.Install();
@@ -40,19 +41,30 @@ sealed class UiApp : Application
         HandleArgs(args);
     }
 
+    /// <summary>Tastenkürzel, die beim letzten Anmelden belegt waren (für Startfenster und Diagnose).</summary>
+    public List<string> HotkeyFailures { get; } = new();
+
     /// <summary>In „Bereit“ ist nur die Sofortaufnahme registriert.</summary>
     public void RegisterGlobalHotkeys()
     {
         _globalHotkeys ??= new Hotkeys();
         var s = AppSettings.Load();
-        _globalHotkeys.Register("instant", s.Hotkeys.GetValueOrDefault("instantPause", "Ctrl+Shift+F9"), () => { if (Recording == null) { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); } });
+        _globalHotkeys.Failed.Clear();
+        string combo = s.Hotkey("instantPause");
+        if (combo.Length > 0)
+            _globalHotkeys.Register("instant", combo, () => { if (Recording == null) { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); } });
+        HotkeyFailures.Clear();
+        if (_globalHotkeys.Failed.Contains("instant")) HotkeyFailures.Add(Loc.Keys(combo));
     }
 
     public void UnregisterGlobalHotkeys() => _globalHotkeys?.UnregisterAll();
 
     void HandleArgs(string[] args)
     {
-        Log("args: " + string.Join(" ", args));
+        // nur Befehl und Optionsnamen protokollieren – Werte (Titel, Ziel, Pfade) können Vertrauliches enthalten
+        Log("args: " + AppLog.ArgNames(args));
+        // Anfrage eines KI-Agenten (vom MCP-Server zugestellt) – der Mensch entscheidet im Dialog
+        if (args.Length > 1 && args[0] == "--recording-request") { AgentRequests.Handle(args[1]); return; }
         if (args.Length == 0 || args[0] == "--activate")
         {
             if (Recording != null) { Recording.ShowRunningNotice(); return; }
@@ -63,7 +75,15 @@ sealed class UiApp : Application
         {
             if (args.Contains("--stop")) { Recording?.Stop(); return; }
             if (Recording != null) { Recording.ShowRunningNotice(); return; }
-            StartRecording(ParseRecordArgs(args));
+            var ro = ParseRecordArgs(args);
+            if (ro.Scope == ScopeMode.Region && (ro.Region == null || ro.RegionNeedsConfirm))
+            {
+                // nie stillschweigend den ganzen Bildschirm: Bereich wählen (bzw. angepassten letzten Bereich bestätigen)
+                var picked = RegionPicker.Pick(ro.Region);
+                if (picked == null) { if (_start == null) MaybeShutdown(); return; }
+                ro.Region = picked;
+            }
+            StartRecording(ro);
             return;
         }
         if (args[0] == "support") { ShowStart(); _start?.ShowSupport(); return; }
@@ -87,13 +107,28 @@ sealed class UiApp : Application
         if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown();
     }
 
-    public ViewerWindow OpenViewer(string path)
+    /// <summary>„Alle Aufnahmen“: Seite „Aufnahmen“ im Startfenster.</summary>
+    public void ShowLibrary() => ShowStart("sessions");
+
+    static string Norm(string p) { try { return Path.GetFullPath(p).TrimEnd('\\', '/'); } catch { return p; } }
+
+    public ViewerWindow? ViewerFor(string path) => Windows.OfType<ViewerWindow>().FirstOrDefault(v => string.Equals(Norm(v.SessionPath), Norm(path), StringComparison.OrdinalIgnoreCase));
+    public bool IsOpenInViewer(string path) => ViewerFor(path) != null;
+
+    /// <summary>Öffnet den Editor – oder holt ein schon offenes Fenster derselben Aufnahme nach vorn. Optional zu einem Schritt springen.</summary>
+    public ViewerWindow OpenViewer(string path, long? anchor = null, string? search = null)
     {
-        var v = new ViewerWindow(path);
-        v.Closed += (_, _) => MaybeShutdown();
-        v.Show();
+        var v = ViewerFor(path);
+        if (v == null)
+        {
+            v = new ViewerWindow(path);
+            v.Closed += (_, _) => { MaybeShutdown(); _start?.RescanLibrary(); };
+            v.Show();
+            AppSettings.Load().AddRecent(path);
+        }
+        else if (v.WindowState == WindowState.Minimized) v.WindowState = WindowState.Normal;
         v.Activate();
-        AppSettings.Load().AddRecent(path);
+        if (anchor is long a) v.JumpTo(a, search);
         return v;
     }
 
@@ -103,9 +138,11 @@ sealed class UiApp : Application
         var o = new RecordingOptions
         {
             Scope = scope, Language = s.Language, PrivacyLevel = s.PrivacyLevel, ChangeFrames = s.ChangeFrames, Monitors = "active",
+            IdleReminderMinutes = s.IdleReminderMinutes, PrivacyReminderSeconds = s.PrivacyReminderSeconds,
             ExcludedProcesses = s.Excluded.Count > 0 ? new List<string>(s.Excluded) : new List<string>(RecordingOptions.DefaultExcluded)
         };
-        foreach (var hk in s.Hotkeys.Values)
+        // alle wirksamen Kürzel (auch nicht gespeicherte Standardwerte) als eigene markieren – sonst würden sie als Schritt aufgezeichnet
+        foreach (var hk in s.EffectiveHotkeys().Values)
             if (Hotkeys.Parse(hk, out var m, out var vk)) o.SelfHotkeys.Add((m, vk));
         foreach (var (key, _, _) in RecordingOptions.Channels) if (!s.Records(key)) o.Off.Add(key);
         return o;
@@ -118,7 +155,16 @@ sealed class UiApp : Application
         var o = OptionsFromSettings(scope);
         o.Monitors = Opt("--monitor") ?? "active";
         o.AppProcess = Opt("--app");
-        if (Opt("--region") is { } r && r.Split(',').Select(int.Parse).ToArray() is { Length: 4 } v) o.Region = new System.Drawing.Rectangle(v[0], v[1], v[2], v[3]);
+        if (Opt("--region") is { } r)
+        {
+            if (r == "last")
+            {
+                var (lr, fit) = RegionMemory.Resolve(AppState.Load().LastRegion, StepRecorder.Native.ScreenGrabber.GetMonitors());
+                // passt er unverändert: direkt nehmen; sonst öffnet StartRecording die Auswahl mit dieser Vorgabe
+                if (lr != null) { o.Region = lr; o.RegionNeedsConfirm = fit is RegionFit.Clamped; }
+            }
+            else if (r.Split(',').Select(x => int.TryParse(x.Trim(), out var n) ? n : -1).ToArray() is { Length: 4 } v && v[2] > 0 && v[3] > 0) o.Region = new System.Drawing.Rectangle(v[0], v[1], v[2], v[3]);
+        }
         o.Title = Opt("--title") ?? "";
         o.GoalDescription = Opt("--goal"); o.GoalExpected = Opt("--expected"); o.GoalReference = Opt("--reference");
         if (Opt("--protection") is { } p) o.PrivacyLevel = p;
@@ -138,15 +184,15 @@ sealed class UiApp : Application
     {
         switch (profile.ToLowerInvariant())
         {
-            case "support" or "support-fall": o.ProfileId = "support"; o.ProfileName = "Support-Fall"; o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "supportPackage"; break;
-            case "aitrace" or "ki-spur": o.ProfileId = "aiTrace"; o.ProfileName = "KI-Spur"; o.Scope = ScopeMode.Screen; o.AfterStop = "export"; break;
+            case "support" or "support-fall": o.ProfileId = "support"; o.ProfileName = Loc.L("Support-Fall", "Support case"); o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "supportPackage"; break;
+            case "aitrace" or "ki-spur": o.ProfileId = "aiTrace"; o.ProfileName = Loc.L("KI-Spur", "AI trace"); o.Scope = ScopeMode.Screen; o.AfterStop = "export"; break;
             case "custom" or "eigene":
                 var s = AppSettings.Load();
-                o.ProfileId = "custom"; o.ProfileName = "Eigene";
+                o.ProfileId = "custom"; o.ProfileName = Loc.L("Eigene", "Custom");
                 o.Off = new HashSet<string>(RecordingOptions.Channels.Where(c => !s.Records(c.key)).Select(c => c.key));
                 o.ChangeFrames = s.ChangeFrames; o.AppContext = s.CustomAppContext; o.AfterStop = s.CustomAfterStop; o.DetailLevel = "Eigene";
                 return;
-            default: o.ProfileId = "guide"; o.ProfileName = "Anleitung"; break;
+            default: o.ProfileId = "guide"; o.ProfileName = Loc.L("Anleitung", "Guide"); break;
         }
         if (DetailPresets.For(o.ProfileId) is { } p) DetailPresets.Apply(o, p);
     }
@@ -169,7 +215,7 @@ sealed class UiApp : Application
             switch (o.AfterStop)
             {
                 case "none": MaybeShutdown(); break;
-                case "folder": System.Diagnostics.Process.Start("explorer.exe", folder); ShowStart(); break;
+                case "folder": System.Diagnostics.Process.Start("explorer.exe", $"\"{folder}\""); ShowStart(); break;
                 default:
                     var viewer = OpenViewer(folder);
                     if (o.AfterStop == "supportPackage") viewer.StartSupportFlow();
@@ -181,9 +227,12 @@ sealed class UiApp : Application
         if (!Recording.Start()) { Recording = null; RegisterGlobalHotkeys(); ShowStart(); }
     }
 
-    public static void Log(string text)
+    public static void Log(string text) => AppLog.Write(text);
+
+    /// <summary>Bei einem fatalen Fehler: laufende Aufnahme so weit wie möglich sauber beenden (Rest übernimmt die Wiederherstellung).</summary>
+    static void TryEmergencyStop()
     {
-        try { File.AppendAllText(Path.Combine(AppPaths.StateDir, "StepRecorder.log"), $"{DateTime.Now:O} {text}{Environment.NewLine}"); } catch { }
+        try { (Current as UiApp)?.Recording?.EmergencyStop(); } catch { }
     }
 
     public static void ShowError(Exception ex)

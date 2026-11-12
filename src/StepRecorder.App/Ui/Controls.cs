@@ -1,9 +1,10 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using ControlAppearance = Wpf.Ui.Controls.ControlAppearance;
 using InfoBarSeverity = Wpf.Ui.Controls.InfoBarSeverity;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -137,8 +138,8 @@ static class U
         Grid.SetColumn(k, 1); g.Children.Add(k);
         // Symbolspalte immer belegen, damit Einträge mit und ohne Symbol bündig stehen
         var mi = new MenuItem { Header = g, Icon = glyph != null ? Icon(glyph, 16) : new Border { Width = 16, Height = 16 } };
-        System.Windows.Automation.AutomationProperties.SetName(mi, Loc.T(label));
-        if (!string.IsNullOrEmpty(gesture)) System.Windows.Automation.AutomationProperties.SetAcceleratorKey(mi, Loc.T(gesture));
+        System.Windows.Automation.AutomationProperties.SetName(mi, label);
+        if (!string.IsNullOrEmpty(gesture)) System.Windows.Automation.AutomationProperties.SetAcceleratorKey(mi, gesture);
         if (click != null) mi.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
         return mi;
     }
@@ -252,7 +253,7 @@ static class U
         var p = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         foreach (var k0 in combo.Split('+'))
         {
-            var k = Loc.En ? (k0 == "Eingabe" ? "Enter" : Loc.T(k0)) : k0;
+            var k = Loc.Keys(k0);
             p.Children.Add(new Border
             {
                 Background = bg ?? Theme.Field, BorderBrush = line ?? Theme.LineStrong, BorderThickness = new Thickness(1, 1, 1, 2), CornerRadius = new CornerRadius(Theme.RSmall),
@@ -362,7 +363,7 @@ static class Msg
 {
     public static MessageBoxResult Show(string text, string title = StepRecorder.Data.AppInfo.DisplayName, MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None)
     {
-        text = Loc.T(text); title = Loc.T(title);
+        // Texte kommen schon in der Oberflächensprache (Loc.L beim Aufrufer)
         var w = new Window { Title = title, Width = text.Length > 420 ? 640 : 500, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
         Theme.Prepare(w);
         var owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(x => x.IsActive && x.IsVisible && x is not RecordingBar and not FrameWindow && x != w);
@@ -398,11 +399,12 @@ static class Msg
             if (primary) b.IsDefault = true;
             return b;
         }
+        string yes = Settings.Loc.L("Ja", "Yes"), no = Settings.Loc.L("Nein", "No"), cancel = Settings.Loc.L("Abbrechen", "Cancel");
         var btns = buttons switch
         {
-            MessageBoxButton.YesNo => new[] { Make("Ja", MessageBoxResult.Yes, true), Make("Nein", MessageBoxResult.No, false) },
-            MessageBoxButton.YesNoCancel => new[] { Make("Ja", MessageBoxResult.Yes, true), Make("Nein", MessageBoxResult.No, false), Make("Abbrechen", MessageBoxResult.Cancel, false) },
-            MessageBoxButton.OKCancel => new[] { Make("OK", MessageBoxResult.OK, true), Make("Abbrechen", MessageBoxResult.Cancel, false) },
+            MessageBoxButton.YesNo => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false) },
+            MessageBoxButton.YesNoCancel => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false), Make(cancel, MessageBoxResult.Cancel, false) },
+            MessageBoxButton.OKCancel => new[] { Make("OK", MessageBoxResult.OK, true), Make(cancel, MessageBoxResult.Cancel, false) },
             _ => new[] { Make("OK", MessageBoxResult.OK, true) }
         };
         U.Dialog(w, null, body, btns);

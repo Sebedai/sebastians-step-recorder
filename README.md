@@ -1,3 +1,5 @@
+English version: [README.en.md](README.en.md)
+
 # Sebastians Step Recorder
 
 **Arbeitsschritte einmal vorführen – daraus entsteht eine fertige Anleitung mit Bildern.**
@@ -203,11 +205,11 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 - **Texterkennung** (für die Suche nach persönlichen Daten) nutzt die in Windows eingebaute OCR. Fehlt das Sprachpaket, lässt es sich unter *Einstellungen → Zeit und Sprache → Sprache* nachinstallieren.
 - **Wo liegen die Daten?** Ist der Ordner der EXE beschreibbar, liegen Einstellungen und Aufnahmen daneben (Ordner `Sessions`) – ideal für einen USB-Stick. Sonst unter `%APPDATA%\StepRecorder` und `%LOCALAPPDATA%\StepRecorder`. Der Aufnahmeordner ist in den Einstellungen änderbar.
 - **Bildschirmaufnahme:** Das Programm nutzt die schnelle Desktop-Duplizierung von Windows (DXGI) und fällt bei Problemen automatisch auf die klassische Aufnahme zurück. Hochformat-Monitore werden klassisch aufgenommen.
-- **Englische Oberfläche:** unter *Einstellungen → Allgemein → Sprache der Oberfläche* (gilt ab dem nächsten Start). Unabhängig davon lassen sich die Texte der Anleitungen auf Deutsch oder Englisch erzeugen.
 - **Bildschirmleser:** Alle Schaltflächen – auch die reinen Symbole – haben Namen für Sprachausgabe, NVDA und JAWS.
 - **Updates:** Das Programm sucht nur auf Wunsch nach neuen Versionen (*Einstellungen → Allgemein*); dabei wird ausschließlich die öffentliche Release-Seite abgefragt, ohne Kennung oder persönliche Daten. Heruntergeladen wird nichts automatisch.
 - **Eingaben:** Tottasten (^, ´, `), Bildschirmtastatur und Eingaben von Fernwartungs- und Passwort-Werkzeugen werden richtig erkannt. Entfernt Windows die Eingabeüberwachung (z. B. bei hoher Last), setzt das Programm sie sofort neu und vermerkt die mögliche Lücke.
 - **Dunkel oder hell:** Das Programm startet im dunklen Design; unter *Einstellungen → Darstellung* lässt sich „Hell“ oder „Wie Windows“ wählen.
+- **Sprache der Oberfläche (auch Englisch):** Wie Windows / Deutsch / English (*Einstellungen → Allgemein → Sprache der Oberfläche*); gilt ab dem nächsten Start. Die Texte der Anleitungen lassen sich unabhängig davon auf Deutsch oder Englisch erzeugen.
 
 ---
 

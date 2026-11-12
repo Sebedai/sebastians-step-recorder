@@ -53,7 +53,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Z2 | **Vollständige Aufzeichnung** aller Klicks, Mausbewegungen, Tasteneingaben und Tastenkombinationen | Jedes Eingabeereignis steht im Rohprotokoll oder in einem benannten Lückenmarker |
 | Z3 | **Aussagekräftige Bilder** zu jedem Schritt | Vorher-Bild garantiert vor der Eingabe, Nachher-Bild nach Beruhigung, Programm selbst nie im Bild |
 | Z4 | **Lückenlos nachvollziehbar für KI** | KI-Paket und MCP-Server; ein Agent kann Ablauf, Ziele, Wirkungen und Lücken korrekt wiedergeben |
-| Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Kommentaren, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF |
+| Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Zeichenwerkzeugen, Kommentaren, Qualitätsprüfung, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Klick-Tour, Fehlerbericht |
 | Z6 | **Privatsphäre ab Werk** | Eingaben in erkannte Passwortfelder nie auf der Platte, kein Netzwerkzugriff, sichtbare Aufnahme |
 | Z7 | **Einfach im Normalfall, flexibel bei Bedarf** | Aufnahme mit einer Aktion, höchstens zwei Klicks; Aufnahmebereich und Darstellung frei wählbar |
 | Z8 | **Offen** | Kostenloses Programm, Quellcode einsehbar unter CC BY-ND 4.0 (siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
@@ -61,7 +61,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 ## 4. Nicht-Ziele
 
 - **Keine Automatisierung oder Wiedergabe.** Das Tool steuert keine Programme und spielt Abläufe nicht ab. (Das Datenformat ist dafür geeignet, aber das ist Sache anderer Werkzeuge.)
-- **Keine Überwachung.** Kein verdeckter Modus, kein Autostart, keine Daueraufzeichnung im Hintergrund, keine zentrale Sammlung. Das ist ein Projektgrundsatz, kein fehlendes Feature.
+- **Keine Überwachung.** Kein verdeckter Modus, kein Autostart, keine Daueraufzeichnung im Hintergrund, keine zentrale Sammlung. Das ist ein Projektgrundsatz, kein fehlendes Feature. Auch ein Agent startet nie von sich aus eine Aufnahme: Er kann über MCP nur um eine Vorführung bitten (nur mit `--allow-requests`), und der Nutzer bestätigt jede Anfrage ausdrücklich.
 - **Keine eingebaute KI und keine Cloud.** Das Tool ruft keine KI-Dienste auf und sendet nichts über das Netzwerk. KI-Nutzung geschieht außerhalb – über den Export oder den lokalen MCP-Server.
 - **Kein Videorekorder.** Bilder entstehen ereignisgesteuert; eine Abspielfunktion im Viewer zeigt den Ablauf als animierte Bildfolge.
 - **Version 1 nur Windows x64.** Kein macOS, Linux oder ARM64.
@@ -83,7 +83,9 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 2. *Aufnehmen → bearbeiten → exportieren:* Schritte ordnen, Texte anpassen, Markierungen und Kommentare setzen, Sensibles schwärzen, persönliche Werte verallgemeinern, Qualitätshinweise abarbeiten, als DOCX oder PDF exportieren.
 3. *Aufnehmen → an KI übergeben:* Ziel und erwartetes Ergebnis angeben, Fehlerstelle markieren, KI-Paket exportieren und hochladen – oder ein Agent liest die Sitzung direkt über MCP.
 4. *Support-Paket:* Der Helpdesk gibt jemandem die EXE; dieser zeichnet das Problem auf, sieht seine Eingaben durch und erhält ein fertiges ZIP mit Anleitung und KI-Paket zum Zurückschicken.
-5. *Anleitung pflegen:* Nach einem Software-Update den betroffenen Abschnitt neu aufnehmen und ersetzen; mit der alten Aufnahme vergleichen, um Änderungen zu sehen.
+5. *Anleitung pflegen:* Nach einem Software-Update den betroffenen Abschnitt neu aufnehmen und ersetzen (noch nicht umgesetzt); mit der alten Aufnahme vergleichen, um Änderungen zu sehen.
+6. *Aufnahmen verwalten:* Im Fenster „Alle Aufnahmen“ finden, über alle Inhalte durchsuchen, umbenennen, als `.steprec` packen (bereinigt oder vollständig) und in den Papierkorb legen; frühere Bearbeitungsstände wiederherstellen.
+7. *Agent bittet um Vorführung:* Ein Agent bittet über MCP um eine Aufnahme zu einer Aufgabe; der Nutzer sieht die Anfrage, bestätigt oder lehnt ab und führt vor; danach liest der Agent das Ergebnis.
 
 ## 6. Abgrenzung zu PSR und Alternativen
 
@@ -97,11 +99,11 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Programm im Bild | teilweise | teilweise | **nie** |
 | Aufnahmebereich wählbar | nein | teilweise | **Bildschirm, Anwendung, Bereich** |
 | Bearbeiten, Kommentieren | nein | ja | **ja** |
-| Export | MHT | HTML, PDF, teils DOCX | **HTML, Markdown, DOCX, PDF** |
+| Export | MHT | HTML, PDF, teils DOCX | **HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Klick-Tour, Fehlerbericht** |
 | Maschinenlesbare, lückenlose Spur | nein | nein | **ja** (JSONL, KI-Paket, MCP) |
 | Lücken ausgewiesen | nein | nein | **ja**, mit Ursache |
 | Ziel der Aufnahme, typisierte Marker | nein | teilweise | **ja** |
-| Aufnahmen vergleichen, Abschnitte ersetzen | nein | teilweise | **ja** |
+| Aufnahmen vergleichen, Abschnitte ersetzen | nein | teilweise | **Vergleich ja**; Abschnitte ersetzen noch nicht umgesetzt |
 | Persönliche Werte verallgemeinern | nein | nein | **ja** |
 | Support-Paket zum Zurückschicken | nein | nein | **ja**, ohne Versand durch das Programm |
 | Offen | nein | nein | **kostenlos, CC BY-ND 4.0** |
@@ -138,7 +140,8 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | KI-Export und MCP | Lückenlose Ausgabe für KI; Abfrage durch Agenten | [06](06-ki-export-und-mcp.md) |
 | Aufnahme-Bedienung | Startfenster, Aufnahmebereich, Leiste, Hotkeys, Unsichtbarkeit | [07](07-aufnahme-bedienung.md) |
 | Viewer | Ansehen, Abspielen, Bearbeiten, Kommentieren, Kopieren | [08](08-viewer.md) |
-| Anleitungs-Export | HTML, Markdown, DOCX, PDF | [09](09-anleitungs-export.md) |
+| Anleitungs-Export | HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Klick-Tour, Fehlerbericht | [09](09-anleitungs-export.md) |
+| Bibliothek | Alle Aufnahmen finden und durchsuchen, als `.steprec` packen und entpacken, bereinigte Kopie | [08](08-viewer.md) |
 | Datenschutz | Maskierung, Ausschlüsse, Schwärzung, Bedrohungsmodell | [10](10-datenschutz-und-sicherheit.md) |
 
 ## 9. Rahmenbedingungen
@@ -147,10 +150,10 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 |---|---|
 | Betriebssystem | Windows 10 22H2 und Windows 11, x64 |
 | Rechte | Läuft als normaler Benutzer; Neustart mit Adminrechten optional, um Fenster mit Adminrechten aufzunehmen |
-| Technologie | C# / .NET 10 (LTS, Support bis November 2028), WPF, self-contained Single-File-EXE ([02](02-architektur.md)) |
+| Technologie | C# / .NET 10 (LTS, Support bis November 2028), WPF, self-contained Single-File-EXE ([02](02-architektur.md)). *Stand: gebaut wird mit .NET 8; der Wechsel auf .NET 10 ist offen, weil das SDK fehlt* |
 | Abhängigkeiten | Nur freizügige Lizenzen (MIT, Apache-2.0, BSD) |
 | Netzwerk | Kein Netzwerkzugriff |
-| Sprache | Oberfläche Deutsch und Englisch; Datenformat-Bezeichner englisch; Spezifikation deutsch |
+| Sprache | Oberfläche Deutsch und Englisch (Einstellung „System“ folgt Windows; die Sprache der Anleitungstexte ist davon unabhängig); Datenformat-Bezeichner englisch; Spezifikation deutsch |
 | Lizenz des Projekts | CC BY-ND 4.0 für Programm und Quellcode – siehe [LICENSE](../../LICENSE) |
 | Arbeitstitel | StepRecorder, `SebastiansStepRecorder.exe` |
 
@@ -188,7 +191,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | **Marker** | Zeitpunkt, den der Autor während der Aufnahme setzt; Typen: Notiz, Fehler, Erwartet, Wichtig |
 | **Aufnahmeprofil** | Benannte Voreinstellung für Aufnahme und Export (z. B. „Anleitung“, „Support-Fall“, „KI-Spur“) |
 | **Verallgemeinerung** | Regel, die einen persönlichen Wert in allen Ausgaben durch einen Platzhalter wie `{Benutzername}` ersetzt |
-| **Ersetzung** | Neu aufgenommener Abschnitt, der markierte Schritte in der Anleitung ersetzt; die alten bleiben in den Rohdaten |
+| **Ersetzung** | Neu aufgenommener Abschnitt, der markierte Schritte in der Anleitung ersetzt; die alten bleiben in den Rohdaten (noch nicht umgesetzt) |
 | **Support-Paket** | ZIP aus einer bereinigten Kopie mit HTML-Anleitung und KI-Paket, zum Weitergeben an einen Helpdesk |
 | **Lückenmarker** | Ereignis `gap`: benennt Zeitraum und Ursache, warum nichts oder nur Teile erfasst wurden |
 | **Vorher-/Nachher-Bild** | Bildschirmzustand unmittelbar vor der Eingabe bzw. nach Beruhigung des Bildschirms |
@@ -200,6 +203,14 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | **Capture-Host** | Minimalprozess, der die Eingabe-Hooks ausführt |
 | **Leseschicht** | Zentrale Komponente, über die alle Ausgaben lesen; erzwingt Schwärzungen |
 | **Overlay / `edits.json`** | Alle Bearbeitungen getrennt von den Rohdaten |
+| **Bearbeitungsstand** | Automatische Sicherung des Overlays (`history\`), aus der sich eine frühere Fassung wiederherstellen lässt; Schwärzungen und Durchsicht bleiben auf heutigem Stand |
+| **Zusammenfassung** | Mehrere aufeinanderfolgende Schritte, die eine Anleitung als einen Schritt zeigt; KI-Paket und Rohdaten behalten die Einzelschritte |
+| **Qualitätsprüfung** | Regeln Q01–Q20, die Anleitung und Aufnahme auf Mängel prüfen (Editor F8, Kommandozeile `check`); Befunde sind Warnungen oder Hinweise |
+| **Bibliothek** | Fenster „Alle Aufnahmen“: finden, durchsuchen, umbenennen, packen, löschen |
+| **`.steprec`** | Eine Aufnahme als ZIP-Datei, bereinigt oder vollständig; nur ansehen, zum Bearbeiten entpacken |
+| **Bereinigte Kopie** | Neue Aufnahme aus der Sicht der Leseschicht, ohne Geschwärztes, Regelwerte und interne Kommentare |
+| **Agent-Anfrage** | Bitte eines Agenten über MCP um eine Vorführung; der Nutzer bestätigt oder lehnt ab |
+| **Sicherer Desktop** | Gesonderte Arbeitsfläche von Windows, etwa für die Abfrage der Benutzerkontensteuerung (UAC); dort werden weder Eingaben noch Bilder aufgezeichnet, die Aufnahme zeigt einen benannten Schritt |
 | **Privattaste** | Umschalter, der Tasteninhalte maskiert, bis er erneut gedrückt wird (Pausieren ist eine eigene Funktion) |
 | **Schutzstufe** | *Schutznetz* (Standard) oder *Streng* – wie Eingaben in nicht klassifizierbaren Fenstern behandelt werden |
 | **Undurchsichtige Oberfläche** | Fenster ohne verwertbare Elementinformationen (Remote-Desktop, VM, Spiel, Zeichenfläche) |

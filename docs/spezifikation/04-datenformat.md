@@ -19,7 +19,7 @@ Dieses Dokument ist die kanonische Definition des Sitzungsformats von StepRecord
 11. [Bildspeicher](#bildspeicher)
 12. [`steps.json`](#steps-json)
 13. [`edits.json`](#edits-json)
-14. [`cache/` und `export/`](#cache)
+14. [`cache/`, `history/` und `export/`](#cache) · [Zustandsdateien außerhalb der Sitzung](#zustandsdateien)
 15. [Versionierung und Migration](#versionierung)
 16. [Absturzsicherheit und Integrität](#absturzsicherheit)
 17. [JSON-Schema-Auszüge](#json-schema)
@@ -67,6 +67,7 @@ Eine Aufzeichnung („Sitzung“) ist ein Ordner. Der Ordnername ist frei wählb
     cur3.png
   assets/                  vom Nutzer eingebrachte Bilder (extern bearbeitet)
   cache/                   Vorschaubilder, Indizes – jederzeit löschbar
+  history/                 automatische Sicherungen von edits.json (Bearbeitungsstände)
   export/                  erzeugte Ausgaben (KI-Paket, HTML, …)
     .tmp/                    Zwischendateien (extern bearbeiten, Herausziehen, Vorschau) – flüchtig
   session.lock             nur solange ein Prozess schreibend zugreift
@@ -84,6 +85,7 @@ Eine Aufzeichnung („Sitzung“) ist ein Ordner. Der Ordnername ist frei wählb
 | `assets/` | Bearbeitung | ○ | Viewer | Bilddateien, auf die `edits.json` unter `assets` verweist. |
 | `session.lock` | Laufzeit | ○ | Recorder, Viewer | Enthält Prozess-ID, Startzeit und Zugriffsart. Kein Teil der Sitzung. |
 | `cache/` | abgeleitet | ○ | beliebig | Darf jederzeit vollständig gelöscht werden. |
+| `history/` | Bearbeitung | ○ | Viewer (beim Speichern von `edits.json`) | Bearbeitungsstände: Kopien von `edits.json`, siehe [14](#history). Kein Teil der Sitzung im engeren Sinn; wird nie gepackt, nie exportiert und beim endgültigen Schwärzen gelöscht. |
 | `export/` | Ausgabe | ○ | Exporte | Kein Teil des Datenmodells. |
 | `export/.tmp/` | Laufzeit | ○ | Viewer, Exporte | Zwischendateien für „extern bearbeiten“, „als Datei kopieren“, Herausziehen und Exportvorschau. Sie liegen **immer hier, nie in `%TEMP%`**, enthalten nur die geschwärzte Sicht der Leseschicht und sind flüchtig, siehe [14](#cache). |
 
@@ -97,9 +99,12 @@ Dateien, die hier nicht genannt sind, werden von Lesern ignoriert und von Werkze
 Eine `.steprec`-Datei ist ein ZIP-Archiv des Sitzungsordners. Sie dient dem Weitergeben und Archivieren; gearbeitet wird im Ordner.
 
 - ZIP nach APPNOTE 6.3, Dateinamen in UTF-8, Trennzeichen `/`. ZIP64 ist erlaubt. Keine Verschlüsselung in Formatversion 1.
-- `manifest.json` ist der **erste** Eintrag und unkomprimiert gespeichert, damit sich eine Sitzung ohne vollständiges Entpacken erkennen lässt.
-- PNG-Dateien werden unkomprimiert gespeichert (Methode *stored*), alle anderen Dateien mit *deflate*.
-- Standardmäßig **nicht** enthalten: `cache/`, `export/`, `session.lock`, `steps.<Regelversion>.json`. `export/.tmp/` wird **nie** gepackt – auch dann nicht, wenn `export/` ausdrücklich mitgegeben wird.
+- `manifest.json` ist der **erste** Eintrag, damit sich eine Sitzung ohne vollständiges Entpacken erkennen lässt (Titel und Kennung sind aus dem Archiv allein lesbar).
+- PNG-Dateien werden unkomprimiert gespeichert (Methode *stored*), alle anderen Dateien mit *deflate*. Die Zeitstempel der Einträge sind fest (2026-01-01), damit gleiche Inhalte gleiche Archive ergeben.
+- **Positivliste beim Packen:** Gepackt wird nur, was zur Aufnahme gehört – `manifest.json`, `events.jsonl`, `steps.json`, `edits.json` und der Inhalt von `frames/`, `cursors/` und `assets/`. **Nie** gepackt werden `cache/`, `export/` (auch nicht `export/.tmp/`), `history/` (Bearbeitungsstände), `session.lock`, `steps.<Regelversion>.json` und alles Unbekannte. Eine Option, die davon etwas hinzunimmt, gibt es nicht.
+- Beim Packen entfernt das Programm aus `edits.json` die absoluten Pfade angehängter Aufnahmen (`guide.append[].path`): Sie verraten Ordnerstrukturen des Rechners und wären beim Empfänger ungültig. Eine laufende Aufnahme lässt sich nicht packen.
+- **Grenzen beim Entpacken.** Ein Archiv gilt als fremde Eingabe. Es wird nie mit einem Sammelbefehl entpackt, sondern Eintrag für Eintrag; jeder Eintrag muss auf der Positivliste stehen (dieselben Namen wie oben, höchstens 260 Zeichen, mit `/` getrennt). Abgelehnt wird ein Archiv bei: Pfadsprüngen (`..`), Laufwerksangaben oder Doppelpunkt im Namen, führendem `/`, Gerätenamen (`CON`, `NUL`, `COM1` …), Namen mit unzulässigen Zeichen oder mit Punkt oder Leerzeichen am Ende, unbekannten Teilen, doppelten Einträgen, mehr als 200 000 Einträgen, einem Eintrag über 2 GiB, mehr als 20 GiB entpackt, einem Eintrag über 1 MB mit einem Kompressionsverhältnis über 250, fehlendem `manifest.json` oder `events.jsonl`, ungültigem Manifest oder einem `format` ungleich `steprec`. Die tatsächlich geschriebenen Bytes werden mitgezählt, denn die Größenangaben im Archivkopf können lügen.
+- **Nichts bleibt zurück.** Entpackt wird zuerst in einen Zwischenordner (`.steprec-unpack-<8 Zeichen>`) im Zielordner und erst nach vollständigem Erfolg an den endgültigen Ort verschoben; der Ordnername folgt dem Titel (`Titel`, bei Kollision `Titel (2)` …). Bei jedem Fehler wird der Zwischenordner gelöscht.
 - Die Pfade im Archiv entsprechen genau den Pfaden im Sitzungsordner, ohne umschließenden Ordner.
 - Zum Bearbeiten wird das Archiv in einen Ordner entpackt. Ein Leser darf ein Archiv direkt lesend öffnen.
 - Vor dem Packen einer Sitzung zur Weitergabe sind Overlay-Schwärzungen zu beachten: Sie schützen nur innerhalb des Tools. Was weitergegeben wird, muss vorher endgültig geschwärzt sein (siehe [Schwärzungen](#edits-redactions) und [Datenschutz und Sicherheit](10-datenschutz-und-sicherheit.md)). Dasselbe gilt für [Verallgemeinerungen](#edits-substitutions): Solange sie nicht endgültig angewendet sind, stehen die Originalwerte in den Rohdaten, und die Regel selbst nennt den Wert, den sie ersetzt.
@@ -302,9 +307,11 @@ Beim Start kann der Autor festhalten, **was die Aufnahme zeigen soll**. Die Anga
 | `description` | string | ○ | „Was wird gezeigt?“ – Zweck der Aufnahme. Höchstens 2000 Zeichen. |
 | `expected` | string | ○ | „Erwartetes Ergebnis“ – was am Ende zu sehen sein soll. Höchstens 2000 Zeichen. |
 | `reference` | string | ○ | „Bezug“ – freier Verweis, etwa eine Ticketnummer. Höchstens 200 Zeichen. |
+| `statedBy` | enum | ○ | Wer die Angaben formuliert hat: `author` (Standard; das Feld fehlt dann) oder `agent` – ein KI-Agent hat die Aufnahme über `request_recording` angefragt, der Mensch hat zugestimmt ([06](06-ki-export-und-mcp.md#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)). Dann ist `description` der Text des Agenten (bereinigt, bis 500 Zeichen) und `expected` sein erwartetes Ergebnis. Der Wert wird nie vom Viewer gesetzt oder geändert. |
 
 Regeln:
 
+- Bei `statedBy: "agent"` ist das Ziel weiterhin eine Angabe über die Absicht, keine Beobachtung; es stammt aber nicht vom Aufnehmenden. Alle Ausgaben kennzeichnen das (KI-Paket, `get_session`, Kopf von `trace.md`). Ändert der Autor `description` im Viewer, bleibt `statedBy` im Manifest stehen; die Ausgaben nennen den Agenten weiter als Urheber der ursprünglichen Angabe.
 - Alle drei Felder sind wahlfrei. Ein nicht ausgefülltes Feld fehlt; leere Zeichenketten stehen weder im Manifest noch im Journal. Ist nichts ausgefüllt, fehlt `goal` ganz.
 - Im Journal steht `goal` im `session.start` des **ersten** Abschnitts ([9.2](#ev-session)); das Manifest spiegelt es (G3).
 - Der Autor kann die Angaben im Viewer ändern. Das geschieht im Overlay (`edits.goal`, [13.12](#edits-goal)); Manifest und Journal bleiben unverändert.
@@ -733,7 +740,7 @@ Ein Typ, unterschieden durch `kind` ●. Weitere Felder je `kind`:
 | `sessionLock`, `sessionUnlock` | – | Arbeitsstation gesperrt/entsperrt. |
 | `remoteConnect`, `remoteDisconnect`, `consoleConnect`, `consoleDisconnect` | – | Wechsel der Sitzungsverbindung. |
 | `powerSuspend`, `powerResume` | – | Ruhezustand. |
-| `desktopSwitch` | `desktop` (`default` \| `winlogon` \| `screensaver` \| `other` \| `unknown`) | Aktiver Desktop gewechselt (z. B. sicherer Desktop bei UAC). |
+| `desktopSwitch` | `to` (`secure` \| `default`), `desktop` ○ (beim Wechsel auf `secure`: Name des Eingabe-Desktops laut System, z. B. `Winlogon` oder `Screen-saver`; `inaccessible`, wenn er sich nicht öffnen lässt; `unknown`, wenn der Name nicht lesbar ist) | Eingabe-Desktop gewechselt (z. B. sicherer Desktop bei UAC). Der Recorder fragt den Desktop alle 250 ms ab. Ein anderer Desktop als `Default` beginnt sofort die Lücke `secureDesktop`; die Rückkehr gilt erst nach zwei aufeinanderfolgenden Lesungen von `Default` (Flackern beim Umschalten). Solange der Rechner gesperrt, getrennt oder im Ruhezustand ist, entsteht keine eigene Lücke `secureDesktop`. |
 | `captureBackend` | `m`, `from`, `to`, `reason` | Aufnahmeweg eines Monitors gewechselt. |
 | `hook` | `channel` (`keyboard` \| `mouse`), `action` (`installed` \| `lost` \| `reinstalled`), `reason` ○ | Zustand eines Eingabe-Hooks. |
 | `selfTest` | `test` (`invisibility`), `passed` (bool), `mode` (`excluded` \| `fallbackHidden`), `backend` | Ergebnis des Selbsttests beim Aufnahmestart. |
@@ -806,7 +813,7 @@ Hält fest, welche Tasten laut System gerade gedrückt sind, und korrigiert den 
 
 | Feld | Typ | Pfl. | Bedeutung |
 |---|---|---|---|
-| `reason` | enum | ● | `initial`, `afterGap`, `resume`, `mismatch`, `periodic`. |
+| `reason` | enum | ● | `initial`, `afterGap`, `resume`, `mismatch`, `periodic`, `secureDesktop` (Abgleich nach der Rückkehr vom sicheren Desktop; `gapId` nennt dessen Lücke). |
 | `down` | Objekt[] | ● | Gedrückte Tasten: `vk`, `key`. Druckbare Tasten werden hier nie genannt, nur Umschalter und Feststeller. |
 | `mouseDown` | string[] | ● | Gedrückte Maustasten. |
 | `locks` | string[] | ● | Aktive Feststeller: `caps`, `num`, `scroll`. |
@@ -814,7 +821,7 @@ Hält fest, welche Tasten laut System gerade gedrückt sind, und korrigiert den 
 | `gapId` | string | ○ | Lücke, nach der abgeglichen wurde. |
 
 ```json
-{"seq":4020,"t":139004000,"type":"keystate.sync","reason":"afterGap","gapId":"g1","down":[],"mouseDown":[],"locks":["num"],"corrected":[{"vk":162,"key":"LeftCtrl","was":"down","now":"up"},{"vk":160,"key":"LeftShift","was":"down","now":"up"}]}
+{"seq":4020,"t":139004000,"type":"keystate.sync","reason":"secureDesktop","gapId":"g1","down":[],"mouseDown":[],"locks":["num"],"corrected":[{"vk":162,"key":"LeftCtrl","was":"down","now":"up"},{"vk":160,"key":"LeftShift","was":"down","now":"up"}]}
 ```
 
 Das Beispiel stammt aus [Anhang B.2](#beispiele): Strg und Umschalt wurden vor einer Lücke gedrückt und in der Lücke losgelassen.
@@ -1357,7 +1364,7 @@ Ein `begin` ohne zugehöriges `end` gilt bis zum Ende des Abschnitts.
 | `excludedApp` | `rule` (Pflicht) | Anzeigename der Ausschlussregel. **Keine** Zähler, kein Programmname, kein Titel. Auch die Eingabenummer `inSeq` läuft in dieser Lücke nicht weiter. |
 | `outOfScope` | `counts` | Am Ende-Ereignis: Zahl der nicht aufgezeichneten Ereignisse je Art – `keys`, `clicks`, `wheel`, `moves`. Nur Zahlen; keine Inhalte, Positionen oder Einzelzeiten. |
 | `privacyMode` | `trigger`, `rule`, am Ende-Ereignis `end` | Auslöser, Regel und Endgrund – wie beim `system`-Ereignis `privacyMode`. |
-| `secureDesktop` | `desktop` | Name des aktiven Desktops. |
+| `secureDesktop` | `desktop`, `kind` | `desktop`: Name des aktiven Desktops (wie bei `system`/`desktopSwitch`). `kind`: `uac` (Abfrage der Benutzerkontensteuerung; erkannt daran, dass der Prozess `consent.exe` läuft) oder `other` (etwa Strg+Alt+Entf, Bildschirmschoner). Beim `begin` steht die Art, die zu diesem Zeitpunkt erkennbar war; maßgeblich ist `kind` im `end`-Ereignis (erkennt der Recorder die Abfrage erst später, wird aus `other` noch `uac`). Während der Lücke werden keine Bilder aufgenommen; nach ihrem Ende folgen `keystate.sync` (`reason: "secureDesktop"`) und ein erzwungenes Schlüsselbild (`trigger: "resume"`). |
 | `hookLost`, `inputMismatch` | `channel`, `hookEvents`, `rawEvents` | Betroffener Kanal und die Zähler beider Kanäle im Zeitraum. |
 | `captureLost` | `m`, `reason` | Monitor und Anlass (`accessLost`, `modeChange`, `backendSwitch`). |
 | `frameDropped` | `frame` | Kennung des betroffenen Bildes. |
@@ -1390,8 +1397,8 @@ Ein `begin` ohne zugehöriges `end` gilt bis zum Ende des Abschnitts.
 Zurückgehaltene Tasten in Passwortfeldern erzeugen kein `gap`, sondern [`text.masked`](#ev-text-masked); im Vollständigkeitsbericht erscheinen sie unter der Ursache `maskedInput`.
 
 ```json
-{"seq":4012,"t":131000000,"type":"gap","gapId":"g1","phase":"begin","cause":"secureDesktop","tFrom":131000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"winlogon"}}
-{"seq":4019,"t":139000000,"type":"gap","gapId":"g1","phase":"end","cause":"secureDesktop","tFrom":131000000,"tTo":139000000,"channels":["all"],"inputLost":"possible"}
+{"seq":4012,"t":131000000,"type":"gap","gapId":"g1","phase":"begin","cause":"secureDesktop","tFrom":131000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
+{"seq":4019,"t":139000000,"type":"gap","gapId":"g1","phase":"end","cause":"secureDesktop","tFrom":131000000,"tTo":139000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
 ```
 
 ---
@@ -1661,7 +1668,7 @@ Auf oberster Ebene von `steps.json`:
 | `system` | `event` (`windowOpened` \| `windowClosed` \| `foregroundChanged` \| `titleChanged` \| `notification` \| `topologyChanged` \| `scopeChanged` \| `valueChanged`), `refSeq` |
 | `wait` | `durationUs`, `busyCursor`, `until` ○ (`seq`, `what`) |
 | `comment`, `snapshot`, `marker` | `refSeq` (das Ereignis), bei `marker` zusätzlich `markerKind` (`note` \| `error` \| `expected` \| `important`, aus `marker.kind`) und `label` ○ |
-| `gap` | `cause`, `channels`, `inputLost` |
+| `gap` | `cause`, `channels`, `inputLost`; bei `cause: "secureDesktop"` zusätzlich `desktopKind` (`uac` \| `other`, aus `detail.kind` des `end`-Ereignisses). Lücken wegen sicherem Desktop, gesperrtem Rechner, getrennter Sitzung und Ruhezustand haben weder Vorher- noch Nachher-Bild; ein Nachher-Bild wird nie aus einer solchen Lücke gebunden. Bei `uac` zählt der Schritt als Hauptschritt (Titel „Benutzerkontensteuerung bestätigen“). |
 | `move` | wie `approach` |
 
 `tokens` einer Texteingabe ist eine Liste in Tippreihenfolge:
@@ -1816,13 +1823,13 @@ Lässt sich ein Eintrag nach einer Neuberechnung keinem Schritt mehr zuordnen, w
 | `sessionId` | string | ● | Zugehörige Sitzung. |
 | `revision` | int | ● | Zähler, bei jedem Speichern um 1 erhöht. |
 | `savedAtUtc`, `savedBy` | Zeit, string | ● | Letzter Schreiber (`"viewer"`, `"mcp:set_step_text"`, `"recorder"`). |
-| `guide` | Objekt | ○ | Angaben zur Anleitung: `title`, `subtitle`, `description`, `author`, `tags` (Schlagwörter), `intro`, `outro`, `language`. `auto` (Voreinstellung der automatischen Markierungen für alle Schritte, Schlüssel wie `steps[].auto`). `intro` ist die Einleitung der Anleitung – und beim Support-Paket der **Hinweis für den Empfänger** (siehe unter der Tabelle). |
+| `guide` | Objekt | ○ | Angaben zur Anleitung: `title` (zugleich der Titel der Aufnahme in Bibliothek, Startfenster und Ausgaben; „Umbenennen“ in der Bibliothek schreibt hierher und ändert den Ordnernamen nicht), `subtitle`, `description`, `author`, `tags` (Schlagwörter), `intro`, `outro`, `language`. `auto` (Voreinstellung der automatischen Markierungen für alle Schritte, Schlüssel wie `steps[].auto`). `intro` ist die Einleitung der Anleitung – und beim Support-Paket der **Hinweis für den Empfänger** (siehe unter der Tabelle). |
 | `goal` | Objekt | ○ | Vom Autor geänderte Ziel-Angaben; überlagern `manifest.goal`, siehe [13.12](#edits-goal). |
 | `view` | Objekt | ○ | Darstellungsvorgabe für alle Schritte, siehe 13.4. |
 | `steps` | Objekt[] | ○ | Änderungen je Schritt, siehe 13.3. |
 | `order` | (int \| string)[] | ○ | Reihenfolge in der Anleitung: Anker und Kennungen eingefügter Schritte. Fehlt = wirksame Schrittfolge. Das KI-Protokoll folgt dieser Liste nie; es zeigt stets die wirksame Schrittfolge ([Schritterkennung](05-schritterkennung.md#wirksame-schrittfolge)). |
 | `chapters` | Objekt[] | ○ | `id`, `title`, `startAt` (Anker oder Kennung, mit dem das Kapitel beginnt). |
-| `merges` | Objekt[] | ○ | `anchors`: zusammengefasste Schritte; der erste Anker bleibt bestehen. |
+| `merges` | Objekt[] | ○ | Zusammengefasste Schritte (nur Anleitungen): `id`, `anchors`, `text` ○, `createdUtc`, `by`. Siehe [13.17](#edits-merges). |
 | `splits` | Objekt[] | ○ | `anchor`, `atSeq`: Schritt wird vor dem Eingabeereignis `atSeq` geteilt. |
 | `inserted` | Objekt[] | ○ | Eingefügte Schritte: `id`, `kind` (`note` \| `warning` \| `tip` \| `step`), `after` (Anker, Kennung oder `"start"`), `text`, `frame` ○, `view` ○. |
 | `comments` | Objekt[] | ○ | Kommentare zum Schritt: `id`, `anchor`, `kind` (`note` \| `tip` \| `warning` \| `internal`), `text`, `createdUtc`, `by` (`user` \| `mcp`), `origin` (`viewer`, Standard \| `recording`), `hidden` ○ (bool: vom Autor ausgeblendet). Bei `origin: "recording"` zusätzlich `sourceSeq` (das `comment`-Ereignis im Journal): Ein solcher Eintrag ändert Text oder Art eines **während der Aufnahme** geschriebenen Kommentars oder blendet ihn aus, ohne das Journal zu berühren. **Interne und ausgeblendete Kommentare** – `kind: "internal"` oder `hidden: true` – erscheinen in **keiner** Ausgabe: weder in der Anleitung noch im KI-Paket noch über den MCP-Server, auch nicht in Rohereignissen und Suchtreffern. Bei einem Kommentar aus der Aufnahme bleiben das `comment`-Ereignis und sein Schritt mit Nummer und Zeit stehen, damit die Zählung stimmt; sein Text aber wird von der Leseschicht wie eine geschwärzte Textstelle ersetzt (`[redacted]`, [13.6](#edits-redactions)). Sichtbar bleiben solche Kommentare allein im Viewer. Das unterscheidet sie von einem ausgeblendeten **Schritt** (13.3), der nur in der Anleitung fehlt. |
@@ -1841,6 +1848,7 @@ Lässt sich ein Eintrag nach einer Neuberechnung keinem Schritt mehr zuordnen, w
 
 **Empfängerhinweis des Support-Pakets.** Der Text, der dem Empfänger eines Support-Pakets vorangestellt wird, steht in `guide.intro` – ein eigenes Feld gibt es dafür nicht. Ist er über Profil oder Kommandozeile vorbelegt, trägt ihn die Aufzeichnungssteuerung nach dem sauberen Stopp ein ([13.7](#edits-writers)); der Autor kann ihn im Viewer ändern. Wie jeder Text der Anleitung ist er Autorentext: Schwärzungen und Verallgemeinerungen gelten, und die Musterprüfung vor der Weitergabe erfasst ihn.
 
+<a id="edits-steps"></a>
 ### 13.3 Änderungen je Schritt (`steps[]`)
 
 | Feld | Typ | Bedeutung |
@@ -1881,9 +1889,18 @@ Die Wahl wirkt nur auf Anzeige und Export. Die gespeicherten Bilder bleiben voll
 | `frame` | string | Bild, auf dem gezeichnet wird (Pflicht). |
 | `anchor` | int | Zugehöriger Schritt, falls vorhanden. |
 | `type` | enum | `arrow`, `line`, `rect`, `ellipse`, `highlight`, `text`, `badge`, `freehand`, `magnifier`, `spotlight`. |
-| `geom` | – | Je Typ: `arrow`/`line` `[x1, y1, x2, y2]`; `rect`/`ellipse`/`highlight`/`spotlight` `[x, y, w, h]`; `text`/`badge` `[x, y]`; `freehand` Punktliste; `magnifier` `{ "src": [x, y, w, h], "at": [x, y], "zoom": 2 }`. Bei `spotlight` bleibt der Bereich hell, alles übrige wird abgedunkelt. |
+| `geom` | – | Je Typ: `arrow`/`line` `[x1, y1, x2, y2]`; `rect`/`ellipse`/`highlight`/`spotlight` `[x, y, w, h]`; `text`/`badge` `[x, y]`; `freehand` Punktliste `[[x, y], …]` (der Editor glättet beim Loslassen; höchstens 400 Punkte); `magnifier` `{ "src": [x, y, w, h], "at": [x, y], "zoom": 2 }`. Rechtecke dürfen mit negativer Breite oder Höhe gespeichert sein; Leser normalisieren. |
 | `text` | string | Bei `text` und `badge`. |
-| `style` | Objekt | `color`, `width`, `fill`, `fontSize`, `opacity`; bei `spotlight` zusätzlich `dim` (Stärke der Abdunklung, 0–1). |
+| `style` | Objekt | `color`, `width`, `fill`, `fontSize`, `opacity`; bei `spotlight` zusätzlich `dim` (Stärke der Abdunklung, 0–1, Standard 0,55); bei `magnifier` zusätzlich `shape` (`round`: Rechteck mit abgerundeten Ecken, Standard des Editors; `circle`: kreisförmige Linse; unbekannte Werte wie `round`). |
+
+Eigenheiten der neueren Typen:
+
+- **`line`** ist ein Pfeil ohne Spitze; Geometrie und Treffer wie `arrow`.
+- **`freehand`** ist ein Linienzug. Die Punkte stehen in Bildpixeln; der Umriss ist der kleinste Rahmen um alle Punkte.
+- **`spotlight`**: Der Bereich bleibt hell, alles übrige wird abgedunkelt. Mehrere Spotlights auf demselben Bild wirken zusammen: Abgedunkelt wird nur, was außerhalb aller Spotlight-Rechtecke liegt, und zwar einmal, mit der stärksten der angegebenen Abdunklungen (`dim` wird auf 0,1 bis 0,9 begrenzt). Der Editor wählt die Stärke über die Strichstärke (dünn 0,4 · mittel 0,55 · dick 0,7). Beim Anklicken wird ein Spotlight zuletzt geprüft, weil es große Flächen deckt.
+- **`magnifier`**: `src` ist der vergrößerte Bereich, `at` der Mittelpunkt der Linse; die Linse ist `src` mal `zoom` groß (`zoom` wird auf 1,25 bis 4 begrenzt, Standard 2). Linse und Quelle lassen sich getrennt verschieben, ein Griff an der Linse ändert den Zoom. Ist `src` kleiner als 2 × 2 Pixel, wird die Lupe ignoriert.
+- **Zeichenreihenfolge im Bild:** erst die Abdunklung der Spotlights, dann die Lupen, dann alle übrigen Markierungen in der Reihenfolge der Liste. Eine Lupe wird nur gezeichnet, wenn das vollständige (bereits geschwärzte) Bild als Quelle vorliegt.
+- **Nur auf dem eigenen Bild.** Eine Markierung steht auf dem Bild `frame` und auf keinem anderen, auch nicht auf dem Nachher-Bild desselben Schritts. Treffer, Griffe, Größenänderung und Verschieben berechnet eine gemeinsame Funktion (`AnnotationGeometry`), die Editor, Export und KI-Paket gleich benutzen. Das KI-Paket beschreibt jede Markierung als Text, z. B. „Spotlight auf (x, y, w×h) – übriges Bild abgedunkelt“ ([06](06-ki-export-und-mcp.md)).
 | `z` | int | Zeichenreihenfolge. |
 
 Alle Koordinaten sind Bildpixel des vollständigen Bildes – unabhängig davon, wie das Bild gerade zugeschnitten oder skaliert angezeigt wird.
@@ -2343,10 +2360,38 @@ Das zugehörige Ende des Abschnitts im Journal:
 {"seq":5388,"t":265400000,"type":"session.stop","reason":"discarded","utc":"2026-11-12T08:52:06.800000Z"}
 ```
 
+<a id="edits-merges"></a>
+### 13.17 Zusammengefasste Schritte (`merges`)
+
+Der Autor kann aufeinanderfolgende Schritte für Anleitungen zu **einem** Schritt zusammenfassen. Das ist reine Darstellung der Anleitung: Schritte, Nummern, Journal und `steps.json` bleiben unverändert, und KI-Paket, MCP-Server, Vergleich und AutoHotkey-Ausgaben zeigen weiter jeden Einzelschritt. Das KI-Paket vermerkt die Gruppe nur als Hinweiszeile am Schritt ([06](06-ki-export-und-mcp.md#54-feldkatalog)).
+
+| Feld | Typ | Pfl. | Bedeutung |
+|---|---|---|---|
+| `id` | string | ● | Eindeutig in der Datei (`mg1`, `mg2` …). |
+| `anchors` | int[] | ● | Anker der zusammengefassten Schritte in der Reihenfolge der Anleitung, mindestens zwei. Der **erste** Anker führt die Gruppe. |
+| `text` | Objekt | ○ | Eigener Text der Gruppe je Sprache, im Aufbau wie `steps[].text` ([13.3](#edits-steps)): `{ "de": { "title": "…", "body": "…", "by": "user", "atUtc": "…" } }`. Ohne `text` gilt der Titel des führenden Schritts und der verbundene Text der sichtbaren Mitglieder. |
+| `createdUtc`, `by` | Zeit, enum | ○ | Zeitpunkt und Urheber (`user`). |
+
+Regeln:
+
+- **Voraussetzungen beim Anlegen** (der Editor prüft sie; Leser verlassen sich nicht darauf): Die Schritte folgen in der Anleitungsreihenfolge unmittelbar aufeinander; keiner ist eine Lücke (`gap`) oder ein eingefügter Schritt; keiner gehört schon zu einer Gruppe; in der Auswahl beginnt kein Kapitel (nur der erste Schritt darf es tun).
+- **Verhalten eines Lesers:** Anker, die keinem Schritt entsprechen, werden übergangen; bleiben weniger als zwei, ist der Eintrag wirkungslos. Gehört ein Anker zu mehreren Einträgen, gilt der erste.
+- **Darstellung:** Nur der führende Schritt erscheint in der Anleitung. Sein Zeitraum reicht vom frühesten Beginn bis zum spätesten Ende der Mitglieder; Vorher-Bild ist das erste, Nachher-Bild das letzte vorhandene Bild der sichtbaren Mitglieder; die Wichtigkeit ist die höchste der Mitglieder; Kommentare aller Mitglieder gehören zur Gruppe. Der Anleitungstext ist, wenn kein eigener Text gesetzt ist, der Text der sichtbaren Mitglieder hintereinander (Text des Autors, sonst Text der Vorlage). Geschwärzte und ausgeblendete Mitglieder tragen nichts bei; ist der führende Schritt ausgeblendet, ist die Gruppe ausgeblendet.
+- **Texte:** `text` ist Autorentext wie jeder andere: Schwärzungen und Verallgemeinerungen gelten, die Durchsicht erfasst ihn, und „Alle ersetzen“ ändert auch ihn. Für eine fehlende Sprache gilt dieselbe Regel wie bei Schritttexten („Fehlende Übersetzung“ im Export).
+- **Aufheben:** Das Entfernen des Eintrags stellt die Einzelschritte wieder her; Journal und `steps.json` brauchen dafür nichts.
+- **Bearbeitungsstände:** Zusammenfassungen gehören zu dem, was ein Bearbeitungsstand sichert ([14](#history)).
+
+```json
+{ "merges": [
+    { "id": "mg1", "anchors": [1700, 1734, 1790], "createdUtc": "2026-11-12T09:41:07.000000Z", "by": "user",
+      "text": { "de": { "title": "Datei speichern", "body": "Speichern Sie die Datei als notiz.txt.", "by": "user", "atUtc": "2026-11-12T09:42:00.000000Z" } } }
+] }
+```
+
 ---
 
 <a id="cache"></a>
-## 14. `cache/` und `export/`
+## 14. `cache/`, `history/` und `export/`
 
 **`cache/`** enthält ausschließlich Daten, die sich aus der Sitzung wiederherstellen lassen. Der Ordner darf jederzeit gelöscht werden und wird nicht in `.steprec` gepackt.
 
@@ -2355,9 +2400,11 @@ Das zugehörige Ende des Abschnitts im Journal:
 | `cache/thumbs/<Bild-Kennung>-<Kantenlänge>.jpg` | Vorschaubilder |
 | `cache/full/<Bild-Kennung>.png` | Wiederhergestellte Vollbilder |
 | `cache/journal.idx` | Sprungtabelle `seq` → Dateiposition und Zeitindex |
+| `cache/catalog.json` | Teure Angaben für die Bibliothek: Zahl der ungeprüften Eingaben und der Anleitungsschritte. Felder: `stamp` (Revision von `edits.json`, letzte `seq`, Regelversion, getrennt durch `\|`), `journalBytes` (Länge von `events.jsonl`), `unreviewed`, `guideSteps`. Gilt nur, solange Revision und Journallänge zum Stand der Sitzung passen. |
+| `cache/thumbs/list-<Breite>.png` | Vorschaubild der Bibliothek und des Startfensters: Vorher-Bild des ersten Anleitungsschritts **über die Leseschicht**, also mit allen Schwärzungen (Standardbreite 192). Daneben `list-<Breite>.png.json` mit `journalBytes` und `revision` als Stand. |
 | `cache/search/` | Suchindex der Sitzung, siehe unten |
 
-`cache/` enthält dieselben Pixel und Texte wie die Rohdaten und ist ebenso vertraulich. Nach endgültigem Schwärzen und nach jeder Neuberechnung der Schritte wird der Ordner geleert.
+`cache/` enthält dieselben Pixel und Texte wie die Rohdaten und ist ebenso vertraulich. Nach endgültigem Schwärzen, nach jeder Neuberechnung der Schritte und bei jedem Speichern von `edits.json` (auch beim Umbenennen) wird der Ordner geleert; wer ihn braucht, baut ihn neu. Aufnahmen, die noch laufen, und Archive (`.steprec`, direkt gelesen) bekommen keinen Zwischenspeicher.
 
 <a id="suchindex"></a>
 **Suchindex `cache/search/`**
@@ -2374,38 +2421,60 @@ Felder von `meta.json`:
 | Feld | Typ | Pfl. | Bedeutung |
 |---|---|---|---|
 | `format` | string | ● | Konstant `"steprec.search"`. |
-| `formatVersion` | int | ● | Version des Indexformats, hier `1`. Ein Leser, der die Version nicht kennt, verwirft den Index und baut ihn neu. |
+| `version` | int | ● | Version des Indexformats, hier `1`. Ein Leser, der die Version nicht kennt, verwirft den Index und baut ihn neu. |
+| `stamp` | string | ● | Stand der Sitzung, aus dem der Index entstand: Indexversion, `revision` aus `edits.json` (`0` ohne Datei), Länge von `events.jsonl` in Bytes, Regelversion der Schritte und Sprache, getrennt durch `\|` (`1\|7\|482113\|1.5.0\|de`). Ein Index mit anderem Stand gilt als veraltet. |
 | `sessionId` | string | ● | Zugehörige Sitzung. |
-| `builtAtUtc`, `builtBy` | Zeit, string | ● | Zeitpunkt und Programmversion. |
-| `complete` | bool | ● | `false`, solange der Index entsteht. Ein unvollständiger Index wird nicht benutzt. |
-| `source` | Objekt | ● | Stand, aus dem der Index entstand: `lastSeq`, `stepBuilderVersion`, `editsRevision` (`revision` aus `edits.json`, `null` ohne Datei), `patternsVersion` (Stand der Musterprüfung). |
 | `entries` | int | ● | Zahl der Einträge. |
 
 Je Zeile in `entries.jsonl`:
 
 | Feld | Typ | Pfl. | Bedeutung |
 |---|---|---|---|
-| `k` | enum | ● | Art des Texts: `typed` (getippter Text), `element` (Name eines Ziel-Elements), `window` (Fenstertitel), `comment` (Kommentar des Autors), `goal` (Ziel-Angabe), `title` (Titel der Sitzung oder Anleitung), `stepText` (vom Autor gesetzter Schritttext), `marker` (Bezeichnung eines Markers; `mk` nennt dann seinen Typ). |
-| `t` | string | ● | Der Text – so, wie ihn die Leseschicht ausgibt. |
-| `a` | int | ○ | Anker des Schritts, zu dem der Text gehört. Fehlt bei Texten der ganzen Sitzung (`goal`, `title`). |
-| `f` | string | ○ | Bei `goal`: `description`, `expected` oder `reference`. |
-| `mk` | enum | ○ | Bei `marker`: der wirksame Typ `note`, `error`, `expected` oder `important`. |
-| `st` | enum | ○ | `replaced`, wenn der Schritt durch eine Neuaufnahme ersetzt ist, `unused`, wenn er zu einer nicht verwendeten Neuaufnahme gehört. |
+| `s` | string | ● | Kennung des Schritts (`s1734`). |
+| `n` | int | ● | Schrittnummer in der wirksamen Schrittfolge. |
+| `a` | int | ● | Anker des Schritts. |
+| `t` | int | ● | Zeit des Schritts (µs seit Aufnahmebeginn). |
+| `f` | enum | ● | Art des Texts: `stepText` (Kurzfassung, Protokollsatz und vom Autor gesetzter Schritttext), `elements` (Name des Ziel-Elements), `windows` (Fenstertitel), `typed` (getippter Text, nur bei durchgesehenen Eingaben), `comments` (Kommentar des Autors), `markers` (Bezeichnung eines Markers). |
+| `x` | string | ● | Der Text – so, wie ihn die Leseschicht ausgibt. |
+| `m` | enum | ○ | Bei `markers`: der Typ des Markers (`note`, `error`, `expected`, `important`). |
+
+Ziel-Angaben und Titel der Sitzung stehen nicht im Index; die Suche findet sie nicht.
 
 Regeln:
 
-1. **Abgeleitet.** Der Index entsteht nach dem Stopp im Hintergrund und lässt sich jederzeit neu erzeugen. Fehlt er, ist er unvollständig oder veraltet, wird er bei der nächsten Suche gebaut; bis dahin durchsucht die Leseschicht die Sitzung direkt. Kein Leser verlässt sich auf sein Vorhandensein.
+1. **Abgeleitet.** Der Index lässt sich jederzeit neu erzeugen. Fehlt er oder ist er veraltet, wird er bei der nächsten Suche gebaut und – bei abgeschlossenen Sitzungen in beschreibbaren Ordnern – gespeichert; bei Archiven (`.steprec`) und laufenden Aufnahmen entsteht er nur im Arbeitsspeicher bzw. gar nicht. Kein Leser verlässt sich auf sein Vorhandensein. Die Bibliothek im Viewer nutzt ihn; der MCP-Server baut die Einträge je Aufruf aus der Leseschicht (dieselbe Definition, `SessionSearch.Entries`).
 2. **Nur über die Leseschicht.** Jeder Eintrag ist ein Text, den die Leseschicht in diesem Moment auch an den MCP-Server ausgeben würde. In den Index kommen deshalb **nie**: geschwärzte Inhalte, maskierte Eingaben (ihr Inhalt existiert nicht), ungeprüfte auffällige Eingaben, interne und ausgeblendete Kommentare, Texte aus verworfenen Abschnitten und die Originalwerte von Verallgemeinerungen – dort steht der Platzhalter. Auch die Platzhalter der Leseschicht selbst (`[geschwärzt]`, `{unreviewed:N}`, `{masked:N}`) werden nicht aufgenommen.
-3. **Verwerfen.** Ändert sich etwas, das die Sicht der Leseschicht bestimmt, wird der Ordner `cache/search/` gelöscht, **bevor** die Änderung gespeichert ist: Schwärzungen, Verallgemeinerungen, der Stand der Durchsicht, Art und Sichtbarkeit von Kommentaren, Ziel-Angaben, Ersetzungen, verworfene Abschnitte. Zusätzlich gilt ein Index als veraltet und wird nicht benutzt, wenn `source` nicht zum Stand der Sitzung passt – anderes `lastSeq`, andere Regelversion, andere `revision` von `edits.json`, neuerer Stand der Musterprüfung.
+3. **Verwerfen.** Ändert sich etwas, das die Sicht der Leseschicht bestimmt, wird der Ordner `cache/search/` gelöscht, **bevor** die Änderung gespeichert ist: Schwärzungen, Verallgemeinerungen, der Stand der Durchsicht, Art und Sichtbarkeit von Kommentaren, Ziel-Angaben, Ersetzungen, verworfene Abschnitte. Zusätzlich gilt ein Index als veraltet und wird nicht benutzt, wenn `stamp` nicht zum Stand der Sitzung passt – andere `revision` von `edits.json`, andere Länge des Journals, andere Regelversion oder andere Sprache.
 4. **Vertraulich wie eine Ausgabe.** Der Index liegt in `cache/`, wird nie in `.steprec` gepackt und nach endgültigem Schwärzen mit dem ganzen Ordner geleert.
-5. **Kein Austauschformat.** Der Aufbau gilt für `formatVersion` 1. Neue Arten in `k` und neue Felder dürfen mit einer höheren Version hinzukommen; ein Programm darf daneben eigene Hilfsdateien im selben Ordner führen, die denselben Regeln unterliegen.
+5. **Kein Austauschformat.** Der Aufbau gilt für `version` 1. Neue Arten in `f` und neue Felder dürfen mit einer höheren Version hinzukommen; ein Programm darf daneben eigene Hilfsdateien im selben Ordner führen, die denselben Regeln unterliegen.
 
 ```json
-{"k":"typed","a":1700,"t":"notiz.txt"}
-{"k":"element","a":1734,"t":"Speichern"}
-{"k":"window","a":1700,"t":"Speichern unter"}
-{"k":"comment","a":352,"t":"Der Text ist beliebig. Wichtig ist der Speichervorgang ab Schritt 5."}
+{"s":"s1700","n":6,"a":1700,"t":81290000,"f":"typed","x":"notiz.txt"}
+{"s":"s1734","n":7,"a":1734,"t":83412000,"f":"elements","x":"Speichern"}
+{"s":"s1734","n":7,"a":1734,"t":83412000,"f":"windows","x":"Speichern unter"}
+{"s":"s352","n":3,"a":352,"t":13180000,"f":"comments","x":"Der Text ist beliebig. Wichtig ist der Speichervorgang ab Schritt 5."}
 ```
+
+<a id="history"></a>
+**`history/` – Bearbeitungsstände**
+
+Der Viewer sichert `edits.json` automatisch, damit sich ein früherer Stand der Bearbeitung zurückholen lässt. Die Stände sind Kopien des Overlays, kein eigenes Format.
+
+| Punkt | Festlegung |
+|---|---|
+| Dateiname | `edits-<UTC>-r<Revision>-<Anlass>.json`. `<UTC>` hat die Form `JJJJMMTTThhmmssfffZ` (Millisekunden), `<Revision>` ist die `revision` der gesicherten Datei, `<Anlass>` besteht aus bis zu 20 Buchstaben und Ziffern. Beispiel: `edits-20261112T093012345Z-r17-auto.json`. |
+| Anlass | `open` (erstes Speichern nach dem Öffnen der Sitzung), `auto` (alle späteren), `replaceAll` („Alle ersetzen“), `cropAll` („Zuschnitt auf alle“), `template` („Vorlage anwenden“), `restore` (vor dem Wiederherstellen). |
+| Inhalt | Der Stand von `edits.json` **vor** dem Speichern, das ihn ersetzt, Byte für Byte als lesbares JSON. |
+| Zeitpunkt | Beim ersten Speichern nach dem Öffnen; danach höchstens alle 10 Minuten seit dem jüngsten Stand; erzwungen vor „Alle ersetzen“, „Zuschnitt auf alle“, „Vorlage anwenden“ und Wiederherstellen. Eine Revision wird nur einmal gesichert (kein doppelter Stand), und eine Datei ohne Revision (nie bearbeitet) wird nicht gesichert. Geschrieben wird nur bei Sitzungen, die nicht schreibgeschützt sind. |
+| Grenzen | Höchstens **40 Stände** und **15 MB** zusammen; die ältesten werden zuerst gelöscht. |
+| Fehler | Schlägt das Sichern fehl, wird das Speichern nicht aufgehalten; der Fehler steht im Protokoll des Programms. |
+| Wiederherstellen | Eine ganz normale Bearbeitung: Die Revision steigt weiter, und „Rückgängig“ macht sie rückgängig. Die Kopfdaten (`format`, `schemaVersion`, `sessionId`, `revision`, `savedAtUtc`, `savedBy`) bleiben die von heute. Standardmäßig bleiben außerdem `redactions`, `substitutions` und `review` auf dem heutigen Stand: **Ein alter Stand macht keinen Schutz rückgängig.** Wer im Fenster „Bearbeitungsstände“ das Kästchen „… wie jetzt behalten“ abwählt, holt sie ausdrücklich mit zurück. Das Fenster zeigt je Stand eine Zusammenfassung und den Unterschied zum jetzigen Stand; ein Stand ohne Unterschied lässt sich nicht wiederherstellen. Ein geöffnetes `.steprec`-Archiv hat keine Stände. |
+
+Schutzregeln:
+
+- `history/` ist so vertraulich wie `edits.json` (ältere Stände enthalten Verallgemeinerungsregeln mit den Originalwerten und Texte, die später geschwärzt wurden). Der Ordner wird **nie** in `.steprec` gepackt, nie exportiert und nie in eine bereinigte Kopie übernommen.
+- **Endgültiges Schwärzen löscht alle Stände**, denn ein alter Stand könnte Geschwärztes noch beschreiben.
+- Der Ordner gehört nicht zum Datenmodell: Kein Leser verlässt sich auf ihn, und die Bibliothek überspringt ihn beim Suchen nach Aufnahmen.
 
 **`export/`** nimmt erzeugte Ausgaben auf (empfohlene Unterordner: `ki-paket/`, `html/`, `markdown/`). Exporte sind eigenständige Erzeugnisse mit angewendeten Schwärzungen; ihr Aufbau ist im [KI-Export](06-ki-export-und-mcp.md) und im [Anleitungs-Export](09-anleitungs-export.md) beschrieben. Dateinamen wie `schritt007-vorher.png` gibt es nur dort – im Sitzungsordner gelten allein Bild-Kennungen.
 
@@ -2416,6 +2485,54 @@ Regeln:
 - Der Ordner ist flüchtig. Er wird beim Schließen der Sitzung geleert; Reste eines Absturzes räumt das nächste Öffnen der Sitzung auf. Kein Leser verlässt sich auf seinen Inhalt.
 - Ändern sich Schwärzungen oder der Stand der Durchsicht, wird er wie `cache/` geleert.
 - Er wird nie in `.steprec` gepackt und geht in keine Prüfsumme ein.
+
+---
+
+<a id="zustandsdateien"></a>
+## 14a. Zustandsdateien außerhalb der Sitzung
+
+Zwei Dateien gehören nicht zu einer Sitzung, sondern zum Programm auf diesem Rechner: der Oberflächenzustand und die Anfragen von KI-Agenten. Sie liegen im **Zustandsordner** (`StateDir`). Das ist der Ordner neben der EXE, wenn das Programm tragbar läuft (`StepRecorder.settings.json` liegt dort oder der EXE-Ordner ist beschreibbar), sonst `%LOCALAPPDATA%\StepRecorder`. Die Einstellungen liegen davon getrennt ([10](10-datenschutz-und-sicherheit.md)); in den Zustandsdateien stehen keine Vorlieben und keine aufgezeichneten Inhalte. Alle Zustandsdateien werden atomar ersetzt; fehlt eine, beginnt das Programm ohne sie.
+
+<a id="zustandsdatei-der-oberfläche"></a>
+### 14a.1 Oberflächenzustand `StepRecorder.state.json`
+
+Flüchtiger Zustand der Oberfläche: Fensterlagen, zuletzt gewählte Schritte, letzter Aufnahmebereich. Nur die Oberfläche schreibt; Kommandozeile und MCP-Server lesen höchstens.
+
+| Feld | Typ | Bedeutung |
+|---|---|---|
+| `version` | int | Formatversion, hier `1`. |
+| `lastStopped`, `atUtc` | string, Zeit | Ordner der zuletzt beendeten Aufnahme und Zeitpunkt. `record --stop` erkennt daran, dass die Aufnahme beendet ist (am Zeitstempel, nicht an einer Prozess-Kennung). |
+| `windows` | Objekt | Fensterlage je Fenster (Start, Editor …): `x`, `y`, `w`, `h` in physischen Pixeln, `max` (maximiert), `dpi` beim Speichern. Beim Öffnen wird die Lage an die vorhandenen Monitore und ihre Skalierung angepasst. |
+| `viewer` | Objekt | Spaltenbreiten (`left`, `right`) und zuletzt gewählter Reiter (`tab`) des Editors. |
+| `export` | Objekt | `lastFormat` und je Format (`formats.<Format>`) die zuletzt gewählten Optionen und der Zielordner. |
+| `library` | Objekt | Sortierung (`sort`), Ansicht (`mode`) und Ordner für gepackte Aufnahmen (`packFolder`). |
+| `lastRegion` | Objekt | Zuletzt gewählter Aufnahmebereich: `x`, `y`, `w`, `h` in physischen Pixeln des virtuellen Bildschirms, dazu der Monitor (`device`, `monX`, `monY`, `monW`, `monH`) und `dpi`. Beim Wiederverwenden ist der Bereich exakt, verschoben, beschnitten oder verloren. |
+| `sessions` | Objekt | Merkzettel je Aufnahme, nach `sessionId`: `at` (zuletzt benutzt), `step` (zuletzt gewählter Schritt), `all` (Filter „Alle“), `display` (Bildansicht), `zoom`, `export` (letzter Export dieser Aufnahme). Höchstens 50 Einträge; die am längsten unbenutzten werden verworfen. |
+| `requests` | Objekt | Verlauf der Agent-Anfragen: `recent` (Zeitpunkte der gezeigten Anfragen der letzten Stunde) und `blockedUntil` (Ende der Sperre „15 Minuten keine Anfragen“). Siehe [06](06-ki-export-und-mcp.md#1910-request_recording-und-get_recording_request-nur-mit---allow-requests). |
+
+Regeln:
+
+- **Tolerant lesen, Unbekanntes bewahren:** Unbekannte Schlüssel bleiben beim Schreiben erhalten. Ist die Datei nicht lesbar, werden nur `lastStopped` und `atUtc` gerettet; alles andere beginnt leer.
+- **Keine Inhalte, keine Ausgabesteuerung:** Der Zustand enthält Pfade und Kennungen, aber weder Texte noch Bilder aus Aufnahmen. Er bestimmt nie, was ein Export oder der MCP-Server ausgibt. Der einzige Schutz, der hier liegt, ist der Missbrauchsschutz für Agent-Anfragen (`requests`); er schützt vor einem Agenten, nicht vor dem Besitzer des Rechners.
+
+<a id="anfrage-und-statusdateien"></a>
+### 14a.2 Anfrage- und Statusdateien `requests/`
+
+Fragt ein KI-Agent über den MCP-Server um eine Vorführung an ([06](06-ki-export-und-mcp.md#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)), laufen Anfrage und Antwort über zwei Dateien je Anfrage im Ordner `requests/` des Zustandsordners. Zwei Dateien, weil jede nur einen Schreiber hat.
+
+| Datei | Schreiber | Inhalt |
+|---|---|---|
+| `rq-<Kennung>.request.json` | MCP-Server | `id`, `goal`, `expected` ○, `title` ○, `root` (Aufnahmeordner des Servers, vom Menschen eingerichtet), `createdUtc`, `expiresUtc` (120 s nach dem Anlegen). |
+| `rq-<Kennung>.status.json` | Oberfläche | `id`, `state`, `sessionId` ○ (bei `finished`), `reason` ○, `atUtc`. |
+
+Regeln:
+
+- **Kennung:** `rq-` und zwölf Kleinbuchstaben oder Ziffern (Hexadezimal, zufällig). Alles andere ist keine gültige Kennung; ein Tool, das eine Kennung nimmt, prüft das Muster, bevor es einen Pfad bildet.
+- **Text des Agenten ist ungeprüft.** `goal`, `expected` und `title` werden beim Anlegen bereinigt: keine Steuerzeichen außer dem Zeilenumbruch, keine Zeichen zur Schreibrichtung oder unsichtbaren Leerzeichen, mehr als zwei Zeilenumbrüche in Folge zusammengefasst; `title` eine Zeile. Längen: `goal` 10 bis 500, `expected` bis 500, `title` bis 120 Zeichen. Die Texte werden nur angezeigt und – nach Zustimmung – als Ziel der Aufnahme mit `statedBy: "agent"` übernommen ([4.7](#manifest-goal)); sie werden nie ausgeführt.
+- **Zustände** (`state`): `pending` (ohne Statusdatei, solange die Frist läuft), `declined`, `expired`, `recording`, `finished`, `discarded`, `failed`. Fehlt die Statusdatei und ist `expiresUtc` überschritten, gilt `expired`. Abgeschlossene Zustände (`declined`, `expired`, `finished`, `discarded`, `failed`) werden nie überschrieben; aus `recording` führt der Weg nur zu `finished`, `discarded` oder `failed`.
+- **`reason`:** bei `declined` `user`, `blocked`, `busy`, `tooSoon` oder `hourlyLimit`; bei `failed` `notDelivered` oder `startFailed`.
+- **Zustellung:** Der Server meldet die Kennung der laufenden Oberfläche über deren Fensterkanal (`--recording-request <Kennung>`). Läuft keine Oberfläche, entsteht keine offene Anfrage.
+- **Aufräumen:** Dateien, die älter als ein Tag sind, werden beim Eingang der nächsten Anfrage gelöscht. Die Aufnahme selbst liegt im Aufnahmeordner und hängt nicht von diesen Dateien ab.
 
 ---
 
@@ -3202,11 +3319,11 @@ Erkennt der Recorder die Passwortabfrage selbst, sieht die Zeile so aus – mit 
 
 ```json
 {"seq":4003,"t":130412000,"inSeq":60233,"type":"key.down","vk":13,"sc":28,"key":"Enter","hkl":"04070407","mods":["ctrl","shift"],"locks":["num"],"fg":"w27","ctx":"nonText"}
-{"seq":4011,"t":130990000,"tObs":131004000,"tSrc":"sys","tErr":16000,"type":"system","kind":"desktopSwitch","desktop":"winlogon"}
-{"seq":4012,"t":131000000,"type":"gap","gapId":"g1","phase":"begin","cause":"secureDesktop","tFrom":131000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"winlogon"}}
-{"seq":4018,"t":138980000,"tObs":138991000,"tSrc":"sys","tErr":16000,"type":"system","kind":"desktopSwitch","desktop":"default"}
-{"seq":4019,"t":139000000,"type":"gap","gapId":"g1","phase":"end","cause":"secureDesktop","tFrom":131000000,"tTo":139000000,"channels":["all"],"inputLost":"possible"}
-{"seq":4020,"t":139004000,"type":"keystate.sync","reason":"afterGap","gapId":"g1","down":[],"mouseDown":[],"locks":["num"],"corrected":[{"vk":162,"key":"LeftCtrl","was":"down","now":"up"},{"vk":160,"key":"LeftShift","was":"down","now":"up"}]}
+{"seq":4011,"t":130990000,"tObs":131004000,"tSrc":"sys","tErr":16000,"type":"system","kind":"desktopSwitch","to":"secure","desktop":"Winlogon"}
+{"seq":4012,"t":131000000,"type":"gap","gapId":"g1","phase":"begin","cause":"secureDesktop","tFrom":131000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
+{"seq":4018,"t":138980000,"tObs":138991000,"tSrc":"sys","tErr":16000,"type":"system","kind":"desktopSwitch","to":"default"}
+{"seq":4019,"t":139000000,"type":"gap","gapId":"g1","phase":"end","cause":"secureDesktop","tFrom":131000000,"tTo":139000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
+{"seq":4020,"t":139004000,"type":"keystate.sync","reason":"secureDesktop","gapId":"g1","down":[],"mouseDown":[],"locks":["num"],"corrected":[{"vk":162,"key":"LeftCtrl","was":"down","now":"up"},{"vk":160,"key":"LeftShift","was":"down","now":"up"}]}
 {"seq":4021,"t":139020000,"tObs":139061000,"tSrc":"present","type":"frame","id":"f000188","ep":0,"m":"M1","w":2560,"h":1440,"trigger":"resume","store":{"kind":"key","blob":"sha256:3e77…b0c4","bytes":612400}}
 {"seq":4022,"t":139040000,"tObs":139066000,"tSrc":"sys","tErr":16000,"type":"window.info","win":"w31","hwnd":"0x001C0F2A","pid":13388,"process":"setup.exe","title":"Setup – Beispielprogramm","kind":"window","ep":0,"rect":{"m":"M1","x":700,"y":360,"w":640,"h":480},"state":"normal","elevated":true,"integrity":"high"}
 {"seq":4023,"t":139040000,"tObs":139066100,"tSrc":"sys","tErr":16000,"type":"window.foreground","win":"w31","prev":"w27"}
@@ -3215,7 +3332,7 @@ Erkennt der Recorder die Passwortabfrage selbst, sieht die Zeile so aus – mit 
 
 Zeile 4020 ist entscheidend: Strg und Umschalt wurden vor der Lücke gedrückt, ihr Loslassen fiel in die Lücke. Ohne den Abgleich gälten sie weiter als gedrückt, und der nächste getippte Buchstabe würde als Tastenkombination gedeutet.
 
-In `steps.json` entstehen: ein `hotkey`-Schritt (`Ctrl+Shift+Enter`) mit `flags.incomplete: true` (das Loslassen fehlt), ein `gap`-Schritt für `g1` (8 s, `inputLost: "possible"`, Belegstufe `unknown`), ein `system`-Schritt „Fenster ‚Setup – Beispielprogramm‘ geöffnet“ mit `evidence.cause: "unobserved"` und ein `gap`-Schritt für `g2`. Die Bildschirmaufnahme läuft während `g2` weiter; nur Eingaben und Elemente fehlen. Eine KI darf daraus **nicht** schließen, dass im UAC-Dialog „Ja“ geklickt wurde – das Format sagt nur, dass danach das Setup-Fenster erschien.
+In `steps.json` entstehen: ein `hotkey`-Schritt (`Ctrl+Shift+Enter`) mit `flags.incomplete: true` (das Loslassen fehlt), ein `gap`-Schritt für `g1` (8 s, `inputLost: "possible"`, Belegstufe `unknown`, `input.desktopKind: "uac"`, ohne Bilder; als Anleitungsschritt heißt er „Benutzerkontensteuerung bestätigen“), ein `system`-Schritt „Fenster ‚Setup – Beispielprogramm‘ geöffnet“ mit `evidence.cause: "unobserved"` und ein `gap`-Schritt für `g2`. Die Bildschirmaufnahme läuft während `g2` weiter; nur Eingaben und Elemente fehlen. Eine KI darf daraus **nicht** schließen, dass im UAC-Dialog „Ja“ geklickt wurde – das Format sagt nur, dass danach das Setup-Fenster erschien.
 
 #### B.3 Einfügen aus der Zwischenablage
 
@@ -3340,7 +3457,7 @@ In `steps.json` wird daraus ein einziger `gap`-Schritt (42,35 s, `cause: "outOfS
 |---|---|---|---|
 | DAT-001 | Eine Sitzung besteht ausschließlich aus offenen Formaten: JSON, JSON Lines (UTF-8 ohne BOM) und PNG. | Muss | Eine Beispielsitzung lässt sich mit Texteditor und Bildbetrachter lesen; `validate` meldet keine Fehler. |
 | DAT-002 | Der Sitzungsordner folgt dem Aufbau aus Abschnitt 2; unbekannte Dateien werden ignoriert. | Muss | Sitzung mit zusätzlichen Fremddateien öffnet fehlerfrei. |
-| DAT-003 | `.steprec` ist ein ZIP mit `manifest.json` als erstem, unkomprimiertem Eintrag; `cache/` und `export/` fehlen, `export/.tmp/` in jedem Fall. | Muss | Gepackte Sitzung wird ohne vollständiges Entpacken erkannt; Entpacken ergibt einen gültigen Sitzungsordner; auch mit der Option, Exporte mitzugeben, enthält das Archiv keinen Eintrag unter `export/.tmp/`. |
+| DAT-003 | `.steprec` ist ein ZIP mit `manifest.json` als erstem Eintrag. Gepackt wird nach einer Positivliste (3); `cache/`, `export/` (auch `export/.tmp/`), `history/` und `session.lock` fehlen in jedem Fall. | Muss | Gepackte Sitzung wird ohne vollständiges Entpacken erkannt; Entpacken ergibt einen gültigen Sitzungsordner; das Archiv enthält keinen Eintrag unter `cache/`, `export/` oder `history/`. |
 | DAT-004 | `manifest.json` wird beim Aufnahmestart angelegt und stets atomar ersetzt. | Muss | Recorder wird an 100 zufälligen Zeitpunkten hart beendet: Das Manifest ist jedes Mal vollständig lesbar. |
 | DAT-005 | Das Journal ist selbsttragend: Manifest und Schritte lassen sich allein aus `events.jsonl` und `frames/` wiederherstellen. | Muss | Nach Löschen von `manifest.json` und `steps.json` erzeugt die Wiederherstellung inhaltsgleiche Dateien (bis auf `history` und Zeitstempel der Ableitung). |
 | DAT-006 | Das Journal wird nur angehängt; Zeilen werden nie entfernt oder umsortiert; `seq` ist lückenlos. | Muss | Prüfung F03 besteht für jede Testsitzung, auch nach endgültigem Schwärzen. |
@@ -3414,4 +3531,10 @@ In `steps.json` wird daraus ein einziger `gap`-Schritt (42,35 s, `cause: "outOfS
 | DAT-074 | Ein verworfener Aufnahmeabschnitt wird markiert, nie entfernt: `session.stop` mit `reason: "discarded"` und ein Eintrag in `edits.sections[]`. Das Journal wird nicht gekürzt. Die Leseschicht hält den Abschnitt aus allen Ausgaben heraus; dauerhaft entfernt wird er erst durch die bereinigte Kopie. „Aufnahme verwerfen“ in einem weiteren Abschnitt betrifft nur diesen. | Soll | Neuaufnahme starten, Kanarie tippen, „Aufnahme verwerfen“: Die früheren Abschnitte und ihre Prüfsummen sind unverändert, `seq` ist lückenlos, es gibt keinen Eintrag in `replacements`. Die Kanarie findet sich in keiner Ausgabe – Anleitung, KI-Paket in jeder Detailstufe, MCP einschließlich Rohereignissen und Suche, Suchindex, Vergleich –, auch nicht nach Löschen von `edits.json`. In der bereinigten Kopie findet die Bytesuche sie in keiner Datei. |
 | DAT-075 | Die Leseschicht ergänzt an jedem ausgegebenen Schritt `state` (`active`, `replaced`, `unused`) und bei wirksamen Schritten die Schrittnummer `number`; beide stehen nie in der `steps.json` der Sitzung. | Soll | Sitzung mit einer Ersetzung: Im KI-Paket und über den MCP-Server trägt jeder Schritt `state`; die wirksamen sind lückenlos ab 1 nummeriert, in jeder Detailstufe gleich; ersetzte tragen keine Nummer. Ein einzeln verworfener Schritt ist `active` und nummeriert. Die `steps.json` der Sitzung enthält keines der beiden Felder. |
 | DAT-076 | Über Abschnittsgrenzen laufen `seq`, Sitzungsuhr, Eingabenummer `inSeq`, Epochen und Kennungen fort. Das Salz für die Wiedererkennung von Monitoren steht als `deviceSalt` im Sitzungskopf jedes Abschnitts; Leistungszähler werden je Abschnitt geführt. | Soll | Sitzung mit drei Abschnitten, der zweite verworfen: Keine `inSeq` kommt doppelt vor (F18, F22); derselbe Monitor trägt in allen Abschnitten dieselbe Kennung und denselben `deviceKey`; `manifest.performance` hat je sauber beendetem Abschnitt genau einen Eintrag, der dem `session.stop` entspricht. |
-
+| DAT-077 | Ein fremdes `.steprec` wird nur nach der Positivliste und mit festen Grenzen entpackt: erlaubte Namen, keine Pfadsprünge, Laufwerke oder Gerätenamen, höchstens 200 000 Einträge, 2 GiB je Eintrag, 20 GiB insgesamt, Kompressionsverhältnis höchstens 250 bei Einträgen über 1 MB; mitgezählt werden die tatsächlich geschriebenen Bytes. Entpackt wird über einen Zwischenordner; bei jedem Fehler bleibt nichts zurück. | Muss | Präparierte Archive (Pfadsprung, absoluter Pfad, Gerätename, doppelter Eintrag, Zip-Bombe, falsche Größenangabe, fehlendes Journal): jedes wird abgelehnt, am Ziel liegt weder ein Ordner noch eine Datei; Rundreise Packen → Entpacken ergibt gleiche Prüfsummen für Journal, Blobs und Overlay |
+| DAT-078 | `history/` hält Bearbeitungsstände von `edits.json` (Dateiname `edits-<UTC>-r<Revision>-<Anlass>.json`): beim ersten Speichern nach dem Öffnen, danach höchstens alle 10 Minuten, erzwungen vor „Alle ersetzen“, „Zuschnitt auf alle“, „Vorlage anwenden“ und Wiederherstellen; höchstens 40 Stände und 15 MB. Wiederherstellen ist eine normale Bearbeitung und lässt Schwärzungen, Verallgemeinerungen und Durchsicht standardmäßig auf dem heutigen Stand. Endgültiges Schwärzen löscht alle Stände; `.steprec` und bereinigte Kopie enthalten keine. | Muss | Tests zu Intervall, Deduplizierung nach Revision, Obergrenzen, Schutz beim Wiederherstellen (alter Stand ohne Schwärzung stellt keine Schwärzung ab), Revision steigt weiter, Löschen nach endgültigem Schwärzen; Kanarienwert nach endgültigem Schwärzen in keiner Datei unter `history/` |
+| DAT-079 | `edits.merges[]` fasst aufeinanderfolgende Schritte für Anleitungen zusammen (`id`, `anchors`, optional `text` je Sprache). Schritte, Journal und `steps.json` bleiben unverändert; KI-Paket, MCP, Vergleich und AutoHotkey zeigen weiter jeden Einzelschritt. | Soll | Zusammenfassen und Aufheben ändern keine Rohdatei und keine `steps.json`; die Anleitung zeigt einen Schritt, das KI-Paket alle mit einer Hinweiszeile; „Alle ersetzen“ erfasst den Gruppentext |
+| DAT-080 | Der sichere Desktop ist eine Lücke `secureDesktop` mit `detail.kind` `uac` oder `other` (im `end`-Ereignis), eingeleitet durch `system`/`desktopSwitch`; danach folgen `keystate.sync` (`reason: "secureDesktop"`) und ein erzwungenes Schlüsselbild. Während der Lücke und bei gesperrtem Rechner oder Ruhezustand werden keine Bilder aufgenommen; kein Nachher-Bild wird aus einer solchen Lücke gebunden. | Muss | Synthetische UAC-Lücke: Schritt mit `desktopKind: "uac"`, ohne Bilder; Validator fehlerfrei; Zustandslogik: Eintritt sofort, Rückkehr erst nach zwei Lesungen von `Default`; keine eigene Lücke bei gesperrtem Rechner |
+| DAT-081 | `goal.statedBy` kennt `author` (Standard, Feld fehlt) und `agent`. Ein Agent-Ziel entsteht nur nach sichtbarer Zustimmung am Rechner und wird in Manifest, `get_session` und im Kopf von `trace.md` als vom Agenten formuliert gekennzeichnet. | Muss | Aufnahme nach einer Agent-Anfrage: Manifest `goal.statedBy: "agent"`; `trace.md` nennt „vom KI-Agenten formuliert, vom Menschen bestätigt“ |
+| DAT-082 | Der Oberflächenzustand `StepRecorder.state.json` und die Dateien unter `requests/` liegen im Zustandsordner, nicht in der Sitzung. Der Zustand enthält keine aufgezeichneten Inhalte; unbekannte Schlüssel bleiben erhalten; eine unlesbare Datei kostet nur den Zustand, nie eine Aufnahme. Anfragen tragen eine Kennung nach dem Muster `rq-<12 Hex>`; abgeschlossene Zustände werden nie überschrieben. | Muss | Zustandsdatei mit unbekanntem Schlüssel und mit zerstörtem Inhalt; Zustandsübergänge der Anfrage inklusive Frist von 120 s; ungültige Kennung führt zu keinem Dateizugriff |
+| DAT-083 | Vorschaubilder und Kataloge (`cache/thumbs/`, `cache/catalog.json`) entstehen nur über die Leseschicht, enthalten also alle Schwärzungen, und werden bei jedem Speichern von `edits.json` verworfen. Für laufende Aufnahmen und Archive entsteht kein Zwischenspeicher. | Muss | Vorschaubild einer Sitzung mit geschwärzter Bildfläche: Fläche schwarz; nach Änderung der Schwärzung kein altes Vorschaubild mehr |

@@ -36,5 +36,6 @@ public sealed class StepDraft
 
 public static class StepParams
 {
-    public const string BuilderVersion = "1.3.1";
+    /// <summary>1.6.0 = Zusammenführung: Terminal-Klartext und UAC-Schritt (1.4/1.5) mit Menüpfaden und Begriffsliste (1.3.1).</summary>
+    public const string BuilderVersion = "1.6.0";
 }

@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Text.Json.Nodes;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Capture;
 
@@ -30,6 +31,8 @@ public sealed class RecordingOptions
     public string? GoalDescription { get; set; }
     public string? GoalExpected { get; set; }
     public string? GoalReference { get; set; }
+    /// <summary>Nur Oberfläche: der Bereich passt nicht mehr genau und muss vor dem Start bestätigt werden.</summary>
+    public bool RegionNeedsConfirm { get; set; }
     public string ProfileName { get; set; } = "Anleitung";
     public string ProfileId { get; set; } = "guide";
     public string AfterStop { get; set; } = "viewer";
@@ -42,6 +45,12 @@ public sealed class RecordingOptions
     public int ValueMaxChars { get; set; } = 2000;
     public int SnapshotMaxNodes { get; set; } = 300;
     public int HoldMaxMs { get; set; } = 1500;
+    /// <summary>Erinnerung „Aufnahme läuft noch“ nach so vielen Minuten ohne Eingabe (0 = aus).</summary>
+    public int IdleReminderMinutes { get; set; } = 10;
+    /// <summary>Erinnerung „Privattaste noch an“ nach so vielen Sekunden ohne Taste.</summary>
+    public int PrivacyReminderSeconds { get; set; } = 60;
+    /// <summary>Wer das Ziel formuliert hat: author (Person) | agent (über MCP angefragt).</summary>
+    public string GoalStatedBy { get; set; } = "author";
     /// <summary>Hotkeys des Recorders als (Modifier, VK) – Tasten werden als <c>self</c> markiert.</summary>
     public List<(uint mods, uint vk)> SelfHotkeys { get; set; } = new();
     /// <summary>Abgeschaltete Eingabearten (Schlüssel aus <see cref="Channels"/>); deren Ereignisse werden nicht gespeichert.</summary>
@@ -49,15 +58,22 @@ public sealed class RecordingOptions
     public bool Rec(string channel) => !Off.Contains(channel);
 
     /// <summary>Einstellbare Eingabearten: Schlüssel, Name, Erklärung.</summary>
-    public static readonly (string key, string name, string hint)[] Channels =
+    public static (string key, string name, string hint)[] Channels => ChannelsFor(null);
+
+    /// <param name="lang">null = Oberflächensprache; „de“/„en“ = Sprache eines Exports.</param>
+    public static (string key, string name, string hint)[] ChannelsFor(string? lang)
     {
-        ("clicks", "Mausklicks", "Links-, Rechts- und Doppelklicks – mit Bild und angeklicktem Element"),
-        ("wheel", "Scrollen", "Mausrad und Scrollen mit dem Touchpad"),
-        ("moves", "Mausbewegungen", "Mauswege und Verweilen über Elementen (Zeigen); Zugwege beim Ziehen bleiben erhalten"),
-        ("typing", "Texteingaben", "Getippte Zeichen samt Korrekturen; Passwortfelder werden immer maskiert"),
-        ("hotkeys", "Tastenkombinationen", "Mit Strg, Alt oder Win, z. B. Strg+C, Alt+Tab, Win+E"),
-        ("keys", "Einzeltasten", "Eingabe, Tab, Esc, Pfeiltasten, F-Tasten und ähnliche"),
-    };
+        string T(string de, string en) => lang == null ? Loc.L(de, en) : Loc.For(lang, de, en);
+        return new[]
+        {
+            ("clicks", T("Mausklicks", "Mouse clicks"), T("Links-, Rechts- und Doppelklicks – mit Bild und angeklicktem Element", "Left, right and double clicks – with image and the clicked element")),
+            ("wheel", T("Scrollen", "Scrolling"), T("Mausrad und Scrollen mit dem Touchpad", "Mouse wheel and touchpad scrolling")),
+            ("moves", T("Mausbewegungen", "Mouse movements"), T("Mauswege und Verweilen über Elementen (Zeigen); Zugwege beim Ziehen bleiben erhalten", "Mouse paths and hovering over elements (pointing); drag paths are always kept")),
+            ("typing", T("Texteingaben", "Typing"), T("Getippte Zeichen samt Korrekturen; Passwortfelder werden immer maskiert", "Typed characters including corrections; password fields are always masked")),
+            ("hotkeys", T("Tastenkombinationen", "Key combinations"), T("Mit Strg, Alt oder Win, z. B. Strg+C, Alt+Tab, Win+E", "With Ctrl, Alt or Win, e.g. Ctrl+C, Alt+Tab, Win+E")),
+            ("keys", T("Einzeltasten", "Single keys"), T("Eingabe, Tab, Esc, Pfeiltasten, F-Tasten und ähnliche", "Enter, Tab, Esc, arrow keys, function keys and similar")),
+        };
+    }
 
     public static string ChannelName(string key) => Channels.FirstOrDefault(c => c.key == key).name ?? key;
 
@@ -113,6 +129,7 @@ public sealed class RecordingOptions
         if (!string.IsNullOrWhiteSpace(GoalDescription)) g["description"] = Trunc(GoalDescription.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalExpected)) g["expected"] = Trunc(GoalExpected.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalReference)) g["reference"] = Trunc(GoalReference.Replace("\r", " ").Replace("\n", " ").Trim(), 200);
+        if (g.Count > 0 && GoalStatedBy != "author") g["statedBy"] = GoalStatedBy;
         return g.Count == 0 ? null : g;
     }
 

@@ -48,7 +48,8 @@ public static class Redactor
         edits["savedAtUtc"] = Json.UtcNow();
         edits["savedBy"] = "recorder";
         Json.WriteAtomic(editsPath, Json.Pretty(edits));
-        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "lastInput", ["ranges"] = ranges.Count });
+        int frames = PurgeRangeFrames(folder, ranges);
+        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "lastInput", ["ranges"] = ranges.Count, ["frames"] = frames });
     }
 
     /// <summary>Wendet Text-Schwärzungen aus dem Overlay endgültig auf das Journal an.</summary>
@@ -63,27 +64,33 @@ public static class Redactor
         {
             if (r.Str("kind") == "text" && !r.Bool("applied"))
             {
-                foreach (var tg in r.Arr("targets") ?? new JsonArray())
+                var targets = (r.Arr("targets") ?? new JsonArray()).Where(tg => bySeq.ContainsKey(tg.Long("seq"))).ToList();
+                // zugehörige key.up-Ereignisse tragen Taste und Scancode ebenfalls – vor dem Entschärfen bestimmen
+                var ups = PairedKeyUps(lines, targets.Select(tg => tg.Long("seq")).Where(q => bySeq[q].Str("type") == "key.down").ToHashSet());
+                foreach (var tg in targets)
                 {
-                    if (!bySeq.TryGetValue(tg.Long("seq"), out var e)) continue;
+                    var e = bySeq[tg.Long("seq")];
                     string field = tg.Str("field") ?? "";
-                    if (e.Str("type") is "key.down" or "key.up")
-                    { e["key"] = "Redacted"; e["vk"] = 0; e["sc"] = 0; e.Remove("ch"); }
+                    if (e.Str("type") is "key.down" or "key.up") NeuterKey(e);
                     else SetPath(e, field, "[redacted]");
                     var red = e["redacted"] as JsonArray ?? new JsonArray();
                     red.Add(field); e["redacted"] = red;
                     n++;
                 }
+                foreach (var up in ups.Where(u => u.Str("key") != "Redacted")) { NeuterKey(up); up["redacted"] = new JsonArray("ch"); n++; }
                 r.AsObject()["applied"] = true; r.AsObject()["appliedUtc"] = Json.UtcNow();
             }
             else if (r.Str("kind") == "range" && !r.Bool("applied"))
             {
                 var ranges = (r.Arr("seqRanges") ?? new JsonArray()).Select(a => (a![0]!.GetValue<long>(), a[1]!.GetValue<long>())).ToList();
+                bool In(long q) => ranges.Any(x => q >= x.Item1 && q <= x.Item2);
                 for (int i = 0; i < lines.Count; i++)
                 {
                     long s = lines[i].Long("seq");
                     string type = lines[i].Str("type") ?? "";
-                    if (!ranges.Any(x => s >= x.Item1 && s <= x.Item2) || Structural.Contains(type)) continue;
+                    // auch Ereignisse außerhalb des Bereichs, die sich darauf beziehen (Element, Feldwert, Zustand)
+                    bool hit = In(s) || (lines[i].LongN("ref") is long rf && In(rf));
+                    if (!hit || Structural.Contains(type)) continue;
                     var cut = new JsonObject { ["seq"] = s, ["t"] = lines[i].Long("t"), ["type"] = type };
                     foreach (var k in new[] { "inSeq", "inSeqEnd", "n" }) if (lines[i][k] != null) cut[k] = lines[i][k]!.DeepClone();
                     cut["redacted"] = new JsonArray("*");
@@ -93,9 +100,81 @@ public static class Redactor
             }
         }
         RewriteJournal(folder, lines);
-        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n });
+        // Bilder aller geschwärzten Zeiträume (auch früher angewendeter) aus den Rohdaten entfernen – wiederholbar
+        var imageRanges = (edits.Arr("redactions") ?? new JsonArray()).OfType<JsonObject>()
+            .Where(r => r.Str("kind") == "range" && (r["images"]?.GetValue<bool>() ?? true))
+            .SelectMany(r => r.Arr("seqRanges") ?? new JsonArray()).Select(a => (a![0]!.GetValue<long>(), a[1]!.GetValue<long>())).ToList();
+        int frames = PurgeRangeFrames(folder, imageRanges);
+        // alte Bearbeitungsstände könnten Geschwärztes noch beschreiben (z. B. Regelwerte, Texte)
+        EditHistory.Purge(folder);
+        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n, ["frames"] = frames });
         try { var cache = Path.Combine(folder, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
-        return n;
+        return n + frames;
+    }
+
+    static void NeuterKey(JsonObject e) { e["key"] = "Redacted"; e["vk"] = 0; e["sc"] = 0; e.Remove("ch"); }
+
+    /// <summary>
+    /// Entfernt die Bilder geschwärzter Zeiträume aus den Rohdaten: Bildereignisse im Zeitraum (oder mit Bezug darauf) werden
+    /// zu <c>store: none</c>; spätere Bilder, die als Änderung darauf aufbauen, werden vorher als Schlüsselbild neu gespeichert;
+    /// nicht mehr verwendete Blobs werden gelöscht. Gibt die Zahl entfernter Bilder zurück.
+    /// </summary>
+    public static int PurgeRangeFrames(string folder, IReadOnlyCollection<(long from, long to)> ranges)
+    {
+        if (ranges.Count == 0) return 0;
+        var path = Path.Combine(folder, "events.jsonl");
+        List<JsonObject> lines;
+        using (var fs = File.OpenRead(path)) lines = Session.ReadJournal(fs).events;
+        bool In(long q) => ranges.Any(r => q >= r.from && q <= r.to);
+        var frames = new Dictionary<string, JsonObject>();
+        foreach (var l in lines) if (l.Str("type") == "frame" && l.Str("id") is { } id) frames[id] = l;
+        var purge = frames.Values.Where(f => f.Obj("store").Str("kind") is not (null or "none") && (In(f.Long("seq")) || (f.LongN("ref") is long r && In(r))))
+                                 .Select(f => f.Str("id")!).ToHashSet();
+        if (purge.Count == 0) return 0;
+        bool Depends(string id, int depth)
+        {
+            if (depth > 64 || !frames.TryGetValue(id, out var f)) return false;
+            var st = f.Obj("store");
+            string? baseId = st.Str("kind") switch { "same" => st.Str("as"), "delta" => st.Str("base"), _ => null };
+            return baseId != null && (purge.Contains(baseId) || Depends(baseId, depth + 1));
+        }
+        using (var s = Session.Open(folder, recover: false))
+        {
+            foreach (var (id, f) in frames)
+            {
+                if (purge.Contains(id) || !Depends(id, 0)) continue;
+                using var bmp = s.RestoreFrameCopy(id);
+                f["store"] = bmp == null
+                    ? new JsonObject { ["kind"] = "none", ["reason"] = "redacted" }
+                    : FrameStore(folder, FrameBlobs.EncodeKey(bmp));
+            }
+        }
+        foreach (var id in purge) { frames[id]["store"] = new JsonObject { ["kind"] = "none", ["reason"] = "redacted" }; frames[id].Remove("cursor"); }
+        RewriteJournal(folder, lines);
+        FrameBlobs.DeleteUnreferenced(folder, FrameBlobs.Referenced(lines));
+        return purge.Count;
+    }
+
+    static JsonObject FrameStore(string folder, byte[] png) => new() { ["kind"] = "key", ["blob"] = FrameBlobs.Write(folder, png), ["bytes"] = png.Length };
+
+    /// <summary>Zu jedem key.down das nächste key.up derselben Taste (vor dem Entschärfen aufrufen).</summary>
+    public static List<JsonObject> PairedKeyUps(IReadOnlyList<JsonObject> lines, HashSet<long> downs)
+    {
+        var result = new List<JsonObject>();
+        if (downs.Count == 0) return result;
+        var pending = new Dictionary<long, int>();
+        foreach (var e in lines)
+        {
+            string? type = e.Str("type");
+            long vk = e.Long("vk");
+            if (type == "key.down" && downs.Contains(e.Long("seq"))) pending[vk] = pending.GetValueOrDefault(vk) + 1;
+            else if (type == "key.up" && pending.TryGetValue(vk, out int c) && c > 0)
+            {
+                result.Add(e);
+                if (c == 1) pending.Remove(vk); else pending[vk] = c - 1;
+            }
+        }
+        return result;
     }
 
     static void SetPath(JsonObject e, string path, string value)

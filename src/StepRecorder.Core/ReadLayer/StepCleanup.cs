@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 
 namespace StepRecorder.ReadLayer;
 
@@ -14,12 +15,22 @@ public static class StepCleanup
 {
     const long FocusClickGapUs = 3_000_000, RepeatClickGapUs = 3_000_000, RoundTripUs = 10_000_000;
 
-    public static readonly (string rule, string name)[] Rules =
+    public static (string rule, string name)[] Rules => new[]
     {
-        ("focusClick", "Klick ins Feld direkt vor der Eingabe"),
-        ("repeatClick", "Wiederholter Klick auf dasselbe Element"),
-        ("windowRoundTrip", "Fensterwechsel hin und gleich wieder zurück"),
-        ("emptyInput", "Eingabe ohne Ergebnis"),
+        ("focusClick", Loc.L("Klick ins Feld direkt vor der Eingabe", "Click into the field right before typing")),
+        ("repeatClick", Loc.L("Wiederholter Klick auf dasselbe Element", "Repeated click on the same element")),
+        ("windowRoundTrip", Loc.L("Fensterwechsel hin und gleich wieder zurück", "Window switch there and straight back")),
+        ("emptyInput", Loc.L("Eingabe ohne Ergebnis", "Input without result")),
+    };
+
+    /// <summary>Verständlicher Grund je Regel in der Oberflächensprache (gespeicherte Gründe älterer Aufnahmen werden darüber neu angezeigt).</summary>
+    public static string? ReasonFor(string? rule) => rule switch
+    {
+        "emptyInput" => Loc.L("Eingabe ohne Ergebnis – es wurde nur getippt und wieder gelöscht.", "Input without result – text was only typed and deleted again."),
+        "focusClick" => Loc.L("Klick ins Feld vor der Eingabe – der Eingabe-Schritt nennt das Feld bereits.", "Click into the field before typing – the typing step already names the field."),
+        "repeatClick" => Loc.L("Wiederholter Klick auf dasselbe Element.", "Repeated click on the same element."),
+        "windowRoundTrip" => Loc.L("Fensterwechsel hin und gleich wieder zurück, ohne Aktion dazwischen.", "Window switch there and straight back, with no action in between."),
+        _ => null
     };
 
     public static List<CleanupSuggestion> Suggest(SessionView view) => Suggest(view.All);
@@ -42,18 +53,18 @@ public static class StepCleanup
             // leere Eingabe: nur Korrekturen, kein Text, keine abschließende Taste
             if (a.Kind == "type" && input?.Bool("masked") != true && string.IsNullOrEmpty(input?.Str("text")) && input?.Obj("terminator") == null
                 && input?.Str("inputMethod") != "ime" && string.IsNullOrEmpty(input?.Str("valueAfter")))
-                Add(a, "emptyInput", "Eingabe ohne Ergebnis – es wurde nur getippt und wieder gelöscht.");
+                Add(a, "emptyInput", ReasonFor("emptyInput")!);
 
             if (b == null) continue;
             long gap = b.TFrom - a.TTo;
 
             // Klick ins Feld unmittelbar vor der Eingabe in dasselbe Feld
             if (a.Kind == "click" && IsPlainClick(a) && b.Kind == "type" && SameElement(a, b) && gap < FocusClickGapUs)
-                Add(a, "focusClick", "Klick ins Feld vor der Eingabe – der Eingabe-Schritt nennt das Feld bereits.");
+                Add(a, "focusClick", ReasonFor("focusClick")!);
 
             // wiederholter Klick auf dasselbe Element ohne sichtbare Wirkung dazwischen
             if (a.Kind == "click" && b.Kind == "click" && IsPlainClick(a) && IsPlainClick(b) && SameElement(a, b) && gap < RepeatClickGapUs && !OpenedSomething(a))
-                Add(b, "repeatClick", "Wiederholter Klick auf dasselbe Element.");
+                Add(b, "repeatClick", ReasonFor("repeatClick")!);
 
             // Fensterwechsel hin und sofort zurück
             if (a.Kind == "windowSwitch" && b.Kind == "windowSwitch" && gap < RoundTripUs)
@@ -61,8 +72,8 @@ public static class StepCleanup
                 string? from = input?.Str("from"), to2 = b.Json.Obj("input")?.Str("to");
                 if (from != null && from == to2)
                 {
-                    Add(a, "windowRoundTrip", "Fensterwechsel hin und gleich wieder zurück, ohne Aktion dazwischen.");
-                    Add(b, "windowRoundTrip", "Fensterwechsel hin und gleich wieder zurück, ohne Aktion dazwischen.");
+                    Add(a, "windowRoundTrip", ReasonFor("windowRoundTrip")!);
+                    Add(b, "windowRoundTrip", ReasonFor("windowRoundTrip")!);
                 }
             }
         }

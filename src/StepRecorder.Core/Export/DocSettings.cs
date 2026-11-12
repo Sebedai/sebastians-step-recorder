@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Export;
 
@@ -28,10 +29,59 @@ public sealed class DocSettings
     /// <summary>Felder, die je Sprache gepflegt werden (guide.i18n.&lt;lang&gt; überschreibt für andere Sprachen als Deutsch).</summary>
     public static readonly string[] LocalizedKeys = { "subtitle", "audience", "prerequisites", "footer" };
 
-    public static readonly (string hex, string name)[] Accents =
-        { ("#C2410C", "Orange"), ("#1F4E9C", "Blau"), ("#1F7A4D", "Grün"), ("#6B3FA0", "Violett"), ("#B4233C", "Rot"), ("#2E2D2A", "Graphit") };
+    /// <summary>Felder, die eine Vorlage überträgt (nicht: Untertitel, Version, Voraussetzungen – die gehören zur einzelnen Anleitung).</summary>
+    public static readonly string[] TemplateKeys = { "author", "audience", "footer", "cover", "toc", "showDate", "numbering", "imageSize", "layout", "accent", "logo", "view", "overview" };
 
-    public static readonly (string id, string name)[] Sizes = { ("s", "klein"), ("m", "mittel"), ("l", "groß"), ("full", "volle Breite") };
+    /// <summary>
+    /// Vorlage aus fremder Quelle prüfen und bereinigen: nur bekannte Schlüssel, Längen begrenzt, Farbe #RRGGBB,
+    /// Logo neu kodiert (entfernt alles, was kein Bild ist). Null bei unbrauchbarer Vorlage.
+    /// </summary>
+    public static JsonObject? SanitizeTemplate(JsonObject? t, out string? problem)
+    {
+        problem = null;
+        if (t == null) { problem = Loc.L("keine Vorlage", "no template"); return null; }
+        var r = new JsonObject();
+        foreach (var k in TemplateKeys)
+        {
+            var v = t[k];
+            if (v == null) continue;
+            switch (k)
+            {
+                case "cover" or "toc" or "showDate" or "overview":
+                    if (v is JsonValue bv && bv.TryGetValue<bool>(out var b)) r[k] = b; break;
+                case "numbering": if (t.Str(k) is "chapter" or "flat" or "none") r[k] = t.Str(k); break;
+                case "imageSize": if (t.Str(k) is "s" or "m" or "l" or "full") r[k] = t.Str(k); break;
+                case "layout": if (t.Str(k) is "below" or "side") r[k] = t.Str(k); break;
+                case "view": if (t.Str(k) is "screen" or "window" or "crop") r[k] = t.Str(k); break;
+                case "accent":
+                    if (t.Str(k) is { Length: 7 } a && a[0] == '#' && a[1..].All(Uri.IsHexDigit)) r[k] = a;
+                    else problem = Loc.L("Akzentfarbe ungültig", "invalid accent colour");
+                    break;
+                case "logo":
+                    if (t.Str(k) is { Length: > 0 } logo)
+                    {
+                        if (logo.Length > 4_000_000) { problem = Loc.L("Logo zu groß", "logo too large"); break; }
+                        try
+                        {
+                            using var ms = new MemoryStream(Convert.FromBase64String(logo));
+                            using var img = System.Drawing.Image.FromStream(ms);
+                            r[k] = LogoFrom(img);
+                        }
+                        catch { problem = Loc.L("Logo ist kein gültiges Bild", "logo is not a valid image"); }
+                    }
+                    break;
+                default:
+                    if (t.Str(k) is { } s) r[k] = s.Length > 300 ? s[..300] : s; break;
+            }
+        }
+        if (t.Str("address") is "formal" or "informal") r["address"] = t.Str("address");
+        return r;
+    }
+
+    public static (string hex, string name)[] Accents => new[]
+        { ("#C2410C", Loc.L("Orange", "Orange")), ("#1F4E9C", Loc.L("Blau", "Blue")), ("#1F7A4D", Loc.L("Grün", "Green")), ("#6B3FA0", Loc.L("Violett", "Violet")), ("#B4233C", Loc.L("Rot", "Red")), ("#2E2D2A", Loc.L("Graphit", "Graphite")) };
+
+    public static (string id, string name)[] Sizes => new[] { ("s", Loc.L("klein", "small")), ("m", Loc.L("mittel", "medium")), ("l", Loc.L("groß", "large")), ("full", Loc.L("volle Breite", "full width")) };
 
     /// <summary>Anteil der Inhaltsbreite für Bilder.</summary>
     public static double Factor(string? size) => size switch { "s" => 0.5, "l" => 0.85, "full" => 1.0, _ => 0.68 };
@@ -78,7 +128,7 @@ public sealed class DocSettings
         if (j["overview"] != null) d.Overview = j.Bool("overview");
     }
 
-    public static readonly (string id, string name)[] Views = { ("screen", "Ganzer Bildschirm"), ("window", "Anwendungsfenster"), ("crop", "Bereich um die Aktion") };
+    public static (string id, string name)[] Views => new[] { ("screen", Loc.L("Ganzer Bildschirm", "Full screen")), ("window", Loc.L("Anwendungsfenster", "Application window")), ("crop", Loc.L("Bereich um die Aktion", "Area around the action")) };
 
     /// <summary>Logo-Bytes (PNG) oder null.</summary>
     public byte[]? LogoBytes() { try { return Logo.Length > 0 ? Convert.FromBase64String(Logo) : null; } catch { return null; } }

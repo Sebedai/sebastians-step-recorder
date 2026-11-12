@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json.Nodes;
+using StepRecorder.Settings;
 using StepRecorder.Steps;
 
 namespace StepRecorder.Data;
@@ -19,16 +20,16 @@ public static class Validator
         void Warn(string c, string msg, long? seq = null) => issues.Add(new Issue(c, "warning", msg, seq));
 
         // F01
-        if (m.Str("format") is not ("steprec" or "sebedais.steprec")) Err("F01", "manifest.format fehlt oder falsch");
+        if (m.Str("format") is not ("steprec" or "sebedais.steprec")) Err("F01", Loc.L("manifest.format fehlt oder falsch", "manifest.format missing or wrong"));
         var start = s.Events.FirstOrDefault();
-        if (start?.Str("type") != "session.start") Err("F04", "Journal beginnt nicht mit session.start");
-        else if (start.Str("sessionId") != m.Str("sessionId")) Err("F01", "sessionId in Manifest und session.start verschieden");
+        if (start?.Str("type") != "session.start") Err("F04", Loc.L("Journal beginnt nicht mit session.start", "Journal does not start with session.start"));
+        else if (start.Str("sessionId") != m.Str("sessionId")) Err("F01", Loc.L("sessionId in Manifest und session.start verschieden", "sessionId differs between manifest and session.start"));
         // F02/F03
         long exp = 1;
         foreach (var e in s.Events)
         {
-            if (e.Long("seq") != exp) { Err("F03", $"seq-Lücke bei {exp}", exp); break; }
-            if (e["t"] == null || e.Str("type") == null) Err("F02", "Zeile ohne t oder type", e.Long("seq"));
+            if (e.Long("seq") != exp) { Err("F03", Loc.F("seq-Lücke bei {0}", "seq gap at {0}", exp), exp); break; }
+            if (e["t"] == null || e.Str("type") == null) Err("F02", Loc.L("Zeile ohne t oder type", "Line without t or type"), e.Long("seq"));
             exp++;
         }
         foreach (var w in s.LoadWarnings) Warn("F02", w);
@@ -39,12 +40,12 @@ public static class Validator
         {
             long seq = e.Long("seq");
             string type = e.Str("type") ?? "";
-            if (e.LongN("ref") is long r && (r >= seq || s.BySeq(r) == null)) Err("F05", $"ref {r} ungültig", seq);
+            if (e.LongN("ref") is long r && (r >= seq || s.BySeq(r) == null)) Err("F05", Loc.F("ref {0} ungültig", "ref {0} invalid", r), seq);
             if (type == "window.info") wins.Add(e.Str("win") ?? "");
             if (type == "display.topology") topo = true;
             foreach (var k in new[] { "win", "fg", "owner", "prev" })
-                if (e.Str(k) is { } w && !wins.Contains(w) && !(type == "window.info" && k == "win")) Err("F06", $"{k}={w} ohne vorheriges window.info", seq);
-            if (e["x"] != null && e["m"] != null && (e["ep"] == null || !topo)) Err("F07", "Koordinaten ohne Epoche", seq);
+                if (e.Str(k) is { } w && !wins.Contains(w) && !(type == "window.info" && k == "win")) Err("F06", Loc.F("{0}={1} ohne vorheriges window.info", "{0}={1} without preceding window.info", k, w), seq);
+            if (e["x"] != null && e["m"] != null && (e["ep"] == null || !topo)) Err("F07", Loc.L("Koordinaten ohne Epoche", "Coordinates without epoch"), seq);
         }
         // F08
         var gaps = new Dictionary<string, (bool begin, bool end)>();
@@ -52,9 +53,9 @@ public static class Validator
         {
             var id = g.Str("gapId") ?? "";
             gaps.TryGetValue(id, out var st);
-            if (g.Str("phase") == "end") { if (st.end) Err("F08", $"Lücke {id} doppelt beendet", g.Long("seq")); st.end = true; }
+            if (g.Str("phase") == "end") { if (st.end) Err("F08", Loc.F("Lücke {0} doppelt beendet", "Gap {0} ended twice", id), g.Long("seq")); st.end = true; }
             if (g.Str("phase") == "begin") st.begin = true;
-            if (g.LongN("tTo") is long to && to < g.Long("tFrom")) Err("F08", $"Lücke {id}: tTo < tFrom", g.Long("seq"));
+            if (g.LongN("tTo") is long to && to < g.Long("tFrom")) Err("F08", Loc.F("Lücke {0}: tTo < tFrom", "Gap {0}: tTo < tFrom", id), g.Long("seq"));
             gaps[id] = st;
         }
         // F09
@@ -62,7 +63,7 @@ public static class Validator
         {
             var pts = StepBuilder.Unpack(mv).ToList();
             if (pts.Count != mv.Int("n", 1) || pts[^1].t != mv.Long("tEnd", pts[^1].t) || pts[^1].x != mv.Int("xEnd", pts[^1].x) || pts[^1].y != mv.Int("yEnd", pts[^1].y))
-                Err("F09", "mouse.move-Bündel lässt sich nicht entpacken", mv.Long("seq"));
+                Err("F09", Loc.L("mouse.move-Bündel lässt sich nicht entpacken", "mouse.move bundle cannot be unpacked"), mv.Long("seq"));
         }
         // F11
         var frames = new Dictionary<string, JsonObject>();
@@ -72,13 +73,15 @@ public static class Validator
             string? blob = st.Str("blob");
             if (blob != null)
             {
-                var hex = blob[7..];
-                var data = s.ReadFile($"frames/{hex[..2]}/{hex}.png");
-                if (data == null) Err("F11", $"Blob fehlt für {f.Str("id")}", f.Long("seq"));
-                else if (thorough && Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant() != hex) Err("F11", $"Blob-Prüfsumme falsch für {f.Str("id")}", f.Long("seq"));
+                var hex = blob.StartsWith("sha256:") ? blob[7..] : blob;
+                var blobPath = Session.BlobPath(blob);
+                var data = blobPath != null ? s.ReadFile(blobPath) : null;
+                if (blobPath == null) Err("F11", Loc.F("Ungültiger Blob-Name für {0}", "Invalid blob name for {0}", f.Str("id")), f.Long("seq"));
+                else if (data == null) Err("F11", Loc.F("Blob fehlt für {0}", "Blob missing for {0}", f.Str("id")), f.Long("seq"));
+                else if (thorough && Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant() != hex) Err("F11", Loc.F("Blob-Prüfsumme falsch für {0}", "Blob checksum wrong for {0}", f.Str("id")), f.Long("seq"));
             }
             foreach (var k in new[] { "base", "as" })
-                if (st.Str(k) is { } b && (!frames.TryGetValue(b, out var bf) || bf.Str("m") != f.Str("m"))) Err("F11", $"{k}={b} verweist nicht auf ein früheres Bild desselben Monitors", f.Long("seq"));
+                if (st.Str(k) is { } b && (!frames.TryGetValue(b, out var bf) || bf.Str("m") != f.Str("m"))) Err("F11", Loc.F("{0}={1} verweist nicht auf ein früheres Bild desselben Monitors", "{0}={1} does not refer to an earlier image of the same monitor", k, b), f.Long("seq"));
             if (f.Str("id") is { } id) frames[id] = f;
         }
         // F13 Prüfsummenkette
@@ -97,7 +100,7 @@ public static class Validator
                 {
                     chain = h.GetHashAndReset();
                     var cp = JsonNode.Parse(line);
-                    if (cp.Str("chain") != "sha256:" + Convert.ToHexString(chain).ToLowerInvariant()) { Err("F13", "Prüfsummenkette stimmt nicht", cp.Long("seq")); break; }
+                    if (cp.Str("chain") != "sha256:" + Convert.ToHexString(chain).ToLowerInvariant()) { Err("F13", Loc.L("Prüfsummenkette stimmt nicht", "Checksum chain does not match"), cp.Long("seq")); break; }
                     h.AppendData(chain);
                 }
                 else h.AppendData(bytes, pos, nl - pos + 1);
@@ -110,17 +113,17 @@ public static class Validator
         foreach (var e in inSeqs)
         {
             if (e.Arr("redacted") != null && e["inSeq"] == null) continue;
-            if (e.LongN("inSeq") is not long n) { Err("F18", "Eingabeereignis ohne inSeq", e.Long("seq")); continue; }
-            if (!seen.Add(n)) Err("F18", $"inSeq {n} doppelt", e.Long("seq"));
+            if (e.LongN("inSeq") is not long n) { Err("F18", Loc.L("Eingabeereignis ohne inSeq", "Input event without inSeq"), e.Long("seq")); continue; }
+            if (!seen.Add(n)) Err("F18", Loc.F("inSeq {0} doppelt", "inSeq {0} duplicated", n), e.Long("seq"));
         }
         // F16 Manifest
-        if (m.Str("state") == "recording") Warn("F16", "Sitzung ist nicht abgeschlossen (state=recording)");
+        if (m.Str("state") == "recording") Warn("F16", Loc.L("Sitzung ist nicht abgeschlossen (state=recording)", "Recording is not finished (state=recording)"));
         else if (m.Obj("journal")?.Arr("segments")?.FirstOrDefault().Str("sha256") is { } sha && Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant() != sha)
-            Err("F16", "Manifest-Prüfsumme des Journals stimmt nicht");
+            Err("F16", Loc.L("Manifest-Prüfsumme des Journals stimmt nicht", "Journal checksum in the manifest does not match"));
         // Schritte / Vollständigkeit
         var steps = StepBuilder.Build(s);
         var bk = steps.Obj("completeness").Obj("bookkeeping")!;
-        if (!bk.Bool("ok")) Err("S03", $"Buchführung: {bk.Long("orphans")} Eingaben ohne Schritt, unerklärte Zeit {bk.Obj("timeline").Long("unaccountedUs")} µs");
+        if (!bk.Bool("ok")) Err("S03", Loc.F("Buchführung: {0} Eingaben ohne Schritt, unerklärte Zeit {1} µs", "Bookkeeping: {0} inputs without a step, unexplained time {1} µs", bk.Long("orphans"), bk.Obj("timeline").Long("unaccountedUs")));
         var report = (JsonObject)steps.Obj("completeness")!.DeepClone();
         report["issues"] = new JsonArray(issues.Select(i => (JsonNode)new JsonObject { ["code"] = i.Code, ["severity"] = i.Severity, ["message"] = i.Message, ["seq"] = i.Seq }.Clean()).ToArray());
         return (issues, report);

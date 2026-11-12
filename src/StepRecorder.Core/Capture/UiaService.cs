@@ -233,7 +233,10 @@ public sealed class UiaService : IDisposable
         if (patterns.Count > 0) o["patterns"] = patterns;
         try { var lb = c.LabeledBy; if (lb != null && !string.IsNullOrEmpty(lb.Current.Name)) o["labeledBy"] = new JsonObject { ["ct"] = ControlTypeName(lb.Current.ControlType), ["name"] = Trunc(lb.Current.Name, 200) }; } catch { }
 
+        // Terminals in Electron-Anwendungen (VS Code, Teams …): xterm.js nimmt Eingaben über ein leeres Hilfsfeld an – Inhalt nicht lesbar
+        bool xterm = string.Equals(c.ClassName, "xterm-helper-textarea", StringComparison.OrdinalIgnoreCase) || (c.ClassName?.Contains("xterm", StringComparison.OrdinalIgnoreCase) ?? false);
         r.Ctx = c.IsPassword ? "passwordField"
+            : xterm ? "opaque"
             : ct is "Edit" or "Document" || (ct == "ComboBox" && patterns.Contains("Value")) ? "textField"
             : "nonText";
 

@@ -34,7 +34,7 @@ Status: Entwurf 0.1 · Stand: 2026-11-11
 | Randbedingung | Festlegung |
 |---|---|
 | Plattform | Windows 10 22H2 (Build 19045) und Windows 11, x64 |
-| Technologie | C#, .NET 10 (LTS), WPF |
+| Technologie | C#, .NET 10 (LTS), WPF – *Stand: gebaut wird mit .NET 8, der Wechsel ist offen (Abschnitt 9.1)* |
 | Auslieferung | eine portable EXE mit eingebauter Laufzeit; zusätzlich eine ZIP-Variante |
 | Rechte | läuft ohne Adminrechte (`asInvoker`); kein Installer, kein Dienst, kein Treiber |
 | Spuren | keine Registry-Schreibzugriffe; Daten neben der EXE oder im Benutzerprofil |
@@ -150,7 +150,7 @@ Außerhalb von Vorlauf und Aufnahme existiert kein Capture-Host. Hooks gibt es n
 
 ### 3.5 Mehrfachstart
 
-- Je Windows-Sitzung gibt es höchstens **ein Exemplar mit Oberfläche**. Ein weiterer Start reicht seine Argumente (zum Beispiel einen Sitzungspfad) an das laufende Exemplar weiter und endet. Dafür dienen ein Mutex, eine Dateizuordnung und ein Ereignisobjekt im sitzungslokalen Namensraum `Local\`; die Standard-Zugriffsliste beschränkt sie auf denselben Benutzer. Weitergereichte Argumente werden wie eine Kommandozeile geprüft.
+- Je Windows-Sitzung gibt es höchstens **ein Exemplar mit Oberfläche**. Ein weiterer Start reicht seine Argumente (zum Beispiel einen Sitzungspfad) an das laufende Exemplar weiter und endet. Dafür dient der **Instanzkanal** (`InstanceChannel` in Core): Die Erkennung läuft über einen benannten Mutex im sitzungslokalen Namensraum (`Local\StepRecorder.UI`); die Zustellung erfolgt als `WM_COPYDATA` an ein unsichtbares Nachrichtenfenster der Oberfläche (Titel `StepRecorder.Instance`, Elternfenster `HWND_MESSAGE`), mit einer Frist von 5 s und der Antwort der Oberfläche als Rückgabewert. Weder Dateizuordnung noch Ereignisobjekt, Pipe oder Socket sind nötig. Der Kanal startet nie selbst etwas: Er liefert nur zu, wenn die Oberfläche läuft. Genutzt wird er von zweiten Programmstarts, von `record --stop` und – für Agent-Anfragen ([06](06-ki-export-und-mcp.md)) – vom MCP-Server, der die Oberfläche nie von sich aus startet. Eine Abfrage ohne Wirkung (`--is-recording`) beantwortet, ob gerade aufgenommen wird. Weitergereichte Argumente werden wie eine Kommandozeile geprüft.
 - Es läuft höchstens **eine Aufnahme** je Windows-Sitzung. Ein zweiter `record`-Aufruf endet mit Exit-Code 6.
 - Während einer Aufnahme werden weitergereichte „Viewer öffnen"-Wünsche zurückgestellt, bis die Aufnahme beendet ist (der Viewer ist während der Aufnahme verborgen, siehe [07](07-aufnahme-bedienung.md)).
 - `mcp`, `export`, `validate`, `compare` und `settings` sind eigenständige Prozesse ohne Oberfläche und dürfen parallel laufen.
@@ -225,6 +225,18 @@ Regeln:
 | Oberfläche | App | Startfenster, Aufnahmeleiste, Viewer | [07](07-aufnahme-bedienung.md), [08](08-viewer.md) |
 | Einstellungen | Core | Datenverzeichnis ermitteln, Einstellungen lesen und schreiben | Abschnitt [12](#konfiguration) |
 | Aufnahmeprofile | Core | `profiles.json` lesen und schreiben; mitgelieferte Profile bereitstellen; die wirksamen Einstellungen einer Aufnahme bestimmen | Abschnitt [12.5](#aufnahmeprofile), [07, Abschnitt 4.7](07-aufnahme-bedienung.md#47-aufnahmeprofile), [10, Abschnitt 4.4](10-datenschutz-und-sicherheit.md#44-aufnahmeprofile-nie-unbemerkt-schwächer) |
+| Oberflächensprache | Core (`Loc`) | Sprache der Oberfläche (system, de, en, Pseudo-Sprache `qps`), Zweisprachigkeit am Aufrufort, Datums-, Zahlen- und Tastennamen-Formate; ein Prüftest verhindert unübersetzte Texte | Abschnitt [12.7](#oberflaechensprache) |
+| Programmprotokoll, Absturzbehandlung | Core (`AppLog`) | Protokoll ohne Inhalte, unbehandelte Ausnahmen aller Threads | Abschnitt [13](#fehlerbehandlung) |
+| Oberflächenzustand | Core (`AppState`) | `StepRecorder.state.json`: Fensterlagen, Spaltenbreiten, zuletzt gewählter Schritt, Exportwahl, letzter Aufnahmebereich, Agent-Anfragen | Abschnitt [12.2](#konfiguration) |
+| Tastenkürzel | Core (`HotkeyCombo`, `HotkeyActions`, `HotkeyRules`) | Eine Tabelle der Aufnahme-Kürzel: Schreibweise, Vorgaben, Regeln | Abschnitt [12.8](#tastenkuerzel), [07, Abschnitt 8](07-aufnahme-bedienung.md#8-tastenkürzel) |
+| Diagnose | Core (`Diagnostics`) | Diagnose-Paket aus Protokoll, Systemangaben und bereinigten Einstellungen | Abschnitt [13](#fehlerbehandlung) |
+| Kommandozeile | App (`Cli`, `CliArgs`) | Strenger Argumentleser, Hilfe in beiden Sprachen, Befehle ohne Oberfläche | Abschnitt [8](#betriebsarten) |
+| Export-Auftrag | Core (`Exporter`, `ExportRequest`, `ExportJob`, `ExportFolders`) | Ein Auftrag für Dialog, Ein-Klick-Export und Kommandozeile; Arbeitsordner, Verschieben ans Ziel, Fortschritt und Abbruch | Abschnitt [7.9](#exportablauf), [09](09-anleitungs-export.md) |
+| Bibliothek | Core (`SessionCatalog`, `SessionSearch`, `SessionPackage`, `SessionSanitizer`) | Aufnahmen und `.steprec` finden, durchsuchen, packen, entpacken; bereinigte Kopie | Abschnitt [7.8](#bibliothek), [08](08-viewer.md) |
+| Bearbeitungsstände, Bildblobs | Core (`EditHistory`, `FrameBlobs`) | Automatische Sicherungen des Overlays; gemeinsame Hilfe für Bild-Blobs | Abschnitt [7.8](#bibliothek) |
+| Papierkorb | Core (`RecycleBin`) | Löschen nur über den Papierkorb (`IFileOperation`), nie stillschweigend endgültig | Abschnitt [7.8](#bibliothek) |
+| Instanzkanal | Core (`InstanceChannel`) | Erkennung und Zustellung an die laufende Oberfläche | Abschnitt [3.5](#prozessmodell) |
+| Agent-Anfragen | Core (`RecordingRequests`) | Anfrage- und Statusdateien für „Agent bittet um Vorführung“, Missbrauchsschutz | [06](06-ki-export-und-mcp.md) |
 | Einstellungs-Austausch | Core | Austauschdatei `StepRecorder-Einstellungen.json` schreiben, prüfen, als Vorschau aufbereiten und einlesen | Abschnitt [12.6](#einstellungs-austausch), [07, Abschnitt 13.2](07-aufnahme-bedienung.md#132-einstellungen-exportieren-und-importieren), [10, Abschnitt 13.4](10-datenschutz-und-sicherheit.md#134-einstellungen-und-profile-weitergeben) |
 
 ### 5.2 Abhängigkeitsregeln
@@ -420,6 +432,31 @@ Weitere Festlegungen:
 - **Texte des Autors.** Bezug (etwa eine Ticketnummer) und ein Hinweis für den Empfänger können vorbelegt sein – aus dem Aufnahmeprofil oder von der Kommandozeile. Sie unterliegen der Durchsicht wie die Ziel-Angaben. Auch der Titel im Dateinamen ist Text des Autors; der letzte Schritt des Ablaufs zeigt den Namen, bevor die Datei entsteht.
 - Der Ablauf läuft auf dem Thread-Pool, zeigt Fortschritt und ist jederzeit abbrechbar. Ein Abbruch hinterlässt außer dem Arbeitsordner nichts.
 
+<a id="bibliothek"></a>
+### 7.8 Bibliothek, Packen, bereinigte Kopie, Bearbeitungsstände
+
+Diese Bausteine liegen in Core und lesen Sitzungen ausschließlich über die Leseschicht (Abschnitt [7.4](#datenfluss)); die Fenster dazu beschreibt [08](08-viewer.md).
+
+- **Katalog (`SessionCatalog`).** Findet Aufnahmeordner und `.steprec`-Archive eines Ordners, ohne Verknüpfungen zu folgen. Titel, Durchsicht-Stand und Vorschaubild kommen über die Leseschicht (mit Schwärzungen, nie aus Rohbildern) und werden unter `cache\` der Aufnahme zwischengespeichert (`catalog.json`, `thumbs\`); ein Zwischenstand gilt nur bei passender Revision, passendem Journal-Ende und passender Regelversion. Umbenennen ändert den Titel, nie den Ordner (`SessionEdits.SetTitle`).
+- **Suche (`SessionSearch`).** Eine Definition von „durchsuchbar“ für Bibliothek und MCP: nur die Sicht für Abnehmer ohne Oberfläche, Felder `stepText`, `elements`, `windows`, `typed`, `comments`, `markers`; Index unter `cache\search\` (Abschnitt [7.5](#suchindex)).
+- **Packen und Entpacken (`SessionPackage`).** `.steprec` ist ein ZIP. Gepackt werden nur bekannte Teile (`manifest.json`, `events.jsonl`, `steps.json`, `edits.json`, `frames\`, `cursors\`, `assets\`) – nie `cache`, `export`, `history` oder die Sperrdatei; absolute Pfade angehängter Bilder werden entfernt. Entpackt wird nie mit einem Sammelaufruf, sondern Eintrag für Eintrag nach einer Positivliste (keine Pfadsprünge, Laufwerke oder Gerätenamen), mit Grenzen für Anzahl, Größe und Kompressionsverhältnis und über einen Zwischenordner: Ein präpariertes Archiv hinterlässt nichts. Aus einem `.steprec` angehängte Aufnahmen werden ignoriert.
+- **Bereinigte Kopie (`SessionSanitizer`).** Schreibt eine neue Aufnahme mit neuer Kennung aus der Sicht der Leseschicht: Ereignisse über `EventForOutput`, Bilder mit allen Schwärzungen als Schlüsselbilder, Overlay ohne Regelwerte und interne Kommentare; Tippschritte mit verallgemeinerten Werten werden entschärft. Eine Pflicht-Gegenprobe prüft alle Textdateien samt neu gebauter Schritte; bei ungeprüften Eingaben wird verweigert. Das Support-Paket (Abschnitt [7.7](#support-paket)) und „Bereinigte Kopie“ beim Packen nutzen sie.
+- **Bearbeitungsstände (`EditHistory`).** Automatische Sicherungen des Overlays unter `history\edits-<UTC>-r<Revision>-<Anlass>.json`: beim ersten Speichern nach dem Öffnen, danach höchstens alle 10 Minuten, erzwungen vor „Alle ersetzen“, „Zuschnitt auf alle“, „Vorlage anwenden“ und Wiederherstellen; nach Revision dedupliziert; höchstens 40 Stände und 15 MB. Ein Fehler beim Sichern blockiert nie das Speichern. Wiederherstellen ist eine normale Bearbeitung; Schwärzungen, Verallgemeinerungen und Durchsicht bleiben standardmäßig auf dem heutigen Stand. „Endgültig schwärzen“ löscht alle Stände; `.steprec` und bereinigte Kopie enthalten keine.
+- **Bild-Blobs (`FrameBlobs`).** Gemeinsame Hilfe für die Bilddateien unter `frames\xx\<sha256>.png`: schreiben, Verweise der Bildereignisse sammeln, nicht mehr verwendete löschen. Blob-Namen werden beim Lesen auf 64 Hexzeichen geprüft. „Endgültig schwärzen“ entfernt damit auch die Bilder geschwärzter Zeiträume; spätere Änderungsbilder werden vorher als Schlüsselbild gesichert.
+- **Papierkorb (`RecycleBin`).** Verwerfen und Löschen aus der Oberfläche verschieben über `IFileOperation` in den Papierkorb und löschen nie endgültig: Würde ein Element nicht im Papierkorb landen (USB-Stick, Netzlaufwerk, zu groß), bricht der Vorgang ab, und die Oberfläche fragt ausdrücklich nach. Der Aufruf läuft immer in einem STA-Thread.
+
+<a id="exportablauf"></a>
+### 7.9 Exportablauf
+
+Dialog, Ein-Klick-Export (Strg+Umschalt+E) und Kommandozeile bilden denselben **Auftrag** (`ExportRequest`: Format, Ziel, Sprache, Wichtigkeit, Darstellung, Art der Anleitung, Verhalten bei fehlender Übersetzung, Optionen je Format) und führen ihn mit `Exporter.Run` aus.
+
+1. **Ziel bestimmen.** Ohne Angabe: Standardort in der Aufnahme (`export\<Format>\…`, bei `.steprec` neben dem Archiv); mit Ordnerangabe bei Dateiformaten wird der Titel zum Dateinamen. Zuletzt gewählte Ordner merkt `AppState` je Format; Ordner innerhalb einer Aufnahme werden nicht zur Vorgabe für andere.
+2. **Arbeitsordner.** Erzeugt wird in `export\.tmp\job-<Kennung>\` der Aufnahme (bei `.steprec` in einem Zwischenordner neben dem Ziel). Erst am Ende wird verschoben: Abbruch oder Fehler hinterlässt nichts Halbes.
+3. **Ordnerziele gehören dem Export nur, wenn sie leer sind oder die Kennzeichen-Datei eines früheren Exports enthalten** (`ExportFolders`: `ai-package.json` beim KI-Paket, `ablauf.json` beim AutoHotkey-KI-Paket). Sonst endet der Export mit Exit-Code 8 und leert nichts.
+4. **Fortschritt und Abbruch.** Die Exporter melden in ihren Schleifen mit `ExportJob.Tick`; der Auftrag ist an den Thread gebunden, damit keine zusätzlichen Parameter nötig sind. Der Hintergrundlauf der Oberfläche zeigt ab 0,7 s ein Fortschrittsfenster mit „Abbrechen“; der Editor ist solange gesperrt. Meldungen kommen höchstens alle 100 ms.
+5. **Freigabe der Formate.** `Exporter` schaltet nur Formate frei, die der Erzeuger kann; Dialog und Menü zeigen nur diese. Anleitungs-Formate: `html`, `md`, `docx`, `pdf`, `gif`, `pptx`, `tour`, `bugreport`; Ordner-Ausgaben: `ki`, `ahk-ki`; Datei: `ahk`.
+6. **Ergebnis.** Das Ergebnisfenster bietet „Öffnen“ (nicht bei `.ahk`), „Im Ordner zeigen“ und „Pfad kopieren“. Alte Arbeitsordner räumt das Öffnen einer Aufnahme auf (Abschnitt [12.2](#konfiguration)).
+
 ---
 
 <a id="betriebsarten"></a>
@@ -437,13 +474,19 @@ Weitere Festlegungen:
 | `SebastiansStepRecorder.exe compare <A> <B> [--format md\|json] [--out <Pfad>]` | Zwei Sitzungen abgleichen (Abschnitt [7.6](#schrittabgleich)) | nein | Bericht; mit `--out` der Pfad der Datei |
 | `SebastiansStepRecorder.exe settings export <Datei> [--parts <Liste>]` | Einstellungen, Vorlagen und Profile in eine Austauschdatei schreiben (Abschnitt [12.6](#einstellungs-austausch)) | nein | Pfad der Datei |
 | `SebastiansStepRecorder.exe settings import <Datei> [--parts <Liste>] [--confirm]` | Austauschdatei prüfen und zeigen, was sich ändern würde; erst mit `--confirm` einlesen | nein | Liste der Änderungen |
-| `SebastiansStepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf` ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki` ([06](06-ki-export-und-mcp.md)) | nein | Pfade der erzeugten Dateien |
-| `SebastiansStepRecorder.exe validate <Sitzung> [--json]` | Format und Vollständigkeit prüfen | nein | Bericht |
-| `SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit]` | MCP-Server über stdio | nein | **ausschließlich** JSON-RPC |
+| `SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…` | Einstellungen auf die Vorgaben zurücksetzen (Abschnitt [8.8](#befehle-nachgelagert)) | nein | Liste der Änderungen |
+| `SebastiansStepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf`, `gif`, `pptx`, `tour` (Klick-Tour), `bugreport` (Fehlerbericht) ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki`, AutoHotkey mit `ahk` und `ahk-ki` ([06](06-ki-export-und-mcp.md)); Art der Anleitung mit `--template standard\|short\|checklist` | nein | Pfade der erzeugten Dateien |
+| `SebastiansStepRecorder.exe check <Sitzung> [--lang <de\|en>] [--importance <…>] [--all] [--json] [--strict]` | Qualitätsprüfung (Regeln Q01–Q20, [05, Abschnitt 18](05-schritterkennung.md#qualitaetskriterien)); mit `--strict` Exit-Code 9 bei Warnungen | nein | Befunde und Zähler |
+| `SebastiansStepRecorder.exe steps <Sitzung>` | Schrittliste ausgeben (Nummer, Zeit, Art, Protokolltext, Belegstufe) | nein | eine Zeile je Schritt |
+| `SebastiansStepRecorder.exe validate <Sitzung> [--json] [--thorough]` | Format und Vollständigkeit prüfen | nein | Bericht |
+| `SebastiansStepRecorder.exe record --self-test [--json]` | Startprüfungen ohne Aufnahme (Abschnitt [13](#fehlerbehandlung)) | nein | Ergebnis je Prüfung |
+| `SebastiansStepRecorder.exe mcp [--root <Ordner>] [--allow-edit] [--allow-requests] [--lang <de\|en>] [--max-result-tokens <n>] [--max-image-pixels <n>] [--max-images <n>]` | MCP-Server über stdio; `--allow-requests` schaltet die Werkzeuge für Agent-Anfragen ein ([06](06-ki-export-und-mcp.md)) | nein | **ausschließlich** JSON-RPC |
 | `SebastiansStepRecorder.exe --help` / `--version` | Hilfe / Version | nein | Text |
 | `SebastiansStepRecorder.exe --capture-host …` | interne Rolle, nicht für Nutzer | nein | unbenutzt |
 
-Allgemeine Optionen aller Betriebsarten: `--data-dir <Ordner>` (Datenverzeichnis erzwingen), `--settings <Datei>`, `--log-level <stufe>`.
+Allgemeine Optionen aller Betriebsarten: `--data-dir <Ordner>` (Datenverzeichnis erzwingen), `--settings <Datei>`, `--log-level <stufe>`. *Stand der Umsetzung:* Diese drei Optionen sind noch nicht umgesetzt (`mcp` nimmt `--log-level` an und ignoriert es); das Datenverzeichnis folgt allein den Regeln aus Abschnitt [12.1](#konfiguration).
+
+**Argumentleser (`CliArgs`).** Alle Befehle lesen ihre Argumente streng: Eine unbekannte Option oder ein fehlender Wert ergibt Exit-Code 2 mit einer Meldung in der Sprache der Oberfläche; Optionen mit einer Auswahl werden gegen ihre Werte geprüft. Bei `record` geschieht das **vor dem Start der Oberfläche** (Wert von `--scope`, `--monitor`, `--region`, `--protection`, `--profile`, `--after-stop`, `--skip`; `--region` nur mit `--scope region`), damit ein Tippfehler nicht erst in einem Fenster auffällt. `--region last` verwendet den zuletzt gemerkten Aufnahmebereich ([07](07-aufnahme-bedienung.md)); fehlt er oder passt er nicht mehr genau, öffnet sich die Bereichsauswahl, statt stillschweigend den ganzen Bildschirm aufzunehmen. `--help` gibt eine vollständige Hilfe in Deutsch oder Englisch aus, je nach Oberflächensprache. Die Protokollierung nennt Befehl und Optionsnamen, nie deren Werte (Abschnitt [13](#fehlerbehandlung)).
 
 **Ein Name, eine Bedeutung.** Eine Option bedeutet in allen Befehlen dasselbe. `--profile` bezeichnet überall das Aufnahmeprofil und kommt nur bei `record` und `support` vor; das Bildprofil des KI-Exports heißt `--image-profile` ([06, Abschnitt 8.2](06-ki-export-und-mcp.md#82-bildprofile)).
 
@@ -474,7 +517,7 @@ Eine Windows-EXE gehört genau einem Subsystem an. Beide Möglichkeiten haben ei
 **Festlegung: GUI-Subsystem (`WinExe`).** Der häufigste Weg ist der Doppelklick; ein aufblitzendes Konsolenfenster ist dort nicht hinnehmbar und würde zudem in einer laufenden Bildschirmaufnahme anderer Programme erscheinen. Die Nachteile für die Kommandozeile werden so behandelt:
 
 1. **Umgeleitete Ströme** (Pipe oder Datei – der Normalfall bei Skripten und beim MCP-Start) funktionieren ohne Zutun. Erkennung über den Typ der Standard-Handles.
-2. **Nicht umgeleitet, aus einer Konsole gestartet:** In den Betriebsarten `record`, `support`, `export`, `validate`, `compare`, `settings`, `--help`, `--version` verbindet sich das Programm mit der Konsole des Elternprozesses (`AttachConsole`) und schreibt dorthin. Gelingt das nicht, entfällt die Ausgabe; sie steht dann nur im Protokoll.
+2. **Nicht umgeleitet, aus einer Konsole gestartet:** In den Betriebsarten `record`, `support`, `export`, `check`, `steps`, `validate`, `compare`, `settings`, `--help`, `--version` verbindet sich das Programm mit der Konsole des Elternprozesses (`AttachConsole`) und schreibt dorthin. Gelingt das nicht, entfällt die Ausgabe; sie steht dann nur im Protokoll.
 3. **Shell wartet nicht:** `cmd` und PowerShell warten nicht auf GUI-Programme. Die Dokumentation nennt die Aufrufformen, die warten (`start /wait "" SebastiansStepRecorder.exe …` bzw. `Start-Process -Wait` oder Weiterleiten der Ausgabe). Skripte, die die Ausgabe einlesen, sind nicht betroffen.
 4. **Kann:** In der ZIP-Variante darf ein winziges Konsolen-Startprogramm `StepRecorder.com` beiliegen, das die EXE startet, auf sie wartet und Ströme sowie Exit-Code durchreicht. Für die Einzel-EXE ist es nicht nötig.
 
@@ -493,6 +536,8 @@ Eine Manifest-Einstellung, mit der ein Konsolenprogramm ohne Konsolenfenster sta
 | `support` | – | eine Abschlusszeile (Pfad des Pakets), mit `--json` als JSON-Objekt | Diagnose |
 | `compare` | – | Bericht als Markdown oder JSON; mit `--out` nur der Pfad der erzeugten Datei | Diagnose, Fortschritt |
 | `settings` | – | Pfad der Austauschdatei bzw. Liste der Änderungen, mit `--json` als JSON-Objekt | Diagnose, Warnungen |
+| `check` | – | Befunde und Zähler, mit `--json` als JSON-Objekt | Diagnose |
+| `steps` | – | Schrittliste, eine Zeile je Schritt | Diagnose |
 | `mcp` | JSON-RPC | JSON-RPC | Diagnose |
 
 Textausgaben sind UTF-8 ohne Byte-Reihenfolge-Marke.
@@ -524,9 +569,9 @@ Ein einziges fremdes Byte auf der Standardausgabe zerstört die Verbindung zum A
 | 6 | Es läuft bereits eine Aufnahme |
 | 7 | Voraussetzung nicht erfüllt – unter anderem: nicht unterstütztes System; ungültiger interner Start; `record` an eine laufende Instanz ohne Erfolg (etwa `record --stop` ohne laufende Aufnahme); Selbsttest der Unsichtbarkeit nicht bestanden bei `--fallback deny`; mit `--app` genannte Anwendung läuft nicht; `mcp` mit erhöhten Rechten gestartet; weiterer Aufnahmeabschnitt nicht möglich (Sitzung gepackt, gesperrt, nicht abgeschlossen oder ihr Aufnahmebereich nicht herstellbar) |
 | 8 | Ausgabeziel nicht beschreibbar (`export`, `compare`, `support`, `settings`) |
-| 9 | `export`: Abbruch wegen Warnungen oder Platzhaltern im strengen Modus (`--strict`) |
+| 9 | `export`: Abbruch wegen Warnungen, Platzhaltern oder ungeprüften Eingaben im strengen Modus (`--strict`); `check --strict`: mindestens eine Warnung |
 
-Die Codes 0 bis 7 gelten für alle Betriebsarten, 8 für jeden Befehl, der eine Ausgabe schreibt, 9 nur für `export` ([09](09-anleitungs-export.md)). `validate` meldet eine formal gültige Sitzung mit Lücken als Erfolg (0); die Lücken stehen im Bericht ([05](05-schritterkennung.md)). Auch Unterschiede zwischen zwei Sitzungen sind kein Fehler: `compare` endet mit 0, sobald der Bericht vorliegt. `settings import` endet mit 0, wenn es nur die Vorschau zeigt oder Schutz schwächende Änderungen ausgelassen hat; beides steht in der Ausgabe.
+Die Codes 0 bis 7 gelten für alle Betriebsarten, 8 für jeden Befehl, der eine Ausgabe schreibt, 9 nur für `export` ([09](09-anleitungs-export.md)) und `check`. Code 8 gilt auch, wenn ein Ordner-Export (`ki`, `ahk-ki`) einen vorhandenen fremden Ordner leeren müsste: Er lehnt ab, statt zu löschen (Abschnitt [7.9](#exportablauf)). `validate` meldet eine formal gültige Sitzung mit Lücken als Erfolg (0); die Lücken stehen im Bericht ([05](05-schritterkennung.md)). Auch Unterschiede zwischen zwei Sitzungen sind kein Fehler: `compare` endet mit 0, sobald der Bericht vorliegt. `settings import` endet mit 0, wenn es nur die Vorschau zeigt oder Schutz schwächende Änderungen ausgelassen hat; beides steht in der Ausgabe.
 
 ### 8.7 Interne Rolle `--capture-host`
 
@@ -555,8 +600,18 @@ Die Rolle ist kein Bestandteil der Nutzerschnittstelle. Ohne gültige, vom Elter
 - Ohne Fenster, ohne Rückfrage. `--parts <Liste>` beschränkt auf einzelne Teile; ohne die Option gelten alle.
 - `settings export` schreibt die Austauschdatei. Eine vorhandene Datei wird nur mit `--overwrite` ersetzt. Exit-Codes: 0, 1, 2, 8.
 - `settings import` **ohne** `--confirm` prüft die Datei, listet auf, was sich ändern würde, und ändert nichts.
-- `settings import` **mit** `--confirm` liest ein. Jede Änderung, die den Schutz schwächt, braucht zusätzlich `--allow-weaker <Kennung>` mit der Kennung aus der Vorschau; ohne diese Angabe unterbleibt genau diese Änderung und steht in der Ausgabe unter den ausgelassenen.
-- Exit-Codes: 0, 1, 2, 3 (Datei fehlt oder ist nicht lesbar), 4 (Datei besteht die Prüfung nicht – dann ändert sich nichts), 8 (Ablageort der Einstellungen nicht beschreibbar).
+- `settings import` **mit** `--confirm` liest ein. Jede Änderung, die den Schutz schwächt, braucht zusätzlich `--allow-weaker <Kennung>` mit der Kennung aus der Vorschau (die Option darf mehrfach stehen); ohne diese Angabe unterbleibt genau diese Änderung und steht in der Ausgabe unter den ausgelassenen. Die Vorschau kennzeichnet sie mit `✗`, erlaubte mit `!`.
+- `settings reset [--templates]` setzt die Einstellungen auf die Vorgaben zurück (Tastenkürzel, Ausschlussliste, Modus „Eigene“, allgemeine Vorlieben; Dokumentvorlagen nur mit `--templates`) und folgt denselben Regeln wie `import`: Vorschau, `--confirm`, `--allow-weaker`. Aufnahmeordner und Zuletzt-Liste bleiben.
+- Mit `--confirm` verweigert der Befehl, solange die Oberfläche läuft (Exit-Code 7); dort importiert man in den Einstellungen. Vor dem Übernehmen entsteht die Sicherung `<Einstellungsdatei>.vor-import`; „Letzten Import zurücknehmen“ in den Einstellungen stellt sie wieder her.
+- Exit-Codes: 0, 1, 2, 3 (Datei fehlt oder ist nicht lesbar), 4 (Datei besteht die Prüfung nicht – dann ändert sich nichts), 7 (Oberfläche läuft), 8 (Ablageort der Einstellungen nicht beschreibbar).
+
+**`check <Sitzung>`** führt die Qualitätsprüfung aus ([05, Abschnitt 18](05-schritterkennung.md#qualitaetskriterien)).
+
+- Ohne Fenster; liest die Sitzung nur. `--importance` wählt die geprüften Schritte (Standard `primary`), `--all` nimmt ignorierte Befunde auf, `--lang` die Sprache der Texte.
+- Ausgabe: eine Zeile je Befund und die Zähler „Warnungen · Hinweise“, mit `--json` ein JSON-Objekt (`findings`, `warnings`, `hints`).
+- Mit `--strict` endet der Aufruf bei mindestens einer nicht ignorierten Warnung mit Exit-Code 9; sonst mit 0. Exit-Codes: 0, 1, 2, 3, 9.
+
+**`steps <Sitzung>`** gibt die Schrittliste aus, eine Zeile je nicht zu den Spurdaten zählendem Schritt: Nummer, Zeit, Art, Protokolltext, Belegstufe. Exit-Codes: 0, 1, 2, 3.
 
 ---
 
@@ -576,7 +631,11 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 | Bindungslogik | CommunityToolkit.Mvvm 8.4.x | MIT | Quellgeneratoren statt Laufzeitreflexion |
 | Zielplattform der Windows-Projekte | `net10.0-windows10.0.22621.0`, Mindest-Betriebssystem `10.0.19045.0` | – | Zugriff auf neuere Schnittstellen (z. B. rahmenlose Aufnahme), die zur Laufzeit auf Vorhandensein geprüft werden |
 
+**Stand der Umsetzung.** Die Zielplattform .NET 10 ist **nicht umgesetzt**: Der Code baut gegen .NET 8 (`net8.0-windows10.0.19041.0`, SDK 8.0.4xx über `global.json`), weil auf dem Entwicklungsrechner das .NET-10-SDK fehlt. Der Wechsel ist offen und in [11, Abschnitt 9](11-roadmap-tests-risiken.md#9-offene-entscheidungen) geführt; er ändert Zielplattform und `global.json`, nicht die Architektur. `PublishReadyToRun` ist vorerst aus.
+
 ### 9.2 Bibliotheken
+
+**Stand der Umsetzung.** Die Tabelle nennt die geplante Auswahl. Umgesetzt ist bisher **keine Fremdbibliothek** außer `System.Speech` (Microsoft, für das Diktat in der App; in die EXE gebündelt): DOCX, PDF (mit eingebetteter TrueType-Teilmenge), PPTX und GIF schreiben eigene Schreiber (`SimpleDocx`, `SimplePdf`, `TrueTypeFont`, `SimplePptx`, `GifWriter`), ZIP kommt aus `System.IO.Compression`, JSON aus `System.Text.Json`, der MCP-Server ist ein eigener stdio-Server (`McpStdioServer`), die Bildbearbeitung nutzt `System.Drawing` (GDI+). Die Abhängigkeitsregeln (Abschnitt [9.4](#technologie)) gelten damit trivial; ob die Bibliotheken später eingeführt werden, ist offen.
 
 | Bereich | Wahl | Version (11/2026) | Lizenz | Begründung |
 |---|---|---|---|---|
@@ -667,12 +726,14 @@ docs/spezifikation/              diese Spezifikation
 
 „windows" steht für `net10.0-windows10.0.22621.0`.
 
+**Stand der Umsetzung.** Die Lösung besteht aus drei Projekten: `StepRecorder.Core`, `StepRecorder.App` und `StepRecorder.Tests` (xUnit); Zielplattform ist derzeit `net8.0-windows10.0.19041.0` (Abschnitt [9.1](#technologie)). Die oben gezeichneten Bausteine liegen als Ordner in Core: `Capture` (Aufzeichnungssteuerung, Bildschirmaufnahme, UI Automation, Fensterregister), `Capture\Host` (Rolle `--capture-host`, Ring), `Data` (Sitzung, Schreiber, Validator, Pack- und Bearbeitungsstände), `Steps`, `ReadLayer`, `Compare`, `Export` (einschließlich `Formats` mit den eigenen Schreibern), `Mcp`, `Native` (Win32, Instanzkanal, Papierkorb, Bildschirmabgriff) und `Settings` (Einstellungen, Zustand, Protokoll, Sprache, Tastenkürzel, Austausch, Diagnose). `App` enthält die Rollenweiche (`Program`), die Kommandozeile (`Cli`, `CliArgs`) und die Oberfläche (`Ui`). Die Trennung in eigene Projekte (Ipc, Imaging, Export, Mcp, Capture.Host) ist noch nicht vollzogen; die Abhängigkeitsregeln aus Abschnitt 5.2 gelten als Ordnungsregeln, ein Architekturtest dafür besteht noch nicht. Core verweist deshalb heute auf Windows-Schnittstellen und WPF-Bibliotheken.
+
 Regeln:
 
 1. Die Abhängigkeitsregeln aus Abschnitt [5.2](#komponenten) werden von `StepRecorder.Architecture.Tests` geprüft.
 2. `StepRecorder.Capture.Host` ist eine Bibliothek; die Rollenweiche in `StepRecorder.App` ruft sie auf. So bleibt es bei einer EXE.
 3. Die Einstiegsklasse der Rollenweiche verweist in Feldern und statischen Initialisierern auf keinen WPF-Typ, damit die Rollen ohne Oberfläche keine WPF-Assembly laden.
-4. Code-Bezeichner, Kommentare und Commit-Meldungen sind englisch; Oberflächentexte liegen als Ressourcen in Deutsch und Englisch vor.
+4. Code-Bezeichner, Kommentare und Commit-Meldungen sind englisch; Oberflächentexte stehen in Deutsch und Englisch am Aufrufort (`Loc`, Abschnitt [12.7](#oberflaechensprache)).
 5. Build-Ausgaben liegen außerhalb des Projektordners (Abschnitt [11.7](#entwicklungsumgebung)).
 
 ---
@@ -744,8 +805,20 @@ In einer Single-File-Anwendung liefert `Assembly.Location` eine leere Zeichenfol
 <a id="entwicklungsumgebung"></a>
 ### 11.7 Entwicklungsumgebung
 
-- Benötigt wird das .NET-10-SDK; das auf dem Entwicklungsrechner vorhandene .NET-8-SDK reicht nicht.
+- Vorgesehen ist das .NET-10-SDK. *Stand:* Auf dem Entwicklungsrechner ist nur das .NET-8-SDK installiert; gebaut wird daher mit .NET 8 (Abschnitt [9.1](#technologie)), bis das .NET-10-SDK vorhanden ist.
 - Der Projektordner liegt in einem synchronisierten Ordner (Nextcloud). Build-Ausgaben werden deshalb über `ArtifactsPath` in ein Verzeichnis **außerhalb** des Projektordners gelenkt; das Verzeichnis `.git` wird von der Synchronisierung ausgenommen ([11](11-roadmap-tests-risiken.md)).
+
+<a id="github-workflow"></a>
+### 11.8 Automatischer Build (GitHub)
+
+Der Workflow `.github/workflows/build.yml` („Build“) läuft auf `windows-latest` und verwendet das SDK aus `global.json`.
+
+| Auslöser | Ablauf |
+|---|---|
+| Push auf `main`, Pull-Request | Wiederherstellen, Bauen in `Release` mit `ContinuousIntegrationBuild=true`, Tests mit `--filter "Category!=Integration"` (der Integrationstest braucht einen interaktiven Desktop mit echten Hooks) |
+| Tag `v*` | Zusätzlich der Auftrag `release`: Veröffentlichen der Einzel-EXE mit der Version aus dem Tag, Prüfung, dass der Ausgabeordner genau `SebastiansStepRecorder.exe` enthält, SHA-256-Prüfsumme in `SHA256SUMS.txt`, GitHub-Release mit beiden Dateien |
+
+Der Workflow hat nur Leserechte; der Release-Auftrag erhält zusätzlich Schreibrecht auf die Inhalte. Es gibt **kein Code-Signing** und keine ZIP-Variante (Abschnitt [11.5](#build), [11, Abschnitt 10](11-roadmap-tests-risiken.md#10-veröffentlichung)).
 
 ---
 
@@ -767,11 +840,11 @@ Der gewählte Modus wird im Info-Dialog angezeigt.
 
 | Datei / Ordner | Inhalt | Portabler Modus | Profilmodus |
 |---|---|---|---|
-| `StepRecorder.settings.json` | Sprache, Hotkeys, Standard-Aufnahmebereich, Schutzstufe, Ausschlusslisten, Aufnahmeordner, Exportvorgaben, Stilvorlagen, Textbausteine | EXE-Verzeichnis | `%APPDATA%\StepRecorder\` |
+| `StepRecorder.settings.json` | Sprache der Anleitungstexte und der Oberfläche (`uiLanguage`: `system`, `de`, `en`), Darstellung, Tastenkürzel, Schutzstufe, Ausschlusslisten, Aufnahmeordner, zuletzt verwendete Aufnahmen und zuletzt gewähltes Aufnahmeprofil, Modus „Eigene“ (Kanäle, Bildänderungen, Anwendungskontext, Aktion nach dem Stopp), Dokumentvorlagen. Version 2; Aufbau und Lesen in Abschnitt [12.3](#konfiguration) | EXE-Verzeichnis | `%APPDATA%\StepRecorder\` |
 | `profiles.json` | eigene und geänderte Aufnahmeprofile (Abschnitt [12.5](#aufnahmeprofile)) | EXE-Verzeichnis | `%APPDATA%\StepRecorder\` |
 | `templates\` | Export-Vorlagen, je Vorlage ein Ordner mit ihren Dateien (Logo, Word-Vorlage; [09](09-anleitungs-export.md)) | EXE-Verzeichnis | `%APPDATA%\StepRecorder\` |
-| `StepRecorder.state.json` | zuletzt verwendete Sitzungen, zuletzt gewähltes Aufnahmeprofil, Fensterpositionen – jederzeit löschbar | EXE-Verzeichnis | `%LOCALAPPDATA%\StepRecorder\` |
-| `logs\` | Diagnoseprotokolle, rollierend, höchstens 10 MB | EXE-Verzeichnis | `%LOCALAPPDATA%\StepRecorder\` |
+| `StepRecorder.state.json` | Oberflächenzustand (`AppState`): Fensterlagen samt Skalierung, Spaltenbreiten und Reiter des Editors, je Aufnahme der zuletzt gewählte Schritt samt Filter und Bildansicht (höchstens 50 Aufnahmen), Optionen und Zielordner je Exportformat, Sortierung der Bibliothek, letzter Aufnahmebereich, Zeitpunkte der Agent-Anfragen, zuletzt beendete Aufnahme (für `record --stop`) – jederzeit löschbar; nur die Oberfläche schreibt | EXE-Verzeichnis | `%LOCALAPPDATA%\StepRecorder\` |
+| `StepRecorder.log` (+ `.1`) | Programmprotokoll ohne Inhalte, höchstens 1 MB je Datei plus ein Vorgänger | EXE-Verzeichnis | `%LOCALAPPDATA%\StepRecorder\` |
 | `Sessions\` | Standard-Aufnahmeordner; beim Erststart bestätigt, jederzeit änderbar ([07](07-aufnahme-bedienung.md)) | EXE-Verzeichnis, sofern es nicht in einem synchronisierten Ordner liegt; sonst `%LOCALAPPDATA%\StepRecorder\Sessions` | `%LOCALAPPDATA%\StepRecorder\Sessions` |
 | Zwischendateien | externes Bearbeiten, Herausziehen von Bildern, Exportvorschau, Arbeitsordner des Support-Pakets | im jeweiligen Sitzungsordner unter `export\.tmp\`; **nie** in `%TEMP%`. Wird beim Schließen der Sitzung und beim nächsten Öffnen geleert | wie links |
 | `StepRecorder-Einstellungen.json` | Austauschdatei für Einstellungen, Vorlagen und Profile (Abschnitt [12.6](#einstellungs-austausch)); entsteht nur auf Befehl | dort, wo der Nutzer sie speichert | wie links |
@@ -782,8 +855,9 @@ Der gewählte Modus wird im Info-Dialog angezeigt.
 
 1. **Keine Registry-Schreibzugriffe – ohne Ausnahme.** Lesen ist erlaubt (zum Beispiel `LowLevelHooksTimeout`). Auch eine Dateizuordnung für `.steprec` gibt es nicht, weil sie die Registry ändern würde; Sitzungen werden per Drag & Drop, über „Zuletzt verwendet" und über die Kommandozeile geöffnet ([08](08-viewer.md)).
 2. Einstellungsdateien tragen eine Versionsnummer, werden atomar geschrieben (temporäre Datei, dann Ersetzen) und fehlertolerant gelesen: Unbekannte Schlüssel bleiben erhalten; eine beschädigte Datei wird als Sicherung umbenannt und durch Standardwerte ersetzt – mit Hinweis.
+   *Umgesetzt (`AppSettings`):* Die Einstellungsdatei hat die Version 2. Ältere Dateien durchlaufen vor dem Einlesen schrittweise Migrationen auf dem rohen JSON (1 → 2: Tastenkürzel in die kanonische Schreibweise, unlesbare entfallen). Unbekannte Schlüssel bleiben über eine Erweiterungsdatenmenge (`ExtensionData`) beim Speichern erhalten. Ein einzelner ungültiger Wert kostet nicht die ganze Datei: Der Leser entfernt genau den Wert am gemeldeten JSON-Pfad, liest erneut und nennt die zurückgesetzten Schlüssel in einem Hinweis (`LoadNotice`). Nur eine unlesbare Datei wird als `….defekt-<Zeit>` beiseitegelegt. Speicherfehler (schreibgeschützter Ort, voller Datenträger) werden protokolliert und der Oberfläche gemeldet (`LastSaveError`), statt stillschweigend verloren zu gehen. Der Zustand (`AppState`) wird ebenso atomar geschrieben und tolerant gelesen; aus einer unlesbaren Zustandsdatei wird nur die zuletzt beendete Aufnahme gerettet.
 3. Zustand und Einstellungen sind getrennt, damit sich Einstellungen weitergeben lassen, ohne Verlaufsdaten mitzugeben.
-4. **Protokolle enthalten keine aufgezeichneten Inhalte:** keine getippten Zeichen, keine Feldwerte, keine Zwischenablage-Inhalte, keine Fenstertitel – und keine Texte des Autors (Kommentare, Ziel-Angaben, Bezug), auch nicht, wenn sie von der Kommandozeile kommen. Protokolliert werden Kennungen, Zähler, Zeiten und Fehlertexte. Das Diagnoseprotokoll ist standardmäßig ausgeschaltet ([07](07-aufnahme-bedienung.md)).
+4. **Protokolle enthalten keine aufgezeichneten Inhalte:** keine getippten Zeichen, keine Feldwerte, keine Zwischenablage-Inhalte, keine Fenstertitel – und keine Texte des Autors (Kommentare, Ziel-Angaben, Bezug), auch nicht, wenn sie von der Kommandozeile kommen. Protokolliert werden Kennungen, Zähler, Zeiten und Fehlertexte; von der Kommandozeile nur Befehl und Optionsnamen, nie deren Werte. *Umgesetzt:* Das Programmprotokoll (`StepRecorder.log`) ist immer an, weil es keine Inhalte enthält; es ist auf 1 MB je Datei plus ein Vorgänger begrenzt (Abschnitt [13](#fehlerbehandlung)). Einen Schalter dafür gibt es nicht.
 5. Alle Daten liegen je Benutzer; es gibt keinen maschinenweiten Zustand.
 
 ### 12.4 Erkennen synchronisierter Ordner
@@ -800,6 +874,8 @@ Die Prüfung ist eine Heuristik; sie meldet „vermutlich synchronisiert" oder �
 ### 12.5 Aufnahmeprofile (`profiles.json`)
 
 Ein Aufnahmeprofil ist eine benannte Voreinstellung für eine Aufnahme ([07, Abschnitt 4.7](07-aufnahme-bedienung.md#47-aufnahmeprofile)). Mit dem Profilmodus der Datenablage aus Abschnitt 12.1 – dem Benutzerprofil von Windows – hat es nichts zu tun.
+
+*Stand der Umsetzung:* Umgesetzt sind die mitgelieferten Profile „Anleitung“ (`guide`), „Support-Fall“ (`support`) und „KI-Spur“ (`aitrace`) sowie der vom Nutzer einstellbare Modus „Eigene“ (`custom`: Kanäle, Bildänderungen, Anwendungskontext, Aktion nach dem Stopp). „Eigene“ und das zuletzt gewählte Profil (`lastProfile`) stehen in `StepRecorder.settings.json`; eine Datei `profiles.json` mit beliebig vielen eigenen Profilen gibt es noch nicht. Die Austauschdatei trägt „Eigene“ als Teil `customProfile` (Abschnitt 12.6).
 
 **Ablage**
 
@@ -842,12 +918,13 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 
 | Teil | Kennung für `--parts` | Quelle |
 |---|---|---|
-| Aufnahmeprofile | `profiles` | `profiles.json` (eigene und geänderte) |
-| Export-Vorlagen und Branding | `exportTemplates` | `templates\`; zugehörige Dateien sind eingebettet |
-| Stilvorlagen für Markierungen | `annotationStyles` | Einstellungen |
-| Textbausteine | `textSnippets` | Einstellungen |
+| Modus „Eigene“ (Aufnahmeprofil) | `customProfile` | Einstellungen (`record`, Bildänderungen, Anwendungskontext, Aktion nach dem Stopp) |
+| Dokumentvorlagen und Branding | `exportTemplates` | Einstellungen (`docTemplates`); das Logo ist eingebettet und wird beim Import neu kodiert |
 | Ausschlussliste | `excluded` | Einstellungen |
 | Tastenkürzel | `hotkeys` | Einstellungen |
+| Allgemeine Vorlieben | `preferences` | Einstellungen (Sprachen, Darstellung, Anrede, Countdown, Töne, Schutzstufe) |
+
+*Stand der Umsetzung:* Die Teile heißen so, wie die Tabelle sie nennt. Aufnahmeprofile als `profiles` sowie Stilvorlagen für Markierungen und Textbausteine gibt es noch nicht (Abschnitt 12.5). Nie enthalten sind der Aufnahmeordner, die Liste der zuletzt verwendeten Aufnahmen, der Ausweichmodus der Unsichtbarkeit und unbekannte Schlüssel.
 
 - **Aufbau:** ein JSON-Objekt mit Formatkennung, Formatversion, Programmversion und Erstellungszeit, dazu je gewähltem Teil ein Eintrag im Aufbau seiner Quelle. Nicht gewählte Teile fehlen.
 - **Was nie darin steht:** Sitzungsdaten; zuletzt verwendete Sitzungen; Fensterpositionen; der Aufnahmeordner und jeder andere absolute Pfad; Rechner-, Benutzer- und Domänenname.
@@ -860,9 +937,38 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 2. **Vorschau.** Bevor sich etwas ändert, steht fest und wird gezeigt, was neu ist, was ersetzt wird und was gleich bleibt – je Teil und je Eintrag. Einträge werden nach Namen zusammengeführt; was die Datei nicht nennt, bleibt unberührt. Einzige Ausnahme ist die Ausschlussliste: Sie wird durch die der Datei ersetzt.
 3. **Schutz schwächende Änderungen einzeln.** Dazu zählen nach [10, Abschnitt 4.4](10-datenschutz-und-sicherheit.md#44-aufnahmeprofile-nie-unbemerkt-schwächer): ein Profil mit schwächerer Schutzstufe oder eingeschaltetem Zwischenablage-Inhalt – verglichen mit dem gleichnamigen vorhandenen Profil, sonst mit den geltenden Einstellungen – und eine Ausschlussliste, der Einträge fehlen. Jede solche Änderung wird einzeln bestätigt. Ohne Bestätigung unterbleibt genau sie: Das Profil wird nicht übernommen, die fehlenden Einträge der Ausschlussliste bleiben erhalten. Alles Übrige wird eingelesen.
 4. **Übernehmen.** Erst nach der Bestätigung. Die bisherigen Dateien bleiben als eine Sicherung daneben liegen; geschrieben wird atomar. Schlägt ein Schritt fehl, gilt wieder der Stand vor dem Import.
-5. **Kommandozeile.** Ohne `--confirm` zeigt `settings import` nur die Vorschau. Mit `--confirm` wird eingelesen; für jede Schutz schwächende Änderung ist zusätzlich `--allow-weaker <Kennung>` nötig – `excluded` für die Ausschlussliste, `profile:<Name>` für ein Profil (Abschnitt [8.8](#befehle-nachgelagert)).
+5. **Kommandozeile.** Ohne `--confirm` zeigt `settings import` nur die Vorschau. Mit `--confirm` wird eingelesen; für jede Schutz schwächende Änderung ist zusätzlich `--allow-weaker <Kennung>` nötig – `excluded` für die Ausschlussliste, `privacyLevel` für die Rückkehr von „Streng“ zu „Schutznetz“, `record:<Kanal>` für einen Kanal des Modus „Eigene“, der wieder aufgezeichnet würde (Abschnitt [8.8](#befehle-nachgelagert)). Die Datei darf höchstens 32 MB groß sein.
 6. Eine laufende Aufnahme bleibt von einem Import unberührt; ihre Einstellungen stehen seit ihrem Start fest.
 7. Auch hier gilt: nichts in der Registry, keine Spur außerhalb des Datenverzeichnisses.
+
+<a id="oberflaechensprache"></a>
+### 12.7 Oberflächensprache und Zweisprachigkeit (`Loc`)
+
+Die Oberfläche ist in Deutsch und Englisch umgesetzt. Alle Texte stehen **am Aufrufort** in beiden Sprachen; es gibt keine Ressourcendatei.
+
+| Aufruf | Zweck |
+|---|---|
+| `Loc.L(de, en)` | Einfacher Text der Oberfläche |
+| `Loc.F(de, en, args…)` | Text mit nummerierten Platzhaltern `{0}`, `{1}` …; die Wortstellung darf je Sprache abweichen |
+| `Loc.N(n, deOne, deMany, enOne, enMany)` | Einzahl und Mehrzahl |
+| `Loc.For(lang, de, en)` | **Inhalt statt Oberfläche:** Texte, die in eine Aufnahme oder einen Export gehen (neues Kapitel, eingefügter Schritt, Kopieren als Text oder Markdown). Sie folgen der Sprache der Anleitungstexte (`lang`), nicht der Oberflächensprache |
+| `Loc.Keys`, `Loc.Date`, `Loc.Time`, `Loc.Relative`, `Loc.Number`, `Loc.Bytes` | Tastennamen („Strg“/„Ctrl“, „Umschalt“/„Shift“), Datum, Zeit, „heute/gestern“, Zahlen und Größen in der Kultur der Oberfläche |
+
+- **Einstellung.** `uiLanguage` ist `system` (Standard), `de` oder `en`. `system` folgt der Windows-Anzeigesprache: Deutsch bei `de-*`, sonst Englisch. Die Umgebungsvariable `STEPRECORDER_UILANG` überschreibt die Einstellung (auch `qps`). Ein Wechsel gilt ab dem nächsten Start, wie bei der Darstellung. Kommandozeile und MCP-Server lesen dieselbe Einstellung (`Loc.Init`); die Hilfe und die Meldungen erscheinen in dieser Sprache.
+- **Formate.** Stimmt die Sprache mit dem Windows-Regionalformat überein, gilt dieses; sonst gelten feste Muster (`de-DE`, `en-GB`).
+- **Pseudo-Sprache `qps`.** Jeder Text erscheint in Klammern `⟦…⟧`. Wer eine Oberfläche damit rendert, erkennt unübersetzte Texte an fehlenden Klammern.
+- **Prüftest.** Der Test `LocalizationTests` verhindert neue unübersetzte Texte: Er zerlegt den Quelltext in Zeichenfolgen-Literale, sucht darunter nach deutsch aussehenden (Umlaute, häufige Wörter), die nicht in `Loc.L/F/N/For` oder einem Protokollaufruf stehen, und prüft, dass jeder Aufruf einen englischen Text und dieselben Platzhalter hat. Es gibt keine Ausnahmeliste mehr. Die Fundstellen lassen sich mit `STEPRECORDER_LOC_REPORT=<Datei>` (für Core mit `STEPRECORDER_LOC_SCOPE=core`) ausgeben.
+- **Was bewusst nicht von der Oberflächensprache abhängt.** Das Manifest einer Aufnahme nennt weiter die Windows-Sprache (`SystemUiCulture`), nicht die Programmsprache. Gespeicherte Detailgrad-Namen bleiben deutsch und werden nur übersetzt angezeigt. Datenformat-Bezeichner sind englisch.
+
+<a id="tastenkuerzel"></a>
+### 12.8 Tastenkürzel der Aufnahme
+
+Eine Tabelle (`HotkeyActions.All`) legt die globalen Aufnahme-Tastenkürzel fest: Kennung, Beschriftung in beiden Sprachen, Vorgabe und ob sie Pflicht ist (nur „Aufnahme beenden“). Aufnahmesteuerung, Startfenster, Menüs, F1-Übersicht und der Tastenkürzel-Editor lesen dieselbe Tabelle und die Belegung aus den Einstellungen.
+
+- `HotkeyCombo` liest und schreibt Kombinationen. Die Einstellungsdatei enthält die kanonische englische Schreibweise (`Ctrl+Shift+F9`); angezeigt wird sie in der Oberflächensprache (`Strg+Umschalt+F9`). Eingelesen werden beide Schreibweisen.
+- `HotkeyRules.Validate` prüft eigene Belegungen: gültige Kombination, mindestens ein Umschalter (Strg, Alt, Umschalt, Win) – ohne ihn nur Pause, Rollen und F13–F24 –, keine Doppelbelegung, keine reservierte Kombination (etwa Strg+C, Alt+F4, Win+L) und ein Kürzel für „Aufnahme beenden“.
+- Ob ein anderes Programm eine Kombination bereits belegt, prüft der Editor bei der Eingabe, das Startfenster beim Anzeigen und `record --self-test`.
+- Der Austausch von Einstellungen prüft Tastenkürzel gegen dieselben Regeln (Abschnitt 12.6).
 
 ---
 
@@ -874,8 +980,11 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 3. **Fehler einer Quelle** (Aufnahmeweg fällt aus, UI Automation hängt, Zwischenablage gesperrt) beenden die Aufnahme nicht. Sie führen zum Rückfallweg, zu einer herabgesetzten Belegstufe oder zu einer Lücke – jeweils in [03](03-aufzeichnungskern.md) festgelegt.
 4. **Dauerhafter Ausfall der Eingabeerfassung** führt nie zu stillem Weiterlaufen, sondern zu Pause mit sichtbarer Meldung.
 5. **Selbstmessung:** Der Recorder führt Zähler (Dauer der Hook-Aufrufe als Histogramm, Ringfüllung, Wartezeiten der Bildkodierung, UIA-Antwortzeiten, verworfene Bilder, neu gesetzte Hooks) und legt sie beim Stopp im Manifest unter `performance` ab. Die Zählernamen stehen in [03, Abschnitt 12.9](03-aufzeichnungskern.md#leistungsbudgets). Budgets lassen sich so auf jedem Rechner nachprüfen.
-6. **Vorprüfung ohne Aufnahme:** `SebastiansStepRecorder.exe record --self-test` führt alle Startprüfungen aus (Aufnahmeweg je Monitor, Unsichtbarkeits-Selbsttest, UI Automation, Speicherplatz), gibt das Ergebnis aus und endet, ohne eine Sitzung anzulegen.
+6. **Vorprüfung ohne Aufnahme:** `SebastiansStepRecorder.exe record --self-test` führt alle Startprüfungen aus (Aufnahmeweg je Monitor, Unsichtbarkeits-Selbsttest, UI Automation, Aufnahmeordner und freier Speicher, Hinweis auf synchronisierte Ordner, Verfügbarkeit der Tastenkürzel), gibt das Ergebnis aus – mit `--json` als Liste von Prüfung, Stufe (`ok`, `warning`, `error`, `info`) und Text – und endet, ohne eine Sitzung anzulegen. Exit-Code 7, wenn die Bildaufnahme fehlschlägt, die Unsichtbarkeit nicht bestätigt ist (und der Ausweichmodus nicht „ausgeblendet“ lautet) oder der Aufnahmeordner nicht beschreibbar ist; Exit-Code 6, wenn gerade eine Aufnahme läuft.
 7. In den Betriebsarten ohne Oberfläche erscheint nie ein Dialog; Fehler gehen nach stderr und in den Exit-Code.
+8. **Absturzbehandlung für alle Threads.** `AppLog.InstallCrashHandlers` meldet jede unbehandelte Ausnahme aus jedem Thread (`AppDomain.UnhandledException`) und jede nicht beobachtete Ausnahme einer Aufgabe (`TaskScheduler.UnobservedTaskException`) ins Protokoll. Bei einem Programmende ruft sie zusätzlich einen Rückruf auf, über den die Oberfläche eine laufende Aufnahme zu sichern versucht (Punkt 1). Die Oberfläche fängt Ausnahmen des Dispatchers ab, zeigt die Meldung und läuft weiter. Die Kommandozeile installiert dieselben Handler.
+9. **Programmprotokoll (`AppLog`).** Datei `StepRecorder.log` im Zustandsordner (Abschnitt [12.2](#konfiguration)); jede Zeile trägt Zeitstempel und Text. Das Protokoll enthält **keine Inhalte** (Abschnitt 12.3, Regel 4): keine Titel, Ziele, Texte, Suchbegriffe und keine Werte von Kommandozeilen-Optionen (`ArgNames` gibt nur Befehl und Optionsnamen aus). Überschreitet die Datei 1 MB, wird sie zu `.1` umbenannt (ein Vorgänger); damit belegt das Protokoll höchstens rund 2 MB. Fehler beim Schreiben werden verschluckt, damit das Protokoll nie selbst zum Fehler wird.
+10. **Diagnose-Paket (`Diagnostics`).** Auf Wunsch (Einstellungen) erzeugt das Programm eine ZIP-Datei für Fehlermeldungen: `info.txt` (Programm, Betriebsart, Windows, .NET, Rechte, Sprachen, Monitore, Remote-Sitzung, Selbsttest der Unsichtbarkeit, belegte Tastenkürzel, Aufnahmeordner und freier Speicher), `settings.json` (Einstellungen nach Positivliste: Vorlieben im Klartext, Listen nur als Anzahl), `state.json` (nur Fenstergrößen), `log.txt` (Ende des Protokolls) und `LIESMICH.txt`. Persönliche Angaben – Profilpfad, Benutzer-, Rechner- und Domänenname, Ordner – werden vor dem Schreiben ersetzt, auch in JSON-maskierter Form. **Nie** enthalten sind Aufnahmen oder ihre Inhalte. Die Datei entsteht atomar; das Programm versendet sie nicht – die Person gibt sie selbst weiter.
 
 ---
 
@@ -901,6 +1010,12 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 | E-15 | Schrittabgleich als reine Funktion über die Sicht der Leseschicht | Ein Ergebnis für Viewer, MCP-Server und Kommandozeile; Zurückgehaltenes lässt sich nicht durch Vergleichen erraten | [7.6](#schrittabgleich) |
 | E-16 | Support-Paket nur aus einer bereinigten Kopie und nur aus dem Viewer | Die Gegenprobe prüft die Daten vor jeder Ausgabe; die Durchsicht braucht eine Oberfläche | [7.7](#support-paket) |
 | E-17 | Aufnahmeprofile werden vor dem Start zu wirksamen Einstellungen aufgelöst | Der Aufzeichnungskern bleibt frei von Profil-Logik; die Sitzung nennt, was tatsächlich galt | [12.5](#aufnahmeprofile) |
+| E-18 | Oberflächentexte stehen am Aufrufort in beiden Sprachen (`Loc.L/F/N`); Texte für Aufnahme und Export folgen der Inhaltssprache (`Loc.For`); ein Prüftest verbietet unübersetzte Texte | Kein Auseinanderlaufen von Ressourcendatei und Code; neue Texte ohne Übersetzung brechen den Test | [12.7](#oberflaechensprache) |
+| E-19 | Exporte entstehen in einem Arbeitsordner und werden erst am Ende ans Ziel verschoben; Ordnerziele werden nie fremd geleert | Abbruch und Fehler hinterlassen nichts Halbes; kein Datenverlust durch einen Tippfehler im Zielpfad | [7.9](#exportablauf) |
+| E-20 | Löschen aus der Oberfläche geht nur über den Papierkorb; ohne Papierkorb fragt das Programm ausdrücklich | Nie stillschweigend endgültig löschen | [7.8](#bibliothek) |
+| E-21 | Der Instanzkanal steht in Core, nicht in der Oberfläche | Kommandozeile und MCP-Server können die laufende Oberfläche erreichen, ohne WPF zu laden | [3.5](#prozessmodell) |
+| E-22 | Das Programmprotokoll ist immer an, enthält aber keine Inhalte und ist auf rund 2 MB begrenzt | Fehlersuche ohne Datenschutzrisiko; kein Schalter, der vergessen werden kann | [13](#fehlerbehandlung) |
+| E-23 | Zusammenfassen von Schritten wirkt nur in Anleitungen; Rohdaten, `steps.json`, KI-Paket und MCP behalten die Einzelschritte | Die Anleitung darf gestrafft werden, die Spur bleibt vollständig | [05, 16.7](05-schritterkennung.md) |
 
 ---
 
@@ -923,7 +1038,7 @@ Die übrigen Befunde zum Aufzeichnungskern (Nr. 4, 6, 10, 12, 13, eigene Bedienu
 <a id="anforderungen"></a>
 ## 16 Anforderungen
 
-ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel-Angaben, Vergleich, Neu-Aufnehmen, Verallgemeinern, Profile, Support-Paket, Suche, Austausch von Einstellungen). Die Funktionen sind Soll. Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)" bedeutet: Ob die Funktion gebaut wird, ist Soll; wird sie gebaut, ist die Schutzregel der Anforderung Muss.
+ARC-066 bis ARC-076 beschreiben Bausteine, die mit der Umsetzung der Ausbaupakete (Komfort, Bibliothek, Qualitätsprüfung, neue Formate, englische Oberfläche) hinzukamen; sie sind umgesetzt. ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel-Angaben, Vergleich, Neu-Aufnehmen, Verallgemeinern, Profile, Support-Paket, Suche, Austausch von Einstellungen). Die Funktionen sind Soll. Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)" bedeutet: Ob die Funktion gebaut wird, ist Soll; wird sie gebaut, ist die Schutzregel der Anforderung Muss.
 
 | ID | Anforderung | Priorität | Abnahmekriterium |
 |---|---|---|---|
@@ -949,9 +1064,9 @@ ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel
 | ARC-020 | Bei umgeleiteten Strömen schreiben `record`, `export`, `validate` in die Umleitung; aus einer Konsole gestartet schreiben sie in diese. | Soll | Tests mit Pipe, Datei und interaktiver Konsole liefern die erwartete Ausgabe. |
 | ARC-021 | Im `mcp`-Modus enthält die Standardausgabe ausschließlich gültige JSON-RPC-Nachrichten. | Muss | Byteweiser Mitschnitt über die gesamte MCP-Testsuite einschließlich Fehlerfällen und unbehandelter Ausnahme besteht die Prüfung. |
 | ARC-022 | `mcp`, `export` und `validate` erzeugen kein Fenster und zeigen nie einen Dialog. | Muss | Fensterinventar des Prozesses bleibt leer; Fehlerfälle enden mit stderr-Zeile und Exit-Code. |
-| ARC-023 | Die Exit-Codes entsprechen der Tabelle in Abschnitt 8.6: 0 bis 6 wie dort, 7 für jede nicht erfüllte Voraussetzung, 8 für jeden Befehl, der eine Ausgabe schreibt, 9 nur für `export`. | Muss | Test je Code und Befehl; für Code 7 je genanntem Fall ein Test. |
+| ARC-023 | Die Exit-Codes entsprechen der Tabelle in Abschnitt 8.6: 0 bis 6 wie dort, 7 für jede nicht erfüllte Voraussetzung, 8 für jeden Befehl, der eine Ausgabe schreibt, 9 nur für `export` und `check`. | Muss | Test je Code und Befehl; für Code 7 je genanntem Fall ein Test. |
 | ARC-024 | Die Rolle `--capture-host` lässt sich nicht von außen nutzen. | Muss | Start ohne gültige vererbte Handles endet mit Exit-Code 7 und setzt keinen Hook. |
-| ARC-025 | Zielplattform ist .NET 10 (LTS); Mindest-Betriebssystem ist Windows 10 22H2. | Muss | Start auf einem frischen Windows 10 22H2 und Windows 11 ohne installierte .NET-Laufzeit und ohne Adminrechte. |
+| ARC-025 | Zielplattform ist .NET 10 (LTS); Mindest-Betriebssystem ist Windows 10 22H2. *Stand: offen – gebaut wird mit .NET 8, weil das .NET-10-SDK fehlt (Abschnitt 9.1).* | Muss | Start auf einem frischen Windows 10 22H2 und Windows 11 ohne installierte .NET-Laufzeit und ohne Adminrechte. |
 | ARC-026 | Alle Abhängigkeiten tragen eine freizügige Lizenz und stehen in `THIRD-PARTY-NOTICES.txt`. | Muss | Lizenzprüfung im Build; die Datei deckt den gesamten Paketgraphen ab. |
 | ARC-027 | Die ausgeschlossenen Bibliotheken aus Abschnitt 9.3 sind weder direkt noch transitiv eingebunden. | Muss | Build prüft den Paketgraphen gegen die Ausschlussliste. |
 | ARC-028 | Paketversionen sind zentral festgelegt und gesperrt. | Soll | Wiederholter Build auf frischem Rechner erzeugt denselben Paketgraphen. |
@@ -967,7 +1082,7 @@ ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel
 | ARC-038 | Einstellungen liegen portabel neben der EXE; ist das Verzeichnis nicht beschreibbar, im Benutzerprofil. | Muss | Tests mit beschreibbarem und schreibgeschütztem EXE-Verzeichnis sowie mit `--data-dir`. |
 | ARC-039 | Das Programm schreibt nicht in die Registry. | Muss | Registry-Vergleich vor und nach einem vollständigen Lauf. |
 | ARC-040 | Einstellungen sind versioniert, werden atomar geschrieben und fehlertolerant gelesen. | Soll | Beschädigte Datei → Sicherung, Standardwerte, Hinweis; unbekannte Schlüssel bleiben erhalten. |
-| ARC-041 | Diagnoseprotokolle enthalten keine aufgezeichneten Inhalte. | Muss | Nach einem Testlauf mit bekanntem Testtext, Testtitel und Test-Passwort findet eine Suche in `logs\` keinen davon. |
+| ARC-041 | Diagnoseprotokolle enthalten keine aufgezeichneten Inhalte. | Muss | Nach einem Testlauf mit bekanntem Testtext, Testtitel und Test-Passwort findet eine Suche im Programmprotokoll (`StepRecorder.log`) keinen davon. |
 | ARC-042 | Eine Prüfung erkennt, ob ein Ordner vermutlich synchronisiert wird. | Soll | Tests mit OneDrive-, Nextcloud- und gewöhnlichem Ordner. |
 | ARC-043 | Der Capture-Host läuft mit erhöhter Priorität und ist von der Energiedrosselung abgemeldet. | Soll | Prozessinformationen im Test; Latenzmessung im Akkubetrieb mit Energiesparmodus. |
 | ARC-044 | Beim Neustart mit Adminrechten werden Datenverzeichnis und Aufnahmeordner ausdrücklich übergeben. | Soll | Neustart mit abweichendem Administratorkonto verwendet dieselben Orte. |
@@ -992,6 +1107,17 @@ ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel
 | ARC-063 | Vor jedem Aufnahmestart stehen die wirksamen Einstellungen fest (Startangabe vor Profil vor Einstellungen), sind geprüft und gelten für den ganzen Aufnahmeabschnitt. Ein Profil kann die Ausschlussliste nur erweitern. Schützt das Ergebnis schwächer als die Einstellungen des Nutzers, wird das vor Beginn der Aufnahme gemeldet und in der Sitzung vermerkt. | Soll (Schutzregel: Muss bei Umsetzung) | Profil mit eingeschaltetem Zwischenablage-Inhalt: Meldung in der Oberfläche und bei `record --profile` auf stderr, bevor das erste Ereignis geschrieben ist; `manifest.profile.weakens` nennt die Abweichung; präparierte `profiles.json` mit ungültigen Werten und einem „Abzug" von der Ausschlussliste: Werte nicht übernommen, Liste unverändert; unbekannter Name → Exit-Code 2. |
 | ARC-064 | Der Export der Austauschdatei `StepRecorder-Einstellungen.json` enthält nur die gewählten Teile – keine Sitzungsdaten, keinen absoluten Pfad, keinen Rechner-, Benutzer- oder Domänennamen. Das Programm merkt sich ihren Ort nicht. | Soll | Export aller Teile auf einem Testrechner mit bekanntem Benutzer- und Rechnernamen und Vorlage mit Logo: Suche in der Datei findet weder die Namen noch einen absoluten Pfad; das Logo ist eingebettet; Zustands- und Einstellungsdatei nennen den Speicherort nicht. |
 | ARC-065 | Der Import behandelt die Austauschdatei als fremde Eingabe: Prüfung vor jeder Änderung, Vorschau, atomares Übernehmen mit Sicherung. Schutz schwächende Änderungen werden einzeln bestätigt und unterbleiben sonst; über die Kommandozeile wird nur mit `--confirm` eingelesen. | Soll (Schutzregel: Muss bei Umsetzung) | Fehlerhafte, übergroße und manipulierte Dateien (Pfadangaben, Makro in der Word-Vorlage, ungültige Werte): keine Änderung, Exit-Code 4; Datei mit verkleinerter Ausschlussliste und schwächerem Profil: ohne Einzelbestätigung bzw. `--allow-weaker` bleiben Liste und Profil unverändert; `settings import` ohne `--confirm` ändert keine Datei. |
+| ARC-066 | Die Oberfläche ist zweisprachig (Deutsch, Englisch; `system` folgt Windows). Texte stehen am Aufrufort in beiden Sprachen (`Loc.L/F/N`), Texte für Aufnahme und Export folgen der Inhaltssprache (`Loc.For`); das Manifest nennt weiter die Windows-Sprache. Ein Prüftest verhindert unübersetzte Texte. | Soll | `LocalizationTests` bestehen ohne Ausnahmeliste; alle Fenster mit `STEPRECORDER_UILANG=en` und `qps` gerendert zeigen keinen Text ohne `⟦…⟧`. |
+| ARC-067 | Das Programmprotokoll enthält keine Inhalte (keine Titel, Ziele, Texte, Suchbegriffe, Optionswerte), ist auf 1 MB je Datei plus einen Vorgänger begrenzt, und unbehandelte Ausnahmen aller Threads werden protokolliert. | Muss | Lauf mit `--title`, `--goal` und Kanarienwert: das Protokoll enthält keinen davon; eine Ausnahme in einem Hintergrund-Thread und in einer Aufgabe steht im Protokoll; die Datei überschreitet 1 MB nicht. |
+| ARC-068 | Die Einstellungsdatei ist versioniert (Version 2), wird älter migriert, behält unbekannte Schlüssel, verliert bei einem ungültigen Einzelwert nur diesen Wert, und Speicherfehler werden gemeldet. | Soll | Dateien der Version 1, mit unbekanntem Schlüssel, mit einem ungültigen Wert und an einem schreibgeschützten Ort: Migration, Erhalt, Hinweis mit Schlüsselnamen bzw. Fehlermeldung. |
+| ARC-069 | Die Aufnahme-Tastenkürzel stammen aus einer Tabelle (`HotkeyActions`); eigene Belegungen werden gegen Regeln geprüft (Umschalter, keine Doppelbelegung, keine reservierte Kombination, Kürzel für „Beenden“). | Soll | Tests für gültige, doppelte, reservierte und fehlende Belegungen; Editor, Startfenster und F1-Übersicht zeigen dieselbe Belegung. |
+| ARC-070 | Die Kommandozeile liest Argumente streng: unbekannte Option, fehlender Wert oder ungültiger Wert ergibt Exit-Code 2; `record` prüft seine Optionen vor dem Start der Oberfläche. | Soll | Aufrufe mit Tippfehlern je Befehl enden mit Code 2 und Meldung, ohne dass ein Fenster erscheint. |
+| ARC-071 | Exporte entstehen in einem Arbeitsordner und werden erst am Ende ans Ziel verschoben; Abbruch und Fehler hinterlassen am Ziel nichts Halbes; ein Ordnerziel (`ki`, `ahk-ki`) wird nur ersetzt, wenn es leer ist oder die Kennzeichen-Datei eines früheren Exports enthält, sonst Exit-Code 8. | Muss | Export in einen Ordner mit fremder Datei: Datei bleibt, Exit-Code 8; Abbruch mitten im Export: kein Teilergebnis am Ziel, Arbeitsordner beim nächsten Öffnen entfernt. |
+| ARC-072 | `.steprec` wird nur Eintrag für Eintrag nach einer Positivliste über einen Zwischenordner entpackt, mit Grenzen für Anzahl, Größe und Kompressionsverhältnis; gepackt werden nur bekannte Teile (nie `cache`, `export`, `history`, Sperrdatei). | Muss | Präparierte Archive (Pfadsprung, Gerätename, Zip-Bombe, unbekannter Eintrag) werden abgelehnt und hinterlassen nichts; Rundreise mit gleichen Prüfsummen. |
+| ARC-073 | Löschen aus der Oberfläche verschiebt in den Papierkorb (`IFileOperation`); ohne Papierkorb wird ausdrücklich gefragt, nie stillschweigend endgültig gelöscht. | Muss | Löschen auf einem Laufwerk mit und ohne Papierkorb: Papierkorb bzw. Rückfrage; ein abgelehnter Vorgang löscht nichts. |
+| ARC-074 | Das Diagnose-Paket enthält nur Protokoll, Systemangaben und bereinigte Einstellungen – nie Aufnahmen oder ihre Inhalte – und ersetzt Profilpfad, Benutzer-, Rechner- und Domänenname. | Muss | Paket auf einem Testrechner: keine dieser Angaben und kein Kanarienwert aus Einstellungen oder Aufnahmen im Inhalt. |
+| ARC-075 | Automatische Bearbeitungsstände sichern das Overlay höchstens alle 10 Minuten, begrenzt auf 40 Stände und 15 MB; ein Fehler beim Sichern blockiert nie das Speichern; „Endgültig schwärzen“ löscht alle Stände; Packen und bereinigte Kopie enthalten keine. | Soll | `EditHistoryTests`: Intervall, Deduplizierung nach Revision, Obergrenzen, Löschen. |
+| ARC-076 | Ein GitHub-Workflow baut und testet bei jedem Push auf `main` und jedem Pull-Request auf Windows und veröffentlicht bei einem Tag `v*` die Einzel-EXE mit SHA-256-Prüfsumme. | Soll | Lauf des Workflows `build.yml`: Build und Tests grün; Release-Auftrag erzeugt genau `SebastiansStepRecorder.exe` und `SHA256SUMS.txt`. |
 
 ---
 
@@ -1006,6 +1132,6 @@ Alle Experimente gehören zu Meilenstein M0. Die Kennungen VE-nn verweisen auf d
 | O-02-2 | Funktionieren `mcp` (umgeleitete Ströme) und die Konsolenanbindung aus der GUI-EXE mit den gängigen Agenten und Shells? | VE-07 | Verhalten der Standard-Handles in GUI-Prozessen ist nicht vollständig dokumentiert | Bei Problemen: Startprogramm `StepRecorder.com` auch für die Einzel-EXE-Auslieferung |
 | O-02-3 | Größe und Startzeit der Einzel-EXE mit und ohne Kompression bzw. Vorübersetzung | VE-11 | Keine belastbaren Messwerte gefunden | Festlegung der Vorgabewerte in Abschnitt 11.1 |
 | O-02-4 | Wie stark vergrößert die WinRT-Projektion für Windows.Graphics.Capture die EXE? | Vorschlag: Erweiterung von VE-11 | Nicht gemessen | Notfalls Rückfallweg nur über GDI oder Zugriff ohne Projektion |
-| O-02-5 | Genügt das Kernpaket des MCP-SDK für einen stdio-Server ohne HTTP-Transport? | Vorschlag: Erweiterung von VE-07 | Paketaufteilung der Linie 2.x nicht geprüft | Kleinstes ausreichendes Paket wählen |
+| O-02-5 | Genügt das Kernpaket des MCP-SDK für einen stdio-Server ohne HTTP-Transport? | Vorschlag: Erweiterung von VE-07 | Paketaufteilung der Linie 2.x nicht geprüft | Kleinstes ausreichendes Paket wählen. *Stand: erledigt – der Server ist ein eigener stdio-Server ohne SDK (Abschnitt 9.2).* |
 | O-02-6 | Fängt das Umbiegen des Standardausgabe-Handles Ausgaben nativer Bibliotheken zuverlässig ab? | VE-07 | Hängt vom Zeitpunkt ab, zu dem native Laufzeitbibliotheken das Handle lesen | Abnahme bleibt der bytegenaue Mitschnitt (ARC-021) |
 | O-02-7 | Stufen Virenscanner den Start eines Kindprozesses mit Hooks anders ein als Hooks im Hauptprozess? | VE-12 | Erfahrungswerte fehlen | Gegebenenfalls Hinweise in [10](10-datenschutz-und-sicherheit.md); die Architektur bleibt |

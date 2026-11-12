@@ -6,7 +6,9 @@ using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
+using StepRecorder.Data;
 using StepRecorder.Native;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -54,7 +56,7 @@ static class Invisibility
     public static bool SelfTest()
     {
         // Entwicklertest: Verhalten wie unter Windows Server 2019 nachstellen
-        if (Environment.GetEnvironmentVariable("STEPRECORDER_FORCE_NOINVIS") == "1") return Fail("erzwungen (STEPRECORDER_FORCE_NOINVIS)");
+        if (Environment.GetEnvironmentVariable("STEPRECORDER_FORCE_NOINVIS") == "1") return Fail(Loc.L("erzwungen (STEPRECORDER_FORCE_NOINVIS)", "forced (STEPRECORDER_FORCE_NOINVIS)"));
         Window? probe = null;
         try
         {
@@ -67,8 +69,8 @@ static class Invisibility
             probe.SourceInitialized += (_, _) => Apply(probe);
             probe.ContentRendered += (_, _) => rendered = true;
             var h = new WindowInteropHelper(probe).EnsureHandle();
-            if (!Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE)) return Fail("SetWindowDisplayAffinity fehlgeschlagen");
-            if (!Win32.GetWindowDisplayAffinity(h, out uint aff) || aff != Win32.WDA_EXCLUDEFROMCAPTURE) return Fail($"Affinität nicht gesetzt (0x{aff:X})");
+            if (!Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE)) return Fail(Loc.L("SetWindowDisplayAffinity fehlgeschlagen", "SetWindowDisplayAffinity failed"));
+            if (!Win32.GetWindowDisplayAffinity(h, out uint aff) || aff != Win32.WDA_EXCLUDEFROMCAPTURE) return Fail(Loc.F("Affinität nicht gesetzt (0x{0:X})", "Affinity not set (0x{0:X})", aff));
 
             var src = PresentationSource.FromVisual(probe) ?? HwndSource.FromHwnd(h);
             double sx = src?.CompositionTarget?.TransformToDevice.M11 ?? 1, sy = src?.CompositionTarget?.TransformToDevice.M22 ?? 1;
@@ -84,15 +86,20 @@ static class Invisibility
 
             double magenta = Ratio(during, c => c.R > 200 && c.G < 60 && c.B > 200);
             double blackNow = Ratio(during, c => c.R < 8 && c.G < 8 && c.B < 8), blackBefore = Ratio(before, c => c.R < 8 && c.G < 8 && c.B < 8);
-            if (magenta > 0.2) return Fail($"Testmuster sichtbar ({magenta:P0})");
-            if (blackNow > 0.9 && blackBefore < 0.5) return Fail("Ersatzbalken (schwarz) sichtbar");
+            if (magenta > 0.2) return Fail(Loc.F("Testmuster sichtbar ({0:P0})", "Test pattern visible ({0:P0})", magenta));
+            if (blackNow > 0.9 && blackBefore < 0.5) return Fail(Loc.L("Ersatzbalken (schwarz) sichtbar", "Substitute bar (black) visible"));
+            LastFailure = null; LastResult = true;
             return true;
         }
         catch (Exception ex) { return Fail(ex.Message); }
         finally { try { probe?.Close(); } catch { } }
     }
 
-    static bool Fail(string why) { UiApp.Log("Selbsttest Unsichtbarkeit fehlgeschlagen: " + why); return false; }
+    /// <summary>Ergebnis des letzten Selbsttests (null = bestanden oder nicht gelaufen) – für Diagnose und <c>record --self-test</c>.</summary>
+    public static string? LastFailure { get; private set; }
+    public static bool? LastResult { get; private set; }
+
+    static bool Fail(string why) { LastFailure = why; LastResult = false; Settings.AppLog.Write("Selbsttest Unsichtbarkeit fehlgeschlagen: " + why); return false; }
 
     static double Ratio(System.Drawing.Bitmap b, Func<System.Drawing.Color, bool> pred)
     {
@@ -104,10 +111,11 @@ static class Invisibility
 
     static void Pump(int ms)
     {
+        // Dispatcher des aktuellen Threads – funktioniert auch ohne Application (Kommandozeile: record --self-test)
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < ms)
         {
-            Application.Current?.Dispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
+            Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
             Thread.Sleep(10);
         }
     }
@@ -131,22 +139,22 @@ sealed class Hotkeys : IDisposable
     public static bool Parse(string combo, out uint mods, out uint vk)
     {
         mods = 0; vk = 0;
-        foreach (var p in combo.Split('+').Select(x => x.Trim()))
-        {
-            switch (p.ToLowerInvariant())
-            {
-                case "ctrl" or "strg": mods |= Win32.MOD_CONTROL; break;
-                case "shift" or "umschalt": mods |= Win32.MOD_SHIFT; break;
-                case "alt": mods |= Win32.MOD_ALT; break;
-                case "win": mods |= Win32.MOD_WIN; break;
-                default:
-                    if (p.Length >= 2 && (p[0] == 'F' || p[0] == 'f') && int.TryParse(p[1..], out int f)) vk = (uint)(0x6F + f);
-                    else if (p.Length == 1) vk = char.ToUpperInvariant(p[0]);
-                    else if (p.Equals("Pause", StringComparison.OrdinalIgnoreCase)) vk = 0x13;
-                    break;
-            }
-        }
-        return vk != 0;
+        if (!Settings.HotkeyCombo.TryParse(combo, out var c)) return false;
+        mods = c.Mods; vk = c.Vk;
+        return true;
+    }
+
+    /// <summary>
+    /// Ist die Kombination frei? Probe-Registrierung an einem eigenen Fenster und sofortige Freigabe.
+    /// Erkennt nur RegisterHotKey-Belegungen anderer Programme, keine Tastatur-Hooks.
+    /// </summary>
+    public static bool Probe(string combo)
+    {
+        if (!Parse(combo, out var mods, out var vk)) return false;
+        using var src = new HwndSource(new HwndSourceParameters("StepRecorder.HotkeyProbe") { ParentWindow = new IntPtr(-3) });
+        if (!Win32.RegisterHotKey(src.Handle, 0x7F00, mods | Win32.MOD_NOREPEAT, vk)) return false;
+        Win32.UnregisterHotKey(src.Handle, 0x7F00);
+        return true;
     }
 
     public bool Register(string name, string combo, Action action)
@@ -178,8 +186,8 @@ sealed class Hotkeys : IDisposable
 /// <summary>Eine Instanz je Windows-Sitzung; weitere Starts reichen ihre Argumente per WM_COPYDATA weiter.</summary>
 static class SingleInstance
 {
-    const string MutexName = @"Local\StepRecorder.UI";
-    const string WindowTitle = "StepRecorder.Instance";
+    const string MutexName = StepRecorder.Native.InstanceChannel.MutexName;
+    const string WindowTitle = StepRecorder.Native.InstanceChannel.WindowTitle;
     static Mutex? _mutex;
     static HwndSource? _src;
     public static event Action<string[]>? ArgsReceived;
@@ -201,6 +209,8 @@ static class SingleInstance
                 var text = (Marshal.PtrToStringUni(cds.lpData, cds.cbData / 2) ?? "").TrimEnd('\0');
                 var args = text.Split('\u001F', StringSplitOptions.None);
                 handled = true;
+                // Abfrage ohne Wirkung: läuft eine Aufnahme? (2 = ja, 1 = nein)
+                if (args.Length > 0 && args[0] == "--is-recording") return new IntPtr(UiApp.Instance.Recording != null ? 2 : 1);
                 Application.Current.Dispatcher.BeginInvoke(() => ArgsReceived?.Invoke(args));
                 return new IntPtr(1);
             }
@@ -208,46 +218,36 @@ static class SingleInstance
         });
     }
 
-    public static bool Forward(string[] args)
-    {
-        var h = FindWindowEx(new IntPtr(-3), IntPtr.Zero, null, WindowTitle);
-        if (h == IntPtr.Zero) return false;
-        var text = string.Join('\u001F', args);
-        var ptr = Marshal.StringToHGlobalUni(text);
-        try
-        {
-            var cds = new COPYDATASTRUCT { dwData = 1, cbData = (text.Length + 1) * 2, lpData = ptr };
-            return SendMessageTimeout(h, 0x004A, IntPtr.Zero, ref cds, 2, 5000, out _) != IntPtr.Zero;
-        }
-        finally { Marshal.FreeHGlobal(ptr); }
-    }
+    public static bool Forward(string[] args) => Send(args, out _);
+
+    /// <summary>Läuft die Oberfläche bereits (in dieser Windows-Sitzung)?</summary>
+    public static bool IsUiRunning() => StepRecorder.Native.InstanceChannel.IsUiRunning();
+
+    /// <summary>Läuft in der Oberfläche gerade eine Aufnahme?</summary>
+    public static bool IsRecording() => Send(new[] { "--is-recording" }, out var r) && r == 2;
+
+    static bool Send(string[] args, out long result) => StepRecorder.Native.InstanceChannel.Send(args, out result);
 
     /// <summary><c>record --stop</c>: laufende Aufnahme beenden und den Sitzungspfad ausgeben.</summary>
     public static int SendStop()
     {
         var stateFile = Settings.AppPaths.StateFile;
-        var before = File.Exists(stateFile) ? File.GetLastWriteTimeUtc(stateFile) : DateTime.MinValue;
-        if (!Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine("Keine laufende Aufnahme."); return 7; }
+        // Erkennung über den Zeitstempel „atUtc“ des Stopps – andere Zustandsänderungen (Fensterlage …) zählen nicht
+        string? before = Data.Json.ReadObject(stateFile).Str("atUtc");
+        if (!Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine(Settings.Loc.L("Keine laufende Aufnahme.", "No recording in progress.")); return 7; }
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < 30000)
         {
             Thread.Sleep(200);
-            if (File.Exists(stateFile) && File.GetLastWriteTimeUtc(stateFile) > before)
-            {
-                var path = Data.Json.ReadObject(stateFile)?["lastStopped"]?.GetValue<string>();
-                if (path != null) { Console.WriteLine(path); return 0; }
-            }
+            var o = Data.Json.ReadObject(stateFile);
+            if (o.Str("atUtc") is { } at && at != before && o.Str("lastStopped") is { } path) { Console.WriteLine(path); return 0; }
         }
         return 1;
     }
 
     public static void WriteLastStopped(string path)
-    {
-        try { Data.Json.WriteAtomic(Settings.AppPaths.StateFile, Data.Json.Pretty(new System.Text.Json.Nodes.JsonObject { ["lastStopped"] = path, ["atUtc"] = Data.Json.UtcNow() })); } catch { }
-    }
+        => Settings.AppState.Update(s => { s.LastStopped = path; s.AtUtc = Data.Json.UtcNow(); });
 
     [StructLayout(LayoutKind.Sequential)] struct COPYDATASTRUCT { public IntPtr dwData; public int cbData; public IntPtr lpData; }
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowEx(IntPtr parent, IntPtr after, string? cls, string? title);
-    [DllImport("user32.dll")] static extern IntPtr SendMessageTimeout(IntPtr h, int msg, IntPtr w, ref COPYDATASTRUCT l, int flags, int timeout, out IntPtr result);
 }
 

@@ -1,11 +1,15 @@
 using System.Globalization;
+using System.IO.Compression;
 using System.Text;
 
 namespace StepRecorder.Export.Formats;
 
 /// <summary>
-/// Minimaler PDF-Erzeuger ohne Fremdbibliothek: A4-Seiten, Helvetica (WinAnsi), JPEG-Bilder,
-/// Rechtecke und Linien. Ausreichend für Schritt-Anleitungen.
+/// Minimaler PDF-Erzeuger ohne Fremdbibliothek: A4-Seiten, JPEG-Bilder, Rechtecke und Linien, interne Verweise und
+/// Lesezeichen. Text läuft in Helvetica (WinAnsi), solange die Zeichen dort vorkommen; alles andere (z. B. Kyrillisch,
+/// Griechisch, Pfeile, Häkchen) in einer eingebetteten Teilmenge von Segoe UI bzw. Segoe UI Symbol (Type0, Identity-H,
+/// mit ToUnicode, damit Kopieren und Suchen funktionieren). Nicht darstellbar bleiben Schriften mit Zeichenformung
+/// (Chinesisch/Japanisch/Koreanisch, Arabisch, Hebräisch, Thai) – sie erscheinen als „?“, mit genau einer Warnung.
 /// </summary>
 public sealed class SimplePdf
 {
@@ -14,13 +18,21 @@ public sealed class SimplePdf
 
     readonly List<StringBuilder> _pages = new();
     readonly List<(byte[] jpeg, int w, int h)> _images = new();
-    readonly List<List<(double x, double y, double w, double h, string uri)>> _links = new();
+    readonly List<List<(double x, double y, double w, double h, string dest)>> _links = new();
+    readonly Dictionary<string, (int page, double top)> _dests = new();
+    readonly List<(string title, int level, string dest)> _outline = new();
+    readonly Dictionary<int, SortedDictionary<int, int>> _used = new();   // Schrift → Glyph → Zeichen
+    bool _unsupported;
     StringBuilder _cur = null!;
     public double Y { get; private set; }
     public int PageCount => _pages.Count;
     public void SetY(double y) => Y = y;
     public string Title { get; set; } = "";
     public string Footer { get; set; } = "";
+    /// <summary>Sprache des Dokuments (z. B. de-DE) – für Vorlesefunktionen.</summary>
+    public string Language { get; set; } = "de-DE";
+    /// <summary>Hinweise beim Erzeugen (z. B. nicht darstellbare Zeichen).</summary>
+    public List<string> Warnings { get; } = new();
 
     static readonly int[] HelvWidths =
     {
@@ -28,6 +40,45 @@ public sealed class SimplePdf
         278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,
         611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,
         556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584
+    };
+
+    // ---------------- Schriften ----------------
+
+    static readonly Lazy<TrueTypeFont?> FbRegular = new(() => TrueTypeFont.TryLoadSystem("segoeui.ttf", "SegoeUI") ?? TrueTypeFont.TryLoadSystem("arial.ttf", "ArialMT") ?? TrueTypeFont.TryLoadSystem("tahoma.ttf", "Tahoma"));
+    static readonly Lazy<TrueTypeFont?> FbBold = new(() => TrueTypeFont.TryLoadSystem("segoeuib.ttf", "SegoeUI-Bold") ?? TrueTypeFont.TryLoadSystem("arialbd.ttf", "Arial-BoldMT") ?? TrueTypeFont.TryLoadSystem("tahomabd.ttf", "Tahoma-Bold"));
+    static readonly Lazy<TrueTypeFont?> FbSymbol = new(() => TrueTypeFont.TryLoadSystem("seguisym.ttf", "SegoeUISymbol"));
+    static TrueTypeFont? FontOf(int index) => index switch { 1 => FbRegular.Value, 2 => FbBold.Value, 3 => FbSymbol.Value, _ => null };
+
+    static readonly Dictionary<int, int> WinAnsiExtra = new()
+    {
+        ['€'] = 0x80, ['‚'] = 0x82, ['ƒ'] = 0x83, ['„'] = 0x84, ['…'] = 0x85, ['†'] = 0x86, ['‡'] = 0x87, ['ˆ'] = 0x88, ['‰'] = 0x89, ['Š'] = 0x8A, ['‹'] = 0x8B, ['Œ'] = 0x8C,
+        ['Ž'] = 0x8E, ['‘'] = 0x91, ['’'] = 0x92, ['“'] = 0x93, ['”'] = 0x94, ['•'] = 0x95, ['–'] = 0x96, ['—'] = 0x97, ['˜'] = 0x98, ['™'] = 0x99, ['š'] = 0x9A, ['›'] = 0x9B,
+        ['œ'] = 0x9C, ['ž'] = 0x9E, ['Ÿ'] = 0x9F
+    };
+
+    static int WinAnsiCode(int cp) => cp is (>= 32 and <= 126) or (>= 160 and <= 255) ? cp : WinAnsiExtra.TryGetValue(cp, out var b) ? b : -1;
+
+    /// <summary>Schriften mit Zeichenformung oder Bidi bzw. ohne Glyphen in Segoe UI (CJK, Arabisch, Hebräisch, Thai, Emoji u. a.).</summary>
+    static bool Unsupported(int cp) => cp is (>= 0x0590 and <= 0x08FF) or (>= 0x0E00 and <= 0x0E7F) or (>= 0x2E80 and <= 0x9FFF) or (>= 0xAC00 and <= 0xD7AF)
+                                         or (>= 0xF900 and <= 0xFAFF) or (>= 0xFB1D and <= 0xFDFF) or (>= 0xFE70 and <= 0xFEFF) or >= 0x1F000;
+
+    /// <summary>Schrift (0 Helvetica, 1 Rückfall, 2 Rückfall fett, 3 Symbole, -1 nicht darstellbar) und Code (WinAnsi-Byte bzw. Glyph).</summary>
+    static (int font, int code) Classify(int cp, bool bold)
+    {
+        if (cp < 32) return (0, ' ');
+        int w = WinAnsiCode(cp);
+        if (w >= 0) return (0, w);
+        if (Unsupported(cp)) return (-1, '?');
+        if (bold && FbBold.Value is { } fb && fb.GlyphFor(cp) is int gb and > 0) return (2, gb);
+        if (FbRegular.Value is { } fr && fr.GlyphFor(cp) is int g and > 0) return (1, g);
+        if (FbSymbol.Value is { } fs && fs.GlyphFor(cp) is int gs and > 0) return (3, gs);
+        return (-1, '?');
+    }
+
+    static double HelvWidth(int cp) => cp >= 32 && cp <= 126 ? HelvWidths[cp - 32] : cp switch
+    {
+        'Ä' => 667, 'Ö' => 778, 'Ü' => 722, 'ß' => 611, 'é' or 'è' or 'à' or 'á' => 556, '€' => 556, '–' => 556, '—' => 1000, '…' => 1000,
+        '„' or '“' or '”' => 333, '‘' or '’' or '‚' => 222, '·' => 278, '•' => 350, '°' => 400, '§' => 556, '©' or '®' => 737, '×' => 584, _ => 556
     };
 
     public SimplePdf() => NewPage();
@@ -45,22 +96,27 @@ public sealed class SimplePdf
     public static double TextWidth(string s, double size, bool bold = false)
     {
         double w = 0;
-        foreach (char c in s)
+        foreach (var r in (s ?? "").EnumerateRunes())
         {
-            int cw = c >= 32 && c <= 126 ? HelvWidths[c - 32] : c switch
-            {
-                'Ä' => 667, 'Ö' => 778, 'Ü' => 722, 'ß' => 611, '€' => 556, '–' => 556, '—' => 1000, '…' => 1000,
-                '„' or '“' or '”' => 333, '‘' or '’' => 222, '·' => 278, '•' => 350, _ => 556
-            };
-            w += cw;
+            var (font, code) = Classify(r.Value, bold);
+            w += font switch { 0 => HelvWidth(r.Value) * (bold ? 1.06 : 1.0), -1 => 556, _ => FontOf(font)!.Width1000(code) };
         }
-        return w * size / 1000.0 * (bold ? 1.06 : 1.0);
+        return w * size / 1000.0;
     }
 
     public void EnsureSpace(double h)
     {
         if (Y - h < Margin + 20) NewPage();
     }
+
+    /// <summary>Sprungziel an der aktuellen Stelle (für Inhaltsverzeichnis und Lesezeichen).</summary>
+    public void Dest(string key) => _dests[key] = (_pages.Count - 1, Math.Min(PageH, Y + 24));
+
+    /// <summary>Klickfläche auf der aktuellen Seite, die zu <paramref name="key"/> springt.</summary>
+    public void LinkTo(double x, double y, double w, double h, string key) => _links[^1].Add((x, y, w, h, key));
+
+    /// <summary>Lesezeichen (Ebene 0 = Kapitel, 1 = Schritt) zum Sprungziel <paramref name="key"/>.</summary>
+    public void Bookmark(string title, int level, string key) => _outline.Add((title, level, key));
 
     /// <summary>Schreibt umbrochenen Text ab der aktuellen Position.</summary>
     public void Paragraph(string text, double size = 10.5, bool bold = false, double indent = 0, double spacingAfter = 6, (double r, double g, double b)? color = null, double width = 0)
@@ -90,11 +146,12 @@ public sealed class SimplePdf
             string candidate = line.Length == 0 ? w : line + " " + w;
             if (TextWidth(candidate, size, bold) <= width) { line.Clear().Append(candidate); continue; }
             if (line.Length > 0) { yield return line.ToString(); line.Clear(); }
-            // überlanges Wort hart trennen
+            // überlanges Wort hart trennen (nie mitten in einem Ersatzzeichenpaar)
             while (TextWidth(w, size, bold) > width && w.Length > 1)
             {
                 int n = w.Length;
                 while (n > 1 && TextWidth(w[..n], size, bold) > width) n--;
+                if (n < w.Length && char.IsHighSurrogate(w[n - 1]) && n > 1) n--;
                 yield return w[..n];
                 w = w[n..];
             }
@@ -104,9 +161,43 @@ public sealed class SimplePdf
     }
 
     public void DrawText(double x, double y, string text, double size, bool bold = false, (double r, double g, double b)? color = null)
+        => DrawTextTo(_cur, x, y, text, size, bold, color);
+
+    /// <summary>Text in Läufen je Schrift: ein BT-Block, mehrere Tf/Tj (Tj rückt selbst weiter).</summary>
+    void DrawTextTo(StringBuilder sb, double x, double y, string text, double size, bool bold, (double r, double g, double b)? color)
     {
         var c = color ?? (0.1, 0.1, 0.1);
-        _cur.Append(F($"BT {c.r} {c.g} {c.b} rg /{(bold ? "F2" : "F1")} {size} Tf {x} {y} Td ")).Append(PdfString(text)).Append(" Tj ET\n");
+        sb.Append(F($"BT {c.r} {c.g} {c.b} rg {x} {y} Td "));
+        int curFont = int.MinValue;
+        var run = new StringBuilder();
+        void Flush()
+        {
+            if (run.Length == 0) return;
+            string res = curFont <= 0 ? (bold ? "F2" : "F1") : "U" + curFont;
+            sb.Append(F($"/{res} {size} Tf ")).Append(curFont <= 0 ? "(" + run + ")" : "<" + run + ">").Append(" Tj ");
+            run.Clear();
+        }
+        foreach (var r in (text ?? "").EnumerateRunes())
+        {
+            var (font, code) = Classify(r.Value, bold);
+            if (font == -1) { _unsupported = true; font = 0; code = '?'; }
+            int key = font <= 0 ? 0 : font;
+            if (key != curFont) { Flush(); curFont = key; }
+            if (key == 0)
+            {
+                if (code is '(' or ')' or '\\') run.Append('\\').Append((char)code);
+                else if (code > 126) run.Append('\\').Append(Convert.ToString(code, 8).PadLeft(3, '0'));
+                else run.Append((char)code);
+            }
+            else
+            {
+                if (!_used.TryGetValue(key, out var map)) _used[key] = map = new SortedDictionary<int, int>();
+                map.TryAdd(code, r.Value);
+                run.Append(code.ToString("X4"));
+            }
+        }
+        Flush();
+        sb.Append("ET\n");
     }
 
     public void FillRect(double x, double y, double w, double h, (double r, double g, double b) color)
@@ -120,7 +211,6 @@ public sealed class SimplePdf
 
     public void Space(double h) => Y -= h;
 
-    /// <summary>Fügt ein JPEG-Bild in voller Inhaltsbreite (oder kleiner) ein.</summary>
     /// <summary>Höhe eines umbrochenen Absatzes (ohne Abstand danach).</summary>
     public static double MeasureText(string text, double width, double size, bool bold = false)
         => (text ?? "").Replace("\r", "").Split('\n').Sum(l => Wrap(l, width, size, bold).Count()) * size * 1.35;
@@ -153,6 +243,7 @@ public sealed class SimplePdf
         Y -= h + 6;
     }
 
+    /// <summary>Fügt ein JPEG-Bild in voller Inhaltsbreite (oder kleiner) ein.</summary>
     public void Image(byte[] jpeg, int pxW, int pxH, double maxW = 0, double maxH = 520, double x = -1, bool border = true)
     {
         if (x < 0) x = Margin;
@@ -171,21 +262,21 @@ public sealed class SimplePdf
 
     static string F(FormattableString s) => s.ToString(CultureInfo.InvariantCulture);
 
-    static string PdfString(string s)
+    /// <summary>Textzeichenkette für Metadaten und Lesezeichen: ASCII literal, sonst UTF-16BE mit BOM.</summary>
+    public static string PdfTextString(string s)
     {
-        var sb = new StringBuilder("(");
-        var enc = Encoding.Latin1;
-        foreach (char c0 in s)
-        {
-            // WinAnsiEncoding: typografische Zeichen liegen auf 0x80–0x9F
-            char c = c0 switch { '„' => '\u0084', '“' => '\u0093', '”' => '\u0094', '‚' => '\u0082', '‘' => '\u0091', '’' => '\u0092', '–' => '\u0096', '—' => '\u0097', '…' => '\u0085', '•' => '\u0095', '€' => '\u0080', '→' => '>', _ => c0 };
-            if (c == '(' || c == ')' || c == '\\') sb.Append('\\').Append(c);
-            else if (c < 32) sb.Append(' ');
-            else if (c > 255) sb.Append('?');
-            else if (c > 126) sb.Append('\\').Append(Convert.ToString(c, 8).PadLeft(3, '0'));
-            else sb.Append(c);
-        }
-        return sb.Append(')').ToString();
+        s ??= "";
+        if (s.All(c => c >= 32 && c <= 126))
+            return "(" + s.Replace("\\", "\\\\").Replace("(", "\\(").Replace(")", "\\)") + ")";
+        var b = Encoding.BigEndianUnicode.GetBytes(s);
+        return "<FEFF" + Convert.ToHexString(b) + ">";
+    }
+
+    static byte[] Deflate(byte[] data)
+    {
+        using var ms = new MemoryStream();
+        using (var z = new ZLibStream(ms, CompressionLevel.Optimal, leaveOpen: true)) z.Write(data);
+        return ms.ToArray();
     }
 
     /// <summary>Seiten ohne Fußzeile (z. B. Deckblatt), 0-basiert.</summary>
@@ -193,53 +284,122 @@ public sealed class SimplePdf
 
     public byte[] ToBytes()
     {
-        // Fußzeilen
+        // Fußzeilen (vor den Schriften, damit ihre Zeichen in die Teilmengen kommen)
         for (int i = 0; i < _pages.Count; i++)
         {
             if (NoFooter.Contains(i)) continue;
-            var p = _pages[i];
             string pg = $"{i + 1} / {_pages.Count}";
-            p.Append(F($"BT 0.5 0.5 0.5 rg /F1 8 Tf {Margin} 25 Td ")).Append(PdfString(Footer)).Append(" Tj ET\n");
-            p.Append(F($"BT 0.5 0.5 0.5 rg /F1 8 Tf {PageW - Margin - TextWidth(pg, 8)} 25 Td ")).Append(PdfString(pg)).Append(" Tj ET\n");
+            DrawTextTo(_pages[i], Margin, 25, Footer, 8, false, (0.5, 0.5, 0.5));
+            DrawTextTo(_pages[i], PageW - Margin - TextWidth(pg, 8), 25, pg, 8, false, (0.5, 0.5, 0.5));
         }
+        if (_unsupported)
+            Warnings.Add(Language.StartsWith("de")
+                ? "Einige Zeichen (z. B. Chinesisch, Arabisch, Hebräisch, Thai oder Emoji) kann das PDF nicht darstellen; sie erscheinen als „?“. Für solche Texte bitte HTML oder Word verwenden."
+                : "Some characters (e.g. Chinese, Arabic, Hebrew, Thai or emoji) cannot be shown in the PDF; they appear as \"?\". Please use HTML or Word for such texts.");
+
+        // Objektnummern vergeben
+        int next = 0;
+        int New() => ++next;
+        int catalog = New(), pagesObj = New(), info = New(), f1 = New(), f2 = New();
+        var fonts = _used.Keys.OrderBy(k => k).ToDictionary(k => k, _ => (type0: New(), cid: New(), desc: New(), file: New(), tu: New()));
+        var imgObjs = _images.Select(_ => New()).ToList();
+        var pageObjs = _pages.Select(_ => (page: New(), content: New())).ToList();
+        var annots = _links.Select(l => l.Where(x => _dests.ContainsKey(x.dest)).Select(x => (x, obj: New())).ToList()).ToList();
+        int outlineRoot = _outline.Count > 0 ? New() : 0;
+        var outlineObjs = _outline.Where(o => _dests.ContainsKey(o.dest)).Select(o => (o.title, o.level, o.dest, obj: New())).ToList();
 
         var ms = new MemoryStream();
-        var offsets = new List<long>();
+        var offsets = new Dictionary<int, long>();
         void W(string s) { var b = Encoding.Latin1.GetBytes(s); ms.Write(b); }
-        void Obj(int n) { while (offsets.Count < n) offsets.Add(0); offsets[n - 1] = ms.Position; W($"{n} 0 obj\n"); }
+        void Obj(int n, string body) { offsets[n] = ms.Position; W($"{n} 0 obj\n{body}\nendobj\n"); }
+        void Stream(int n, string dict, byte[] data) { offsets[n] = ms.Position; W($"{n} 0 obj\n<< {dict} /Length {data.Length} >>\nstream\n"); ms.Write(data); W("\nendstream\nendobj\n"); }
+        string DestArr(string key) { var (p, top) = _dests[key]; return F($"[{pageObjs[p].page} 0 R /XYZ 0 {Math.Round(top, 2)} null]"); }
 
         W("%PDF-1.4\n%âãÏÓ\n");
-        // 1 Katalog, 2 Seitenbaum, 3 F1, 4 F2, 5 Info, dann Bilder, dann Seiten + Inhalte
-        int firstImg = 6;
-        int firstPage = firstImg + _images.Count;
-        var pageObjs = Enumerable.Range(0, _pages.Count).Select(i => firstPage + i * 2).ToList();
 
-        Obj(1); W("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
-        Obj(2); W($"<< /Type /Pages /Count {_pages.Count} /Kids [{string.Join(" ", pageObjs.Select(p => $"{p} 0 R"))}] >>\nendobj\n");
-        Obj(3); W("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n");
-        Obj(4); W("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n");
-        Obj(5); W($"<< /Title {PdfString(Title)} /Producer (StepRecorder) >>\nendobj\n");
+        // Lesezeichen als Baum: Ebene 1 hängt am letzten Kapitel davor
+        var tops = new List<int>();
+        var children = new Dictionary<int, List<int>>();
+        var parent = new Dictionary<int, int>();
+        int lastTop = -1;
+        for (int i = 0; i < outlineObjs.Count; i++)
+        {
+            if (outlineObjs[i].level > 0 && lastTop >= 0 && outlineObjs[lastTop].level == 0) { children[lastTop].Add(i); parent[i] = lastTop; }
+            else { tops.Add(i); children[i] = new(); lastTop = i; }
+        }
+        string catalogExtra = outlineObjs.Count > 0 ? $" /Outlines {outlineRoot} 0 R /PageMode /UseOutlines" : "";
+        Obj(catalog, $"<< /Type /Catalog /Pages {pagesObj} 0 R /Lang {PdfTextString(Language)}{catalogExtra} >>");
+        Obj(pagesObj, $"<< /Type /Pages /Count {_pages.Count} /Kids [{string.Join(" ", pageObjs.Select(p => $"{p.page} 0 R"))}] >>");
+        Obj(info, $"<< /Title {PdfTextString(Title)} /Producer (StepRecorder) >>");
+        Obj(f1, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>");
+        Obj(f2, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>");
+
+        foreach (var (key, o) in fonts)
+        {
+            var font = FontOf(key)!;
+            var used = _used[key];
+            var raw = font.Subset(used.Keys);
+            var hash = System.Security.Cryptography.SHA256.HashData(Encoding.ASCII.GetBytes(string.Join(",", used.Keys)));
+            string tag = new string(hash.Take(6).Select(b => (char)('A' + b % 26)).ToArray());
+            string name = tag + "+" + font.PostScriptName;
+            double k = 1000.0 / font.UnitsPerEm;
+            Obj(o.type0, $"<< /Type /Font /Subtype /Type0 /BaseFont /{name} /Encoding /Identity-H /DescendantFonts [{o.cid} 0 R] /ToUnicode {o.tu} 0 R >>");
+            string widths = string.Join(" ", used.Keys.Select(g => F($"{g} [{Math.Round(font.Width1000(g))}]")));
+            Obj(o.cid, $"<< /Type /Font /Subtype /CIDFontType2 /BaseFont /{name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> /FontDescriptor {o.desc} 0 R /DW 1000 /W [{widths}] /CIDToGIDMap /Identity >>");
+            Obj(o.desc, F($"<< /Type /FontDescriptor /FontName /{name} /Flags 32 /FontBBox [{Math.Round(font.XMin * k)} {Math.Round(font.YMin * k)} {Math.Round(font.XMax * k)} {Math.Round(font.YMax * k)}] /ItalicAngle 0 /Ascent {Math.Round(font.Ascent * k)} /Descent {Math.Round(font.Descent * k)} /CapHeight {Math.Round(font.CapHeight * k)} /StemV 80 /FontFile2 {o.file} 0 R >>"));
+            var comp = Deflate(raw);
+            Stream(o.file, $"/Filter /FlateDecode /Length1 {raw.Length}", comp);
+            var cmap = new StringBuilder("/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000> <FFFF>\nendcodespacerange\n");
+            foreach (var chunk in used.Chunk(100))
+            {
+                cmap.Append(chunk.Length).Append(" beginbfchar\n");
+                foreach (var (g, cp) in chunk) cmap.Append('<').Append(g.ToString("X4")).Append("> <").Append(Convert.ToHexString(Encoding.BigEndianUnicode.GetBytes(char.ConvertFromUtf32(cp)))).Append(">\n");
+                cmap.Append("endbfchar\n");
+            }
+            cmap.Append("endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend\n");
+            Stream(o.tu, "", Encoding.ASCII.GetBytes(cmap.ToString()));
+        }
+
         for (int i = 0; i < _images.Count; i++)
         {
             var (jpeg, w, h) = _images[i];
-            Obj(firstImg + i);
-            W($"<< /Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {jpeg.Length} >>\nstream\n");
-            ms.Write(jpeg); W("\nendstream\nendobj\n");
+            Stream(imgObjs[i], $"/Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode", jpeg);
         }
-        string xobjs = string.Join(" ", Enumerable.Range(0, _images.Count).Select(i => $"/Im{i} {firstImg + i} 0 R"));
+        string xobjs = string.Join(" ", imgObjs.Select((o, i) => $"/Im{i} {o} 0 R"));
+        string fontRes = $"/F1 {f1} 0 R /F2 {f2} 0 R" + string.Concat(fonts.Select(f => $" /U{f.Key} {f.Value.type0} 0 R"));
         for (int i = 0; i < _pages.Count; i++)
         {
-            int po = pageObjs[i];
-            var content = Encoding.Latin1.GetBytes(_pages[i].ToString());
-            Obj(po);
-            W($"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {F($"{PageW}")} {F($"{PageH}")}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> /XObject << {xobjs} >> >> /Contents {po + 1} 0 R >>\nendobj\n");
-            Obj(po + 1);
-            W($"<< /Length {content.Length} >>\nstream\n"); ms.Write(content); W("\nendstream\nendobj\n");
+            var (po, co) = pageObjs[i];
+            string ann = annots[i].Count > 0 ? $" /Annots [{string.Join(" ", annots[i].Select(a => $"{a.obj} 0 R"))}]" : "";
+            Obj(po, $"<< /Type /Page /Parent {pagesObj} 0 R /MediaBox [0 0 {F($"{PageW}")} {F($"{PageH}")}] /Resources << /Font << {fontRes} >> /XObject << {xobjs} >> >> /Contents {co} 0 R{ann} >>");
+            Stream(co, "", Encoding.Latin1.GetBytes(_pages[i].ToString()));
+            foreach (var (l, obj) in annots[i])
+                Obj(obj, F($"<< /Type /Annot /Subtype /Link /Rect [{Math.Round(l.x, 2)} {Math.Round(l.y, 2)} {Math.Round(l.x + l.w, 2)} {Math.Round(l.y + l.h, 2)}] /Border [0 0 0] /Dest {DestArr(l.dest)} >>"));
         }
+
+        if (outlineObjs.Count > 0)
+        {
+            Obj(outlineRoot, $"<< /Type /Outlines /First {outlineObjs[tops[0]].obj} 0 R /Last {outlineObjs[tops[^1]].obj} 0 R /Count {tops.Count} >>");
+            void Item(int i, List<int> siblings, int parentObj)
+            {
+                var it = outlineObjs[i];
+                int pos = siblings.IndexOf(i);
+                var sb = new StringBuilder($"<< /Title {PdfTextString(it.title)} /Parent {parentObj} 0 R");
+                if (pos > 0) sb.Append($" /Prev {outlineObjs[siblings[pos - 1]].obj} 0 R");
+                if (pos < siblings.Count - 1) sb.Append($" /Next {outlineObjs[siblings[pos + 1]].obj} 0 R");
+                if (children.TryGetValue(i, out var ch) && ch.Count > 0)
+                    sb.Append($" /First {outlineObjs[ch[0]].obj} 0 R /Last {outlineObjs[ch[^1]].obj} 0 R /Count -{ch.Count}");
+                sb.Append($" /Dest {DestArr(it.dest)} >>");
+                Obj(it.obj, sb.ToString());
+                if (ch != null) foreach (var c in ch) Item(c, ch, it.obj);
+            }
+            foreach (var t in tops) Item(t, tops, outlineRoot);
+        }
+
         long xref = ms.Position;
-        W($"xref\n0 {offsets.Count + 1}\n0000000000 65535 f \n");
-        foreach (var o in offsets) W($"{o:D10} 00000 n \n");
-        W($"trailer\n<< /Size {offsets.Count + 1} /Root 1 0 R /Info 5 0 R >>\nstartxref\n{xref}\n%%EOF\n");
+        W($"xref\n0 {next + 1}\n0000000000 65535 f \n");
+        for (int n = 1; n <= next; n++) W($"{(offsets.TryGetValue(n, out var off) ? off : 0):D10} 00000 n \n");
+        W($"trailer\n<< /Size {next + 1} /Root {catalog} 0 R /Info {info} 0 R >>\nstartxref\n{xref}\n%%EOF\n");
         return ms.ToArray();
     }
 }

@@ -1,6 +1,8 @@
 using System.Globalization;
 using System.Speech.Recognition;
 
+using StepRecorder.Settings;
+
 namespace StepRecorder.App.Ui;
 
 /// <summary>
@@ -27,8 +29,8 @@ sealed class Dictation : IDisposable
 
     public static string Installed()
     {
-        try { var l = SpeechRecognitionEngine.InstalledRecognizers().Select(r => r.Culture.Name).ToList(); return l.Count == 0 ? "keine" : string.Join(", ", l); }
-        catch { return "keine"; }
+        try { var l = SpeechRecognitionEngine.InstalledRecognizers().Select(r => r.Culture.Name).ToList(); return l.Count == 0 ? Loc.L("keine", "none") : string.Join(", ", l); }
+        catch { return Loc.L("keine", "none"); }
     }
 
     /// <summary>Starten. onStart: Sprechbeginn (Zeitpunkt merken), onText: erkannter Satz. Fehlertext oder null.</summary>
@@ -36,7 +38,7 @@ sealed class Dictation : IDisposable
     {
         if (_eng != null) return null;
         var ri = Find(lang) ?? Find(lang == "de" ? "en" : "de");
-        if (ri == null) return $"Auf diesem Rechner ist keine Windows-Spracherkennung installiert (gefunden: {Installed()}). Sie lässt sich unter Einstellungen › Zeit und Sprache › Sprache › Sprachpaket › „Spracherkennung“ hinzufügen.";
+        if (ri == null) return Loc.F("Auf diesem Rechner ist keine Windows-Spracherkennung installiert (gefunden: {0}). Sie lässt sich unter Einstellungen › Zeit und Sprache › Sprache › Sprachpaket › „Spracherkennung“ hinzufügen.", "No Windows speech recognition is installed on this computer (found: {0}). It can be added under Settings › Time & language › Language & region › Language pack › \"Speech recognition\".", Installed());
         try
         {
             var eng = new SpeechRecognitionEngine(ri);
@@ -48,7 +50,7 @@ sealed class Dictation : IDisposable
             _eng = eng; Culture = ri.Culture.Name;
             return null;
         }
-        catch (Exception ex) { return "Das Mikrofon oder die Spracherkennung konnte nicht gestartet werden: " + ex.Message; }
+        catch (Exception ex) { return Loc.F("Das Mikrofon oder die Spracherkennung konnte nicht gestartet werden: {0}", "The microphone or speech recognition could not be started: {0}", ex.Message); }
     }
 
     static string Sentence(string t, CultureInfo c)

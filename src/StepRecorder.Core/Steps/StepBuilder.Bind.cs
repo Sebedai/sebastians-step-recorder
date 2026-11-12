@@ -54,6 +54,9 @@ public sealed partial class StepBuilder
             st.InputObj["cause"] = g.cause;
             st.InputObj["channels"] = g.channels.DeepClone();
             st.InputObj["inputLost"] = g.inputLost;
+            // sicherer Desktop: Art (uac/other) steht im Ende-Ereignis der Lücke
+            if (g.cause == "secureDesktop" && _ev.LastOrDefault(e => e.Str("type") == "gap" && e.Str("gapId") == g.id && e.Str("phase") == "end")?.Obj("detail")?.Str("kind") is { } dk)
+                st.InputObj["desktopKind"] = dk;
             if (!input) st.Importance = "trace";
             // offene Schritte, die in die Lücke laufen, sind unvollständig
             foreach (var s in _steps.Where(s => s.IsAction && s.TFrom < g.from && s.TTo > g.from)) s.Flags.Add("incomplete");
@@ -81,7 +84,10 @@ public sealed partial class StepBuilder
             if (st.Monitor != null) { st.Ctx["ep"] = anchor.Int("ep"); st.Ctx["m"] = st.Monitor; }
             st.Ctx.Clean();
             if (w.Str("title") != null) st.Prov.Add(new JsonObject { ["path"] = "ctx.title", ["seq"] = w.Long("seq"), ["field"] = "title", ["copy"] = true });
-            if (w.Str("surface") == "opaque") st.Flags.Add("opaque");
+            var surface = Capture.WindowRegistry.SurfaceOfInfo(w);
+            if (surface == "opaque") st.Flags.Add("opaque");
+            // Getipptes in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, VM): Klartext → Durchsicht nötig
+            if (st.Kind == "type" && !st.InputObj.Bool("masked") && surface != "structured") st.Flags.Add("plaintext");
         }
         switch (st.Kind)
         {

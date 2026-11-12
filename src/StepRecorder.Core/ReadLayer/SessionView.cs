@@ -27,6 +27,10 @@ public sealed class ViewStep
     public string? ImageSize;
     public bool Hidden, Redacted, Discarded;
     public List<JsonObject> Comments = new();
+    /// <summary>Interne und ausgeblendete Hinweise des Autors – nur für den Editor, erscheinen in keiner Ausgabe.</summary>
+    public List<JsonObject> InternalComments = new();
+    /// <summary>Aufgenommener Kommentar, den der Autor als intern markiert hat (Text in allen Ausgaben geschwärzt).</summary>
+    public bool CommentHidden;
     public List<JsonObject> Annotations = new();
     public string? PreFrame, PostFrame;
     public string? Monitor;
@@ -40,8 +44,15 @@ public sealed class ViewStep
     public long After;
     /// <summary>Bild durch eigenes ersetzt (Bild neu aufgenommen).</summary>
     public bool ImageReplaced => PreFrame?.StartsWith("u:") == true && !Manual;
+    /// <summary>Eigener Text existiert nur in der anderen Sprache (Qualitätsprüfung Q13).</summary>
+    public bool TranslationMissing;
+    /// <summary>Zusammengefasster Schritt (nur in Anleitungen): Kennung und Mitglieder in Aufnahmereihenfolge.</summary>
+    public string? MergeId;
+    public List<ViewStep>? Members;
     /// <summary>Beim Aufräumen ausgeblendet: Grund (null = nicht aufgeräumt).</summary>
     public string? CleanupReason;
+
+    public ViewStep Clone() => (ViewStep)MemberwiseClone();
 }
 
 /// <summary>
@@ -96,10 +107,21 @@ public sealed class SessionView : IDisposable
     }
     public string Language { get; set; }
     public bool Headless { get; }
+    /// <summary>
+    /// Fehlt ein Autorentext in <see cref="Language"/>, den der anderen Sprache zeigen (Editor). Anleitungs-Exporte schalten das
+    /// standardmäßig ab und nehmen den automatischen Text der Exportsprache (09 §10).
+    /// </summary>
+    public bool AuthorTextFallback { get; set; } = true;
     readonly List<(Regex rx, string placeholder)> _subst = new();
     readonly HashSet<string> _redactedStrings = new(StringComparer.Ordinal);
     readonly List<(long from, long to, bool images)> _rangeRedactions = new();
     readonly List<(string m, int fromN, int toN, Rectangle rect, bool pixelate)> _imageRedactions = new();
+    /// <summary>Tastenereignisse (key.down samt zugehörigem key.up), deren Zeichen geschwärzt sind.</summary>
+    readonly HashSet<long> _redactedKeySeqs = new();
+    /// <summary>Anker der Tipp-Schritte, deren Eingabe (ganz oder teilweise) geschwärzt ist.</summary>
+    readonly HashSet<long> _redactedInputAnchors = new();
+    /// <summary>seq aufgenommener Kommentare, die der Autor als intern markiert hat.</summary>
+    readonly HashSet<long> _hiddenComments = new();
     public string RedactedText => Language == "de" ? "[geschwärzt]" : "[redacted]";
 
     SessionView(Session s, bool headless, string? lang)
@@ -168,6 +190,7 @@ public sealed class SessionView : IDisposable
     public void Rebuild()
     {
         _subst.Clear(); _redactedStrings.Clear(); _rangeRedactions.Clear(); _imageRedactions.Clear();
+        _redactedKeySeqs.Clear(); _redactedInputAnchors.Clear(); _hiddenComments.Clear();
         foreach (var r in Edits.Arr("redactions") ?? new JsonArray())
         {
             switch (r.Str("kind"))
@@ -180,6 +203,7 @@ public sealed class SessionView : IDisposable
                     foreach (var tg in r.Arr("targets") ?? new JsonArray())
                     {
                         var ev = Session.BySeq(tg.Long("seq"));
+                        if (ev != null && ev.Str("type") is "key.down" or "key.up") { _redactedKeySeqs.Add(tg.Long("seq")); continue; }
                         var val = ev != null ? FieldValue(ev, tg.Str("field") ?? "") : null;
                         if (val == null) continue;
                         if (tg.Arr("range") is { Count: 2 } rg) { int a = rg[0]!.GetValue<int>(), b = rg[1]!.GetValue<int>(); if (a >= 0 && b <= val.Length && b > a) val = val[a..b]; }
@@ -201,15 +225,64 @@ public sealed class SessionView : IDisposable
         {
             string ph = "{" + (sb.Str("placeholder") ?? "Wert") + "}";
             var m = sb.Obj("match");
+            var opts = sb.Bool("caseSensitive") ? RegexOptions.None : RegexOptions.IgnoreCase;
+            var timeout = TimeSpan.FromMilliseconds(200);
             try
             {
-                var opts = (sb.Bool("caseSensitive") ? RegexOptions.None : RegexOptions.IgnoreCase) | RegexOptions.NonBacktracking;
-                if (m.Str("literal") is { Length: >= 3 } lit) _subst.Add((new Regex(@"(?<![\p{L}\p{N}])" + Regex.Escape(lit) + @"(?![\p{L}\p{N}])", opts), ph));
-                else if (m.Str("pattern") is { Length: > 0 } pat) _subst.Add((new Regex(pat, opts, TimeSpan.FromMilliseconds(200)), ph));
+                // Wörtlicher Wert als ganzes Wort. Lookarounds kann die NonBacktracking-Engine nicht – ein maskierter
+                // Literalwert kann aber nicht ausufern, darum die normale Engine mit Zeitgrenze.
+                if (m.Str("literal") is { Length: >= 3 } lit) _subst.Add((new Regex(@"(?<![\p{L}\p{N}])" + Regex.Escape(lit) + @"(?![\p{L}\p{N}])", opts, timeout), ph));
+                else if (m.Str("pattern") is { Length: > 0 } pat)
+                {
+                    Regex rx;
+                    try { rx = new Regex(pat, opts | RegexOptions.NonBacktracking); }
+                    catch (NotSupportedException) { rx = new Regex(pat, opts, timeout); }
+                    _subst.Add((rx, ph));
+                }
             }
-            catch { }
+            catch (ArgumentException) { }   // ungültiges Muster: bleibt wirkungslos (der Editor prüft beim Anlegen)
         }
+        _mergeOf = null;
+        if (_redactedKeySeqs.Count > 0) ApplyKeyRedactions();
+        foreach (var c in (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>())
+            if (c.Str("origin") == "recording" && (c.Bool("hidden") || c.Str("kind") == "internal") && c.LongN("sourceSeq") is long src) _hiddenComments.Add(src);
         BuildSteps();
+    }
+
+    /// <summary>
+    /// Geschwärzte Tastenanschläge: das zugehörige key.up gilt mit, und der getippte Text der betroffenen Schritte
+    /// ist überall geschwärzt (auch in Feldwerten, die ihn wiederholen).
+    /// </summary>
+    void ApplyKeyRedactions()
+    {
+        foreach (var up in Redactor.PairedKeyUps(Session.Events, new HashSet<long>(_redactedKeySeqs))) _redactedKeySeqs.Add(up.Long("seq"));
+        foreach (var s in (Steps.Arr("steps") ?? new JsonArray()).OfType<JsonObject>())
+        {
+            if (s.Str("kind") != "type") continue;
+            bool hit = false;
+            foreach (var rg in s.Obj("seq")?.Arr("input") ?? new JsonArray())
+            {
+                long a = rg![0]!.GetValue<long>(), b = rg[1]!.GetValue<long>();
+                if (_redactedKeySeqs.Any(q => q >= a && q <= b)) { hit = true; break; }
+            }
+            if (!hit) continue;
+            _redactedInputAnchors.Add(s.Long("anchorSeq"));
+            foreach (var f in new[] { "text", "valueAfter" })
+                if (s.Obj("input")?.Str(f) is { Length: >= 2 } v && v.Trim().Length >= 2) _redactedStrings.Add(v);
+        }
+    }
+
+    /// <summary>Getippten Inhalt eines Schritts durch den Schwärzungsplatzhalter ersetzen.</summary>
+    JsonObject WithRedactedInput(JsonObject step)
+    {
+        var c = (JsonObject)step.DeepClone();
+        var input = c.Obj("input");
+        if (input == null) return c;
+        input["tokens"] = new JsonArray(RedactedText);
+        input["text"] = RedactedText;
+        input.Remove("valueAfter"); input.Remove("valueBefore");
+        c["action"] = null;
+        return c;
     }
 
     static int FrameNo(string? id) => id != null && id.Length > 1 && int.TryParse(id[1..], out var n) ? n : 0;
@@ -270,7 +343,9 @@ public sealed class SessionView : IDisposable
     {
         var list = new List<ViewStep>();
         var stepEdits = (Edits.Arr("steps") ?? new JsonArray()).Where(x => x is JsonObject).ToDictionary(x => x.Long("anchor"), x => x!.AsObject());
-        var comments = (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Where(c => c.Str("kind") != "internal" && !c.Bool("hidden")).ToList();
+        var allComments = (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Where(c => c.Str("origin") != "recording").ToList();
+        var comments = allComments.Where(c => c.Str("kind") != "internal" && !c.Bool("hidden")).ToList();
+        var internalComments = allComments.Where(c => c.Str("kind") == "internal" || c.Bool("hidden")).ToList();
         var anns = (Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().ToList();
         var review = ReviewState();
         foreach (var sNode in Steps.Arr("steps") ?? new JsonArray())
@@ -280,16 +355,16 @@ public sealed class SessionView : IDisposable
             vs.Redacted = StepRedacted(s) && vs.Kind != "gap";
             var clean = (JsonObject)CleanNode(s)!;
             clean.Remove("prov");
-            vs.Json = clean;
+            bool inputRedacted = _redactedInputAnchors.Contains(vs.Anchor);
+            vs.Json = inputRedacted ? WithRedactedInput(clean) : clean;
             vs.Discarded = s.StrList("flags").Contains("discarded");
             if (stepEdits.TryGetValue(vs.Anchor, out var se))
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
                 if (se["discarded"] != null) vs.Discarded = se.Bool("discarded");
-                if (vs.Hidden && se.Obj("cleanup")?.Str("reason") is { } cr) vs.CleanupReason = cr;
+                if (vs.Hidden && se.Obj("cleanup")?.Str("reason") is { } cr) vs.CleanupReason = StepCleanup.ReasonFor(se.Obj("cleanup")?.Str("rule")) ?? cr;
                 if (se.Str("importance") is { } imp) vs.Importance = imp;
-                var txt = se.Obj("text")?.Obj(Language) ?? se.Obj("text")?.Obj(Language == "de" ? "en" : "de");
-                if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
+                ApplyAuthorText(vs, se.Obj("text"));
                 if (se.Obj("frameChoice") is { } fc) { vs.PreFrame = fc.Str("pre"); vs.PostFrame = fc.Str("post"); }
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
@@ -299,9 +374,11 @@ public sealed class SessionView : IDisposable
             vs.PostFrame ??= s.Obj("frames").Str("post");
             vs.Monitor = s.Obj("frames").Str("m");
             vs.Comments = comments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.InternalComments = internalComments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == vs.Anchor || (a.Str("frame") is { } f && (f == vs.PreFrame || f == vs.PostFrame))).ToList();
-            // Durchsicht: auffällige getippte Eingaben
-            if (vs.Kind == "type" && !s.Obj("input").Bool("masked"))
+            if (vs.Kind == "comment" && IsHiddenComment(s.Obj("input").Long("refSeq"))) { vs.CommentHidden = true; vs.Hidden = true; }
+            // Durchsicht: auffällige getippte Eingaben (geschwärzte Eingaben brauchen keine Durchsicht mehr)
+            if (vs.Kind == "type" && !s.Obj("input").Bool("masked") && !inputRedacted)
             {
                 string text = (s.Obj("input").Str("text") ?? TextTemplates.TokensNotation(s.Obj("input")!)) + " " + s.Obj("input").Str("valueAfter");
                 vs.FlagReason = Patterns.Flag(text) ?? (s.StrList("flags").Contains("plaintext") ? "plaintextWindow" : null);
@@ -316,7 +393,7 @@ public sealed class SessionView : IDisposable
             }
             else
             {
-                string? commentText = vs.Kind == "comment" ? Clean(Session.BySeq(s.Obj("input").Long("refSeq"))?.Str("text")) : null;
+                string? commentText = vs.Kind != "comment" ? null : vs.CommentHidden ? RedactedText : Clean(Session.BySeq(s.Obj("input").Long("refSeq"))?.Str("text"));
                 var forText = vs.Json;
                 if (vs.Unreviewed && Headless) forText = WithUnreviewed(vs.Json);
                 _glossary ??= Glossary.FromSettings();
@@ -349,17 +426,27 @@ public sealed class SessionView : IDisposable
             if (stepEdits.TryGetValue(anchor, out var se))
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
-                var txt = se.Obj("text")?.Obj(Language) ?? se.Obj("text")?.Obj(Language == "de" ? "en" : "de");
-                if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
+                ApplyAuthorText(vs, se.Obj("text"));
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.InternalComments = internalComments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == anchor || (a.Str("frame") is { } f && f == vs.PreFrame)).ToList();
             manual.Add(vs);
         }
         Manual = manual;
+    }
+
+    /// <summary>Autorentext der Sprache übernehmen; fehlt er, je nach <see cref="AuthorTextFallback"/> den der anderen Sprache.</summary>
+    void ApplyAuthorText(ViewStep vs, JsonObject? text)
+    {
+        var own = text?.Obj(Language);
+        var other = text?.Obj(Language == "de" ? "en" : "de");
+        vs.TranslationMissing = own == null && other != null;
+        var txt = own ?? (AuthorTextFallback ? other : null);
+        if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
     }
 
     /// <summary>Kapitel am Schritt; Titel und Text je Sprache (chapter.en überschreibt für Englisch).</summary>
@@ -406,32 +493,33 @@ public sealed class SessionView : IDisposable
 
     // ---------------- Sichten ----------------
 
-    /// <summary>Wirksame Schritte (ohne verworfene Abschnitte). guide=true wendet Reihenfolge und Ausblenden an.</summary>
-    public List<ViewStep> Effective(bool guide = false, string importance = "secondary", bool includeManual = false)
+    /// <summary>
+    /// Wirksame Schritte (ohne verworfene Abschnitte). guide=true wendet Reihenfolge und Ausblenden an;
+    /// ordered=true nur die Reihenfolge (Schrittliste des Editors: Ausgeblendete bleiben sichtbar).
+    /// </summary>
+    public List<ViewStep> Effective(bool guide = false, string importance = "secondary", bool includeManual = false, bool ordered = false)
     {
         IEnumerable<ViewStep> q = All;
         Dictionary<long, int>? pos = null;
         var order = Edits.Arr("order");
         if (order is { Count: > 0 })
             pos = order.Select((o, i) => (key: o is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue, i)).Where(x => x.key != long.MinValue).GroupBy(x => x.key).ToDictionary(g => g.Key, g => g.First().i);
-        if (guide)
-        {
-            q = q.Where(s => !s.Hidden && !s.Discarded);
-            if (pos != null) q = q.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Number);
-        }
+        bool hide = guide, applyOrder = guide || ordered;
+        if (hide) q = q.Where(s => !s.Hidden && !s.Discarded);
+        if (applyOrder && pos != null) q = q.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Number);
         if (includeManual && Manual.Count > 0)
         {
             var list = q.ToList();
-            var man = Manual.Where(m => !guide || !m.Hidden).ToList();
+            var man = Manual.Where(m => !hide || !m.Hidden).ToList();
             // in der Reihenfolge-Liste geführte eigene Schritte dort einsortieren, die übrigen nach ihrem Bezugsschritt
-            if (guide && pos != null)
+            if (applyOrder && pos != null)
             {
-                var ordered = man.Where(m => pos.ContainsKey(m.Anchor)).ToList();
-                if (ordered.Count > 0)
+                var inOrder = man.Where(m => pos.ContainsKey(m.Anchor)).ToList();
+                if (inOrder.Count > 0)
                 {
-                    list.AddRange(ordered);
+                    list.AddRange(inOrder);
                     list = list.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Manual ? 1 : 0).ToList();
-                    man = man.Except(ordered).ToList();
+                    man = man.Except(inOrder).ToList();
                 }
             }
             foreach (var m in man)
@@ -450,6 +538,96 @@ public sealed class SessionView : IDisposable
             _ => q.Where(s => s.Importance != "trace" || s.Kind == "gap")
         };
         return q.ToList();
+    }
+
+    // ---------------- Zusammengefasste Schritte (nur Anleitungen) ----------------
+
+    sealed record MergeInfo(string Id, List<long> Anchors, JsonObject? Text);
+    Dictionary<long, MergeInfo>? _mergeOf;
+
+    /// <summary>
+    /// <c>edits.merges[]</c>: Gruppen aufeinanderfolgender Schritte, die in Anleitungen als ein Schritt erscheinen.
+    /// Der erste Anker führt; ein Schritt gehört höchstens zu einer Gruppe; unbekannte Anker werden übergangen.
+    /// </summary>
+    Dictionary<long, MergeInfo> Merges()
+    {
+        if (_mergeOf != null) return _mergeOf;
+        var map = new Dictionary<long, MergeInfo>();
+        var known = All.ToDictionary(s => s.Anchor);
+        foreach (var m in (Edits.Arr("merges") ?? new JsonArray()).OfType<JsonObject>())
+        {
+            var anchors = (m.Arr("anchors") ?? new JsonArray()).Select(a => a is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue)
+                .Where(a => known.ContainsKey(a) && !map.ContainsKey(a)).Distinct().ToList();
+            if (anchors.Count < 2) continue;
+            var info = new MergeInfo(m.Str("id") ?? "", anchors, m.Obj("text"));
+            foreach (var a in anchors) map[a] = info;
+        }
+        return _mergeOf = map;
+    }
+
+    /// <summary>Zugehörigkeit eines Schritts zu einer Gruppe: Kennung, ob führend, Größe, Nummer des führenden Schritts.</summary>
+    public (string id, bool lead, int count, int leadNumber, List<int> numbers)? MergeOf(long anchor)
+    {
+        if (!Merges().TryGetValue(anchor, out var m)) return null;
+        var nums = m.Anchors.Select(a => All.First(s => s.Anchor == a).Number).OrderBy(n => n).ToList();
+        return (m.Id, m.Anchors[0] == anchor, m.Anchors.Count, All.First(s => s.Anchor == m.Anchors[0]).Number, nums);
+    }
+
+    /// <summary>
+    /// Schritte, wie Anleitungen sie zeigen: <see cref="Effective"/> mit Reihenfolge, Ausblenden und eigenen Schritten,
+    /// zusammengefasste Gruppen als ein Schritt. KI-Paket, MCP, Vergleich und AutoHotkey zeigen weiter die Einzelschritte.
+    /// </summary>
+    public List<ViewStep> GuideSteps(string importance = "primary", bool includeManual = true)
+    {
+        var merges = Merges();
+        var list = Effective(guide: true, importance: "all", includeManual: includeManual);
+        var result = new List<ViewStep>();
+        foreach (var s in list)
+        {
+            if (!s.Manual && merges.TryGetValue(s.Anchor, out var m))
+            {
+                if (m.Anchors[0] != s.Anchor) continue;   // Mitglied: im führenden Schritt enthalten
+                result.Add(Composite(s, m));
+            }
+            else result.Add(s);
+        }
+        // Mitglieder ohne sichtbaren führenden Schritt bleiben verborgen (führender Schritt ausgeblendet = Gruppe ausgeblendet)
+        IEnumerable<ViewStep> q = result;
+        q = importance switch
+        {
+            "primary" => q.Where(s => s.Importance == "primary" || s.Kind == "gap" || s.Manual),
+            "all" => q,
+            _ => q.Where(s => s.Importance != "trace" || s.Kind == "gap")
+        };
+        return q.ToList();
+    }
+
+    /// <summary>Der zusammengefasste Schritt eines führenden Schritts (null, wenn er keine Gruppe führt).</summary>
+    public ViewStep? GuideStepFor(ViewStep lead) => !lead.Manual && Merges().TryGetValue(lead.Anchor, out var m) && m.Anchors[0] == lead.Anchor ? Composite(lead, m) : null;
+
+    ViewStep Composite(ViewStep lead, MergeInfo m)
+    {
+        var members = m.Anchors.Select(a => All.First(s => s.Anchor == a)).OrderBy(s => s.Number).ToList();
+        var visible = members.Where(s => !s.Redacted && (s == lead || !s.Hidden)).ToList();
+        var c = lead.Clone();
+        c.MergeId = m.Id;
+        c.Members = members;
+        c.TFrom = members.Min(s => s.TFrom); c.TTo = members.Max(s => s.TTo);
+        c.PreFrame = visible.FirstOrDefault(s => s.PreFrame != null)?.PreFrame ?? lead.PreFrame;
+        c.PostFrame = visible.LastOrDefault(s => s.PostFrame != null)?.PostFrame ?? lead.PostFrame;
+        c.Importance = members.Any(s => s.Importance == "primary") ? "primary" : members.Any(s => s.Importance == "secondary") ? "secondary" : "trace";
+        c.Unreviewed = members.Any(s => s.Unreviewed);
+        c.Comments = members.SelectMany(s => s.Comments).ToList();
+        c.Guide = string.Join(" ", visible.Select(s => (s.AuthorBody ?? s.Guide).Trim()).Where(t => t.Length > 0));
+        c.Protocol = string.Join(" ", visible.Select(s => s.Protocol.Trim()).Where(t => t.Length > 0));
+        c.AuthorTitle = null; c.AuthorBody = null; c.TranslationMissing = false;
+        var own = m.Text?.Obj(Language);
+        var other = m.Text?.Obj(Language == "de" ? "en" : "de");
+        var txt = own ?? (AuthorTextFallback ? other : null);
+        c.TranslationMissing = own == null && other != null;
+        if (txt != null) { c.AuthorTitle = Clean(txt.Str("title")); c.AuthorBody = Clean(txt.Str("body")); }
+        else c.AuthorTitle = lead.AuthorTitle;
+        return c;
     }
 
     public ViewStep? ByNumber(int n) => All.FirstOrDefault(s => s.Number == n);
@@ -576,17 +754,38 @@ public sealed class SessionView : IDisposable
         long rev = Edits.Long("revision");
         var current = Session.LoadEdits();
         if ((current?.Long("revision") ?? 0) != rev) return false;
+        // Bearbeitungsstand sichern: erstes Speichern nach dem Öffnen, sonst höchstens alle 10 Minuten, vor großen Änderungen immer
+        if (!Session.ReadOnly)
+        {
+            try { EditHistory.MaybeSnapshot(Session.Path, current, SnapshotBefore ?? (_historySaved ? "auto" : "open"), force: SnapshotBefore != null || !_historySaved); }
+            catch (Exception ex) { Settings.AppLog.Write("Bearbeitungsstand nicht gesichert: " + ex.Message); }
+            _historySaved = true;
+        }
+        SnapshotBefore = null;
+        // Abgeleitetes (Suchindex, Vorschaubilder) zuerst löschen: stürzt das Programm zwischen den beiden Schritten ab,
+        // darf kein Zwischenspeicher übrig bleiben, der eine gerade geschwärzte Stelle noch enthält
+        ClearCache();
         bool ok = Session.SaveEdits(Edits, rev, savedBy);
         if (ok)
         {
             Edits = Session.LoadEdits() ?? Edits;
-            try { var cache = Path.Combine(Session.Path, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
+            ClearCache();
             Rebuild();
         }
         return ok;
     }
 
     public void ReloadEdits() { Edits = Session.LoadEdits() ?? new JsonObject(); Rebuild(); }
+
+    bool _historySaved;
+    /// <summary>Vor einer großen Änderung setzen (z. B. „replaceAll“): der nächste Speichervorgang sichert den bisherigen Stand.</summary>
+    public string? SnapshotBefore { get; set; }
+
+    void ClearCache()
+    {
+        if (Session.ReadOnly) return;
+        try { var cache = Path.Combine(Session.Path, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
+    }
 
     /// <summary>Rohereignisse für Ausgaben (get_events): Schwärzungen, Durchsicht, ausgeblendete Kommentare.</summary>
     public JsonObject EventForOutput(JsonObject e)
@@ -595,15 +794,32 @@ public sealed class SessionView : IDisposable
         if (InRedactedRange(seq) || (e.Arr("redacted")?.Any(x => x?.GetValue<string>() == "*") ?? false))
             return new JsonObject { ["seq"] = seq, ["t"] = e.Long("t"), ["type"] = e.Str("type"), ["redacted"] = new JsonArray("*") };
         var c = (JsonObject)CleanNode(e)!;
-        if (c.Str("type") == "comment" && c.Str("text") is { } && IsHiddenComment(seq)) c["text"] = "[redacted]";
-        if (Headless && c.Str("type") is "key.down" && All.FirstOrDefault(s => s.Unreviewed && InStep(s, seq)) is { })
+        if (c.Str("type") == "comment" && c.Str("text") is { } && IsHiddenComment(seq)) c["text"] = RedactedText;
+        bool key = c.Str("type") is "key.down" or "key.up";
+        if (key && _redactedKeySeqs.Contains(seq))
+        {
+            c.Remove("ch"); c["key"] = "Redacted"; c["vk"] = 0; c["sc"] = 0; c["redacted"] = new JsonArray("ch");
+            return c;
+        }
+        if (Headless && key && All.FirstOrDefault(s => s.Unreviewed && InStep(s, seq)) is { })
         { c.Remove("ch"); c["key"] = "Redacted"; c["vk"] = 0; c["sc"] = 0; c["unreviewed"] = true; }
         if (Headless && c.Str("type") is "ui.value" && All.Any(s => s.Unreviewed && s.Json.Obj("target").Obj("el").Str("rid") == c.Obj("el").Str("rid")))
             c["value"] = "{unreviewed}";
         return c;
     }
 
-    bool IsHiddenComment(long seq) => false;
+    /// <summary>
+    /// Markierungen des Autors, die auf genau diesem Bild gezeichnet wurden (bereinigt: Texte mit Schwärzungen und Platzhaltern).
+    /// Gilt gleich für Editor, Vorschaubilder und Export – Markierungen des Nachher-Bilds erscheinen nicht auf dem Vorher-Bild.
+    /// </summary>
+    public List<JsonObject> AnnotationsFor(ViewStep step, string frameId)
+        => (Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().Where(a => a.Str("frame") == frameId).Select(a => (JsonObject)CleanNode(a)!).ToList();
+
+    /// <summary>Aufgenommener Kommentar, den der Autor als intern markiert hat (erscheint in keiner Ausgabe).</summary>
+    public bool IsHiddenComment(long seq) => _hiddenComments.Contains(seq);
+
+    /// <summary>Originaltext eines aufgenommenen Kommentars – nur für die Anzeige im Editor, nie für Ausgaben.</summary>
+    public string? OriginalCommentText(ViewStep s) => s.Kind == "comment" ? Clean(Session.BySeq(s.Json.Obj("input").Long("refSeq"))?.Str("text")) : null;
 
     static bool InStep(ViewStep s, long seq)
     {

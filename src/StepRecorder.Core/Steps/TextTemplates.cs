@@ -47,6 +47,23 @@ public static class TextTemplates
         return s.Length > 60 ? s[..59] + "…" : s;
     }
 
+    /// <summary>
+    /// Welche Stufe der Rückfallkette die Zielbezeichnung liefert: 1 Name, 2 Beschriftung, 3 Wert, 4 Hilfetext,
+    /// 5 Vorfahre, 6 nur Position, 7 unbekannt (Qualitätsprüfung Q01).
+    /// </summary>
+    public static int TargetRule(JsonObject step, string which = "target")
+    {
+        var t = step.Obj(which);
+        var el = t?.Obj("el");
+        string ct = el.Str("ct") ?? "Unknown";
+        if (CleanName(el.Str("name")).Length > 0) return 1;
+        if (CleanName(el.Obj("labeledBy").Str("name")).Length > 0) return 2;
+        if (el.Str("value") is { Length: > 0 } && ct is "ComboBox" or "Edit" or "Spinner") return 3;
+        if (CleanName(el.Str("help")).Length > 0) return 4;
+        if (el != null && (t?.Arr("path")?.Any(p => CleanName(p.Str("name")).Length > 0) ?? false)) return 5;
+        return (which == "endTarget" ? step.Obj("endPosition") : step.Obj("position")) != null ? 6 : 7;
+    }
+
     /// <summary>Bezeichnung des Ziels (Rückfallkette: Name → beschriftet durch → Wert → Hilfe → Vorfahre → Position).</summary>
     public static string TargetLabel(JsonObject step, string lang, bool article, string which = "target")
     {
@@ -218,7 +235,7 @@ public static class TextTemplates
                 _ => n.Length > 0 ? (de ? $"{Q(n, lang)} ziehen" : $"Drag {Q(n, lang)}") : (de ? "Ziehen" : "Drag")
             },
             "scroll" => input.Str("semantic") == "zoom" ? (de ? "Ansicht zoomen" : "Zoom view") : n.Length > 0 ? (de ? $"In {Q(n, lang)} scrollen" : $"Scroll in {Q(n, lang)}") : (de ? "Scrollen" : "Scroll"),
-            "type" when input.Bool("masked") => input.Str("maskReason") == "privacyMode" ? (de ? "Vertrauliche Eingabe" : "Confidential input") : (de ? "Kennwort eingeben" : "Enter password"),
+            "type" when input.Bool("masked") => input.Str("maskReason") is "privacyMode" or "strictUnknown" or "strictPlaintext" ? (de ? "Vertrauliche Eingabe" : "Confidential input") : (de ? "Kennwort eingeben" : "Enter password"),
             "type" when input.Str("text") is { Length: > 0 and <= 30 } tx && !tx.Contains('\n') => de ? $"{Q(tx, lang)} eingeben" : $"Type {Q(tx, lang)}",
             "type" => n.Length > 0 ? (de ? $"Text in {Q(n, lang)} eingeben" : $"Enter text in {Q(n, lang)}") : (de ? "Text eingeben" : "Enter text"),
             "hotkey" => de ? $"{Key(input.Str("combo") ?? "", lang)} drücken" : $"Press {input.Str("combo")}",
@@ -242,6 +259,7 @@ public static class TextTemplates
             "comment" => de ? "Kommentar" : "Comment",
             "snapshot" => de ? "Schnappschuss" : "Snapshot",
             "marker" => input.Str("markerKind") switch { "error" => de ? "Fehler tritt auf" : "Error occurs", "expected" => de ? "Soll-Zustand" : "Expected state", "important" => de ? "Wichtige Stelle" : "Important point", _ => "Marker" },
+            "gap" when input.Str("cause") == "secureDesktop" && input.Str("desktopKind") == "uac" => de ? "Benutzerkontensteuerung bestätigen" : "Confirm User Account Control",
             "gap" => (de ? "Lücke: " : "Gap: ") + ShortCause(input.Str("cause") ?? "unknown", lang),
             _ => kind
         };
@@ -303,6 +321,9 @@ public static class TextTemplates
             "comment" => guide ? (commentText ?? "") : (de ? $"Kommentar des Autors: {commentText}" : $"Author's comment: {commentText}"),
             "snapshot" => guide ? "" : (de ? "Schnappschuss" : "Snapshot"),
             "marker" => MarkerText(input, lang, guide),
+            "gap" when input.Str("cause") == "secureDesktop" && input.Str("desktopKind") == "uac" => guide
+                ? (de ? "Bestätigen Sie die Abfrage der Benutzerkontensteuerung (Windows fragt, ob das Programm Änderungen vornehmen darf). Diese Abfrage wird aus Sicherheitsgründen nicht aufgezeichnet." : "Confirm the User Account Control prompt (Windows asks whether the program may make changes). For security reasons this prompt is not recorded.")
+                : (de ? $"Abfrage der Benutzerkontensteuerung (sicherer Desktop, {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}): Eingaben und Bilder wurden nicht aufgezeichnet." : $"User Account Control prompt (secure desktop, {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}): input and images were not recorded."),
             "gap" => guide ? (de ? "Hinweis: " : "Note: ") + CauseText(input.Str("cause") ?? "unknown", lang)
                            : (de ? $"Lücke von {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}: " : $"Gap of {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}: ") + CauseText(input.Str("cause") ?? "unknown", lang),
             _ => ""
@@ -388,11 +409,14 @@ public static class TextTemplates
     static string MaskedText(JsonObject step, JsonObject input, string lang, bool guide)
     {
         bool de = lang == "de";
-        bool priv = input.Str("maskReason") == "privacyMode";
-        if (guide) return priv ? (de ? "Geben Sie hier Ihre vertraulichen Daten ein." : "Enter your confidential data here.") : (de ? "Geben Sie Ihr Kennwort ein." : "Enter your password.");
+        string reason = input.Str("maskReason") ?? "";
+        bool priv = reason == "privacyMode";
+        bool strict = reason.StartsWith("strict");
+        if (guide) return priv || strict ? (de ? "Geben Sie hier Ihre vertraulichen Daten ein." : "Enter your confidential data here.") : (de ? "Geben Sie Ihr Kennwort ein." : "Enter your password.");
         long? n = input.LongN("count");
         string z = step.Obj("target").Obj("el") != null ? TargetLabel(step, lang, false) : (de ? "Feld" : "field");
         if (priv) return de ? (n != null ? $"Eingabe: {n} Tasten, nicht aufgezeichnet (Privatmodus)" : "Eingabe: nicht aufgezeichnet (Privatmodus)") : (n != null ? $"Input: {n} keys, not recorded (private mode)" : "Input: not recorded (private mode)");
+        if (strict) return de ? (n != null ? $"Eingabe: {n} Tasten, nicht aufgezeichnet (Schutzstufe „Streng“)" : "Eingabe: nicht aufgezeichnet (Schutzstufe „Streng“)") : (n != null ? $"Input: {n} keys, not recorded (protection level \"strict\")" : "Input: not recorded (protection level \"strict\")");
         return de ? (n != null ? $"Eingabe in {z}: {n} Tasten, nicht aufgezeichnet (maskiert)" : $"Eingabe in {z}: nicht aufgezeichnet (maskiert)") : (n != null ? $"Input in {z}: {n} keys, not recorded (masked)" : $"Input in {z}: not recorded (masked)");
     }
 

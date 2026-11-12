@@ -82,7 +82,7 @@ Das Tool ruft **keine KI** auf und öffnet **keine Netzwerkverbindung**. Der MCP
 
 **Festlegungen**
 
-- **Sprache:** Deutsch oder Englisch, wählbar je Export. Sie bestimmt Feldnamen und Sätze in `trace.md`, den Text von `README_AI.md` und die Endungen der Bilddateien. Bezeichner in JSON-Dateien und Tasten-Token (`{Enter}`, `{masked:8}`) sind immer englisch.
+- **Sprache:** Deutsch oder Englisch, wählbar je Export. Sie bestimmt Feldnamen und Sätze in `trace.md`, den Text von `README_AI.md` und die Endungen der Bilddateien. `README_AI.md` gibt es als deutsche und als englische Fassung, beide inhaltsgleich. Bezeichner in JSON-Dateien und Tasten-Token (`{Enter}`, `{masked:8}`) sind immer englisch.
 - **Ablageort:** Standard ist `<Sitzung>/export/ki-paket-<JJJJMMTT-HHMMSS>/`; jeder andere Ordner ist wählbar. Das Paket ist in sich geschlossen und enthält keine Verweise nach außen.
 - **ZIP:** Dieselbe Struktur ohne zusätzlichen Wurzelordner; UTF-8-Dateinamen; keine Verschlüsselung.
 - **Zeichensatz:** UTF-8 ohne BOM, Zeilenende LF.
@@ -739,7 +739,7 @@ Reihenfolge der Felder in jedem Block wie in dieser Tabelle. Englische Feldnamen
 | Aktion | Action | Satz der Textvorlage im Stil `protocol`, einschließlich der Zusätze nach Lage („(üblich: Speichern)“, „(Ziel nicht bestätigt)“, „(Ziel uneindeutig; Alternative: …)“, „(automatisch erzeugte Eingabe)“, „(vom Autor verworfen)“, „(unvollständig aufgezeichnet)“). Immer die Beobachtung des Recorders, nie ein bearbeiteter Text. | Vorlage aus [05](05-schritterkennung.md#textvorlagen) |
 | Kanonisch | Canonical | `verb` und Argumente ohne Koordinaten, z. B. `click · button=primary · clicks=1`, `hotkey · keys=Ctrl+S`, `press · keys=Enter · presses=1`, `write`. Fehlt, wenn `action` leer ist. | `action` ([05](05-schritterkennung.md#aktionsvokabular)) |
 | Kennung | Id | `s1734`; bei Lücken zusätzlich `g1` | `id`, `gapId` |
-| Anleitung | Guide | Anzeigenummer in der Anleitung, falls abweichend (*Soll*) | `edits.json` |
+| Anleitung | Guide | Hinweis, wenn der Autor den Schritt in der Anleitung mit anderen zusammengefasst hat: „in der Anleitung zusammengefasst mit Schritt a–b (Darstellung des Autors; hier stehen die einzelnen Schritte)“. Das Protokoll bleibt bei den einzelnen Schritten; Zusammenfassungen des Autors (`edits.merges[]`) ändern weder Schritte noch Nummern noch den Text der Zeile „Aktion“ und erscheinen nur als diese eine Zeile. Die abweichende Anzeigenummer in der Anleitung wird nicht ausgegeben. | `edits.json` → `merges[]` ([04](04-datenformat.md#edits-merges)) |
 | Kapitel | Chapter | Kapitelname des Autors | `edits.json` |
 | Marker-Typ | Marker type | nur Schritte der Art „Marker“: Notiz, Fehler, Erwartet oder Wichtig (englisch Note, Error, Expected, Important) – der wirksame Typ ([7.6](#76-angaben-des-autors-ziel-der-aufnahme-und-marker)) | `input.markerKind`, `edits.json` → `steps[].markerKind` |
 | Marker-Text | Marker text | nur Schritte der Art „Marker“: die Bezeichnung, die der Autor dem Marker gegeben hat, als Autorentext in „…“; fehlt ohne Bezeichnung | `input.label` |
@@ -843,22 +843,22 @@ Lücken, die Tastatur oder Maus betreffen, sind in `steps.json` Schritte der Art
 
 ```markdown
 ## Schritt 4 · 00:00:08,350 – 00:00:12,760 · Lücke (0,4 s nach Schritt 3)
-- Aktion: Lücke von 4,4 s: Sicherer Desktop (z. B. Abfrage der Benutzerkontensteuerung): Eingaben und Bilder konnten nicht aufgezeichnet werden.
+- Aktion: Abfrage der Benutzerkontensteuerung (sicherer Desktop, 4,4 s): Eingaben und Bilder wurden nicht aufgezeichnet.
 - Kennung: s268 · Lücke g1
 - Betroffen: alles (Tastatur, Maus, Bilder, Elemente, Fenster, Zwischenablage, Feldinhalte)
 - Eingabeverlust: möglich
 - Beleg: unbekannt
-- Bilder: schritt004-vorher.png (1456×819, Maßstab 0,7583 von M1) · schritt004-nachher.png (1456×819, Maßstab 0,7583 von M1)
 ```
 
 | Feld | Inhalt | Quelle ([04](04-datenformat.md#ev-gap)) |
 |---|---|---|
-| Aktion | „Lücke von d:“ und der Ursachentext der [Textvorlagen](05-schritterkennung.md#textvorlagen) | `cause` |
+| Aktion | „Lücke von d:“ und der Ursachentext der [Textvorlagen](05-schritterkennung.md#textvorlagen). Ausnahme: Bei einem sicheren Desktop der Art `uac` lautet der Satz „Abfrage der Benutzerkontensteuerung (sicherer Desktop, d): Eingaben und Bilder wurden nicht aufgezeichnet.“; in der Anleitung heißt der Schritt „Benutzerkontensteuerung bestätigen“. | `cause`, `detail.kind` |
 | Betroffen | betroffene Aufzeichnungswege: Tastatur (`keyboard`), Maus (`mouse`), Bilder (`frames`), Elemente (`elements`), Fenster (`windows`), Zwischenablage (`clipboard`), Feldinhalte (`fieldValues`) – oder alles (`all`). Im Privatmodus sind es Tastatur, Zwischenablage und Feldinhalte, je nach Einstellung zusätzlich Bilder. | `channels` |
 | Eingabeverlust | keiner · möglich · sicher · unbekannt – ob in der Lücke Nutzereingaben verloren gegangen sein können | `inputLost` |
 | Umfang | **nur** bei Arbeit außerhalb des Aufnahmebereichs (`outOfScope`): Zahl der nicht aufgezeichneten Ereignisse je Art, z. B. „14 Tastendrücke, 3 Klicks, 2 Mausradbewegungen – nur gezählt, nicht aufgezeichnet“. Nur Zahlen; keine Inhalte, Positionen oder Einzelzeiten. | `detail.counts` (`keys`, `clicks`, `wheel`, `moves`) |
 | Ausschlussregel | **nur** bei einer ausgeschlossenen Anwendung (`excludedApp`): der Anzeigename der Regel, z. B. „Passwortmanager“. **Keine Zähler**, kein Programmname, kein Fenstertitel. | `detail.rule` |
-| Bilder | jüngstes Bild vor Beginn, erstes beruhigtes Bild danach | `frames` |
+| Art | **nur** bei einem sicheren Desktop (`secureDesktop`): `uac` (Abfrage der Benutzerkontensteuerung, erkannt am Prozess `consent.exe`) oder `other` (etwa Strg+Alt+Entf oder Bildschirmschoner). Die Art steht im Ende-Ereignis der Lücke. | `detail.kind` ([04](04-datenformat.md#ev-gap)) |
+| Bilder | jüngstes Bild vor Beginn, erstes beruhigtes Bild danach. **Nicht** bei einem sicheren Desktop, einem gesperrten Rechner und im Ruhezustand: Dort werden keine Bilder aufgenommen, und ein Nachher-Bild wird nie aus einer solchen Lücke gebunden. Der Block hat dann keine Zeile „Bilder“. | `frames` |
 
 Die Zähler bei `outOfScope` sagen, wie viel außerhalb gearbeitet wurde; bei einer ausgeschlossenen Anwendung wird bewusst nicht einmal das festgehalten ([10](10-datenschutz-und-sicherheit.md#83-wirkung)).
 
@@ -995,6 +995,7 @@ Der Autor kann beim Start festhalten, was die Aufnahme zeigen soll, und während
 
 - Maßgeblich ist die **wirksame** Angabe, wie die Leseschicht sie liefert: je Feld der Wert aus `edits.goal`, sonst der aus `manifest.goal` ([04](04-datenformat.md#edits-goal)). Eine im Viewer geänderte oder gelöschte Angabe erscheint in keiner Ausgabe mehr in ihrer ursprünglichen Fassung – auch nicht im `session.start`-Ereignis der Rohereignisse ([19.6](#196-get_events)).
 - Die Angaben sind Autorentext wie Kommentare: Sie stehen in „…“ oder, bei auffälligen Zeichen, in einer Code-Spanne ([Abschnitt 12](#12-entschärfung-von-markup-und-prompt-injection)); Zeilenumbrüche erscheinen als `⏎`. Geschwärzte Stellen tragen `[geschwärzt]`, verallgemeinerte Werte ihren Platzhalter ([7.8](#78-verallgemeinerte-werte)); eine auffällige, noch nicht durchgesehene Angabe erscheint auf Wegen ohne Oberfläche als `{unreviewed:N}` mit N = Zahl der Zeichen ([10](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben)). Gekürzt werden sie in keiner Detailstufe.
+- **Ziel von einem Agenten.** Hat ein Agent die Aufnahme angefragt und der Mensch zugestimmt ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)), steht im Manifest `goal.statedBy: "agent"`. Die Zeile „Ziel der Aufnahme“ lautet dann `- Ziel der Aufnahme (vom KI-Agenten formuliert, vom Menschen bestätigt): „T“` bzw. `- Purpose of the recording (stated by an AI agent, confirmed by the person): “T”`. Das Ziel bleibt eine Angabe über die Absicht, keine Beobachtung; es stammt hier aber nicht vom Aufnehmenden. Die Zeilen „Erwartetes Ergebnis“ und „Bezug“ behalten den Wortlaut „Angabe des Autors“. `get_session` und `session.goal` in `ai-package.json` tragen `statedBy: "agent"`.
 - Fehlt eine Angabe, fehlt ihre Zeile. Das Paket erfindet kein Ziel und leitet keines aus den Schritten ab. **Es prüft auch nicht, ob das erwartete Ergebnis eingetreten ist** – dazu sagt es nichts, weder im Kopf noch an einem Schritt.
 - In `ai-package.json` stehen dieselben Angaben unter `session.goal`; über den MCP-Server liefert sie `get_session` ([19.2](#192-get_session)).
 
@@ -1255,9 +1256,15 @@ Rechenbeispiele: Übersicht im Profil `kompatibel` 1456×819 → 52 × 30 = 1 56
 
 Andere Anbieter zählen Bilder anders. Der Dialog nennt die Zahl deshalb „Schätzung nach Claude-Rechenregel“; die Regel steht als Daten in der Profildatei.
 
+**Berechnung im Programm.** `KiPackage.Estimate` schätzt, ohne etwas zu schreiben und ohne ein Bild zu dekodieren:
+
+- **Bilder:** Anzahl und Tokens je Bildvariante liefert `StepImages.Measure`. Es rechnet Größe und Maßstab nur aus der Geometrie und dem Bildereignis; die Bilderzeugung (`Render`) benutzt dieselbe Größenrechnung. Anzahl und Bild-Tokens der Schätzung sind deshalb dieselben, die der Export in `ai-package.json` nennt.
+- **Text:** ⌈(Zeichen von `trace.md` + 140 Zeichen je Bild für die Verweiszeile + Zeichen von `README_AI.md`) / 3⌉. Die Länge von `README_AI.md` ist die der tatsächlich gewählten Sprachfassung, kein fester Wert.
+- **Hinweise:** `KiPackage.SizeHints` erzeugt sie für Export und Dialog gemeinsam (Schwellen in 10.2).
+
 ### 10.2 Anzeige vor dem Export
 
-Der Exportdialog zeigt, bevor etwas geschrieben wird:
+Der Exportdialog des KI-Pakets zeigt, bevor etwas geschrieben wird, eine Zeile „Geschätzt: ≈ N Tokens (T Text, B Bilder) · n Bilder“ (englisch „Estimated: …“) und darunter die Hinweise. Die Zeile erscheint zuerst als „Größe wird geschätzt …“; die Schätzung läuft im Hintergrund auf einer eigenen Leseansicht der Sitzung und beginnt 150 ms nach der letzten Änderung einer Option. Eine laufende Schätzung wird beim nächsten Wechsel abgebrochen. Neben der Zeile steht der Link „Mit KI verbinden …“ ([19.11](#1911-einrichtung-zum-kopieren-mit-ki-verbinden)). Die folgende Aufschlüsselung je Bestandteil zeigt das Verfahren; im Dialog stehen die Summen.
 
 | Zeile | Beispiel A, Detailstufe Standard, Profil `kompatibel` | dasselbe im Profil `hochauflösend` (wie in [Abschnitt 13](#13-beispiel-a-datei-im-editor-speichern) gezeigt) |
 |---|---|---|
@@ -1267,16 +1274,16 @@ Der Exportdialog zeigt, bevor etwas geschrieben wird:
 | Summe | ca. 28 500 Tokens | ca. 47 800 Tokens |
 | Einordnung | passt in ein 200 000-Token-Kontextfenster: ja | ja |
 
-Die Textwerte folgen der vorsichtigen Regel ⌈Zeichen / 3⌉ aus 10.1 und liegen damit eher zu hoch als zu niedrig. `README_AI.md` ist ein fester Betrag je Paket: Er erklärt jeden Begriff des Formats und ist deshalb bei einer sehr kleinen Sitzung der größte Textposten; bei längeren Sitzungen fällt er nicht ins Gewicht. Wer mehrere Pakete in einem Gespräch übergibt, braucht ihn nur einmal.
+Die Textwerte folgen der vorsichtigen Regel ⌈Zeichen / 3⌉ aus 10.1 und liegen damit eher zu hoch als zu niedrig. `README_AI.md` ist ein fester Betrag je Paket und Sprache (die Schätzung nimmt die Länge der gewählten Fassung): Er erklärt jeden Begriff des Formats und ist deshalb bei einer sehr kleinen Sitzung der größte Textposten; bei längeren Sitzungen fällt er nicht ins Gewicht. Wer mehrere Pakete in einem Gespräch übergibt, braucht ihn nur einmal.
 
-Zusätzlich warnt er, wenn
+Zusätzlich erscheinen Hinweise, und zwar im Dialog hinter der Zeile und beim Export unter den Hinweisen bzw. Warnungen des Ergebnisses. Die Schwellen sind in `KiPackage.SizeHints` festgelegt und gelten für Dialog, Export und Kommandozeile gleich:
 
-- mehr als 20 Bilder enthalten sind (Chat-Oberflächen begrenzen Bilder je Nachricht; Hinweis auf PDF-Variante oder Teilung),
-- mehr als 100 Bilder enthalten sind (Grenze je Anfrage bei Modellen mit kleinerem Kontextfenster),
-- die Summe 150 000 Tokens übersteigt (Hinweis auf Detailstufe „Kompakt“ oder Teilung),
-- das Profil `original` gewählt ist (Modelle verkleinern selbst; Pixelangaben können dann abweichen).
+- mehr als 20 Bilder: Hinweis „n Bilder im Paket.“ (Chat-Oberflächen begrenzen Bilder je Nachricht),
+- mehr als 100 Bilder: Warnung „n Bilder – manche KI-Oberflächen begrenzen die Anzahl.“,
+- Summe über 150 000 geschätzte Tokens: Warnung „Paket ist groß (über 150 000 geschätzte Tokens).“
+- Das Profil `original` löst noch keinen eigenen Hinweis aus; vorgesehen ist ein Hinweis, dass Modelle selbst verkleinern und Pixelangaben dann abweichen können.
 
-Ein Wechsel von Detailstufe, Bildprofil oder Darstellung aktualisiert die Zahlen sofort.
+Ein Wechsel von Detailstufe, Bildprofil, Darstellung oder Sprache stößt die Schätzung neu an (150 ms Verzögerung); die Zeile zeigt bis dahin „Größe wird geschätzt …“. Ein Fehler der Schätzung lässt die Zeile leer und verhindert den Export nicht.
 
 ### 10.3 Paketteilung
 
@@ -1674,12 +1681,11 @@ Der Recorder lief mit Administratorrechten, damit Eingaben im erhöhten Terminal
 - Beleg: belegt (Tasten vollständig, Zielfenster bekannt; keine Wirkung beobachtet)
 
 ## Schritt 4 · 00:00:08,350 – 00:00:12,760 · Lücke (0,4 s nach Schritt 3)
-- Aktion: Lücke von 4,4 s: Sicherer Desktop (z. B. Abfrage der Benutzerkontensteuerung): Eingaben und Bilder konnten nicht aufgezeichnet werden.
+- Aktion: Abfrage der Benutzerkontensteuerung (sicherer Desktop, 4,4 s): Eingaben und Bilder wurden nicht aufgezeichnet.
 - Kennung: s268 · Lücke g1
 - Betroffen: alles (Tastatur, Maus, Bilder, Elemente, Fenster, Zwischenablage, Feldinhalte)
 - Eingabeverlust: möglich
 - Beleg: unbekannt
-- Bilder: schritt004-vorher.png (1456×819, Maßstab 0,7583 von M1) · schritt004-nachher.png (1456×819, Maßstab 0,7583 von M1)
 
 > Leerlauf 3,7 s (00:00:12,760 – 00:00:16,480) – keine Eingaben; in diesem Zeitraum liegt Schritt 5.
 
@@ -1845,7 +1851,7 @@ Der MCP-Server ist eine Betriebsart derselben EXE (`SebastiansStepRecorder.exe m
 | Zustand | **zustandslos:** Jede Anfrage steht für sich. Sitzungen werden über Kennungen angesprochen, Fortsetzungen über Cursor. Das passt zur Revision 2026-07-28, die keinen Verbindungsaufbau mit Handshake mehr kennt (Selbstauskunft über `server/discover`, Protokollversion und Client-Angaben in `_meta` jeder Anfrage). |
 | Fähigkeiten | `tools` ohne Änderungsbenachrichtigung; Werkzeugliste statisch und in fester Reihenfolge |
 | Nicht genutzt | Roots, Sampling und Logging (in 2026-07-28 abgekündigt), Elicitation, Tasks, Abonnements |
-| Zugriff | nur lesend; `--allow-edit` schaltet genau ein Schreib-Tool frei |
+| Zugriff | nur lesend; `--allow-edit` schaltet genau ein Schreib-Tool frei. `--allow-requests` schaltet zwei Tools frei, mit denen ein Agent um eine Vorführung bitten kann ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)); sie ändern keine Sitzung. |
 | Daten | ausschließlich über die Leseschicht; Schwärzungen gelten in jedem Tool |
 | Ältere Clients | Clients, die noch die Revision 2025-11-25 mit Handshake sprechen, sollen ebenfalls bedient werden, soweit das SDK es anbietet. Die Tools verhalten sich in beiden Fällen gleich. Zu prüfen in M5 (siehe [Abschnitt 24](#24-annahmen-und-offene-punkte)). |
 | Was der Modus nie tut | aufzeichnen, Hooks setzen, Fenster oder Symbole zeigen, Netzwerk nutzen, Kindprozesse starten |
@@ -1861,6 +1867,8 @@ Der MCP-Server ist eine Betriebsart derselben EXE (`SebastiansStepRecorder.exe m
 | `search` | Suche in Texten, Elementnamen, Eingaben, Fenstertiteln – in einer Sitzung oder in allen | nein |
 | `compare_sessions` | Zwei Aufzeichnungen desselben Vorgangs Schritt für Schritt abgleichen: gleich, geändert, nur in einer | nein |
 | `get_automation` | Alles für ein robustes AutoHotkey-v2-Skript: je Schritt Fenster (WinTitle), Wege zum Element nach Stabilität, Eingaben, Wartesignale, Erwartungen, Menüpfade, Listenauswahl, Datenquellen; dazu Parameter, Wiederholungen, Umgebung, Regeln für die KI und ein Skriptentwurf (Parameter `sessionId`, `from`, `to`, `includeDraft`, `includeRules`, `ocr`). Inhalt wie `ablauf.json` des AHK-KI-Pakets ([09 §14a](09-anleitungs-export.md)). | nein |
+| `request_recording` | Den Menschen am Rechner um eine Vorführung bitten – nur mit `--allow-requests`; er bestätigt am Bildschirm | Anfragedatei in `StateDir\requests` |
+| `get_recording_request` | Zustand einer solchen Anfrage abfragen, auf Wunsch auf eine Änderung warten – nur mit `--allow-requests` | nein |
 | `set_step_text` | Anleitungstext eines Schritts ins Bearbeitungs-Overlay schreiben – nur mit `--allow-edit` | `edits.json` |
 
 **Typischer Ablauf eines Agenten**
@@ -1880,7 +1888,7 @@ compare_sessions(session_a, session_b) → zwei Durchläufe desselben Vorgangs v
 ### 16.1 Kommandozeile
 
 ```
-SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
+SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--allow-requests] [--lang de|en]
                      [--max-result-tokens <n>] [--max-image-pixels <n>] [--max-images <n>]
                      [--log <Datei>] [--log-level error|warn|info|debug]
 ```
@@ -1889,6 +1897,7 @@ SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
 |---|---|---|
 | `--root <Ordner>` | – (Pflicht) | Freigegebener Ordner – üblicherweise der Aufnahmeordner ([16.2](#162-beispiel-claude-code)). Sitzungen sind seine Unterordner und `.steprec`-Dateien bis zur Tiefe 3. Alternativ Umgebungsvariable `STEPRECORDER_MCP_ROOT`; die Option hat Vorrang. |
 | `--allow-edit` | aus | Schaltet `set_step_text` frei. Ohne die Option wird das Tool gar nicht gelistet. |
+| `--allow-requests` | aus | Schaltet `request_recording` und `get_recording_request` frei ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)). Ohne die Option werden beide Tools gar nicht gelistet. Der Mensch bestätigt jede Anfrage am Rechner; die Option ersetzt diese Bestätigung nicht. |
 | `--lang` | `de` | Sprache der erzeugten Sätze und Feldnamen; je Aufruf über `lang` änderbar |
 | `--max-result-tokens` | 9000 | Obergrenze der geschätzten Text-Tokens je Antwort (2000–24000) |
 | `--max-image-pixels` | 1200000 | Obergrenze je Bild (250000–3750000) |
@@ -1896,7 +1905,7 @@ SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
 | `--log <Datei>` | – | Protokolldatei zusätzlich zur Fehlerausgabe |
 | `--log-level` | `warn` | Umfang des Protokolls |
 
-- **Sicherheitsrelevante Einstellungen kommen nur von der Kommandozeile** (Ordner, Schreibrecht, Grenzen) – nie aus der Einstellungsdatei des Tools. So steht in der Konfiguration des Agenten sichtbar, was freigegeben ist.
+- **Sicherheitsrelevante Einstellungen kommen nur von der Kommandozeile** (Ordner, Schreibrecht, Anfragen, Grenzen) – nie aus der Einstellungsdatei des Tools. So steht in der Konfiguration des Agenten sichtbar, was freigegeben ist.
 - **Es gibt keine Option, die ungeprüfte auffällige Eingaben freigibt.** Der Server liefert sie als `{unreviewed:N}`, bis der Autor sie im Viewer durchgesehen hat ([20.1](#201-leseschicht)). Die Durchsicht lässt sich für keinen Weg abschalten – auch nicht für diesen.
 - **Endcodes** nach der Tabelle in [02](02-architektur.md#betriebsarten): 0 = normal beendet (Standardeingabe geschlossen), 1 = unerwarteter Fehler, 2 = ungültige Argumente, 3 = Ordner fehlt oder nicht lesbar, 7 = Voraussetzung fehlt (z. B. Start mit erhöhten Rechten). Hilfetexte und Fehlermeldungen gehen auf die Fehlerausgabe, nie auf die Standardausgabe.
 
@@ -1942,7 +1951,7 @@ In `%APPDATA%\Claude\claude_desktop_config.json` (über *Einstellungen → Entwi
 
 Pfade sind absolut und ausgeschrieben anzugeben (auf eine Ersetzung von Umgebungsvariablen ist hier kein Verlass); Backslashes werden in JSON verdoppelt. Die Fehlerausgabe des Servers landet bei Claude Desktop in `%APPDATA%\Claude\logs\mcp-server-steprecorder.log` – ein Grund mehr, dort nie aufgezeichnete Inhalte zu protokollieren ([Abschnitt 20](#20-leseschicht-standardausgabe-netzwerk-lebenszyklus)).
 
-Der Viewer bietet beide Konfigurationen als kopierbaren Text an, mit dem tatsächlichen Pfad der EXE und dem gewählten Ordner ([08](08-viewer.md#111-ki-agenten-anbinden)). Das Tool trägt sich nirgends selbst ein.
+Der Viewer bietet beide Konfigurationen als kopierbaren Text an („Mit KI verbinden …“, [19.11](#1911-einrichtung-zum-kopieren-mit-ki-verbinden)), mit dem tatsächlichen Pfad der EXE und dem gewählten Ordner ([08](08-viewer.md#111-ki-agenten-anbinden)). Das Tool trägt sich nirgends selbst ein.
 
 ### 16.4 Was das Verhalten der Clients für den Entwurf bedeutet
 
@@ -2086,6 +2095,8 @@ Tool-Fehler sind Antworten mit `isError: true` und einem Textblock:
 | `EDIT_CONFLICT` | `baseRevision` ist nicht mehr aktuell | nach `get_session` |
 | `TEXT_REJECTED` | Text verletzt Längen- oder Zeichenregeln | nach Korrektur |
 | `RATE_LIMITED` | zu viele Schreibaufrufe | später |
+| `UI_UNAVAILABLE` | Nur bei `request_recording`: StepRecorder läuft nicht oder die Anfrage ließ sich nicht zustellen. Der Server startet das Programm nie. | nach Start durch den Menschen |
+| `REQUEST_NOT_FOUND` | Nur bei `get_recording_request`: unbekannte Kennung | nein |
 | `ROOT_UNAVAILABLE` | Root-Ordner nicht mehr erreichbar | später |
 | `COMPARISON_TOO_LARGE` | Eine der beiden Sitzungen hat mehr Kernschritte, als der Schrittabgleich verarbeitet (`compareMaxSteps` in 05); `message` nennt die Zahlen | nein |
 | `INTERNAL_ERROR` | unerwarteter Fehler; Einzelheiten nur im Protokoll | ja, einmal |
@@ -2094,7 +2105,7 @@ Fehlermeldungen enthalten **nie aufgezeichneten Inhalt** und keine Pfade. Vom Cl
 
 ### 18.8 Annotationen und Beschreibungen
 
-- Lesende Tools tragen `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. `set_step_text` trägt `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`.
+- Lesende Tools tragen `readOnlyHint: true`, `idempotentHint: true`, `openWorldHint: false`. `set_step_text` trägt `readOnlyHint: false`, `destructiveHint: false`, `idempotentHint: true`, `openWorldHint: false`. `request_recording` trägt `readOnlyHint: false` und `openWorldHint: false`; `get_recording_request` ist lesend.
 - Tool-Beschreibungen und Server-Hinweise sind englisch und unabhängig von `--lang`, damit die Werkzeugliste je Version unverändert bleibt.
 - Entwurf der **Server-Hinweise** (etwa 1 400 Zeichen):
 
@@ -2242,7 +2253,7 @@ Beispiel: die Sitzung aus [Beispiel B](#14-beispiel-b-sitzung-mit-lücken), gek�
 }
 ```
 
-- `goal` nennt die **wirksamen** Ziel-Angaben des Autors – je Feld der Wert aus `edits.goal`, sonst der aus dem Manifest ([7.6](#76-angaben-des-autors-ziel-der-aufnahme-und-marker)). `statedBy: "author"` steht immer dabei: Es sind Angaben über die Absicht, keine Beobachtungen. Nicht angegebene Felder fehlen; ohne jede Angabe fehlt `goal`. Geschwärzte Stellen tragen `[redacted]`, ungeprüfte auffällige Angaben `{unreviewed:N}`, verallgemeinerte Werte ihren Platzhalter.
+- `goal` nennt die **wirksamen** Ziel-Angaben des Autors – je Feld der Wert aus `edits.goal`, sonst der aus dem Manifest ([7.6](#76-angaben-des-autors-ziel-der-aufnahme-und-marker)). `statedBy` steht immer dabei: `"author"` für Angaben des Autors, `"agent"` für ein Ziel, das ein Agent mit `request_recording` formuliert und der Mensch bestätigt hat ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)). In beiden Fällen sind es Angaben über die Absicht, keine Beobachtungen. Nicht angegebene Felder fehlen; ohne jede Angabe fehlt `goal`. Geschwärzte Stellen tragen `[redacted]`, ungeprüfte auffällige Angaben `{unreviewed:N}`, verallgemeinerte Werte ihren Platzhalter.
 - `markers` listet die Marker des Autors in der Reihenfolge des Ablaufs, zum Beispiel `{ "step": 9, "id": "s2301", "t": "00:02:14.300", "kind": "error", "label": "Nach dem Klick auf Senden bleibt die Liste leer." }` – `kind` ist der wirksame Typ (`note`, `error`, `expected`, `important`), `label` fehlt ohne Bezeichnung.
 - `sequence` steht bei Sitzungen mit mehreren Aufnahmeabschnitten oder Ersetzungen ([7.7](#77-aufnahmeabschnitte-nahtstellen-und-ersetzte-schritte)): `parts` (je Abschnitt `part`, `purpose`, Beginn und Ende als Datum und auf der Sitzungsuhr), `replacements` (je wirksamer Ersetzung ihre Kennung, die Kennungen der ersetzten Schritte und die Schrittnummern des Ersatzes), `unused` (nicht verwendete Neuaufnahmen mit den Kennungen ihrer Schritte) und `effective` – die Kennzahlen der wirksamen Schrittfolge aus [05](05-schritterkennung.md#wirksame-schrittfolge): `steps`, `actionSteps`, `confirmed`, `inputOnly`, `unknown`, `replaced`, `unused`, `seams`. `completeness` beschreibt daneben unverändert das ganze Journal.
 - `substitutions` nennt die Zahl der Regeln und je Platzhalter Name, Zahl der Textstellen, der Bildflächen und der Textstellen ohne bekannte Bildlage – nie den ersetzten Wert und nie das Muster einer Regel ([7.8](#78-verallgemeinerte-werte)).
@@ -2436,7 +2447,7 @@ Volltextsuche in einer Sitzung oder in allen Sitzungen des Root-Ordners.
 | `query` | Text, 2–200 Zeichen | – (Pflicht) | Suchbegriffe; in Anführungszeichen als Wortfolge |
 | `scope` | `session`, `all` | `session`, wenn `sessionId` angegeben ist, sonst `all` | `session` = nur die genannte Sitzung; `all` = alle Sitzungen im Root-Ordner |
 | `sessionId` | Text | – | Pflicht bei `scope: "session"`; zusammen mit `scope: "all"` ein Fehler (`INVALID_ARGUMENT`) |
-| `fields` | Liste aus `stepText`, `elements`, `windows`, `typed`, `comments`, `goal`, `markers`, `title`, `values`, `uiSnapshots`, `clipboard` | alle | Wo gesucht wird. Bei `scope: "all"` stehen die ersten acht zur Verfügung – die, die der Suchindex führt. |
+| `fields` | Liste aus `stepText`, `elements`, `windows`, `typed`, `comments`, `markers` | alle | Wo gesucht wird: Schritttexte (Kurzfassung, Protokollsatz, Text des Autors), Elementnamen, Fenstertitel, getippter Text, Kommentare, Marker-Texte. Das sind die Felder, die `SessionSearch` für die Bibliothek und den MCP-Server gemeinsam führt. Ziel-Angaben, Titel, Feldinhalte, Text-Schnappschüsse und Zwischenablage werden nicht durchsucht. |
 | `match` | `all`, `any` | `all` | alle Begriffe oder mindestens einer |
 | `limit` | 1–100 | 20 | Treffer je Seite |
 | `cursor`, `lang`, `maxTokens` | | | |
@@ -2462,8 +2473,7 @@ Bei `scope: "all"` trägt jeder Treffer zusätzlich `sessionTitle`, und `data` n
 ```json
 {
   "scope": "all",
-  "sessions": { "searched": 41, "pending": 2, "skipped": 1 },
-  "notSearched": ["values", "uiSnapshots", "clipboard"],
+  "sessions": { "searched": 41, "pending": 0, "skipped": 1 },
   "hits": [
     { "sessionId": "019328a4-6b1e-7c3a-9d52-0f4e8a1b77c0", "sessionTitle": "Datei im Editor speichern",
       "step": 6, "stepId": "s1700", "t": "00:01:21.290", "field": "typed", "snippet": "«notiz».txt" }
@@ -2478,18 +2488,19 @@ Für beide Arten gilt:
 - Groß-/Kleinschreibung wird ignoriert; keine regulären Ausdrücke in Version 1.
 - Gesucht wird in der Sicht **nach** der Leseschicht. Geschwärzte, maskierte und ungeprüfte Inhalte sowie interne und ausgeblendete Kommentare sind nicht auffindbar; die Suche lässt sich nicht als Orakel benutzen, um ihren Inhalt zu erraten. Auch die Platzhalter der Leseschicht selbst (`[geschwärzt]`, `{unreviewed:N}`, `{masked:N}`) sind keine Treffer.
 - **Verallgemeinerte Werte:** Der ursprüngliche Wert ist nicht auffindbar. Auffindbar ist der Text mit dem Platzhalter – eine Suche nach `Benutzername` findet die Stellen, an denen `{Benutzername}` steht ([7.8](#78-verallgemeinerte-werte)).
-- `field` nennt, wo der Treffer liegt. Treffer in den Ziel-Angaben (`goal`) und im Titel (`title`) gehören zu keinem Schritt; dort fehlen `step`, `stepId` und `t`, und bei `goal` nennt `part` die Angabe (`description`, `expected`, `reference`). Treffer in Marker-Texten (`markers`) tragen den Typ des Markers in `markerKind`.
-- **Ersetzte Schritte und nicht verwendete Neuaufnahmen** sind auffindbar und als solche gekennzeichnet: Der Treffer trägt `state: "replaced"` bzw. `"unused"` und keine Schrittnummer, nur `stepId` ([7.7](#77-aufnahmeabschnitte-nahtstellen-und-ersetzte-schritte)).
+- `field` nennt, wo der Treffer liegt. Treffer in Marker-Texten (`markers`) tragen den Typ des Markers in `markerKind`. Je Schritt liefert die Suche höchstens einen Treffer, und zwar im ersten passenden Feld; der Ausschnitt steht um den ersten gefundenen Begriff, die Fundstelle in «…».
+- **Ersetzte Schritte und nicht verwendete Neuaufnahmen** sollen auffindbar und als solche gekennzeichnet sein: Der Treffer trägt dann `state: "replaced"` bzw. `"unused"` und keine Schrittnummer, nur `stepId` ([7.7](#77-aufnahmeabschnitte-nahtstellen-und-ersetzte-schritte)). Das Kennzeichen `state` ist noch nicht umgesetzt; Treffer tragen bisher nur Schrittnummer und `stepId`.
+- Die Definition dessen, was durchsuchbar ist, steht an einer Stelle (`SessionSearch.Entries`) und gilt für die Bibliothek im Viewer und für diese Suche gleichermaßen. Sie arbeitet nur auf der Ausgabesicht der Leseschicht.
 
 Für `scope: "session"`:
 
-- Der Server durchsucht die Sitzung über die Leseschicht in allen genannten Feldern; ein vorhandener Suchindex beschleunigt das, nötig ist er nicht.
+- Der Server durchsucht die Sitzung über die Leseschicht in allen genannten Feldern; ein Suchindex ist dafür nicht nötig.
 
 Für `scope: "all"`:
 
-- Gesucht wird in den Suchindizes der einzelnen Sitzungen (`cache/search/`, [04](04-datenformat.md#suchindex); Architektur in [02](02-architektur.md#suchindex)). Der Index führt getippten Text, Elementnamen, Fenstertitel, Kommentare, Ziel-Angaben, Titel, Schritttexte des Autors und Marker-Texte; die Felder `values`, `uiSnapshots` und `clipboard` stehen deshalb nur bei `scope: "session"` zur Verfügung. Wurden sie verlangt, nennt `notSearched` sie.
-- Der Ausschnitt eines Treffers stammt aus dem Index – also aus der gefilterten Sicht. In den Index kommen nie geschwärzte, maskierte oder ungeprüfte Inhalte, nie interne oder ausgeblendete Kommentare und nie der ursprüngliche Wert einer Verallgemeinerung; ändert sich etwas, das die Sicht der Leseschicht bestimmt, wird er verworfen ([10](10-datenschutz-und-sicherheit.md#106-abgeleitete-daten-und-frühere-exporte)).
-- **Keine Sitzung gilt stillschweigend als trefferlos.** `sessions` zählt: `searched` – durchsucht; `pending` – noch ohne gültigen Index und in diesem Aufruf nicht mehr durchsucht; `skipped` – laufende, nicht lesbare oder nicht unterstützte Sitzungen. Eine Sitzung ohne gültigen Index indiziert der Server selbst – in ihrem `cache/`, wenn der Ordner beschreibbar ist, sonst nur im Arbeitsspeicher ([17](#17-root-ordner-sandbox), Regel S8).
+- Gesucht wird in der Ausgabesicht jeder Sitzung im Root-Ordner. Die Bibliothek im Viewer benutzt dieselben Einträge aus dem Suchindex der Sitzung (`cache/search/`, [04](04-datenformat.md#suchindex); Architektur in [02](02-architektur.md#suchindex)); der Server liest den Index in diesem Stand noch nicht und baut die Einträge je Aufruf aus der Leseschicht. Beide Wege liefern dieselben Treffer.
+- Der Ausschnitt eines Treffers stammt aus der gefilterten Sicht. In den Index kommen nie geschwärzte, maskierte oder ungeprüfte Inhalte, nie interne oder ausgeblendete Kommentare und nie der ursprüngliche Wert einer Verallgemeinerung; ändert sich etwas, das die Sicht der Leseschicht bestimmt, wird er verworfen ([10](10-datenschutz-und-sicherheit.md#106-abgeleitete-daten-und-frühere-exporte)).
+- **Keine Sitzung gilt stillschweigend als trefferlos.** `sessions` zählt: `searched` – durchsucht; `pending` – noch nicht durchsucht (in diesem Stand immer 0, weil der Server keinen Index voraussetzt); `skipped` – laufende, nicht lesbare, nicht unterstützte oder wegen der Zeitgrenze nicht erreichte Sitzungen.
 - Die Suche über alle Sitzungen ist begrenzt: höchstens 200 Sitzungen und 2 s je Aufruf. Bleiben Sitzungen offen, steht `incomplete: true` und ein `nextCursor`; der nächste Aufruf setzt dort fort.
 
 ### 19.8 `set_step_text` (nur mit `--allow-edit`)
@@ -2611,6 +2622,67 @@ Regeln:
 
 Für beide Formen gilt die Sicht für Wege ohne Oberfläche: Schwärzungen, `{unreviewed:N}` und Verallgemeinerungen beider Sitzungen. Gleiche Sitzungen und gleiche Optionen ergeben eine bytegleiche Ausgabe.
 
+### 19.10 `request_recording` und `get_recording_request` (nur mit `--allow-requests`)
+
+Ein Agent kann den Menschen am Rechner bitten, einen Ablauf vorzuführen. Der Server zeichnet dabei **nichts selbst auf** und startet nichts: Er legt eine Anfrage ab und meldet sie der laufenden Oberfläche. Der Mensch entscheidet dort. Ohne `--allow-requests` sind beide Tools nicht gelistet.
+
+**`request_recording`**
+
+| Parameter | Typ | Standard | Bedeutung |
+|---|---|---|---|
+| `goal` | Text, 10–500 Zeichen | – (Pflicht) | Was vorgeführt werden soll. Wird zum Ziel der Aufnahme (`goal.description`, `statedBy: "agent"`). |
+| `expected` | Text, bis 500 Zeichen | – | Erwartetes Ergebnis (`goal.expected`) |
+| `title` | Text, bis 120 Zeichen, eine Zeile | – | Titel der Sitzung |
+
+- **Jeder andere Parameter wird abgelehnt** (`INVALID_ARGUMENT`).
+- Der Text des Agenten wird bereinigt: keine Steuerzeichen außer dem Zeilenumbruch, keine Zeichen zur Schreibrichtung und keine unsichtbaren Leerzeichen; mehr als zwei Zeilenumbrüche in Folge werden zusammengefasst. Die Längen gelten nach der Bereinigung.
+- Antwort sofort, ohne auf den Menschen zu warten: `{ "requestId": "rq-3f9a0c71b2de", "state": "pending", "expiresInSeconds": 120 }`.
+- Läuft die Oberfläche nicht oder ist die Anfrage nicht zustellbar, lautet der Fehler `UI_UNAVAILABLE` mit dem Hinweis, den Menschen zu bitten, das Programm zu starten. **Der Server startet die Oberfläche nie.**
+
+**`get_recording_request`**
+
+| Parameter | Typ | Standard | Bedeutung |
+|---|---|---|---|
+| `requestId` | Text | – (Pflicht) | Kennung aus `request_recording`; eine unbekannte führt zu `REQUEST_NOT_FOUND` |
+| `waitSeconds` | 0–60 | 0 | So lange auf eine Änderung des Zustands warten, wenn er `pending` oder `recording` ist |
+
+Antwort: `requestId`, `state`, bei `finished` die `sessionId` (danach `get_session`), gegebenenfalls `reason`.
+
+| Zustand | Bedeutung |
+|---|---|
+| `pending` | Der Mensch hat noch nicht entschieden. |
+| `declined` | Abgelehnt. `reason`: `user` (Schaltfläche „Ablehnen“), `blocked` (Sperre), `busy` (es lief schon eine Anfrage oder Aufnahme), `tooSoon` (weniger als 60 s Abstand), `hourlyLimit` (fünf je Stunde erreicht). |
+| `expired` | Die Frist von 120 s ist ohne Entscheidung abgelaufen. |
+| `recording` | Der Mensch hat zugestimmt; die Aufnahme läuft. |
+| `finished` | Die Aufnahme ist beendet und gespeichert; `sessionId` nennt die Sitzung. |
+| `discarded` | Der Mensch hat die Aufnahme verworfen. |
+| `failed` | Die Anfrage kam nicht an (`notDelivered`) oder die Aufnahme ließ sich nicht starten (`startFailed`). |
+
+Abgeschlossene Zustände (`declined`, `expired`, `finished`, `discarded`, `failed`) werden nie überschrieben; aus `recording` geht es nur zu `finished`, `discarded` oder `failed`.
+
+**Ablauf und Dateien.** Der Server schreibt `rq-<Kennung>.request.json`, die Oberfläche `rq-<Kennung>.status.json`, beide im Ordner `requests` des Zustandsverzeichnisses ([04](04-datenformat.md#anfrage-und-statusdateien)). Die Anfrage erreicht die laufende Oberfläche über deren Fensterkanal (Aufruf mit `--recording-request <Kennung>`); die Oberfläche prüft zuerst Frist und Missbrauchsschutz. Dateien, die älter als ein Tag sind, werden beim Eingang einer neuen Anfrage entfernt.
+
+**Bestätigung am Rechner.** Jede Anfrage zeigt einen Dialog, der in den Vordergrund tritt:
+
+- Der Text des Agenten steht in einem schreibgeschützten Feld unter der Überschrift „Text des Agenten (ungeprüft)“. Der Dialog erklärt, dass bei Zustimmung eine normale, sichtbare Aufnahme beginnt und auffällige Eingaben bis zur Durchsicht verborgen bleiben.
+- Es gibt **keinen Standardknopf**: Die Eingabetaste löst nichts aus, der Fokus liegt auf „Ablehnen“.
+- „Aufnahme starten“ ist erst nach 2 s bedienbar. Der Dialog zeigt die verbleibende Frist; nach 120 s schließt er sich, und der Zustand ist `expired`.
+- Schaltflächen: „Aufnahme starten“, „Ablehnen“ und „15 Minuten keine Anfragen“. Ein „Immer erlauben“ gibt es nicht.
+
+**Missbrauchsschutz** (von der Oberfläche erzwungen, nicht vom Server): höchstens eine offene Anfrage – auch nicht während einer laufenden Aufnahme –, mindestens 60 s Abstand, höchstens fünf Anfragen je Stunde, auf Wunsch 15 Minuten Sperre. Gezählt werden die Anfragen, die dem Menschen gezeigt wurden. Verlauf und Sperre stehen in der Zustandsdatei der Oberfläche ([04](04-datenformat.md#zustandsdatei-der-oberfläche)) und gelten über einen Neustart hinweg.
+
+**Nach der Zustimmung** beginnt eine ganz normale Aufnahme: ganzer Bildschirm, zuletzt benutztes Aufnahmeprofil, sichtbare Aufnahmeleiste, alle Schutzregeln aus [10](10-datenschutz-und-sicherheit.md). Der Mensch beendet sie wie gewohnt. Sie wird im Root-Ordner des Servers abgelegt – den hat der Mensch eingerichtet, der Agent kann ihn nicht wählen. Auffällige Eingaben erreichen den Agenten wie immer nur als `{unreviewed:N}`, bis sie im Viewer durchgesehen sind. Nach dem Ende öffnet sich der Editor mit der Sitzung.
+
+### 19.11 Einrichtung zum Kopieren („Mit KI verbinden“)
+
+Der Viewer erzeugt die Einrichtung des Servers als Text zum Kopieren ([08](08-viewer.md#111-ki-agenten-anbinden)). Der Aufbau liegt in `McpConfig` im Kern; die Oberfläche zeigt nur den Text.
+
+- **Eingaben:** Pfad der EXE, Aufnahmeordner (Vorgabe: der Standard-Aufnahmeordner), „Texte bearbeiten erlauben“ (`--allow-edit`), „Agent darf um eine Vorführung bitten“ (`--allow-requests`), Sprache der Antworten (`--lang`, sonst weggelassen).
+- **Ausgaben:** die Projektdatei `.mcp.json` (`{"mcpServers":{"steprecorder":{"command":…,"args":[…]}}}`; für Claude Desktop derselbe Eintrag in `claude_desktop_config.json`), der Befehl `claude mcp add --transport stdio --scope user steprecorder -- …` und der Aufruf für die Eingabeaufforderung. Pfade mit Leerzeichen oder Sonderzeichen werden nach den Regeln von `CommandLineToArgvW` eingeschlossen und in JSON ausgeschrieben.
+- **Hinweise:** EXE in Downloads oder einem temporären Ordner, EXE auf einem Wechseldatenträger, synchronisierter Aufnahmeordner, `%`, `$` oder `` ` `` im Pfad, EXE nicht als `SebastiansStepRecorder.exe` gestartet, Ordner nicht vorhanden.
+- Der Dialog sagt in einfachen Worten, was ein Agent sieht und was nicht, und dass der Server selbst kein Netzwerk nutzt.
+- **Das Programm trägt nichts selbst ein:** Es schreibt keine fremde Konfigurationsdatei und startet nichts. Einstiege: Startfenster, Menü „…“ im Editor und der Exportdialog des KI-Pakets.
+
 ## 20. Leseschicht, Standardausgabe, Netzwerk, Lebenszyklus
 
 ### 20.1 Leseschicht
@@ -2646,7 +2718,7 @@ Für beide Formen gilt die Sicht für Wege ohne Oberfläche: Schwärzungen, `{un
 
 ### 20.3 Netzwerk
 
-- Kein lauschender Port, keine ausgehende Verbindung, keine Namensauflösung. HTTP-Transporte des SDK werden nicht eingebunden.
+- Kein lauschender Port, keine ausgehende Verbindung, keine Namensauflösung. HTTP-Transporte des SDK werden nicht eingebunden. Die Zustellung einer Anfrage an die Oberfläche ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)) ist ein lokaler Fensteraufruf auf demselben Rechner, keine Netzwerkverbindung.
 - Der Nachweis ist Teil des Abnahmetests T-12; die Regeln stehen in [10](10-datenschutz-und-sicherheit.md).
 
 ### 20.4 Lebenszyklus
@@ -2670,7 +2742,7 @@ Alle *Kann*, nicht Teil von Version 1.0:
 - **`structuredContent` und `outputSchema`**, sobald Clients sie ohne Verdopplung an Modelle weitergeben.
 - **Lesen einer laufenden Aufnahme** bis zum letzten abgeschlossenen Schreibvorgang.
 - **Freigabe je Sitzung:** Kennzeichen „nicht über MCP bereitstellen“ im Bearbeitungs-Overlay; solche Sitzungen erscheinen nicht in `list_sessions`.
-- **„Agent bittet um Vorführung“** (spätere Ausbaustufe laut [11](11-roadmap-tests-risiken.md)): braucht ein eigenes Konzept mit sichtbarer Zustimmung am Rechner und ist ausdrücklich **nicht** Teil dieses Servers.
+- **„Agent bittet um Vorführung“** ist umgesetzt und kein Teil dieser Liste mehr: Die Tools `request_recording` und `get_recording_request` gibt es nur mit `--allow-requests`, und der Mensch bestätigt jede Anfrage am Rechner ([19.10](#1910-request_recording-und-get_recording_request-nur-mit---allow-requests)).
 
 ## 22. Bezug zum Architektur-Review
 
@@ -2708,7 +2780,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | KI-014 | Bildprofil `kompatibel` ist Standard und hält beide Grenzen ein; `hochauflösend` und `original` sind wählbar. | Muss (`kompatibel`), Soll (übrige) | Kein Bild im Standardprofil über 1568 Pixel Kantenlänge oder 1568 visuelle Tokens |
 | KI-015 | Die Detailstufen Kompakt, Standard, Vollständig liefern den Umfang aus Abschnitt 9. | Muss | Vergleich dreier Exporte derselben Sitzung gegen die Tabelle |
 | KI-016 | Keine Detailstufe lässt Lücken, Belegstufen, Schritte oder den Vollständigkeitsbericht stillschweigend weg. | Muss | Zahl der Gliederungszeilen und Lücken in allen Stufen gleich; Zusammenfassungen tragen Zähler |
-| KI-017 | Vor dem Export zeigt der Dialog die Token-Abschätzung je Bestandteil und die Warnungen aus 10.2. | Soll | Abweichung der Bildschätzung von der Rechenregel 0; Textschätzung als „ca.“ beschriftet |
+| KI-017 | Vor dem Export zeigt der Dialog die Token-Schätzung (Summe, Text, Bilder, Bildanzahl) und die Hinweise aus 10.2. Die Schätzung entsteht aus `KiPackage.Estimate` auf einer eigenen Leseansicht, ohne zu schreiben. Umgesetzt. | Soll | `StepImages.Measure` liefert für alle Schritte und Varianten dieselbe Größe wie `Render`; Bildanzahl und Bild-Tokens der Schätzung gleich denen des Exports; Aufnahmeordner vor und nach der Schätzung bytegleich; Textschätzung als „≈“ beschriftet |
 | KI-018 | Große Protokolle werden geteilt; jeder Teil ist für sich lesbar. | Soll | Teil 2 allein an einen Agenten gegeben: er nennt Ausgangszustand, Lücken und Schrittbereich richtig |
 | KI-019 | PDF-Variante mit echtem Text, verlustfreien Bildern und ohne aktive Inhalte. | Soll | Textextraktion liefert alle Feldnamen; PDF-Prüfung findet keine Links, Skripte, Anhänge |
 | KI-020 | Entschärfungsregeln E1–E9 gelten für jede Ausgabe von `trace.md`. | Muss | Strukturtest aus 12.4 besteht mit allen präparierten Texten |
@@ -2733,6 +2805,8 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | KI-039 | Verallgemeinerte Werte erscheinen in jeder Datei des Pakets nur als Platzhalter `{Name}`: in Texten an der Stelle des Werts, im Feld `Getippt` anstelle aller Tasten des Werts einschließlich Korrekturen, in Bildern als gefüllte Fläche mit Aufschrift und `masks`-Eintrag `substituted`. Der Kopf nennt jeden vorkommenden Platzhalter, die Kopftabelle die Zahl der Stellen und die Grenzen bei Bildern. Der ursprüngliche Wert und die Regel stehen in keiner Datei. | Soll (Schutzregel: Muss bei Umsetzung) | T-15 und DT-21 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen): Kanarien-Benutzername in Titel, Pfad, Elementname, Feldinhalt und – mit Korrektur getippt – in einer Tastenfolge: Bytesuche im Paket aller Detailstufen ohne Treffer; Platzhalter an jeder Stelle; Bildfläche überdeckt und unter `masks` ausgewiesen |
 | KI-040 | `README_AI.md` erklärt Platzhalter aus Verallgemeinerungen und grenzt sie ab: gegen `[geschwärzt]` (unbekannter Inhalt), gegen `{masked:N}` und `{unreviewed:N}` (zurückgehaltene Eingaben) und gegen Tasten-Token im Feld `Getippt`. | Soll | T-09 mit einer verallgemeinerten Sitzung: Der Agent verwendet `{Benutzername}` als Stellvertreter, nennt keinen erratenen Wert und antwortet bei `[geschwärzt]` weiterhin „nicht aufgezeichnet“ |
 | KI-041 | Das Support-Paket enthält das KI-Paket als Ordner `<Titel>.ki-paket/` mit den Festlegungen aus 3.2: aus der bereinigten Kopie, Detailstufe Standard, Bildprofil `kompatibel`, ohne `events.jsonl`, `snapshots/` und PDF. | Soll | T-16: Der Ordner des KI-Pakets im ZIP ist bytegleich (außer `createdAt`) mit dem Ergebnis von `export --format ki` aus der bereinigten Kopie; der Kopf nennt „Durchsicht der Eingaben: vollständig“; kein `{unreviewed:N}` |
+| KI-042 | Hinweise zur Paketgröße (mehr als 20 Bilder, mehr als 100 Bilder, mehr als 150 000 geschätzte Tokens) kommen aus einer gemeinsamen Funktion für Dialog, Export und Kommandozeile. Umgesetzt. | Soll | Dieselben Schwellen und Texte in Dialog und Exportergebnis |
+| KI-043 | „Mit KI verbinden“ erzeugt die Einrichtung des MCP-Servers (`.mcp.json`, Claude-Desktop-Eintrag, `claude mcp add`, Kommandozeile) nur als Text zum Kopieren – mit Hinweisen zu Ort der EXE und Aufnahmeordner und mit den Schaltern `--allow-edit` und `--allow-requests`. Es schreibt keine fremde Datei und startet nichts. Umgesetzt. | Soll | JSON liest sich für Pfade mit Leerzeichen, Umlauten und UNC-Pfaden unverändert zurück; kein Dateizugriff außerhalb der Anwendung beim Öffnen des Dialogs |
 
 ### 23.2 MCP-Server
 
@@ -2740,7 +2814,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 |---|---|---|---|
 | MCP-001 | `SebastiansStepRecorder.exe mcp` stellt einen MCP-Server über stdio bereit; kein Port, keine Verbindung. | Muss | Claude Code verbindet sich und ruft `list_sessions` auf; T-12 ohne Netzwerkereignis |
 | MCP-002 | Der Server spricht die Revision 2026-07-28 und bedient nach Möglichkeit Clients der Revision 2025-11-25. | Muss (2026-07-28), Soll (älter) | Prüfwerkzeug des Protokolls ohne Fehler; Verbindung mit den aktuellen Versionen von Claude Code und Claude Desktop |
-| MCP-003 | Im `mcp`-Modus wird nie aufgezeichnet, kein Hook gesetzt, kein Fenster oder Symbol gezeigt, kein Kindprozess gestartet. | Muss | Prozessüberwachung während einer MCP-Sitzung: keine Hooks, keine Fenster, keine Kindprozesse |
+| MCP-003 | Im `mcp`-Modus wird nie aufgezeichnet, kein Hook gesetzt, kein Fenster oder Symbol gezeigt, kein Kindprozess gestartet. Auch mit `--allow-requests` zeichnet der Server nichts auf und startet die Oberfläche nie; er meldet eine Anfrage nur an die bereits laufende Oberfläche. | Muss | Prozessüberwachung während einer MCP-Sitzung: keine Hooks, keine Fenster, keine Kindprozesse |
 | MCP-004 | `--root` ist Pflicht; die Sandbox-Regeln S1–S10 gelten. | Muss | Testreihe mit Verknüpfungen nach außen, präparierten ZIP-Einträgen, übergroßen Dateien: kein Zugriff außerhalb, kein Absturz (T-10) |
 | MCP-005 | Tools nehmen Kennungen statt Pfade; Antworten enthalten keine absoluten Pfade des Rechners. | Muss | Suche nach dem Root-Pfad in allen Antworten einer Testreihe: kein Treffer |
 | MCP-006 | Ohne `--allow-edit` gibt es kein schreibendes Tool in der Werkzeugliste; der Server öffnet keine Datei zum Schreiben außer in `cache/`. | Muss | Werkzeugliste ohne `set_step_text`; Dateisystem-Mitschnitt zeigt keine Schreibzugriffe außerhalb `cache/` |
@@ -2771,9 +2845,11 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | MCP-031 | Kein Filter blendet Lückenschritte aus; `get_session` liefert Lückenliste und Vollständigkeitsbericht in beiden Teilen und ungekürzt. | Muss | `get_steps` mit `importance: "primary"` und mit `kinds: ["click"]` auf Beispiel B: die Lücke in Schritt 4 ist enthalten; `get_session` mit kleinstem Budget: `gaps` und `completeness` vollständig, Gliederung seitenweise |
 | MCP-032 | `get_session` liefert die Angaben des Autors und den Stand der Bearbeitung, die den Ablauf bestimmen: `goal` (wirksame Ziel-Angaben, als Angabe des Autors gekennzeichnet), `markers`, `sequence` (Aufnahmeabschnitte, Ersetzungen, Kennzahlen der wirksamen Schrittfolge) und `substitutions` (Platzhalter ohne Werte). | Soll | Sitzung mit Ziel-Angaben, Markern, einer Ersetzung und zwei Verallgemeinerungen: alle vier Teile wie in 19.2; Kanarien-Suche nach den verallgemeinerten Werten in der Antwort ohne Treffer |
 | MCP-033 | `get_steps`, `get_step` und `get_events` folgen der wirksamen Schrittfolge und der Sicht der Leseschicht: Schrittnummer ist `number`; Nahtstellen sind eigene Einträge, die kein Filter ausblendet; ersetzte und nicht verwendete Schritte kommen nur mit `includeReplaced` bzw. über `stepId`; Marker tragen den wirksamen Typ; verallgemeinerte Werte erscheinen als Platzhalter mit `substituted`. Schritte, Ereignisse und Bilder eines verworfenen Aufnahmeabschnitts liefert kein Tool. | Soll (Schutzregel: Muss bei Umsetzung) | Sitzung aus KI-038 und KI-039 über alle drei Tools gelesen: Blockform zeichengleich mit dem KI-Paket; `includeNotices: false` lässt Nahtstellen stehen; ein ersetzter Schritt ist über `step` nicht erreichbar, über `stepId` mit `state: "replaced"`; Kennungen aus einem verworfenen Abschnitt ergeben `STEP_NOT_FOUND` bzw. `FRAME_NOT_FOUND` |
-| MCP-034 | `search` kennt `scope`: `session` durchsucht eine Sitzung, `all` alle Sitzungen im Root-Ordner über deren Suchindex `cache/search/`. Treffer nennen Sitzung, Schritt, Feld und Ausschnitt; nicht durchsuchte Sitzungen werden gezählt und nie als trefferlos ausgegeben. | Soll | Root-Ordner mit drei Sitzungen, eine ohne Index, eine laufende: Treffer aus den lesbaren; `sessions` nennt `searched`, `pending`, `skipped`; die Wiederholung nach dem Indexaufbau liefert den fehlenden Treffer; DT-23 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen) |
+| MCP-034 | `search` kennt `scope`: `session` durchsucht eine Sitzung, `all` alle Sitzungen im Root-Ordner. Beide Wege benutzen dieselbe Definition von „durchsuchbar“ (`SessionSearch.Entries`) wie die Bibliothek im Viewer und arbeiten nur auf der Ausgabesicht. Treffer nennen Sitzung, Schritt, Feld und Ausschnitt; nicht durchsuchte Sitzungen werden gezählt und nie als trefferlos ausgegeben. Der Suchindex `cache/search/` gehört zur Bibliothek; der Server nutzt ihn noch nicht ([19.7](#197-search)). | Soll | Root-Ordner mit drei Sitzungen, eine laufende: Treffer aus den lesbaren; `sessions` nennt `searched`, `pending`, `skipped`; kein Kanarienwert (Geschwärztes, Ungeprüftes, interne Kommentare) in Treffern oder Suchindex (T-15); DT-23 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen) |
 | MCP-035 | `compare_sessions` gleicht zwei Sitzungen mit dem Verfahren aus 05 ab und liefert Kennzeichnung, Unterschiede und unverglichene Merkmale je Eintrag in der Form aus 19.9 – seitenweise, im Größenbudget, mit `summary` über das ganze Ergebnis auf jeder Seite. Lückeneinträge blendet kein Filter aus. | Soll | T-14: bekannte Unterschiede richtig gekennzeichnet; die Felder `status`, `a`, `b`, `score`, `differences`, `notCompared`, `group` stimmen Eintrag für Eintrag mit `compare --format json` überein; zwei Aufrufe mit gleichen Parametern liefern bytegleiche `data`; Fortsetzung über Cursor nach Neustart korrekt |
 | MCP-036 | `compare_sessions` vergleicht ausschließlich die Sicht der Leseschicht beider Sitzungen. Maskiertes, Geschwärztes und Ungeprüftes gilt nie als gleich oder verschieden, sondern steht unter `notCompared`; das Ergebnis hängt von keinem verborgenen Inhalt ab. | Soll (Schutzregel: Muss bei Umsetzung) | DT-28 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen): zwei Fassungen einer Sitzung, die sich nur in einem geschwärzten bzw. maskierten Inhalt unterscheiden, ergeben gegen dieselbe Vergleichssitzung bytegleiche Antworten; Kanarien-Suche in den Antworten ohne Treffer |
+| MCP-037 | Mit `--allow-requests` gibt es `request_recording` und `get_recording_request` (19.10); ohne die Option sind beide nicht gelistet. `request_recording` nimmt nur `goal` (10–500 Zeichen), `expected` und `title`; jeder andere Parameter wird abgelehnt. Läuft die Oberfläche nicht, lautet der Fehler `UI_UNAVAILABLE`; der Server startet sie nie. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | Werkzeugliste mit und ohne Option; unbekannter Schlüssel → `INVALID_ARGUMENT`; Anfrage ohne laufende Oberfläche → `UI_UNAVAILABLE`; nicht zustellbare Anfrage endet als `failed` (`notDelivered`) |
+| MCP-038 | Eine Anfrage gilt erst, wenn der Mensch am Rechner zustimmt: Bestätigungsdialog mit dem Text des Agenten als „ungeprüft“, ohne Standardknopf, „Aufnahme starten“ erst nach 2 s, Frist 120 s (danach `expired`). Die Oberfläche erzwingt höchstens eine offene Anfrage, 60 s Abstand, fünf je Stunde und auf Wunsch 15 Minuten Sperre; ein „Immer erlauben“ gibt es nicht. Die Aufnahme ist eine normale, sichtbare Aufnahme mit allen Schutzregeln; auffällige Eingaben bleiben bis zur Durchsicht verborgen. Das Ziel trägt `statedBy: "agent"`. Umgesetzt. | Muss | Zustandsübergänge `pending` → `declined`/`expired`/`recording` → `finished`/`discarded`/`failed`; abgeschlossene Zustände bleiben; Text mit Steuer- und Schreibrichtungszeichen wird bereinigt; Missbrauchsschutz (zweite Anfrage innerhalb von 60 s, sechste innerhalb einer Stunde, Sperre); `get_session` und Kopf von `trace.md` nennen den Agenten als Urheber des Ziels |
 
 ## 24. Annahmen und offene Punkte
 
@@ -2791,7 +2867,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 
 1. **Wortlaut der Zeile „Wirkung“:** Ihn legt dieses Dokument fest (5.4), weil 05 für die Wirkungen eines Aktionsschritts keine Vorlagen enthält – zu bestätigen oder nach 05 zu verschieben.
 2. **Ausgeblendete Schritte:** Hier bleiben sie im KI-Paket (mit Hinweis). Alternative wäre, sie standardmäßig wegzulassen – das widerspräche G2.
-3. **Englische Fassung** von `README_AI.md` ist noch zu schreiben und durchläuft denselben Verständnistest.
+3. **Englische Fassung** von `README_AI.md` liegt vor (`README_AI_en.md`, inhaltsgleich mit der deutschen). Der Verständnistest T-09 mit der englischen Fassung steht noch aus.
 4. **Protokollstand der Clients:** Welche Revisionen Claude Code und Claude Desktop zum Zeitpunkt von M5 sprechen und wie das SDK 2.x die zustandslose Revision über stdio abbildet (Aufbau, Selbstauskunft, Ort der Server-Hinweise), ist gegen die dann aktuelle SDK-Dokumentation zu prüfen.
 5. **Zählung von Bildern** in den Ausgabegrenzen der Clients ist nicht dokumentiert; die Bildgrenzen sind deshalb vorsichtig gewählt und in M5 zu messen.
 6. **Terminalinhalt als Text:** Derzeit erscheint nur die erkannte Abfragezeile als Text; alles andere im Terminal steht nur im Bild. Ob ein begrenzter Text-Schnappschuss der Terminalausgabe den Nutzen für KI rechtfertigt, ist gegen die Schutzregeln in 10 abzuwägen.
@@ -2799,7 +2875,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 8. **Gesamtzahlen von Beispiel A – maßgeblich auch für das Manifest-Beispiel in 04:** 7 Schritte (alle Hauptschritte, 7 Aktionsschritte, 7 belegt), Dauer 86,000 s (14:30:05 bis 14:31:31), 81 Eingabeereignisse, Zeitleiste 7,941 s Schritte + 78,059 s Leerlauf + 0 s Lücken, 31 Bildereignisse (24 gespeichert, 7 unverändert, 0 ausgelassen), Vorher-Bild garantiert bei 7 von 7 Aktionsschritten, Programme `explorer.exe` und `notepad.exe`. Die Schritte 5 bis 7 behalten Nummer, Kennung und Werte aus Anhang A.
 9. **Bildprofil des Beispiels:** Beispiel A zeigt das Profil `hochauflösend`, damit die Koordinaten mit 04 und dem freigegebenen Plan übereinstimmen ((1056, 701) im Vorher-Bild). Standard bleibt `kompatibel`; die Nachrechnung in Abschnitt 13 zeigt dessen Werte.
 10. **Warte-Schritt über eine Lücke hinweg:** Nach dem Wortlaut von 05 (5.10) könnte zwischen den Schritten 3 und 6 von Beispiel B ein Warte-Schritt entstehen, weil dazwischen mehr als 3 s liegen und ein Systemereignis geschah. Das Beispiel geht davon aus, dass ein Zeitraum, der eine Lücke enthält, keinen Warte-Schritt bildet – in 05 klarzustellen.
-11. **Umfang von `README_AI.md`:** Der Text ist durch die Begriffserklärungen – zuletzt zu Angaben des Autors, Markern, Nahtstellen und Platzhaltern – auf rund 38 300 Zeichen gewachsen (vorsichtig geschätzt 12 800 Tokens). Ob daneben eine Kurzfassung für kleine Pakete sinnvoll ist, zeigt der Format-Verständnistest; bis dahin gilt ein Text für alle Detailstufen.
+11. **Umfang von `README_AI.md`:** Der Text ist durch die Begriffserklärungen – zuletzt zu Angaben des Autors, Markern, Nahtstellen und Platzhaltern – auf rund 38 000 Zeichen gewachsen (vorsichtig geschätzt 12 700 Tokens); der Dialog rechnet mit der echten Länge der gewählten Fassung. Ob daneben eine Kurzfassung für kleine Pakete sinnvoll ist, zeigt der Format-Verständnistest; bis dahin gilt ein Text für alle Detailstufen.
 12. **Verzögerung von Wirkungen bei Texteingaben:** Sie zählt nach 05 ab dem Ankerereignis und enthält deshalb die Tippdauer („Dialog geschlossen nach 2,8 s“). Lesbarer wäre eine Angabe ab der Abschlusstaste; dafür müsste `steps.json` deren Zeit tragen.
 13. **Schrittnummer bei Ersetzungen:** Dieses Dokument folgt 05 (16.3): Die Schrittnummer ist die Anzeigenummer der wirksamen Schrittfolge und nur ohne Ersetzungen gleich `index`; ersetzte Schritte tragen keine Nummer. Die Leseschicht liefert sie als `number`, den Zustand als `state` – beide Felder sind in 04 als Teil der Leseschicht-Sicht nachzutragen. Zu bestätigen ist auch, dass Agenten Schritte über die Schrittnummer ansprechen dürfen, obwohl sie sich mit jeder Ersetzung verschiebt (Schutz: die Revision).
 14. **Zeitrechnung bei ersetzten Schritten:** In „Kompakt“ und „Standard“ lässt sich die Summe „Schritte“ der Kopfzeile „Zeit“ nicht aus dem Ablauf nachrechnen, weil die ersetzten Schritte fehlen; die Nahtstelle nennt nur ihren Zeitraum, die Kopfzeile „Leerlauf“ den Leerlauf darin. Falls das im Verständnistest stört, nennt die Nahtstelle zusätzlich die Anteile von Schritten und Lücken.

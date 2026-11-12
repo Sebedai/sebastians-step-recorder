@@ -145,16 +145,27 @@ public sealed class WindowRegistry
         return o;
     }
 
-    public static string SurfaceOf(WinEntry e) => SurfaceKindOf(e) is "remoteDesktop" or "virtualMachine" ? "opaque" : SurfaceKindOf(e) == "terminal" ? "partial" : "structured";
+    public static string SurfaceOf(WinEntry e) => SurfaceFor(SurfaceKindOf(e));
 
-    public static string? SurfaceKindOf(WinEntry e)
+    /// <summary>Oberflächenart → structured | partial (Terminal) | opaque (Remote-Desktop, VM).</summary>
+    public static string SurfaceFor(string? kind) => kind is "remoteDesktop" or "virtualMachine" ? "opaque" : kind == "terminal" ? "partial" : "structured";
+
+    public static string? SurfaceKindOf(WinEntry e) => SurfaceKindOf(e.Process, e.Class);
+
+    public static string? SurfaceKindOf(string process, string cls)
     {
-        var p = e.Process.ToLowerInvariant();
-        if (p is "mstsc.exe" or "msrdc.exe" or "wfica32.exe" or "cdviewer.exe" or "vncviewer.exe" or "anydesk.exe" or "teamviewer.exe") return "remoteDesktop";
-        if (p is "vmconnect.exe" or "vmware.exe" or "vmware-vmx.exe" or "virtualboxvm.exe") return "virtualMachine";
-        if (e.Class is "ConsoleWindowClass" or "CASCADIA_HOSTING_WINDOW_CLASS" || p is "windowsterminal.exe" or "conhost.exe" or "putty.exe" or "mintty.exe") return "terminal";
+        var p = process.ToLowerInvariant();
+        if (p is "mstsc.exe" or "msrdc.exe" or "wfica32.exe" or "cdviewer.exe" or "vncviewer.exe" or "tvnviewer.exe" or "anydesk.exe" or "teamviewer.exe" or "rustdesk.exe" or "parsecd.exe") return "remoteDesktop";
+        if (p is "vmconnect.exe" or "vmware.exe" or "vmware-vmx.exe" or "vmplayer.exe" or "virtualboxvm.exe" or "qemu-system-x86_64.exe" or "qemu-system-x86_64w.exe") return "virtualMachine";
+        if (cls is "ConsoleWindowClass" or "CASCADIA_HOSTING_WINDOW_CLASS" or "PuTTY" or "mintty" or "VirtualConsoleClass"
+            || p is "windowsterminal.exe" or "conhost.exe" or "openconsole.exe" or "putty.exe" or "kitty.exe" or "mintty.exe" or "alacritty.exe" or "wezterm-gui.exe"
+                 or "tabby.exe" or "hyper.exe" or "mobaxterm.exe" or "conemu.exe" or "conemu64.exe" or "cmder.exe" or "securecrt.exe" or "xshell.exe" or "termius.exe" or "fluentterminal.app.exe")
+            return "terminal";
         return null;
     }
+
+    /// <summary>Oberfläche aus einem <c>window.info</c>-Ereignis (ältere Aufnahmen ohne <c>surface</c>: aus Prozess und Klasse).</summary>
+    public static string SurfaceOfInfo(JsonObject w) => w["surface"]?.GetValue<string>() ?? SurfaceFor(SurfaceKindOf(w["process"]?.GetValue<string>() ?? "", w["class"]?.GetValue<string>() ?? ""));
 
     /// <summary>Titeländerung erkennen und als <c>window.title</c> schreiben.</summary>
     public void TitleChanged(nint hwnd, long t)

@@ -71,7 +71,8 @@ public sealed class FrameEngine : IDisposable
         try { return Settings.AppSettings.Load().CaptureBackend != "gdi"; } catch { return true; }
     }
 
-    Bitmap Grab(Rectangle bounds)
+    /// <summary>DXGI, sonst GDI. Null, wenn beides scheitert (z. B. sicherer Desktop) – nie ein schwarzes Ersatzbild.</summary>
+    Bitmap? Grab(Rectangle bounds)
     {
         if (_dxgi != null)
         {
@@ -79,8 +80,9 @@ public sealed class FrameEngine : IDisposable
             try { b = _dxgi.Capture(bounds); } catch { }
             if (b != null) { Interlocked.Increment(ref DxgiFrames); return b; }
         }
-        Interlocked.Increment(ref GdiFrames);
-        return ScreenGrabber.Capture(bounds);
+        var g = ScreenGrabber.TryCapture(bounds, out _);
+        if (g != null) Interlocked.Increment(ref GdiFrames);
+        return g;
     }
 
     public FrameEngine(RecordingOptions opt, SessionWriter writer, Topology topo, Func<long> now, Func<long, long> qpcToT)
@@ -109,6 +111,24 @@ public sealed class FrameEngine : IDisposable
 
     public bool Paused { get => _paused; set => _paused = value; }
 
+    volatile bool _suspended;
+    /// <summary>
+    /// Bildschutz bei sicherem Desktop (UAC), Sperre oder Ruhezustand: keine Aufnahmen, Ringpuffer verwerfen (er könnte
+    /// schwarze oder halbe Bilder enthalten), ein offenes Nachher-Bild entfällt. Danach erzwingt der Recorder ein Schlüsselbild.
+    /// </summary>
+    public void Suspend()
+    {
+        lock (_lock)
+        {
+            _suspended = true;
+            foreach (var m in _mons.Values) { foreach (var r in m.Ring) r.Bmp.Dispose(); m.Ring.Clear(); m.ChangeSinceStoredT = -1; }
+            _settleRef = null;
+        }
+    }
+
+    public void ResumeAfterSuspend() { lock (_lock) _suspended = false; }
+    public bool Suspended => _suspended;
+
     string NextId() => "f" + (_nextFrame++).ToString("D6");
 
     public void MarkActivity(string m, long t) { lock (_lock) if (_mons.TryGetValue(m, out var s)) s.LastActivityT = t; }
@@ -121,7 +141,7 @@ public sealed class FrameEngine : IDisposable
         while (!_stop)
         {
             var cycleStart = Environment.TickCount64;
-            if (!_paused)
+            if (!_paused && !_suspended)
             {
                 List<MonState> mons;
                 lock (_lock) mons = _mons.Values.ToList();
@@ -137,9 +157,11 @@ public sealed class FrameEngine : IDisposable
     void CaptureInto(MonState ms)
     {
         long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
-        Bitmap bmp;
+        Bitmap? bmp;
+        // fehlgeschlagene Aufnahme (z. B. sicherer Desktop) liefert kein Bild – nie ein schwarzes in den Ringpuffer
         try { bmp = Grab(ms.Bounds); }
         catch { return; }
+        if (bmp == null) return;
         long q1 = System.Diagnostics.Stopwatch.GetTimestamp();
         var rf = new RingFrame { Bmp = bmp, TStart = _qpcToT(q0), TEnd = _qpcToT(q1) };
         lock (_lock)
@@ -245,6 +267,7 @@ public sealed class FrameEngine : IDisposable
                     PreGuaranteed++;
                     EnqueueLocked(ms, Copy(cand.Bmp), cand.TStart, cand.TEnd, "preInput", refSeq, "beforeInput", null);
                 }
+                else if (_suspended) { PreNotGuaranteed++; EnqueueNoneLocked(ms, tInput, "preInput", refSeq, "secureDesktop"); }
                 else
                 {
                     PreNotGuaranteed++;
@@ -289,6 +312,7 @@ public sealed class FrameEngine : IDisposable
             {
                 if (!_mons.TryGetValue(id, out var ms)) continue;
                 long q0 = System.Diagnostics.Stopwatch.GetTimestamp();
+                if (_suspended) { ids.Add(EnqueueNoneLocked(ms, _qpcToT(q0), trigger, refSeq, "secureDesktop")); continue; }
                 Bitmap? bmp = null;
                 try { bmp = Grab(ms.Bounds); } catch { }
                 if (bmp == null) { ids.Add(EnqueueNoneLocked(ms, _qpcToT(q0), trigger, refSeq, "captureFailed")); continue; }

@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Capture.Host;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 using static StepRecorder.Native.Win32;
 
 namespace StepRecorder.Capture;
@@ -27,7 +28,7 @@ public sealed partial class Recorder
                     FlushPendingKeys(force: false);
                     Idle();
                 }
-                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); }
+                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollDesktop(); PollReminder(); }
             }
             catch (Exception ex) { Warning?.Invoke("Eingabeverarbeitung: " + ex.Message); }
         }
@@ -53,6 +54,66 @@ public sealed partial class Recorder
             // Zustandsprobe 700 ms nach der letzten Aktion (Grundlage für Erfolgsprüfungen)
             if (r.Kind == RingKind.Keyboard || r.Message != WM_MOUSEMOVE) _stateDue = Now() + StateProbeDelayUs;
         }
+        if (_batch.Count > 0 && _reminder != null)
+        {
+            long t = Now();
+            if (_batch.Any(r => r.Kind == RingKind.Keyboard)) _reminder.Key(t); else _reminder.Activity(t);
+        }
+    }
+
+    readonly DesktopWatch _desk = new();
+
+    /// <summary>
+    /// Sicherer Desktop (UAC-Abfrage, Strg+Alt+Entf, Bildschirmschoner) im 250-ms-Takt: Lücke „secureDesktop“ mit Art
+    /// (uac/other), keine Bilder währenddessen; danach Tastenstatus abgleichen und ein Schlüsselbild erzwingen.
+    /// Keine eigene Lücke, solange der Rechner gesperrt oder im Ruhezustand ist.
+    /// </summary>
+    void PollDesktop()
+    {
+        string name;
+        try { name = DesktopProbe.Read(); } catch { return; }
+        bool consent = !string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase) && DesktopProbe.ConsentRunning();
+        lock (_gate)
+        {
+            if (_w.Closed || State != RecorderState.Recording) return;
+            if (_gaps.ContainsKey("sessionLocked") || _gaps.ContainsKey("sessionDisconnected") || _gaps.ContainsKey("suspend")) return;
+            long t = Now();
+            switch (_desk.Observe(name, consent))
+            {
+                case DesktopWatch.Change.Enter:
+                    {
+                        Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "secure", ["desktop"] = _desk.Desktop });
+                        var g = BeginGap("secureDesktop", t, "possible", "all");
+                        g.Detail = new JsonObject { ["desktop"] = _desk.Desktop, ["kind"] = _desk.Kind };
+                        _frames.Suspend();
+                        break;
+                    }
+                case DesktopWatch.Change.Leave:
+                    {
+                        string? gid = _gaps.TryGetValue("secureDesktop", out var og) ? og.Id : null;
+                        var detail = og?.Detail ?? new JsonObject();
+                        detail["kind"] = _desk.Kind.Length > 0 ? _desk.Kind : detail.Str("kind") ?? "other";
+                        EndGap("secureDesktop", t, detail);
+                        Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "default" });
+                        _keys.Reset();
+                        Emit(KeyStateSync("secureDesktop", gid));
+                        _frames.ResumeAfterSuspend();
+                        _frames.Immediate("resume", null, forceKey: true);
+                        break;
+                    }
+            }
+        }
+    }
+
+    /// <summary>Erinnerungen prüfen (im 250-ms-Takt); während Pause und Lücken stehen die Uhren.</summary>
+    void PollReminder()
+    {
+        if (_reminder == null) return;
+        long t = Now();
+        bool suspended;
+        lock (_gate) suspended = State != RecorderState.Recording || _gaps.ContainsKey("sessionLocked") || _gaps.ContainsKey("sessionDisconnected") || _gaps.ContainsKey("secureDesktop") || _gaps.ContainsKey("suspend");
+        _reminder.Suspend(suspended, t);
+        if (_reminder.Poll(t) is { } rem) { try { Reminder?.Invoke(rem.kind, rem.value); } catch { } }
     }
 
     // ---------------- Fensterbezogene Lücken (ausgeschlossen, außerhalb, erhöht) ----------------
@@ -153,7 +214,7 @@ public sealed partial class Recorder
             if (t - _lastWheelT >= 200_000) { _frames.PreInput(t, seq, m); QueryElement("wheel", seq, r.X, r.Y, m, x, y, win); }
             _lastWheelT = t;
             _frames.AwaitSettle(t, seq, m);
-            ActionLine?.Invoke("Scrollen");
+            ActionLine?.Invoke(Loc.L("Scrollen", "Scrolling"));
             return;
         }
 
@@ -174,7 +235,7 @@ public sealed partial class Recorder
             _frames.PreInput(t, seq, m);
             QueryElement("buttonDown", seq, r.X, r.Y, m, x, y, win, dwellSeq);
             ActionCount++;
-            ActionLine?.Invoke(logical == "secondary" ? "Rechtsklick" : "Klick");
+            ActionLine?.Invoke(logical == "secondary" ? Loc.L("Rechtsklick", "Right-click") : Loc.L("Klick", "Click"));
         }
         else
         {
@@ -504,7 +565,12 @@ public sealed partial class Recorder
         {
             if (PrivacyMode && !isMod) maskReason = "privacyMode";
             else if (ctx == "passwordField" && !isMod && !combo && !terminatorKey) maskReason = "passwordField";
-            else if (Options.PrivacyLevel == "strict" && ctx == "unknown" && !isMod && !combo && !terminatorKey) maskReason = "strictUnknown";
+            else if (Options.PrivacyLevel == "strict" && !isMod && !combo && !terminatorKey)
+            {
+                // Streng: alles Getippte in nicht einstufbaren Fenstern zurückhalten (Terminal, Remote-Desktop, VM, unbekannter Fokus)
+                if (ctx == "unknown") maskReason = "strictUnknown";
+                else if (ctx == "opaque" || (pk.Fg != null && WindowRegistry.SurfaceOf(pk.Fg) != "structured")) maskReason = "strictPlaintext";
+            }
         }
         if (maskReason != null)
         {
@@ -515,7 +581,7 @@ public sealed partial class Recorder
             _keys.Down(vk);
             _valuePollDue = false;
             RememberRun(pk.T, 0);
-            ActionLine?.Invoke("Eingabe (maskiert)");
+            ActionLine?.Invoke(Loc.L("Eingabe (maskiert)", "Input (masked)"));
             return;
         }
         // Modifier-Ereignisse innerhalb eines maskierten Laufs zählen mit
@@ -555,9 +621,9 @@ public sealed partial class Recorder
         }
         _frames.AwaitSettle(pk.T, seq, CurrentMonitor());
         if (printable || KeyNames.IsEditKey(key)) { _valuePollDue = ctx == "textField"; RememberRun(pk.T, seq); }
-        if (combo) ActionLine?.Invoke("Tastenkombination " + string.Join("+", mods.Select(Cap).Append(key)));
-        else if (printable) ActionLine?.Invoke("Texteingabe");
-        else if (!isMod) ActionLine?.Invoke("Taste " + key);
+        if (combo) ActionLine?.Invoke(Loc.F("Tastenkombination {0}", "Key combination {0}", Loc.Keys(string.Join("+", mods.Select(Cap).Append(key)))));
+        else if (printable) ActionLine?.Invoke(Loc.L("Texteingabe", "Typing"));
+        else if (!isMod) ActionLine?.Invoke(Loc.F("Taste {0}", "Key {0}", Loc.Keys(key)));
         if (combo || terminatorKey) ActionCount++;
     }
 

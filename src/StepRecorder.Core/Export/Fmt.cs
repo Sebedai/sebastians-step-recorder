@@ -33,14 +33,14 @@ public static class Fmt
     public static string Num(double v, string lang, string format = "0.##") => v.ToString(format, Culture(lang));
 
     /// <summary>Aufgezeichneten Text als Codespanne ausgeben (E1–E6): unsichtbare Zeichen sichtbar, Länge begrenzt.</summary>
-    public static string Code(string? s, int max = 120)
+    public static string Code(string? s, int max = 120, string lang = "de")
     {
         s ??= "";
         var sb = new StringBuilder();
         int count = 0;
         foreach (var ch in s)
         {
-            if (count >= max) { sb.Append($"…[+{s.Length - max} Zeichen]"); break; }
+            if (count >= max) { sb.Append(lang == "de" ? $"…[+{s.Length - max} Zeichen]" : $"…[+{s.Length - max} chars]"); break; }
             sb.Append(ch switch
             {
                 '\n' => "⏎", '\r' => "", '\t' => "⇥",

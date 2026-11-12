@@ -34,7 +34,7 @@ Lies zuerst den Kopf von `trace.md` (Abschnitt 3), dann den Ablauf.
 | Bildschirme | Jeder Monitor hat eine Kennung (`M1`, `M2`, …), seine Größe in Pixeln und seine Skalierung |
 | Aufnahmebereich | Was aufgezeichnet wurde. „Ganzer Bildschirm (Monitor mit Aktivität)“: jeweils der Monitor, auf dem gerade gearbeitet wurde. „Anwendung …“: nur die Fenster dieser Anwendungen. „Bereich …“: ein festes Rechteck. Was außerhalb lag, ist in den Bildern schwarz gefüllt; Eingaben dort wurden nur gezählt (Abschnitt 7). |
 | Recorder | Programmversion; die Rechte, mit denen er lief (mit normalen Rechten sieht er keine Eingaben in Fenstern mit Administratorrechten – das ergibt Lücken); Schutzstufe; Regelversion |
-| Schutzstufe | „Schutznetz“: Eingaben in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, virtuelle Maschine) wurden im Klartext aufgezeichnet; erkannte Passwortfelder und erkannte Passwortabfragen wurden zurückgehalten. „Streng“: In solchen Fenstern wurde alles Getippte zurückgehalten. |
+| Schutzstufe | „Schutznetz“: Eingaben in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, virtuelle Maschine) wurden im Klartext aufgezeichnet und gelten als ungeprüft, bis der Autor sie durchgesehen hat; erkannte Passwortfelder wurden zurückgehalten. „Streng“: In solchen Fenstern wurde alles Getippte zurückgehalten. |
 | Regelversion | Version der Regeln, die aus den Rohereignissen die Schritte gebildet haben. Für das Lesen ohne Bedeutung; wichtig nur, wenn zwei Pakete derselben Sitzung verglichen werden. |
 | Bearbeitung durch den Autor | Was die aufzeichnende Person nachträglich getan hat: Kommentare, Schwärzungen, ausgeblendete und verworfene Schritte. „Durchsicht der Eingaben: vollständig“ heißt: Sie hat alle heiklen Eingaben angesehen und freigegeben oder geschwärzt (Abschnitt 8). |
 | Ersetzungen | Nur wenn der Autor Schritte neu aufgenommen und frühere damit ersetzt hat: welche Schritte an die Stelle welcher früheren getreten sind (Abschnitt 7) |
@@ -45,7 +45,7 @@ Lies zuerst den Kopf von `trace.md` (Abschnitt 3), dann den Ablauf.
 
 | Zeile | Bedeutung |
 |---|---|
-| Ziel der Aufnahme (Angabe des Autors) | Was die Aufnahme nach den Worten des Autors zeigen soll. Nicht zu verwechseln mit dem Feld „Ziel“ eines Schritts – das ist das getroffene Bedienelement. |
+| Ziel der Aufnahme (Angabe des Autors) | Was die Aufnahme nach den Worten des Autors zeigen soll. Nicht zu verwechseln mit dem Feld „Ziel“ eines Schritts – das ist das getroffene Bedienelement. Steht dort „vom KI-Agenten formuliert, vom Menschen bestätigt“, hat ein KI-Agent um die Vorführung gebeten und das Ziel formuliert; der Mensch hat nur zugestimmt, die Aufnahme zu starten – ob er dem Ziel gefolgt ist, zeigen allein die Schritte. |
 | Erwartetes Ergebnis (Angabe des Autors) | Was nach den Worten des Autors am Ende zu sehen sein soll |
 | Bezug (Angabe des Autors) | Ein freier Verweis des Autors, etwa eine Ticketnummer |
 | Marker des Autors | Die Stellen, die der Autor während der Aufnahme markiert hat, mit Typ und Schrittnummer (Abschnitt 13) |
@@ -96,7 +96,7 @@ Felder, die nicht zutreffen, fehlen.
 | Aktion | Was getan wurde, als Satz. Zusätze in Klammern sind Einordnungen. „(üblich: Speichern)“ nennt die allgemein übliche Bedeutung einer Tastenkombination. Der Zusatz steht nur bei Kombinationen aus einer festen Liste (Speichern, Kopieren, Einfügen, Rückgängig, Fenster schließen und ähnliche) und ist Allgemeinwissen, keine Beobachtung; fehlt er, steht die Kombination nur nicht in der Liste. Was sie hier wirklich tat, sagt allein „Wirkung“. „(Ziel nicht bestätigt)“ und „(Ziel uneindeutig; …)“ beschreiben, wie sicher das Ziel ist; „(automatisch erzeugte Eingabe)“ heißt, ein Programm hat getippt oder geklickt; „(vom Autor verworfen)“ markiert eine Fehlbedienung – sie ist trotzdem geschehen. |
 | Kanonisch | Dieselbe Aktion in einem festen Vokabular (Abschnitt 11) |
 | Kennung | Dauerhafte Kennung des Schritts, bei Lücken zusätzlich die der Lücke (`g1`) |
-| Anleitung | Nummer dieses Schritts in der Anleitung für Menschen, falls abweichend |
+| Anleitung | Nummer dieses Schritts in der Anleitung für Menschen, falls abweichend; oder „in der Anleitung zusammengefasst mit Schritt a–b“: Dort erscheinen diese Schritte als einer, hier stehen sie einzeln und unverändert. |
 | Kapitel | Kapitel, dem die aufzeichnende Person den Schritt in ihrer Anleitung zugeordnet hat |
 | Marker-Typ, Marker-Text | Nur bei Schritten der Art „Marker“: der Typ (Notiz, Fehler, Erwartet, Wichtig) und die Bezeichnung, die der Autor dem Marker gegeben hat (Abschnitt 13) |
 | Fenster | Titel, Programm und Monitor des Fensters, das die Eingabe erhielt |
@@ -105,7 +105,6 @@ Felder, die nicht zutreffen, fehlen.
 | Mausweg davor | Wie die Maus zum Ziel kam: Strecke, Dauer, „direkt“ oder „mit Umweg“, Verweilen unterwegs |
 | Start, Ende, Weg | Nur beim Ziehen: wo die Maustaste gedrückt und wo sie losgelassen wurde (jeweils Ziel und Position) und der Weg dazwischen als Punktfolge |
 | Getippt / Tasten | Die Tastenfolge bzw. Taste in der Notation aus Abschnitt 10 |
-| Abfrage | Nur bei einer zurückgehaltenen Eingabe im Terminal: die Zeile, auf die geantwortet wurde, sofern der Recorder sie als Passwortabfrage erkannt hat – mit der Erkennungsregel (Abschnitt 7). Fehlt das Feld, wurde keine Abfrage erkannt, etwa weil die Person den Privatmodus von Hand eingeschaltet hat oder das Fenster keinen Text anbietet. |
 | Eingabeweg | Tastatur, Eingabemethode, Autovervollständigung oder gemischt |
 | Feldinhalt | Inhalt des Eingabefelds vor und nach der Eingabe – die Gegenprobe zur Tastenfolge |
 | Zwischenablage | Herkunft eines kopierten oder eingefügten Inhalts; der Inhalt selbst nur, wenn er aufgezeichnet wurde |
@@ -173,10 +172,7 @@ Hinter der Stufe stehen in Klammern die Gründe, z. B. „Beleg: belegt (Ziel vo
 | Umfang | Nur bei Arbeit außerhalb des Aufnahmebereichs: wie viele Tastendrücke, Klicks und Mausradbewegungen dort gezählt wurden – ohne Inhalt |
 | Ausschlussregel | Nur bei einer ausgeschlossenen Anwendung: der Name der Regel, die sie ausschloss. Mehr ist davon absichtlich nicht festgehalten, auch keine Zahl. |
 
-**Privatmodus:** Solange er gilt, fehlen die Inhalte von Tasteneingaben, Feldinhalte und Zwischenablage; Klicks, Tastenkombinationen und Bilder laufen weiter. Er hat zwei Auslöser, die das Protokoll unterscheidet:
-
-- Die **Privattaste**: Die Person schaltet ihn selbst ein. Er endet erst, wenn sie die Taste erneut drückt – nicht von selbst.
-- Eine **erkannte Passwortabfrage** im Terminal: Der Recorder schaltet ihn selbst ein und mit der Eingabetaste wieder aus (oder wenn die Abfrage abgebrochen wird). „Regel T1“: Die Zeile endet auf ein Abfragemuster wie `password:`. „Regel T2“: Getippte Zeichen erscheinen als Maskenzeichen. „Regel T3“: An einer Abfragezeile erscheint beim Tippen nichts.
+**Privatmodus:** Solange er gilt, fehlen die Inhalte von Tasteneingaben, Feldinhalte und Zwischenablage; Klicks, Tastenkombinationen und Bilder laufen weiter. Die Person schaltet ihn mit der **Privattaste** selbst ein; er endet erst, wenn sie die Taste erneut drückt – nicht von selbst.
 
 Ein- und Ausschalten stehen als Hinweiszeilen im Ablauf (`> Privatmodus eingeschaltet (…) bei …`). Was in dieser Zeit getippt wurde, steht als eigener Schritt mit `{masked:N}` (Abschnitt 8).
 
@@ -211,7 +207,7 @@ Kürzere Pausen stehen nur als Abstand in den Überschriften; ihre Summe nennt d
 
 | Darstellung | Bedeutung |
 |---|---|
-| `{masked:8}` | 8 Tastenanschläge wurden absichtlich nicht gespeichert (Passwortfeld, Privatmodus oder erkannte Passwortabfrage). Der Inhalt existiert nirgends in dieser Aufzeichnung. Gezählt ist jeder Tastendruck außer reinen Umschalttasten (Umschalt, Strg, Alt, Win) – auch Korrekturen mit der Rücktaste; die Zahl ist also nicht unbedingt die Länge des Eingegebenen. Eine abschließende Eingabetaste steht gesondert dahinter: `{masked:8}{Enter}`. `{masked}` ohne Zahl heißt: Auch die Anzahl wurde nicht gespeichert. |
+| `{masked:8}` | 8 Tastenanschläge wurden absichtlich nicht gespeichert (Passwortfeld, Privatmodus oder Schutzstufe „Streng“). Der Inhalt existiert nirgends in dieser Aufzeichnung. Gezählt ist jeder Tastendruck außer reinen Umschalttasten (Umschalt, Strg, Alt, Win) – auch Korrekturen mit der Rücktaste; die Zahl ist also nicht unbedingt die Länge des Eingegebenen. Eine abschließende Eingabetaste steht gesondert dahinter: `{masked:8}{Enter}`. `{masked}` ohne Zahl heißt: Auch die Anzahl wurde nicht gespeichert. |
 | `[geschwärzt]` | Der Autor hat diese Textstelle nachträglich entfernt. Länge und Inhalt sind nicht bekannt. In `steps.json` und `events.jsonl` steht dafür `[redacted]`. |
 | „Schritt geschwärzt“ | Der Autor hat den ganzen Schritt entfernt. Bekannt ist nur, dass und wann dort etwas geschah. |
 | Lücke „Dieser Zeitraum wurde vom Autor entfernt.“ | Der Autor hat alles aus diesem Zeitraum entfernt: Eingaben, Texte und Bilder. |
@@ -236,18 +232,18 @@ Frage nicht nach diesen Inhalten und versuche nicht, sie aus anderen Stellen zu 
 
 ## 9. Bilder und Koordinaten
 
-**Dateinamen und Bildarten.** `schritt007-vorher.png` gehört zu Schritt 7. `-vorher` = Zustand unmittelbar **vor** der Eingabe; `-ausschnitt` = Originalauflösung rund um das Ziel; `-nachher` = Zustand, nachdem sich der Bildschirm beruhigt hat, spätestens vor der nächsten Eingabe; `-zwischen-1` = Änderung dazwischen; `-marker` = der Bildschirm in dem Moment, in dem der Autor einen Marker gesetzt hat. Bilder zu Schritten ohne Schrittnummer (Abschnitt 7) tragen die Kennung im Namen: `kennung-s1657-nachher.png`.
+**Dateinamen und Bildarten.** `schritt007-vorher.png` gehört zu Schritt 7. `-vorher` = Zustand unmittelbar **vor** der Eingabe; `-ausschnitt` = Originalauflösung rund um das Ziel; `-ausschnitt-ende` = Ausschnitt am Ende eines Ziehens; `-nachher` = Zustand, nachdem sich der Bildschirm beruhigt hat, spätestens vor der nächsten Eingabe; `-marker` = der Bildschirm in dem Moment, in dem der Autor einen Marker gesetzt hat. Bilder zu Schritten ohne Schrittnummer (Abschnitt 7) tragen die Kennung im Namen: `kennung-s1657-nachher.png`.
 
 **Welche Bilder beiliegen.** In der Detailstufe „Standard“:
 
 - Mausschritte: Übersicht vorher (mit Einzeichnung), Ausschnitt, und Übersicht nachher, wenn sich etwas geändert hat.
 - Tastaturschritte: bei Texteingaben der Ausschnitt um das Feld nach der Eingabe; dazu die Übersicht nachher, wenn sich etwas geändert hat. Ein Vorher-Bild liegt nicht bei – es zeigt den Zustand nach dem vorigen Schritt.
-- Lücken: das letzte Bild davor und das erste danach.
-- Marker der Typen Fehler, Erwartet und Wichtig: das Bild zum Marker.
+- Lücken, Systemschritte und Mausbewegungen: kein Bild.
+- Marker, Kommentare und Schnappschüsse: das Bild zum Zeitpunkt (in „Kompakt“ nur bei Hauptschritten).
 
 **Vorher-Bild per Verweis.** Standardmäßig liegt ein Vorher-Bild nur bei, wenn der Bildschirm davor nicht schon im Paket zu sehen ist. Sonst steht beim Schritt die Zeile `- Vorher: schritt006-nachher.png zeigt den Bildschirm vor diesem Schritt` – dieses frühere Bild zeigt denselben Bildschirm; Rechteck- und Positionsangaben beziehen sich dann darauf. Klickpunkt und Zielrahmen zeigt weiterhin der Ausschnitt. Welche Bildarten der Autor gewählt hat, steht im Kopf unter „Bilder im Paket“ und in `ai-package.json` unter `imageSelection` (`before`: `auto`, `always` oder `never`; `crop`, `after`: beigelegt ja/nein). Fehlt eine Bildart, weil der Autor sie abgewählt hat, heißt das nicht, dass sich nichts geändert hat.
 
-„Kompakt“ legt weniger bei, „Vollständig“ zusätzlich Zwischenbilder. Fehlt im Paket ein Bild, heißt das nicht, dass es in der Aufnahme fehlt (Kopf: „Bilder der Sitzung“).
+„Kompakt“ legt weniger bei. „Vollständig“ legt zu jedem Schritt Vorher-Bild, Ausschnitt (bei Mausschritten) und Nachher-Bild bei, beim Ziehen zusätzlich den Ausschnitt am Ende, und zu Lücken und Systemschritten das erste Bild danach. Fehlt im Paket ein Bild, heißt das nicht, dass es in der Aufnahme fehlt (Kopf: „Bilder der Sitzung“).
 
 **Koordinaten.** Jede Koordinate in `trace.md` gilt **im Pixelraum des Bildes, das in derselben Zeile genannt ist**: Ursprung oben links, x nach rechts, y nach unten.
 
@@ -364,7 +360,7 @@ Fenster „Speichern unter“
 - den Zustand des Rechners **vor** Aufnahmebeginn und alles **außerhalb** des Aufnahmebereichs,
 - was die Person gedacht, gelesen oder beabsichtigt hat – außer in ihren eigenen Angaben (Ziel der Aufnahme, Marker, Kommentare), und auch die sind ihre Sicht, keine Beobachtung,
 - Vorgänge ohne sichtbare Wirkung (Hintergrundprozesse, Netzwerk),
-- den Text in Fenstern ohne Bedienelemente (Terminal, Remote-Desktop, virtuelle Maschine), soweit er nicht im Bild lesbar ist. Im Terminal liest der Recorder nur das Zeilenende, um Passwortabfragen zu erkennen; gespeichert wird davon allein eine erkannte Abfragezeile (Feld „Abfrage“),
+- den Text in Fenstern ohne Bedienelemente (Terminal, Remote-Desktop, virtuelle Maschine), soweit er nicht im Bild lesbar ist,
 - Eingaben, die kein Aufzeichnungsweg sehen konnte,
 - Eingabearten, die der Autor abgeschaltet hat – die Kopfdaten nennen sie in der Zeile „Nicht aufgezeichnet (Einstellung des Autors)“, z. B. Mausbewegungen oder Texteingaben. Solche Eingaben fehlen vollständig und ohne Lücke; schließe aus ihrem Fehlen nicht, dass es sie nicht gab,
 - alles, was als Lücke, maskiert, geschwärzt oder ungeprüft ausgewiesen ist,

@@ -4,6 +4,8 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Media;
 
+using StepRecorder.Settings;
+
 namespace StepRecorder.App.Ui;
 
 /// <summary>
@@ -28,7 +30,8 @@ static class Accessibility
             // Fensterknöpfe der WPF-UI-Titelleiste haben nur eine Kennung, keinen Namen
             string? sys = AutomationProperties.GetAutomationId(e) switch
             {
-                "TitleBarMinimizeButton" => "Minimieren", "TitleBarMaximizeButton" => "Maximieren", "TitleBarCloseButton" => "Schließen", "TitleBarHelpButton" => "Hilfe", _ => null
+                "TitleBarMinimizeButton" => Loc.L("Minimieren", "Minimize"), "TitleBarMaximizeButton" => Loc.L("Maximieren", "Maximize"),
+                "TitleBarCloseButton" => Loc.L("Schließen", "Close"), "TitleBarHelpButton" => Loc.L("Hilfe", "Help"), _ => null
             };
             if (sys != null) { Set(e, sys); return; }
             if (e is ButtonBase b)
@@ -44,7 +47,7 @@ static class Accessibility
                 if (tip != null) Help(e, tip);
             }
             else if (e is ListBoxItem li && li.Content is not string)
-                Set(e, li.Tag is StepRecorder.ReadLayer.ViewStep vs ? (vs.Manual ? "Eingefügter Schritt: " : $"Schritt {vs.Number}: ") + vs.Title + (vs.Hidden ? " (ausgeblendet)" : "") : VisibleText(li.Content as DependencyObject));
+                Set(e, li.Tag is StepRecorder.ReadLayer.ViewStep vs ? (vs.Manual ? Loc.L("Eingefügter Schritt: ", "Inserted step: ") : Loc.F("Schritt {0}: ", "Step {0}: ", vs.Number)) + vs.Title + (vs.Hidden ? Loc.L(" (ausgeblendet)", " (hidden)") : "") : VisibleText(li.Content as DependencyObject));
         }
         catch { /* Bedienungshilfen dürfen nie die Oberfläche stören */ }
     }
@@ -52,12 +55,12 @@ static class Accessibility
     static void Set(FrameworkElement e, string? name)
     {
         if (string.IsNullOrWhiteSpace(name) || !string.IsNullOrEmpty(AutomationProperties.GetName(e))) return;
-        AutomationProperties.SetName(e, Clean(Loc.T(name)));
+        AutomationProperties.SetName(e, Clean(name));
     }
 
     static void Help(FrameworkElement e, string text)
     {
-        if (string.IsNullOrEmpty(AutomationProperties.GetHelpText(e))) AutomationProperties.SetHelpText(e, Clean(Loc.T(text)));
+        if (string.IsNullOrEmpty(AutomationProperties.GetHelpText(e))) AutomationProperties.SetHelpText(e, Clean(text));
     }
 
     static string Clean(string s) => s.Replace("\n", " ").Replace("  ", " ").Trim();

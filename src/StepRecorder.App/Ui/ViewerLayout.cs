@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+﻿﻿using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -10,6 +10,7 @@ using System.Windows.Threading;
 using StepRecorder.Data;
 using StepRecorder.Export;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -20,15 +21,14 @@ namespace StepRecorder.App.Ui;
 /// </summary>
 sealed partial class ViewerWindow
 {
-    static readonly (string hex, string name)[] Palette = { ("#E5484D", "Rot"), ("#F5A524", "Orange"), ("#1F9D55", "Grün"), ("#4361EE", "Blau"), ("#1B1C21", "Schwarz"), ("#FFFFFF", "Weiß") };
+    static readonly (string hex, string name)[] Palette = { ("#E5484D", Loc.L("Rot", "Red")), ("#F5A524", Loc.L("Orange", "Orange")), ("#1F9D55", Loc.L("Grün", "Green")), ("#4361EE", Loc.L("Blau", "Blue")), ("#1B1C21", Loc.L("Schwarz", "Black")), ("#FFFFFF", Loc.L("Weiß", "White")) };
     static readonly string[] ImportanceOrder = { "primary", "secondary", "trace" };
-    static readonly (int width, int fontSize, string name)[] StrokeSizes = { (2, 14, "dünn"), (4, 18, "mittel"), (7, 26, "dick") };
+    static readonly (int width, int fontSize, string name)[] StrokeSizes = { (2, 14, Loc.L("dünn", "thin")), (4, 18, Loc.L("mittel", "medium")), (7, 26, Loc.L("dick", "thick")) };
     readonly List<RadioButton> _strokeBtns = new();
     int _stroke = 4, _fontSize = 18;
     ZoomPanel _zoom = null!;
     Button _cropOff = null!;
     int _handle = -1;               // gezogener Anfasser der Auswahl (-1 = keiner)
-    JsonArray? _handleGeom;
     readonly List<Shape> _handleShapes = new();
 
     readonly Dictionary<string, RadioButton> _toolBtns = new();
@@ -63,28 +63,27 @@ sealed partial class ViewerWindow
     void BuildLayout()
     {
         // ---------------- Kopfzeile: Menüleiste links, häufige Befehle rechts ----------------
-        BindCommands();
         var menuBar = BuildMenuBar();
         var cmds = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         _undoBtn = CmdButton("undo", null); _redoBtn = CmdButton("redo", null);
         _undoBtn.Margin = _redoBtn.Margin = new Thickness(1, 0, 1, 0);
         _playIcon.Text = Theme.IPlay; _playIcon.FontFamily = Theme.Icons; _playIcon.FontSize = 16; _playIcon.VerticalAlignment = VerticalAlignment.Center;
-        var playText = new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        var play = U.Make("Ghost").Set(b => { b.Content = U.Row(_playIcon, playText); b.ToolTip = EditorCommands.Tip("play"); b.Margin = new Thickness(2, 0, 2, 0); });
+        var playText = new TextBlock { Text = Loc.L("Abspielen", "Play"), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+        var play = U.Make("Ghost").Set(b => { b.Content = U.Row(_playIcon, playText); b.ToolTip = TipOf("play"); b.Margin = new Thickness(2, 0, 2, 0); });
         play.Click += (_, _) => Run("play");
         _labels.Add((playText, 1));
-        var preview = CmdButton("preview", "Vorschau", 1);
-        var review = U.Make("Ghost").Set(b => { b.ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)"; b.Margin = new Thickness(2, 0, 2, 0); });
-        var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, "Durchsicht");
+        var preview = CmdButton("preview", Loc.L("Vorschau", "Preview"), 1);
+        var review = U.Make("Ghost").Set(b => { b.ToolTip = Loc.L("Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", "Review conspicuous input before the recording is shared (Ctrl+Shift+R)"); b.Margin = new Thickness(2, 0, 2, 0); });
+        var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, Loc.L("Durchsicht", "Review"));
         _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(999), Padding = new Thickness(7, 1, 7, 2), MinWidth = 22, Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
         _reviewCount.HorizontalAlignment = HorizontalAlignment.Center;
         reviewContent.Children.Add(_reviewBadge);
         review.Content = reviewContent;
         review.Click += (_, _) => Run("review");
         if (reviewContent.Children[1] is TextBlock rt) _labels.Add((rt, 2));
-        var copy = MenuCmdButton(Theme.ICopy, "Kopieren", "Bild oder Text dieses Schritts in die Zwischenablage", 2,
-            () => new() { M("copyImage", enabled: _current != null), M("copyImageText", enabled: Sel != null), M("copyText", enabled: Sel != null), M("copyMarkdown", enabled: Sel != null), M("copyOriginal", enabled: Sel != null), Sep(), M("copyGuide") });
-        var export = CmdButton("export", "Exportieren …", 0, "Primary");
+        var copy = MenuCmdButton(Theme.ICopy, Loc.L("Kopieren", "Copy"), Loc.L("Bild oder Text dieses Schritts in die Zwischenablage", "Copy the image or text of this step to the clipboard"), 2,
+            () => new() { Item("copyImage", enabled: _current != null), Item("copyImageText", enabled: Sel != null), Item("copyText", enabled: Sel != null), Item("copyMarkdown", enabled: Sel != null), Item("copyOriginal", enabled: Sel != null), Sep(), Item("copyGuide"), Item("copyBugReport") });
+        var export = CmdButton("export", Loc.L("Exportieren …", "Export …"), 0, "Primary");
         export.Margin = new Thickness(10, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, U.VSep(), play, preview, review, U.VSep(), copy, export }) cmds.Children.Add(e);
         var bar = new DockPanel();
@@ -95,14 +94,14 @@ sealed partial class ViewerWindow
         var searchHost = new Grid { Margin = new Thickness(16, 16, 16, 12) };
         searchHost.Children.Add(_search);
         _search.TextChanged += (_, _) => Fill();
-        var (impTrack, imp) = U.Segmented("imp", 0, (null, "Schritte"), (null, "Mit Spur"));
-        impTrack.ToolTip = "Schritte: Haupt- und Nebenschritte der Anleitung. Mit Spur: zusätzlich Mausbewegungen, Fensterwechsel und andere Spuren.";
+        var (impTrack, imp) = U.Segmented("imp", 0, (null, Loc.L("Schritte", "Steps")), (null, Loc.L("Mit Spur", "With trace")));
+        impTrack.ToolTip = Loc.L("Schritte: Haupt- und Nebenschritte der Anleitung. Mit Spur: zusätzlich Mausbewegungen, Fensterwechsel und andere Spuren.", "Steps: main and secondary steps of the guide. With trace: also mouse movements, window switches and other traces.");
         _allToggle = imp[1]; _filterBtns = imp;
         foreach (var rb in imp) rb.Checked += (_, _) => { if (IsLoaded) Fill(); };
         // Sprache der Texte (DE/EN) steht bei der Liste – sie betrifft Überschriften und Texte aller Schritte
         var (langTrack, langs) = U.Segmented("tlang", _view.Language == "en" ? 1 : 0, (null, "DE"), (null, "EN"));
         _langBtns = langs;
-        langTrack.ToolTip = "Sprache der Texte: Überschriften, Anleitungstexte, Kapitel und Dokumenttexte gibt es je Sprache – so entstehen aus einer Aufnahme eine deutsche und eine englische Anleitung.";
+        langTrack.ToolTip = Loc.L("Sprache der Texte: Überschriften, Anleitungstexte, Kapitel und Dokumenttexte gibt es je Sprache – so entstehen aus einer Aufnahme eine deutsche und eine englische Anleitung.", "Language of the texts: headings, guide texts, chapters and document texts exist per language – so one recording yields a German and an English guide.");
         langs[0].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("de"); }; langs[1].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("en"); };
         var filterRow = new DockPanel { Margin = new Thickness(16, 0, 16, 8) };
         DockPanel.SetDock(langTrack, Dock.Right); filterRow.Children.Add(langTrack); filterRow.Children.Add(impTrack);
@@ -133,8 +132,8 @@ sealed partial class ViewerWindow
             if (e.Data.GetData(typeof(ViewStep)) is ViewStep src && ItemAt(e.OriginalSource)?.Tag is ViewStep dst && src.Anchor != dst.Anchor) MoveTo(src, dst);
             e.Handled = true;
         };
-        var hintText = U.Text("Ziehen: umsortieren · Strg+Klick: mehrere", Theme.FsCaption, fg: Theme.Muted); hintText.VerticalAlignment = VerticalAlignment.Center;
-        var insertBtn = U.Btn(Theme.IAdd, "Einfügen", () => { }, "Text- oder Bildschritt nach dem ausgewählten Schritt einfügen (Umschalt+Einfg)", "Ghost");
+        var hintText = U.Text(Loc.L("Ziehen: umsortieren · Strg+Klick: mehrere", "Drag: reorder · Ctrl+click: select several"), Theme.FsCaption, fg: Theme.Muted); hintText.VerticalAlignment = VerticalAlignment.Center;
+        var insertBtn = U.Btn(Theme.IAdd, Loc.L("Einfügen", "Insert"), () => { }, Loc.L("Text- oder Bildschritt nach dem ausgewählten Schritt einfügen (Umschalt+Einfg)", "Insert a text or image step after the selected step (Shift+Ins)"), "Ghost");
         insertBtn.Click += (_, _) => InsertMenu(insertBtn); insertBtn.Margin = new Thickness(6, 0, 0, 0);
         var listHint = new DockPanel { Margin = new Thickness(18, 6, 10, 10) };
         hintText.TextWrapping = TextWrapping.Wrap;
@@ -145,16 +144,14 @@ sealed partial class ViewerWindow
         left.Children.Add(searchHost); left.Children.Add(filterRow); left.Children.Add(coverEntry); left.Children.Add(listHint); left.Children.Add(_list);
 
         // ---------------- Ansicht (über dem Bild) ----------------
-        var (baTrack, ba) = U.Segmented("ba", 0, (null, "Vorher"), (null, "Nachher"));
+        var (baTrack, ba) = U.Segmented("ba", 0, (null, Loc.L("Vorher", "Before")), (null, Loc.L("Nachher", "After")));
         _beforeBtn = ba[0]; _afterBtn = ba[1];
         foreach (var rb in ba) rb.Checked += (_, _) => { if (_syncBA) return; _variantOverride = _afterBtn.IsChecked == true ? "after" : "before"; if (IsLoaded) ShowStep(); };
-        baTrack.ToolTip = "Bild vor oder nach der Aktion (W)";
-        var disp = new ComboBox { Items = { "Ganzer Bildschirm", "Anwendungsfenster", "Bereich um die Aktion" }, SelectedIndex = 0, MinWidth = 160, ToolTip = "Bildausschnitt" };
-        _dispBox = disp;
+        baTrack.ToolTip = Loc.L("Bild vor oder nach der Aktion (W)", "Image before or after the action (W)");
+        var disp = _dispBox = new ComboBox { Items = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Bereich um die Aktion", "Area around the action") }, SelectedIndex = 0, MinWidth = 160, ToolTip = Loc.L("Bildausschnitt", "Image area") };
         disp.SelectionChanged += (_, _) => { _display = disp.SelectedIndex switch { 1 => "window", 2 => "crop", _ => "screen" }; ShowStep(); };
-        var marksBtn = MenuCmdButton(Theme.IMouse, "Mausmarken", "Klickpunkt, Zugweg, Zielrahmen, Haltedauer sowie gedrückte Tasten und getippten Text im Bild ein-/ausblenden (H: nur dieser Schritt)", 3,
-            MarksItems);
-        var prev = CmdButton("prevStep", null); var next = CmdButton("nextStep", null);
+        var marksBtn = MenuCmdButton(Theme.IMouse, Loc.L("Mausmarken", "Mouse marks"), Loc.L("Klickpunkt, Zugweg, Zielrahmen, Haltedauer sowie gedrückte Tasten und getippten Text im Bild ein-/ausblenden (H: nur dieser Schritt)", "Show/hide click point, drag path, target frame, hold time as well as pressed keys and typed text in the image (H: this step only)"), 3, MarksItems);
+        var prev = CmdButton("prev", null); var next = CmdButton("next", null);
         prev.Margin = next.Margin = new Thickness(0);
         _stepPos.Foreground = Theme.Muted;
         var nav = U.Row(prev, _stepPos, next);
@@ -163,9 +160,9 @@ sealed partial class ViewerWindow
         var viewRow = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
         DockPanel.SetDock(nav, Dock.Right); viewRow.Children.Add(nav); viewRow.Children.Add(viewLeft);
 
-        // ---------------- Werkzeugpalette (links am Bild, zweispaltig) ----------------
+        // ---------------- Werkzeugpalette (links am Bild, dreispaltig) ----------------
         var pal = new StackPanel();
-        var toolGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+        var toolGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         pal.Children.Add(toolGrid);
         void Tool(string id, UIElement content, string tip)
         {
@@ -177,7 +174,7 @@ sealed partial class ViewerWindow
                 _overlay.Cursor = id == "select" ? Cursors.Arrow : Cursors.Cross;
                 if (id != "select" && _selAnn != null) { _selAnn = null; DrawSelection(); }
                 if (cropChanged && IsLoaded) ShowStep();
-                if (id == "crop") _status.Text = "Zuschneiden: Rechteck aufziehen – gilt für Vorher- und Nachher-Bild dieses Schritts, auch im Export.";
+                if (id == "crop") _status.Text = Loc.L("Zuschneiden: Rechteck aufziehen – gilt für Vorher- und Nachher-Bild dieses Schritts, auch im Export.", "Crop: drag a rectangle – applies to the before and after image of this step, also in the export.");
             };
             _toolBtns[id] = b; toolGrid.Children.Add(b);
         }
@@ -185,23 +182,28 @@ sealed partial class ViewerWindow
         FrameworkElement Bound(FrameworkElement e, DependencyProperty p) { e.SetBinding(p, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) }); return e; }
         var badgeIcon = Bound(new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1.5), Child = new TextBlock { Text = "1", FontSize = 11, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } }, Border.BorderBrushProperty);
         var ellipseIcon = Bound(new Ellipse { Width = 18, Height = 13, StrokeThickness = 1.6 }, Shape.StrokeProperty);
-        Tool("select", G(Theme.IPointer), "Auswählen (V) – Markierung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text");
-        Tool("arrow", G(Theme.IArrow), "Pfeil (A)");
-        Tool("rect", G(Theme.IRect), "Rahmen (R)");
-        Tool("ellipse", ellipseIcon, "Ellipse (E)");
-        Tool("highlight", G(Theme.IHighlight), "Hervorheben (M)");
-        Tool("text", G(Theme.IText), "Text (T)");
-        Tool("badge", badgeIcon, "Nummer (N)");
-        Tool("redact", G(Theme.IRedact), "Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket");
-        Tool("pixelate", G(Theme.IPixelate), "Verpixeln (P) – wie Schwärzen, aber unauffälliger; gilt ab diesem Bild für alle folgenden");
-        Tool("crop", G(Theme.ICrop), "Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export");
+        Tool("select", G(Theme.IPointer), Loc.L("Auswählen (V) – Markierung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text", "Select (V) – click a markup, drag to move, Del deletes, double-click edits text"));
+        Tool("arrow", G(Theme.IArrow), Loc.L("Pfeil (A)", "Arrow (A)"));
+        var lineIcon = Bound(new Line { X1 = 1, Y1 = 15, X2 = 17, Y2 = 3, StrokeThickness = 1.8, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 18, Height = 18 }, Shape.StrokeProperty);
+        Tool("line", lineIcon, Loc.L("Linie (Umschalt+A)", "Line (Shift+A)"));
+        Tool("freehand", G(Theme.IInk), Loc.L("Freihand (F) – frei zeichnen; die Linie wird beim Loslassen geglättet", "Freehand (F) – draw freely; the line is smoothed on release"));
+        Tool("rect", G(Theme.IRect), Loc.L("Rahmen (R)", "Rectangle (R)"));
+        Tool("ellipse", ellipseIcon, Loc.L("Ellipse (E)", "Ellipse (E)"));
+        Tool("highlight", G(Theme.IHighlight), Loc.L("Hervorheben (M)", "Highlight (M)"));
+        Tool("spotlight", G(Theme.ISpot), Loc.L("Spotlight (U) – Bereich bleibt hell, der Rest des Bildes wird abgedunkelt; die Strichstärke bestimmt, wie stark", "Spotlight (U) – the area stays bright, the rest of the image is dimmed; stroke width sets how much"));
+        Tool("magnifier", G(Theme.IMagnifier), Loc.L("Lupe (L) – Bereich aufziehen; die vergrößerte Linse lässt sich getrennt verschieben, der Griff an der Linse ändert den Zoom", "Magnifier (L) – drag an area; the enlarged lens can be moved separately, the handle on the lens changes the zoom"));
+        Tool("text", G(Theme.IText), Loc.L("Text (T)", "Text (T)"));
+        Tool("badge", badgeIcon, Loc.L("Nummer (N)", "Number (N)"));
+        Tool("redact", G(Theme.IRedact), Loc.L("Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket", "Redact (X) – applies from this image onwards, also in the export and AI package"));
+        Tool("pixelate", G(Theme.IPixelate), Loc.L("Verpixeln (P) – wie Schwärzen, aber unauffälliger; gilt ab diesem Bild für alle folgenden", "Pixelate (P) – like redact, but less conspicuous; applies from this image onwards"));
+        Tool("crop", G(Theme.ICrop), Loc.L("Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export", "Crop (C) – drag a rectangle; applies to the images of this step, also in the export"));
         Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 6, 6, 6) };
         pal.Children.Add(PalSep());
         var colorGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         foreach (var (hex, name) in Palette)
         {
             var dot = new Ellipse { Width = 16, Height = 16, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), Stroke = Theme.LineStrong, StrokeThickness = 1 };
-            var rb = new RadioButton { Content = dot, GroupName = "color", IsChecked = hex == _color, ToolTip = "Farbe: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = hex };
+            var rb = new RadioButton { Content = dot, GroupName = "color", IsChecked = hex == _color, ToolTip = Loc.F("Farbe: {0}", "Color: {0}", name), Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = hex };
             rb.Checked += (_, _) => { _color = hex; if (!_syncingColor) RecolorSelected(hex); };
             _colorBtns.Add(rb); colorGrid.Children.Add(rb);
         }
@@ -212,13 +214,13 @@ sealed partial class ViewerWindow
         {
             var line = new Rectangle { Width = 16, Height = Math.Max(1.5, w / 1.6), RadiusX = 1, RadiusY = 1 };
             line.SetBinding(Shape.FillProperty, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) });
-            var rb = new RadioButton { Content = line, GroupName = "stroke", IsChecked = w == _stroke, ToolTip = "Strichstärke und Textgröße: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = w };
+            var rb = new RadioButton { Content = line, GroupName = "stroke", IsChecked = w == _stroke, ToolTip = Loc.F("Strichstärke und Textgröße: {0}", "Stroke width and text size: {0}", name), Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = w };
             rb.Checked += (_, _) => { _stroke = w; _fontSize = fs; if (!_syncingColor) RestrokeSelected(w, fs); };
             _strokeBtns.Add(rb); widthGrid.Children.Add(rb);
         }
         pal.Children.Add(widthGrid);
         pal.Children.Add(PalSep());
-        var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, "Ausgewählte Markierung löschen (Entf) – ohne Auswahl: alle Markierungen dieses Bildes");
+        var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, Loc.L("Ausgewählte Markierung löschen (Entf) – ohne Auswahl: alle Markierungen dieses Bildes", "Delete the selected markup (Del) – without a selection: all markup on this image"));
         del.Margin = new Thickness(0); del.MinWidth = 36; del.HorizontalAlignment = HorizontalAlignment.Stretch;
         pal.Children.Add(del);
         var palette = new Border
@@ -246,9 +248,9 @@ sealed partial class ViewerWindow
         imgArea.Children.Add(_imgCaptionPill);
         imgArea.Children.Add(palette);
         // Zoomleiste und Großansicht (unten rechts)
-        _cropOff = U.Btn(Theme.ICrop, "Zuschnitt entfernen", () => { if (Sel is { } cs) RemoveCrop(cs); }, "Ganzes Bild wieder zeigen", "Ghost");
+        _cropOff = U.Btn(Theme.ICrop, Loc.L("Zuschnitt entfernen", "Remove crop"), () => { if (Sel is { } cs) RemoveCrop(cs); }, Loc.L("Ganzes Bild wieder zeigen", "Show the whole image again"), "Ghost");
         _cropOff.Margin = new Thickness(0, 0, 4, 0); _cropOff.Visibility = Visibility.Collapsed;
-        var full = U.Ghost(Theme.IFullScreen, null, OpenLightbox, "Großansicht (F11 oder Doppelklick aufs Bild)"); full.Margin = new Thickness(0);
+        var full = U.Ghost(Theme.IFullScreen, null, OpenLightbox, Loc.L("Großansicht (F11 oder Doppelklick aufs Bild)", "Enlarged view (F11 or double-click the image)")); full.Margin = new Thickness(0);
         var zoomBar = new Border
         {
             Background = Theme.Raised, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(4, 3, 4, 3), Effect = Theme.Shadow(18, 3),
@@ -264,12 +266,12 @@ sealed partial class ViewerWindow
         center.Children.Add(viewBorder); center.Children.Add(imgArea);
 
         // ---------------- Details ----------------
-        var (tabTrack, tabs) = U.Segmented("dtab", 0, (Theme.IEdit, "Schritt"), (Theme.ICode, "Technik"));
+        var (tabTrack, tabs) = U.Segmented("dtab", 0, (Theme.IEdit, Loc.L("Schritt", "Step")), (Theme.ICode, Loc.L("Technik", "Technical")));
         _tabBtns = tabs; _detailTabs = tabTrack;
         for (int i = 0; i < tabs.Length; i++) { int ti = i; tabs[i].Checked += (_, _) => { _detailTab = ti; if (Sel is { } s) ShowDetails(s); }; }
-        tabs[0].ToolTip = "Text, Hinweise, Einordnung und Bild dieses Schritts";
+        tabs[0].ToolTip = Loc.L("Text, Hinweise, Einordnung und Bild dieses Schritts", "Text, notes, placement and image of this step");
         tabTrack.Margin = new Thickness(24, 16, 24, 4);
-        tabs[1].ToolTip = "Fenster, Ziel, Belege, AutoHotkey-Angaben und das Protokoll für KI";
+        tabs[1].ToolTip = Loc.L("Fenster, Ziel, Belege, AutoHotkey-Angaben und das Protokoll für KI", "Window, target, evidence, AutoHotkey details and the log for AI");
         var detPanel = new DockPanel { Background = Theme.Surface };
         DockPanel.SetDock(tabTrack, Dock.Top); detPanel.Children.Add(tabTrack);
         detPanel.Children.Add(new ScrollViewer { Content = _details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = Theme.Surface });
@@ -289,14 +291,18 @@ sealed partial class ViewerWindow
         {
             var line = new Border { Background = Theme.Line }; Grid.SetColumn(line, col); grid.Children.Add(line);
             var split = new GridSplitter { Width = 7, Margin = new Thickness(-3, 0, -3, 0), HorizontalAlignment = HorizontalAlignment.Stretch, Background = Brushes.Transparent, Cursor = Cursors.SizeWE };
+            split.DragCompleted += (_, _) => { _prefLeft = _leftCol.ActualWidth; _prefRight = _rightCol.ActualWidth; };
             Grid.SetColumn(split, col); Panel.SetZIndex(split, 10); grid.Children.Add(split);
         }
 
         // ---------------- Statuszeile ----------------
-        var statusRow = new DockPanel();
-        _metaBlock.Margin = new Thickness(16, 0, 0, 0); _metaBlock.VerticalAlignment = VerticalAlignment.Center; _metaBlock.FontSize = Theme.FsHint;
-        DockPanel.SetDock(_metaBlock, Dock.Right); statusRow.Children.Add(_metaBlock); statusRow.Children.Add(_status);
-        var statusBar = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 7, 16, 8), Child = statusRow };
+        var statusDock = new DockPanel();
+        var qlink = BuildQualityLink(); DockPanel.SetDock(qlink, Dock.Right); statusDock.Children.Add(qlink);
+        _metaBlock.Margin = new Thickness(16, 0, 12, 0); _metaBlock.VerticalAlignment = VerticalAlignment.Center; _metaBlock.FontSize = Theme.FsHint;
+        DockPanel.SetDock(_metaBlock, Dock.Right); statusDock.Children.Add(_metaBlock);
+        _status.TextTrimming = TextTrimming.CharacterEllipsis;
+        statusDock.Children.Add(_status);
+        var statusBar = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 5, 12, 6), Child = statusDock };
 
         var root = new DockPanel();
         // Titelleiste wie in Windows üblich: „Aufnahmetitel – Programmname“
@@ -304,16 +310,28 @@ sealed partial class ViewerWindow
         DockPanel.SetDock(_titleBar, Dock.Top); root.Children.Add(_titleBar);
         Anim.Appear(grid, 0, 4, 200);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
+        if (_view.Session.ReadOnly)
+        {
+            // .steprec: nur lesen – Entpacken macht daraus eine bearbeitbare Aufnahme im Aufnahmeordner
+            var unpack = U.Btn(Theme.IOpen, Loc.L("Entpacken …", "Unpack …"), async () => { if (await SessionImport.Unpack(this, _path) != null) Close(); }, null, "Ghost");
+            var bannerText = U.Text(Loc.L("Schreibgeschützt (.steprec) – zum Bearbeiten bitte entpacken.", "Read-only (.steprec) – unpack to edit."), Theme.FsHint, fg: Theme.Warn);
+            bannerText.VerticalAlignment = VerticalAlignment.Center; bannerText.Margin = new Thickness(8, 0, 0, 0);
+            var bannerDock = new DockPanel();
+            DockPanel.SetDock(unpack, Dock.Right); bannerDock.Children.Add(unpack);
+            bannerDock.Children.Add(U.Row(U.Icon(Theme.ILock, 13, Theme.Warn), bannerText));
+            var banner = new Border { Background = Theme.WarnSoft, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 4, 12, 4), Child = bannerDock };
+            DockPanel.SetDock(banner, Dock.Top); root.Children.Add(banner);
+        }
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
         Content = root;
-        Closing += (_, _) => InlineCommit(now: true);
+        Closing += (_, _) => { InlineCommit(now: true); SaveUiState(); };
         Closed += (_, _) => _closed = true;
         UpdateUndo();
     }
 
-    /// <summary>Breite der Werkzeugpalette und ihr Abstand zum Rand (bestimmen den linken Rand um das Bild).</summary>
-    const double PaletteWidth = 96, PaletteGap = 12;
+    /// <summary>Breite der Werkzeugpalette (drei Spalten à 36 px plus Rand) und ihr Abstand zum Rand (bestimmen den linken Rand um das Bild).</summary>
+    const double PaletteWidth = 132, PaletteGap = 12;
     /// <summary>Spaltenbreiten der Schrittliste und der Details – breit und bei schmalen Fenstern.</summary>
     const double LeftWide = 340, LeftNarrow = 270, RightWide = 380, RightNarrow = 300;
 
@@ -331,11 +349,13 @@ sealed partial class ViewerWindow
         foreach (var (label, action) in items)
         {
             if (label == "-") { m.Items.Add(new Separator()); continue; }
-            var mt = System.Text.RegularExpressions.Regex.Match(label, @"^(.*?)\s*\((K|[^()]*(?:Strg|Alt|Umschalt|Entf|Einfg|F\d)[^()]*)\)$");
-            m.Items.Add(U.Mi(mt.Success ? mt.Groups[1].Value : label, mt.Success ? mt.Groups[2].Value : null, action));
+            var (header, gesture) = SplitLabel(label);
+            m.Items.Add(U.Mi(header, gesture.Length > 0 ? gesture : null, action));
         }
         return m;
     }
+
+    void ShowShortcuts() => ShortcutsWindow.Show(this, Cmds);
 
     // =====================================================================================
     // Schrittliste
@@ -356,13 +376,17 @@ sealed partial class ViewerWindow
         keepId ??= Sel?.Id;
         _list.Items.Clear();
         _thumbTargets.Clear(); _thumbQueue.Clear();
-        string q = _search.Text.Trim();
+        var query = SearchQuery.Parse(_search.Text);
         int n = 0;
-        foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true))
+        var qualityWarn = Findings().Where(f => f.Severity == "warning" && f.Anchor != null).GroupBy(f => f.Anchor!.Value).ToDictionary(g => g.Key, g => g.First());
+        // Reihenfolge der Anleitung (umsortierte Schritte stehen dort, wo sie im Export erscheinen); ausgeblendete bleiben sichtbar
+        foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true))
         {
-            if (q.Length > 0 && !(s.Title + " " + s.Protocol + " " + s.AuthorTitle + " " + string.Join(" ", s.Comments.Select(c => c.Str("text")))).Contains(q, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!StepSearch.Matches(s, query)) continue;
             n++;
             bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
+            var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
+            if (merge is { lead: false }) dim = true;
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition());
@@ -397,24 +421,28 @@ sealed partial class ViewerWindow
             var kindRow = U.Row(U.Icon(KindIcon(s), 12, Theme.Muted), U.Meta(KindLabel(s.Kind), new Thickness(5, 0, 8, 0)), U.Meta(ShortTime(Fmt.Time(s.TFrom, "de")), new Thickness(0, 0, 8, 0)));
             kindRow.Margin = new Thickness(0, 1, 0, 3);
             meta.Children.Add(kindRow);
-            if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
-            if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
-            if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
-            if (s.Discarded) meta.Children.Add(U.Chip("verworfen", Theme.DangerSoft, Theme.Danger));
+            if (merge is { lead: true } ml) meta.Children.Add(U.Chip(Loc.F("{0} zusammengefasst", "{0} merged", ml.count), Theme.AccentSoft, Theme.AccentText, Theme.ICompare));
+            else if (merge is { lead: false } mm) meta.Children.Add(U.Chip(Loc.F("→ Schritt {0}", "→ step {0}", mm.leadNumber), Theme.Surface2, Theme.Muted));
+            if (s.Unreviewed) meta.Children.Add(U.Chip(Loc.L("ungeprüft", "unreviewed"), Theme.WarnSoft, Theme.Warn, Theme.IWarn));
+            else if (qualityWarn.TryGetValue(s.Anchor, out var qf)) { var qc = U.Chip(qf.Rule, Theme.WarnSoft, Theme.Warn, Theme.IChecklist); qc.ToolTip = qf.Text(Loc.Lang); meta.Children.Add(qc); }
+            if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip(Loc.L("nur Eingabe", "input only"), Theme.Surface2, Theme.Muted));
+            if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? Loc.L("aufgeräumt", "cleaned up") : Loc.L("ausgeblendet", "hidden"), Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
+            if (s.Discarded) meta.Children.Add(U.Chip(Loc.L("verworfen", "discarded"), Theme.DangerSoft, Theme.Danger));
             if (NotesOf(s).Count is int nc && nc > 0) meta.Children.Add(U.Chip(nc.ToString(), Theme.Surface2, Theme.Muted, Theme.IComment));
-            if (s.AuthorTitle != null || s.AuthorBody != null) meta.Children.Add(U.Chip("bearbeitet", Theme.Surface2, Theme.Muted, Theme.IEdit));
+            if (s.AuthorTitle != null || s.AuthorBody != null) meta.Children.Add(U.Chip(Loc.L("bearbeitet", "edited"), Theme.Surface2, Theme.Muted, Theme.IEdit));
             var col = U.Col(head, meta); col.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(col, 1); g.Children.Add(col);
             if (s.ChapterTitle != null)
             {
-                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg2, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = s.ChapterTitle };
+                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg2, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = Loc.F("Kapitelbeginn: {0}", "Chapter start: {0}", s.ChapterTitle) };
                 col.Children.Insert(0, chap);
             }
             _list.Items.Add(new ListBoxItem { Content = g, Tag = s, ToolTip = s.AuthorTitle ?? s.Title });
         }
         var sel = _list.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((ViewStep)i.Tag).Id == keepId) ?? _list.Items.OfType<ListBoxItem>().FirstOrDefault(i => ((ViewStep)i.Tag).Importance == "primary");
         if (sel != null && !_cover) { _list.SelectedItem = sel; _list.ScrollIntoView(sel); }
-        _listCount.Text = q.Length > 0 ? $"{n} Treffer" : $"{n} Schritte";
+        _listCount.Text = query.IsEmpty ? Loc.N(n, "1 Schritt", "{0} Schritte", "1 step", "{0} steps") : Loc.N(n, "1 Treffer", "{0} Treffer", "1 match", "{0} matches");
         UpdateStatus();
+        UpdateQualityLink();
         PumpThumbs();
         if (_cover) ApplyCoverMode();
     }
@@ -430,12 +458,13 @@ sealed partial class ViewerWindow
 
     void MoveTo(ViewStep src, ViewStep dst)
     {
-        var seq = _view.Effective(guide: true, importance: "all", includeManual: true).Select(x => x.Anchor).ToList();
+        // dieselbe Folge wie in der Liste (samt ausgeblendeten Schritten, die so ihren Platz behalten)
+        var seq = _view.Effective(importance: "all", includeManual: true, ordered: true).Select(x => x.Anchor).ToList();
         int from = seq.IndexOf(src.Anchor), to = seq.IndexOf(dst.Anchor);
         if (from < 0 || to < 0 || from == to) return;
         seq.RemoveAt(from); seq.Insert(to, src.Anchor);
         Change(e => e["order"] = new JsonArray(seq.Select(x => (JsonNode)x).ToArray()));
-        _status.Text = $"Schritt verschoben – rückgängig mit Strg+Z";
+        _status.Text = Loc.F("Schritt verschoben – rückgängig mit {0}", "Step moved – undo with {0}", Cmd("undo").Gesture);
     }
 
     // ---------------- Vorschaubilder ----------------
@@ -469,9 +498,8 @@ sealed partial class ViewerWindow
     {
         string variant = DefaultVariant(s);
         bool annotate = true;
-        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen") ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original") : null);
+        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen", authorAnnotations: true) ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original", authorAnnotations: true) : null);
         if (img == null) return null;
-        using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
         int w = ThumbRender, h = Math.Max(1, (int)Math.Round(img.Bitmap.Height * (double)ThumbRender / Math.Max(1, img.Bitmap.Width)));
         using var small = new System.Drawing.Bitmap(w, h);
         using (var g = System.Drawing.Graphics.FromImage(small))
@@ -516,33 +544,57 @@ sealed partial class ViewerWindow
         _editTitle = _editBody = null; _editAnchor = null;
         if (_detailTab == 1)
         {
-            if (_list.SelectedItems.Count > 1) _details.Children.Add(U.InfoBar("Mehrere Schritte ausgewählt", $"Die technischen Angaben zeigen den ersten von {_list.SelectedItems.Count} Schritten.", false, new Thickness(0, 0, 0, 12)));
+            if (_list.SelectedItems.Count > 1) _details.Children.Add(U.InfoBar(Loc.L("Mehrere Schritte ausgewählt", "Several steps selected"), Loc.F("Die technischen Angaben zeigen den ersten von {0} Schritten.", "The technical details show the first of {0} steps.", _list.SelectedItems.Count), false, new Thickness(0, 0, 0, 12)));
             TechDetails(s); return;
         }
         if (_list.SelectedItems.Count > 1) { ShowBulk(); return; }
 
         var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 16) };
-        if (s.Manual) chips.Children.Add(U.Chip("Eigener Schritt – nicht aus der Aufnahme", Theme.AccentSoft, Theme.AccentText, KindIcon(s)));
+        if (s.Manual) chips.Children.Add(U.Chip(Loc.L("Eigener Schritt – nicht aus der Aufnahme", "Own step – not from the recording"), Theme.AccentSoft, Theme.AccentText, KindIcon(s)));
         else
         {
-        chips.Children.Add(U.Chip($"Schritt {s.Number}", Theme.Surface2, Theme.Fg2));
+        chips.Children.Add(U.Chip(Loc.F("Schritt {0}", "Step {0}", s.Number), Theme.Surface2, Theme.Fg2));
         chips.Children.Add(U.Chip(KindLabel(s.Kind), Theme.AccentSoft, Theme.AccentText, KindIcon(s)));
-        if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; chips.Children.Add(hc); }
-        var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => ("belegt", Theme.SuccessSoft, Theme.Success), "inputOnly" => ("nur Eingabe", Theme.WarnSoft, Theme.Warn), _ => ("unbekannt", Theme.Surface2, Theme.Muted) };
+        if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? Loc.L("aufgeräumt", "cleaned up") : Loc.L("ausgeblendet", "hidden"), Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; chips.Children.Add(hc); }
+        var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => (Loc.L("belegt", "confirmed"), Theme.SuccessSoft, Theme.Success), "inputOnly" => (Loc.L("nur Eingabe", "input only"), Theme.WarnSoft, Theme.Warn), _ => (Loc.L("unbekannt", "unknown"), Theme.Surface2, Theme.Muted) };
         var ev = U.Chip(evText, evBg, evFg, s.EvidenceLevel == "confirmed" ? Theme.ICheck : null);
-        ev.ToolTip = s.EvidenceLevel switch { "confirmed" => "Die Wirkung der Aktion wurde beobachtet.", "inputOnly" => "Nur die Eingabe ist bekannt, eine Wirkung wurde nicht beobachtet.", _ => "Für diesen Schritt liegen keine Belege vor." };
+        ev.ToolTip = s.EvidenceLevel switch { "confirmed" => Loc.L("Die Wirkung der Aktion wurde beobachtet.", "The effect of the action was observed."), "inputOnly" => Loc.L("Nur die Eingabe ist bekannt, eine Wirkung wurde nicht beobachtet.", "Only the input is known; no effect was observed."), _ => Loc.L("Für diesen Schritt liegen keine Belege vor.", "There is no evidence for this step.") };
         chips.Children.Add(ev);
-        if (s.ImageReplaced) chips.Children.Add(U.Chip("Bild ersetzt", Theme.Surface2, Theme.Muted, Theme.ICamera));
+        if (s.ImageReplaced) chips.Children.Add(U.Chip(Loc.L("Bild ersetzt", "Image replaced"), Theme.Surface2, Theme.Muted, Theme.ICamera));
         }
         _details.Children.Add(chips);
 
         if (s.Unreviewed)
-            _details.Children.Add(Callout(true, "Auffällige Eingabe", $"{s.FlagReason} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben."));
+            _details.Children.Add(Callout(Theme.IWarn, Theme.WarnSoft, Theme.Warn, Loc.L("Auffällige Eingabe", "Conspicuous input"), Loc.F("{0} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben.", "{0} – please check it in the review before you share the recording.", Patterns.KindName(s.FlagReason ?? "", Loc.Lang))));
+
+        // Während der Aufnahme geschriebener Kommentar: als intern markieren (erscheint dann in keiner Ausgabe)
+        if (s.Kind == "comment" && !s.Manual)
+        {
+            long src = s.Json.Obj("input")?.Long("refSeq") ?? 0;
+            if (s.CommentHidden && _view.OriginalCommentText(s) is { Length: > 0 } orig)
+                _details.Children.Add(Callout(Theme.ILock, Theme.Surface2, Theme.Fg2, Loc.L("Interner Kommentar (nur hier sichtbar)", "Internal comment (visible only here)"), orig));
+            var internalBox = new CheckBox { Content = Loc.L("Interner Kommentar – erscheint in keiner Ausgabe", "Internal comment – appears in no output"), IsChecked = s.CommentHidden, IsEnabled = !_view.Session.ReadOnly && src > 0, Margin = new Thickness(0, 0, 0, 12), ToolTip = Loc.F("Der Text dieses Kommentars wird in Anleitung, KI-Paket, MCP und Kommandozeilen-Export durch „{0}“ ersetzt; der Schritt wird ausgeblendet.", "The text of this comment is replaced by “{0}” in the guide, AI package, MCP and command-line export; the step is hidden.", _view.RedactedText) };
+            internalBox.Checked += (_, _) => SetRecordedCommentHidden(src, true);
+            internalBox.Unchecked += (_, _) => SetRecordedCommentHidden(src, false);
+            _details.Children.Add(internalBox);
+        }
+
+        // Zusammengefasste Schritte: der führende Schritt zeigt und bearbeitet den Text der Gruppe
+        var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
+        var composite = merge is { lead: true } ? _view.GuideStepFor(s) : null;
+        if (merge is { lead: true } ml)
+            _details.Children.Add(Callout(Theme.ICompare, Theme.AccentSoft, Theme.AccentText, Loc.N(ml.count, "1 Schritt zusammengefasst", "{0} Schritte zusammengefasst", "1 step merged", "{0} steps merged"),
+                Loc.F("In Anleitungen erscheinen die Schritte {0} als ein Schritt mit diesem Text; Bild vorher vom ersten, nachher vom letzten. KI-Paket und AutoHotkey zeigen weiter alle. Aufheben: {1}.", "In guides, steps {0} appear as one step with this text; before image from the first, after image from the last. AI package and AutoHotkey still show all. Dissolve: {1}.",
+                    string.Join(", ", ml.numbers), Cmd("unmerge").Gesture)));
+        else if (merge is { lead: false } mm)
+            _details.Children.Add(Callout(Theme.ICompare, Theme.Surface2, Theme.Fg2, Loc.F("Teil von Schritt {0}", "Part of step {0}", mm.leadNumber),
+                Loc.L("Dieser Schritt ist in Anleitungen im führenden Schritt enthalten; sein Text fließt dort ein, solange der führende Schritt keinen eigenen Text hat.", "In guides this step is contained in the leading step; its text is used there as long as the leading step has no text of its own.")));
 
         // Überschrift und Text direkt bearbeiten
         bool ro = _view.Session.ReadOnly;
         _editAnchor = s.Anchor;
-        _editOrigTitle = s.AuthorTitle ?? s.Title; _editOrigBody = s.AuthorBody ?? s.Guide;
+        _editOrigTitle = composite != null ? composite.AuthorTitle ?? composite.Title : s.AuthorTitle ?? s.Title;
+        _editOrigBody = composite != null ? composite.AuthorBody ?? composite.Guide : s.AuthorBody ?? s.Guide;
         _editTitle = new TextBox { Text = _editOrigTitle, FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsReadOnly = ro, MaxLength = 300 };
         _editBody = new TextBox { Text = _editOrigBody, FontSize = Theme.FsBody, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MinHeight = 96, VerticalContentAlignment = VerticalAlignment.Top, IsReadOnly = ro, MaxLength = 8000 };
         TextBlock.SetLineHeight(_editBody, 21);
@@ -558,19 +610,19 @@ sealed partial class ViewerWindow
                 else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { _list.Focus(); e.Handled = true; }
             };
         }
-        bool edited = s.AuthorTitle != null || s.AuthorBody != null;
-        var textBox = Section("Text", labelMargin: new Thickness(0, 4, 0, 8));
-        textBox.Children.Add(U.Field("Überschrift", editTitle));
-        var bodyField = U.Field("Anleitungstext", editBody, margin: new Thickness(0, 0, 0, 8));
+        bool edited = composite?.MergeId is { } cmid ? MergeTextEdited(cmid) : s.AuthorTitle != null || s.AuthorBody != null;
+        var textBox = Section(Loc.L("Text", "Text"), labelMargin: new Thickness(0, 4, 0, 8));
+        textBox.Children.Add(U.Field(Loc.L("Überschrift", "Heading"), editTitle));
+        var bodyField = U.Field(Loc.L("Anleitungstext", "Guide text"), editBody, margin: new Thickness(0, 0, 0, 8));
         textBox.Children.Add(bodyField);
         var editInfo = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
         if (edited && !ro)
         {
-            var reset = U.Btn(Theme.IUndo, "Original", () => ResetText(s), "Automatisch erzeugten Text wiederherstellen", "Link");
+            var reset = U.Btn(Theme.IUndo, Loc.L("Original", "Original"), () => ResetText(s), Loc.L("Automatisch erzeugten Text wiederherstellen", "Restore the automatically generated text"), "Link");
             reset.Margin = new Thickness(8, -2, -6, 0); reset.Padding = new Thickness(6, 2, 6, 2); reset.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(reset, Dock.Right); editInfo.Children.Add(reset);
         }
-        var infoText = U.Text(ro ? "Schreibgeschützt – zum Bearbeiten bitte entpacken." : s.Manual ? "Eigener Text · wird automatisch gespeichert" : edited ? "Von Ihnen geändert · wird automatisch gespeichert" : "Automatisch erzeugt – einfach überschreiben, wird automatisch gespeichert", Theme.FsCaption, fg: Theme.Muted);
+        var infoText = U.Text(ro ? Loc.L("Schreibgeschützt – zum Bearbeiten bitte entpacken.", "Read-only – unpack to edit.") : s.Manual ? Loc.L("Eigener Text · wird automatisch gespeichert", "Own text · saved automatically") : edited ? Loc.L("Von Ihnen geändert · wird automatisch gespeichert", "Changed by you · saved automatically") : Loc.L("Automatisch erzeugt – einfach überschreiben, wird automatisch gespeichert", "Generated automatically – just overwrite it, saved automatically"), Theme.FsCaption, fg: Theme.Muted);
         infoText.TextWrapping = TextWrapping.Wrap;
         editInfo.Children.Add(infoText);
         editInfo.Margin = new Thickness(0, 0, 0, 12);
@@ -580,21 +632,21 @@ sealed partial class ViewerWindow
         NotesSection(s);
 
         // Einordnung: Wichtigkeit, Kapitel, Reihenfolge und Sichtbarkeit
-        var place = Section("Einordnung");
+        var place = Section(Loc.L("Einordnung", "Placement"));
         if (!s.Manual)
         {
             int impIdx = Math.Max(0, Array.IndexOf(ImportanceOrder, s.Importance));
-            var (impTrack, imps) = U.Segmented("dimp", impIdx, (null, "Hauptschritt"), (null, "Nebenschritt"), (null, "Spur"));
+            var (impTrack, imps) = U.Segmented("dimp", impIdx, (null, Loc.L("Hauptschritt", "Main step")), (null, Loc.L("Nebenschritt", "Secondary step")), (null, Loc.L("Spur", "Trace")));
             for (int i = 0; i < imps.Length; i++) { string target = ImportanceOrder[i]; imps[i].Checked += (_, _) => { if (target != s.Importance) Change(e => StepEdit(e, s.Anchor)["importance"] = target); }; imps[i].IsEnabled = !ro; }
-            place.Children.Add(U.Field("Wichtigkeit", impTrack, ImportanceHint(s.Importance)));
+            place.Children.Add(U.Field(Loc.L("Wichtigkeit", "Importance"), impTrack, ImportanceHint(s.Importance)));
         }
         ChapterBlock(s, place);
         var acts = new WrapPanel { Margin = new Thickness(-3, -3, 0, 12) };
-        var hide = U.Btn(Theme.IEye, s.Hidden ? "Einblenden" : "Ausblenden", () => Run("hide"), "Schritt in Anleitung und Export aus- oder einblenden (Entf)"); hide.IsEnabled = !ro;
+        var hide = U.Btn(Theme.IEye, s.Hidden ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), () => Run("hide"), TipOf("hide")); hide.IsEnabled = !ro;
         acts.Children.Add(hide);
         foreach (var id in new[] { "moveUp", "moveDown" })
         {
-            var mv = U.Ghost(EditorCommands.Get(id).Glyph, null, () => Run(id), EditorCommands.Tip(id)); mv.Margin = new Thickness(1, 3, 1, 3); mv.MinWidth = 36; mv.Padding = new Thickness(8, 6, 8, 6); mv.IsEnabled = !ro;
+            var mv = U.Ghost(Glyphs[id], null, () => Run(id), TipOf(id)); mv.Margin = new Thickness(1, 3, 1, 3); mv.MinWidth = 36; mv.Padding = new Thickness(8, 6, 8, 6); mv.IsEnabled = !ro;
             acts.Children.Add(mv);
         }
         place.Children.Add(acts);
@@ -604,18 +656,18 @@ sealed partial class ViewerWindow
 
         // Kurzangaben
         _details.Children.Add(U.Divider(new Thickness(0, 24, 0, 4)));
-        if (s.Json.Obj("ctx") is { } ctx) InfoRow("Fenster", ReadOnlyText($"„{ctx.Str("title")}“ · {ctx.Str("process")}", Theme.Fg2, Theme.FsHint));
-        if (s.Json.Obj("target") is not null) InfoRow("Ziel", ReadOnlyText(Steps.TextTemplates.TargetLabel(s.Json, "de", false), Theme.Fg2, Theme.FsHint));
-        var more = U.Btn(Theme.ICode, "Technische Angaben", () => _tabBtns[1].IsChecked = true, "Zum Reiter „Technik“", "Link");
+        if (s.Json.Obj("ctx") is { } ctx) InfoRow(Loc.L("Fenster", "Window"), ReadOnlyText(Loc.F("„{0}“ · {1}", "“{0}” · {1}", ctx.Str("title"), ctx.Str("process")), Theme.Fg2, Theme.FsHint));
+        if (s.Json.Obj("target") is not null) InfoRow(Loc.L("Ziel", "Target"), ReadOnlyText(Steps.TextTemplates.TargetLabel(s.Json, Loc.Lang, false), Theme.Fg2, Theme.FsHint));
+        var more = U.Btn(Theme.ICode, Loc.L("Technische Angaben", "Technical details"), () => _tabBtns[1].IsChecked = true, Loc.L("Zum Reiter „Technik“", "Go to the “Technical” tab"), "Link");
         more.HorizontalAlignment = HorizontalAlignment.Left; more.Margin = new Thickness(-8, 10, 0, 0);
         _details.Children.Add(more);
     }
 
     static string ImportanceHint(string imp) => imp switch
     {
-        "primary" => "Erscheint in der Anleitung und im Export.",
-        "secondary" => "Begleitender Schritt – im Export nur, wenn „Haupt- und Nebenschritte“ gewählt ist.",
-        _ => "Reine Spur (z. B. Mausbewegung) – nur unter „Mit Spur“ sichtbar."
+        "primary" => Loc.L("Erscheint in der Anleitung und im Export.", "Appears in the guide and in the export."),
+        "secondary" => Loc.L("Begleitender Schritt – im Export nur, wenn „Haupt- und Nebenschritte“ gewählt ist.", "Supporting step – in the export only if “Main and secondary steps” is selected."),
+        _ => Loc.L("Reine Spur (z. B. Mausbewegung) – nur unter „Mit Spur“ sichtbar.", "Trace only (e.g. mouse movement) – visible only under “With trace”.")
     };
 
     void InfoRow(string label, UIElement value)
@@ -633,35 +685,35 @@ sealed partial class ViewerWindow
     {
         var j = s.Json;
         _details.Children.Add(U.Heading(s.AuthorTitle ?? s.Title, Theme.FsSub, new Thickness(0, 0, 0, 4)));
-        _details.Children.Add(U.Text($"Schritt {s.Number} · {KindLabel(s.Kind)} · {ImportanceLabel(s.Importance)} · {Fmt.Time(s.TFrom, "de")}", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
-        if (j.Obj("ctx") is { } ctx) InfoRow("Fenster", ReadOnlyText($"„{ctx.Str("title")}“\n{ctx.Str("process")}"));
+        _details.Children.Add(U.Text(Loc.F("Schritt {0} · {1} · {2} · {3}", "Step {0} · {1} · {2} · {3}", s.Number, KindLabel(s.Kind), ImportanceLabel(s.Importance), Fmt.Time(s.TFrom, Loc.Lang)), Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        if (j.Obj("ctx") is { } ctx) InfoRow(Loc.L("Fenster", "Window"), ReadOnlyText(Loc.F("„{0}“\n{1}", "“{0}”\n{1}", ctx.Str("title"), ctx.Str("process"))));
         if (j.Obj("target") is { } t)
         {
-            var v = U.Col(ReadOnlyText(Steps.TextTemplates.TargetLabel(j, "de", false)));
-            if (t.Str("status") is { } st) { var chip = U.Chip(st switch { "agreed" => "übereinstimmend", "corroborated" => "bestätigt", "single" => "eine Quelle", "conflict" => "widersprüchlich", "position" => "nur Position", _ => st }, Theme.Surface2, Theme.Muted); chip.HorizontalAlignment = HorizontalAlignment.Left; chip.Margin = new Thickness(0, 4, 0, 0); v.Children.Add(chip); }
-            InfoRow("Ziel", v);
+            var v = U.Col(ReadOnlyText(Steps.TextTemplates.TargetLabel(j, Loc.Lang, false)));
+            if (t.Str("status") is { } st) { var chip = U.Chip(st switch { "agreed" => Loc.L("übereinstimmend", "agreed"), "corroborated" => Loc.L("bestätigt", "corroborated"), "single" => Loc.L("eine Quelle", "single source"), "conflict" => Loc.L("widersprüchlich", "conflicting"), "position" => Loc.L("nur Position", "position only"), _ => st }, Theme.Surface2, Theme.Muted); chip.HorizontalAlignment = HorizontalAlignment.Left; chip.Margin = new Thickness(0, 4, 0, 0); v.Children.Add(chip); }
+            InfoRow(Loc.L("Ziel", "Target"), v);
         }
         if (s.Kind == "type" && j.Obj("input") is { } inp)
         {
-            var v = U.Col(ReadOnlyText(s.Unreviewed ? "(ungeprüft)" : Steps.TextTemplates.TokensNotation(inp), font: Theme.Mono, size: Theme.FsHint));
-            if (inp.Str("valueAfter") is { } va && !s.Unreviewed) v.Children.Add(ReadOnlyText("Feldinhalt danach: " + va, Theme.Muted, Theme.FsHint));
-            InfoRow("Eingabe", v);
+            var v = U.Col(ReadOnlyText(s.Unreviewed ? Loc.L("(ungeprüft)", "(unreviewed)") : Steps.TextTemplates.TokensNotation(inp), font: Theme.Mono, size: Theme.FsHint));
+            if (inp.Str("valueAfter") is { } va && !s.Unreviewed) v.Children.Add(ReadOnlyText(Loc.F("Feldinhalt danach: {0}", "Field content afterwards: {0}", va), Theme.Muted, Theme.FsHint));
+            InfoRow(Loc.L("Eingabe", "Input"), v);
         }
-        if (s.Kind is "click" or "doubleClick" or "tripleClick" or "rightClick" or "drag" && j.Obj("input") is { } mi) InfoRow("Maus", ReadOnlyText(MouseSummary(s.Kind, mi)));
-        if (j.Obj("effect") is { } eff && eff.Bool("observed")) InfoRow("Wirkung", ReadOnlyText(EffectSummary(eff)));
-        var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => ("belegt", Theme.SuccessSoft, Theme.Success), "inputOnly" => ("nur Eingabe", Theme.WarnSoft, Theme.Warn), _ => ("unbekannt", Theme.Surface2, Theme.Muted) };
+        if (s.Kind is "click" or "doubleClick" or "tripleClick" or "rightClick" or "drag" && j.Obj("input") is { } mi) InfoRow(Loc.L("Maus", "Mouse"), ReadOnlyText(MouseSummary(s.Kind, mi)));
+        if (j.Obj("effect") is { } eff && eff.Bool("observed")) InfoRow(Loc.L("Wirkung", "Effect"), ReadOnlyText(EffectSummary(eff)));
+        var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => (Loc.L("belegt", "confirmed"), Theme.SuccessSoft, Theme.Success), "inputOnly" => (Loc.L("nur Eingabe", "input only"), Theme.WarnSoft, Theme.Warn), _ => (Loc.L("unbekannt", "unknown"), Theme.Surface2, Theme.Muted) };
         var evChip = U.Chip(evText, evBg, evFg, s.EvidenceLevel == "confirmed" ? Theme.ICheck : null); evChip.HorizontalAlignment = HorizontalAlignment.Left;
         var reasons = string.Join(", ", j.Obj("evidence")?.StrList("reasons") ?? new());
-        InfoRow("Beleg", reasons.Length > 0 ? U.Col(evChip, ReadOnlyText(reasons, Theme.Muted, Theme.FsHint)) : evChip);
+        InfoRow(Loc.L("Beleg", "Evidence"), reasons.Length > 0 ? U.Col(evChip, ReadOnlyText(reasons, Theme.Muted, Theme.FsHint)) : evChip);
 
         if (j.Obj("target")?.Obj("win32") is { } w32) Win32Section(s, w32, InfoRow);
         AppContextSection(j);
 
-        _details.Children.Add(U.SectionLabel("Protokoll für KI"));
+        _details.Children.Add(U.SectionLabel(Loc.L("Protokoll für KI", "Log for AI")));
         _details.Children.Add(U.Inset(ReadOnlyText(s.Protocol, Theme.Fg2, Theme.FsCaption, Theme.Mono), new Thickness(14, 12, 14, 12)));
         _details.Children.Add(new Expander
         {
-            Header = "Rohdaten (JSON)", Margin = new Thickness(0, 20, 0, 0),
+            Header = Loc.L("Rohdaten (JSON)", "Raw data (JSON)"), Margin = new Thickness(0, 20, 0, 0),
             Content = U.Inset(new ScrollViewer { MaxHeight = 420, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = ReadOnlyText(Json.Pretty(j), Theme.Fg2, Theme.FsCaption, Theme.Mono) }, new Thickness(14, 12, 14, 12))
         });
     }
@@ -670,27 +722,27 @@ sealed partial class ViewerWindow
     void AppContextSection(JsonObject j)
     {
         var rows = new List<(string label, string value)>();
-        string Q(string? t) => $"„{t}“";
+        string Q(string? t) => Loc.F("„{0}“", "“{0}”", t);
         if (j.Obj("menuPath") is { } mp && (mp.LongN("commandId") != null || mp.Str("source") != null))
-            rows.Add(("Menübefehl", string.Join(" › ", (mp.Arr("items") ?? new JsonArray()).Select(x => x?.ToString())) + (mp.LongN("commandId") is long id ? $"\nBefehls-ID {id} (WM_COMMAND)" : "") + (mp.Bool("disabled") ? "\ndeaktiviert" : "")));
+            rows.Add((Loc.L("Menübefehl", "Menu command"), string.Join(" › ", (mp.Arr("items") ?? new JsonArray()).Select(x => x?.ToString())) + (mp.LongN("commandId") is long id ? Loc.F("\nBefehls-ID {0} (WM_COMMAND)", "\nCommand ID {0} (WM_COMMAND)", id) : "") + (mp.Bool("disabled") ? Loc.L("\ndeaktiviert", "\ndisabled") : "")));
         if (j.Obj("choose")?.Obj("win32") is { } cw)
-            rows.Add(("Liste", $"{cw.Str("kind")} {cw.Str("classNN")}" + (cw.Str("text") is { } ct ? $"\nEintrag {Q(ct)}" : "") + (cw.LongN("index") is long ix ? $" · Nr. {ix}" + (cw.LongN("count") is long cn ? $" von {cn}" : "") : "") + (cw.Str("path") is { } pth ? $"\nPfad {pth}" : "")));
+            rows.Add((Loc.L("Liste", "List"), $"{cw.Str("kind")} {cw.Str("classNN")}" + (cw.Str("text") is { } ct ? Loc.F("\nEintrag {0}", "\nItem {0}", Q(ct)) : "") + (cw.LongN("index") is long ix ? Loc.F(" · Nr. {0}", " · No. {0}", ix) + (cw.LongN("count") is long cn ? Loc.F(" von {0}", " of {0}", cn) : "") : "") + (cw.Str("path") is { } pth ? Loc.F("\nPfad {0}", "\nPath {0}", pth) : "")));
         if (j.Obj("explorer") is { } ex)
-            rows.Add(("Explorer", (ex.Str("folder") ?? ex.Str("location") ?? "") + (ex.Str("folderAfter") is { } fa && fa != ex.Str("folder") ? $"\n→ {fa}" : "") + (ex.LongN("selectedCount") is long sc && sc > 0 ? $"\n{sc} ausgewählt" : "")));
+            rows.Add(("Explorer", (ex.Str("folder") ?? ex.Str("location") ?? "") + (ex.Str("folderAfter") is { } fa && fa != ex.Str("folder") ? $"\n→ {fa}" : "") + (ex.LongN("selectedCount") is long sc && sc > 0 ? Loc.F("\n{0} ausgewählt", "\n{0} selected", sc) : "")));
         if (j.Obj("data")?.Obj("fileDialog") is { } fd && fd.Str("folder") is { } fdf)
-            rows.Add(("Dateidialog", fdf + (fd.Str("fileNameControl") is { } fnc ? $"\nDateiname-Feld {fnc}" : "")));
+            rows.Add((Loc.L("Dateidialog", "File dialog"), fdf + (fd.Str("fileNameControl") is { } fnc ? Loc.F("\nDateiname-Feld {0}", "\nFile name field {0}", fnc) : "")));
         if (j.Obj("browser") is { } br)
             rows.Add(("Browser", $"{br.Str("browser")}\n{br.Str("url")}" + (br.Str("urlAfter") is { } ua && ua != br.Str("url") ? $"\n→ {ua}" : "")));
         if (j.Obj("office") is { } of)
-            rows.Add(("Office", string.Join("\n", new[] { of.Str("app"), of.Str("workbookName") ?? of.Str("documentName"), of.Str("sheet") is { } sh ? $"Blatt {sh}" + (of.Str("cell") is { } cell ? $" · Zelle {cell}" : "") : null }.Where(x => x != null))));
+            rows.Add(("Office", string.Join("\n", new[] { of.Str("app"), of.Str("workbookName") ?? of.Str("documentName"), of.Str("sheet") is { } sh ? Loc.F("Blatt {0}", "Sheet {0}", sh) + (of.Str("cell") is { } cell ? Loc.F(" · Zelle {0}", " · Cell {0}", cell) : "") : null }.Where(x => x != null))));
         if (j.Obj("verify")?.Obj("statusBar") is { } sb)
-            rows.Add(("Statusleiste", string.Join(" | ", (sb.Arr("parts") ?? new JsonArray()).Select(x => x?.ToString())) + ((sb.Arr("changed")?.Count ?? 0) > 0 ? "\n(nach der Aktion geändert)" : "")));
+            rows.Add((Loc.L("Statusleiste", "Status bar"), string.Join(" | ", (sb.Arr("parts") ?? new JsonArray()).Select(x => x?.ToString())) + ((sb.Arr("changed")?.Count ?? 0) > 0 ? Loc.L("\n(nach der Aktion geändert)", "\n(changed after the action)") : "")));
         if (j.Obj("target")?.Obj("win32")?.Obj("control")?.Obj("caret") is { } ca)
-            rows.Add(("Schreibmarke", $"Zeile {ca.LongN("line")}, Spalte {ca.LongN("col")}" + (ca.Long("selLen") > 0 ? $" · {ca.Long("selLen")} Zeichen markiert" : "") + (ca.Bool("readOnly") ? " · schreibgeschützt" : "")));
+            rows.Add((Loc.L("Schreibmarke", "Caret"), Loc.F("Zeile {0}, Spalte {1}", "Line {0}, column {1}", ca.LongN("line"), ca.LongN("col")) + (ca.Long("selLen") > 0 ? Loc.F(" · {0} Zeichen markiert", " · {0} characters selected", ca.Long("selLen")) : "") + (ca.Bool("readOnly") ? Loc.L(" · schreibgeschützt", " · read-only") : "")));
         if (j.Obj("target")?.Obj("win32")?.Obj("msaa") is { } ms)
-            rows.Add(("MSAA", $"{ms.Str("roleText") ?? ms.Str("role")}" + (ms.Str("defaultAction") is { } da ? $" · Standardaktion {Q(da)}" : "")));
+            rows.Add(("MSAA", $"{ms.Str("roleText") ?? ms.Str("role")}" + (ms.Str("defaultAction") is { } da ? Loc.F(" · Standardaktion {0}", " · Default action {0}", Q(da)) : "")));
         if (rows.Count == 0) return;
-        _details.Children.Add(U.SectionLabel("Programmkontext", new Thickness(0, 24, 0, 2)));
+        _details.Children.Add(U.SectionLabel(Loc.L("Programmkontext", "Application context"), new Thickness(0, 24, 0, 2)));
         foreach (var (label, value) in rows) InfoRow(label, ReadOnlyText(value.Trim(), Theme.Fg, Theme.FsHint));
     }
 
@@ -715,19 +767,28 @@ sealed partial class ViewerWindow
         else Dispatcher.BeginInvoke(DispatcherPriority.Background, () => SaveText(anchor, t, b));
     }
 
-    void SaveText(long anchor, string title, string body) => Change(e =>
+    void SaveText(long anchor, string title, string body)
     {
-        var se = StepEdit(e, anchor);
-        var text = se["text"] as JsonObject ?? new JsonObject();
-        text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
-        se["text"] = text;
-    });
+        // führender Schritt einer Gruppe: der Text gehört dem zusammengefassten Schritt
+        if (anchor >= 0 && _view.MergeOf(anchor) is { lead: true } mg) { SaveMergeText(mg.id, title, body); return; }
+        Change(e =>
+        {
+            var se = StepEdit(e, anchor);
+            var text = se["text"] as JsonObject ?? new JsonObject();
+            text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
+            se["text"] = text;
+        });
+    }
 
-    void ResetText(ViewStep s) => Change(e =>
+    void ResetText(ViewStep s)
     {
-        var se = StepEdit(e, s.Anchor);
-        if (se["text"] is JsonObject t) { t.Remove(_view.Language); if (t.Count == 0) se.Remove("text"); }
-    });
+        if (!s.Manual && _view.MergeOf(s.Anchor) is { lead: true } mg) { ResetMergeText(mg.id); return; }
+        Change(e =>
+        {
+            var se = StepEdit(e, s.Anchor);
+            if (se["text"] is JsonObject t) { t.Remove(_view.Language); if (t.Count == 0) se.Remove("text"); }
+        });
+    }
 
     // =====================================================================================
     // Zeichnen, Auswählen, Verschieben
@@ -735,42 +796,20 @@ sealed partial class ViewerWindow
 
     static double D(JsonNode? n) => n is JsonValue v ? (v.TryGetValue<double>(out var d) ? d : v.TryGetValue<int>(out var i) ? i : v.TryGetValue<long>(out var l) ? l : 0) : 0;
 
-    /// <summary>Umriss einer Markierung in Bildkoordinaten.</summary>
-    static Rect? Bounds(JsonObject a)
-    {
-        if (a["geom"] is not JsonArray g) return null;
-        switch (a.Str("type"))
-        {
-            case "arrow" or "line" when g.Count >= 4: return new Rect(new Point(D(g[0]), D(g[1])), new Point(D(g[2]), D(g[3])));
-            case "rect" or "ellipse" or "highlight" when g.Count >= 4: return new Rect(D(g[0]), D(g[1]), Math.Max(1, D(g[2])), Math.Max(1, D(g[3])));
-            case "badge" when g.Count >= 2: return new Rect(D(g[0]) - 15, D(g[1]) - 15, 30, 30);
-            case "text" when g.Count >= 2:
-                double fs = a.Obj("style")?.Dbl("fontSize", 18) ?? 18;
-                return new Rect(D(g[0]) - 2, D(g[1]) - 2, Math.Max(1, a.Str("text")?.Length ?? 1) * fs * 0.62 + 8, fs * 1.45);
-        }
-        return null;
-    }
+    static System.Drawing.PointF PF(Point p) => new((float)p.X, (float)p.Y);
 
-    static double DistToSegment(Point p, Point a, Point b)
-    {
-        var ab = b - a; double len = ab.LengthSquared;
-        if (len < 1e-6) return (p - a).Length;
-        double t = Math.Clamp(((p - a) * ab) / len, 0, 1);
-        return (p - (a + t * ab)).Length;
-    }
+    /// <summary>Umriss einer Markierung in Bildkoordinaten (Geometrie aus dem Core, wie im Export).</summary>
+    static Rect? Bounds(JsonObject a) => AnnotationGeometry.Bounds(a) is { } r ? new Rect(r.X, r.Y, Math.Max(1, r.Width), Math.Max(1, r.Height)) : null;
 
-    JsonObject? HitAnnotation(Point p)
+    /// <summary>Markierung unter dem Punkt samt Teil (1 Markierung, 2 Linse, 3 Quelle der Lupe). Spotlights zuletzt, weil sie große Flächen decken.</summary>
+    (JsonObject? ann, int part) HitAnnotation(Point p)
     {
-        if (_currentMeta == null) return null;
-        double tol = 8 / Math.Max(0.05, _currentMeta.Scale);
-        foreach (var a in AnnotationsFor(_currentMeta.FrameId).Reverse())
-        {
-            if (Bounds(a) is not Rect b) continue;
-            if (a.Str("type") is "arrow" or "line" && a["geom"] is JsonArray g)
-            { if (DistToSegment(p, new Point(D(g[0]), D(g[1])), new Point(D(g[2]), D(g[3]))) <= tol + 4) return a; }
-            else { b.Inflate(tol, tol); if (b.Contains(p)) return a; }
-        }
-        return null;
+        if (_currentMeta == null) return (null, 0);
+        float tol = (float)(8 / Math.Max(0.05, _currentMeta.Scale));
+        var anns = AnnotationsFor(_currentMeta.FrameId).Reverse().ToList();
+        foreach (var a in anns.Where(x => x.Str("type") != "spotlight").Concat(anns.Where(x => x.Str("type") == "spotlight")))
+            if (AnnotationGeometry.Hit(a, PF(p), tol) is int part and > 0) return (a, part);
+        return (null, 0);
     }
 
     Point ToOverlay(Point img) => _currentMeta == null ? img : new Point((img.X - _currentMeta.SourceRect.X) * _currentMeta.Scale, (img.Y - _currentMeta.SourceRect.Y) * _currentMeta.Scale);
@@ -778,32 +817,7 @@ sealed partial class ViewerWindow
     /// <summary>Bildschirmpunkte → Overlay-Einheiten (damit Rahmen und Anfasser bei jedem Zoom gleich groß wirken).</summary>
     double Px(double screenPx) => screenPx / Math.Max(0.02, _zoom?.Zoom ?? 1);
 
-    /// <summary>Anfasser einer Markierung in Bildkoordinaten: Pfeil = Anfang/Ende, Flächen = vier Ecken.</summary>
-    static List<Point> HandlesOf(JsonObject a)
-    {
-        var l = new List<Point>();
-        if (a["geom"] is not JsonArray g) return l;
-        if (a.Str("type") is "arrow" or "line" && g.Count >= 4) { l.Add(new Point(D(g[0]), D(g[1]))); l.Add(new Point(D(g[2]), D(g[3]))); }
-        else if (a.Str("type") is "rect" or "ellipse" or "highlight" && g.Count >= 4)
-        {
-            double x = D(g[0]), y = D(g[1]), w = D(g[2]), h = D(g[3]);
-            l.Add(new Point(x, y)); l.Add(new Point(x + w, y)); l.Add(new Point(x + w, y + h)); l.Add(new Point(x, y + h));
-        }
-        return l;
-    }
-
-    /// <summary>Neue Geometrie, wenn Anfasser <paramref name="h"/> nach <paramref name="p"/> gezogen wird.</summary>
-    static JsonArray Resized(JsonObject a, int h, Point p)
-    {
-        var g = (JsonArray)a["geom"]!;
-        if (a.Str("type") is "arrow" or "line")
-            return h == 0 ? new JsonArray((int)p.X, (int)p.Y, (int)D(g[2]), (int)D(g[3])) : new JsonArray((int)D(g[0]), (int)D(g[1]), (int)p.X, (int)p.Y);
-        double x = D(g[0]), y = D(g[1]), r = x + D(g[2]), b = y + D(g[3]);
-        // gegenüberliegende Ecke bleibt fest
-        var fixedPt = h switch { 0 => new Point(r, b), 1 => new Point(x, b), 2 => new Point(x, y), _ => new Point(r, y) };
-        var rc = new Rect(fixedPt, p);
-        return new JsonArray((int)rc.X, (int)rc.Y, Math.Max(4, (int)rc.Width), Math.Max(4, (int)rc.Height));
-    }
+    static List<Point> HandlesOf(JsonObject a) => AnnotationGeometry.Handles(a).Select(p => new Point(p.X, p.Y)).ToList();
 
     void DrawSelection()
     {
@@ -826,11 +840,15 @@ sealed partial class ViewerWindow
         Canvas.SetLeft(_selRect, tl.X); Canvas.SetTop(_selRect, tl.Y);
         _overlay.Children.Add(_selRect);
         double hsz = Px(10);
-        foreach (var hp in HandlesOf(a))
+        var handles = HandlesOf(a);
+        for (int i = 0; i < handles.Count; i++)
         {
-            var o = ToOverlay(hp);
-            var sq = new Rectangle { Width = hsz, Height = hsz, Fill = Brushes.White, Stroke = Theme.Accent, StrokeThickness = Px(1.5), RadiusX = Px(2), RadiusY = Px(2), IsHitTestVisible = false };
-            Canvas.SetLeft(sq, o.X - hsz / 2); Canvas.SetTop(sq, o.Y - hsz / 2);
+            var o = ToOverlay(handles[i]);
+            bool zoomHandle = a.Str("type") == "magnifier" && i == 4;
+            Shape sq = zoomHandle
+                ? new Ellipse { Width = hsz * 1.2, Height = hsz * 1.2, Fill = Theme.Accent, Stroke = Brushes.White, StrokeThickness = Px(1.5), IsHitTestVisible = false, ToolTip = Loc.L("Zoom ändern", "Change zoom") }
+                : new Rectangle { Width = hsz, Height = hsz, Fill = Brushes.White, Stroke = Theme.Accent, StrokeThickness = Px(1.5), RadiusX = Px(2), RadiusY = Px(2), IsHitTestVisible = false };
+            Canvas.SetLeft(sq, o.X - sq.Width / 2); Canvas.SetTop(sq, o.Y - sq.Height / 2);
             _overlay.Children.Add(sq); _handleShapes.Add(sq);
         }
     }
@@ -838,12 +856,20 @@ sealed partial class ViewerWindow
     void SyncColorTo(JsonObject a)
     {
         _syncingColor = true;
-        if (a.Obj("style")?.Str("color") is { } hex && a.Str("type") is not "highlight")
+        if (a.Obj("style")?.Str("color") is { } hex && a.Str("type") is not ("highlight" or "spotlight"))
             _colorBtns.FirstOrDefault(c => string.Equals((string)c.Tag, hex, StringComparison.OrdinalIgnoreCase))?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
-        int w = (int)(a.Obj("style")?.Dbl("width", 4) ?? 4);
+        int w = a.Str("type") == "spotlight" ? DimToWidth(a.Obj("style")?.Dbl("dim", 0.55) ?? 0.55) : (int)(a.Obj("style")?.Dbl("width", 4) ?? 4);
         _strokeBtns.OrderBy(b => Math.Abs((int)b.Tag - w)).FirstOrDefault()?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
         _syncingColor = false;
     }
+
+    /// <summary>Strichstärke steuert beim Spotlight die Abdunklung: dünn 0,4 · mittel 0,55 · dick 0,7.</summary>
+    static double WidthToDim(int w) => w <= 2 ? 0.4 : w >= 7 ? 0.7 : 0.55;
+    static int DimToWidth(double d) => d <= 0.45 ? 2 : d >= 0.65 ? 7 : 4;
+
+    int _movePart = 1;
+    JsonNode? _handleGeom;
+    List<System.Drawing.PointF>? _freePts;
 
     void OverlayDown(object sender, MouseButtonEventArgs e)
     {
@@ -858,14 +884,15 @@ sealed partial class ViewerWindow
                 double tol = Px(9) / Math.Max(0.05, _currentMeta.Scale);
                 var hs = HandlesOf(sel);
                 for (int i = 0; i < hs.Count; i++)
-                    if ((hs[i] - p).Length <= tol) { _handle = i; _handleGeom = (JsonArray)sel["geom"]!.DeepClone(); _overlay.CaptureMouse(); return; }
+                    if ((hs[i] - p).Length <= tol) { _handle = i; _handleGeom = sel["geom"]?.DeepClone(); _overlay.CaptureMouse(); return; }
             }
-            var hit = HitAnnotation(p);
+            var (hit, part) = HitAnnotation(p);
             _selAnn = hit?.Str("id");
             DrawSelection();
             if (hit == null) { if (e.ClickCount == 2) OpenLightbox(); return; }
             SyncColorTo(hit);
             if (e.ClickCount == 2 && hit.Str("type") == "text") { EditAnnotationText(hit); return; }
+            _movePart = part;
             _moveFrom = p; _overlay.CaptureMouse();
             return;
         }
@@ -874,20 +901,24 @@ sealed partial class ViewerWindow
         {
             var p = ToImage(pos);
             string text = _tool == "badge" ? ((_view.Edits.Arr("annotations")?.Count(a => a.Str("frame") == _currentMeta.FrameId && a.Str("type") == "badge") ?? 0) + 1).ToString() : "";
-            if (_tool == "text") { var d = new InputDialog("Text der Markierung", "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
+            if (_tool == "text") { var d = new InputDialog(Loc.L("Text der Markierung", "Text of the marker"), "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
             AddAnnotation(_tool, new JsonArray((int)p.X, (int)p.Y), text);
             _dragStart = null;
             return;
         }
         var stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_color));
+        if (_tool == "freehand") _freePts = new() { PF(ToImage(pos)) };
         _rubber = _tool switch
         {
-            "arrow" => new Line { Stroke = stroke, StrokeThickness = _stroke },
+            "arrow" or "line" => new Line { Stroke = stroke, StrokeThickness = _stroke },
+            "freehand" => new Polyline { Stroke = stroke, StrokeThickness = _stroke, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Points = new PointCollection { pos } },
             "ellipse" => new Ellipse { Stroke = stroke, StrokeThickness = _stroke },
             "redact" => new Rectangle { Fill = Brushes.Black, Stroke = Brushes.Black, StrokeThickness = 1 },
             "pixelate" => new Rectangle { Fill = new DrawingBrush { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, Px(12), Px(12)), ViewportUnits = BrushMappingMode.Absolute, Drawing = new GeometryDrawing(new SolidColorBrush(Color.FromArgb(150, 120, 125, 135)), null, new RectangleGeometry(new Rect(0, 0, 1, 1))) }, Stroke = Brushes.Gray, StrokeThickness = Px(1) },
             "crop" => new Rectangle { Stroke = Theme.Accent, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) },
             "highlight" => new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(90, 255, 235, 59)) },
+            "spotlight" => new Rectangle { Stroke = Brushes.White, StrokeThickness = Px(1.5), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
+            "magnifier" => new Rectangle { Stroke = stroke, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 2, 2 } },
             _ => new Rectangle { Stroke = stroke, StrokeThickness = _stroke }
         };
         _overlay.Children.Add(_rubber);
@@ -899,8 +930,8 @@ sealed partial class ViewerWindow
         if (_handle >= 0 && _currentMeta != null && _selAnn != null && AnnotationsFor(_currentMeta.FrameId).FirstOrDefault(x => x.Str("id") == _selAnn) is { } ha)
         {
             // Vorschau der neuen Größe über den Auswahlrahmen
-            var probe = new JsonObject { ["type"] = ha.Str("type"), ["geom"] = _handleGeom!.DeepClone(), ["style"] = ha.Obj("style")?.DeepClone() };
-            probe["geom"] = Resized(probe, _handle, ToImage(e.GetPosition(_overlay)));
+            var probe = new JsonObject { ["type"] = ha.Str("type"), ["geom"] = _handleGeom?.DeepClone(), ["style"] = ha.Obj("style")?.DeepClone() };
+            probe["geom"] = AnnotationGeometry.Resized(probe, _handle, PF(ToImage(e.GetPosition(_overlay))));
             if (Bounds(probe) is Rect nb && _selRect != null)
             {
                 var tl = ToOverlay(nb.TopLeft); var br = ToOverlay(nb.BottomRight);
@@ -916,9 +947,14 @@ sealed partial class ViewerWindow
             return;
         }
         if (_tool == "select" && _currentMeta != null && e.LeftButton == MouseButtonState.Released)
-            _overlay.Cursor = HitAnnotation(ToImage(e.GetPosition(_overlay))) != null ? Cursors.SizeAll : Cursors.Arrow;
+            _overlay.Cursor = HitAnnotation(ToImage(e.GetPosition(_overlay))).ann != null ? Cursors.SizeAll : Cursors.Arrow;
         if (_dragStart == null || _rubber == null) return;
         var a = _dragStart.Value; var b = e.GetPosition(_overlay);
+        if (_rubber is Polyline pl && _freePts != null)
+        {
+            if ((pl.Points[^1] - b).Length >= Px(2)) { pl.Points.Add(b); _freePts.Add(PF(ToImage(b))); }
+            return;
+        }
         if (_rubber is Line l) { l.X1 = a.X; l.Y1 = a.Y; l.X2 = b.X; l.Y2 = b.Y; }
         else { Canvas.SetLeft(_rubber, Math.Min(a.X, b.X)); Canvas.SetTop(_rubber, Math.Min(a.Y, b.Y)); _rubber.Width = Math.Abs(b.X - a.X); _rubber.Height = Math.Abs(b.Y - a.Y); }
     }
@@ -931,7 +967,10 @@ sealed partial class ViewerWindow
             int hi = _handle; _handle = -1;
             var p = ToImage(e.GetPosition(_overlay));
             if (_selAnn is { } rid && _handleGeom != null)
-                Change(ed => { if (AnnotationEdit(ed, rid) is { } x) { var probe = new JsonObject { ["type"] = x.Str("type"), ["geom"] = _handleGeom.DeepClone() }; x["geom"] = Resized(probe, hi, p); } }, refill: false);
+            {
+                var start = _handleGeom.DeepClone();
+                Change(ed => { if (AnnotationEdit(ed, rid) is { } x) { var probe = new JsonObject { ["type"] = x.Str("type"), ["geom"] = start, ["style"] = x.Obj("style")?.DeepClone() }; x["geom"] = AnnotationGeometry.Resized(probe, hi, PF(p)); } }, refill: false);
+            }
             return;
         }
         if (_moveFrom != null)
@@ -939,7 +978,7 @@ sealed partial class ViewerWindow
             _overlay.ReleaseMouseCapture();
             var p = ToImage(e.GetPosition(_overlay));
             var d = p - _moveFrom.Value; _moveFrom = null;
-            if (_selAnn != null && (Math.Abs(d.X) >= 1 || Math.Abs(d.Y) >= 1)) MoveAnnotation(_selAnn, d.X, d.Y);
+            if (_selAnn != null && (Math.Abs(d.X) >= 1 || Math.Abs(d.Y) >= 1)) MoveAnnotation(_selAnn, d.X, d.Y, _movePart);
             else DrawSelection();
             return;
         }
@@ -947,15 +986,36 @@ sealed partial class ViewerWindow
         _overlay.ReleaseMouseCapture();
         var a = ToImage(_dragStart.Value); var b = ToImage(e.GetPosition(_overlay));
         _dragStart = null; _rubber = null;
+        if (_tool == "freehand")
+        {
+            var pts = _freePts; _freePts = null;
+            if (pts == null || pts.Count < 2 || Math.Max(pts.Max(q => q.X) - pts.Min(q => q.X), pts.Max(q => q.Y) - pts.Min(q => q.Y)) < 3) { ShowStep(); return; }
+            AddAnnotation("freehand", AnnotationGeometry.Simplify(pts), null);
+            return;
+        }
         if (Math.Abs(b.X - a.X) < 3 && Math.Abs(b.Y - a.Y) < 3) { ShowStep(); return; }
         int x = (int)Math.Min(a.X, b.X), y = (int)Math.Min(a.Y, b.Y), w = (int)Math.Abs(b.X - a.X), h = (int)Math.Abs(b.Y - a.Y);
-        if (_tool is "redact" or "pixelate") { AddImageRedaction(x, y, w, h, _tool == "pixelate" ? "pixelate" : "black"); return; }
-        if (_tool == "crop") { SetCrop(x, y, w, h); return; }
-        if (_tool == "arrow") AddAnnotation("arrow", new JsonArray((int)a.X, (int)a.Y, (int)b.X, (int)b.Y), null);
-        else AddAnnotation(_tool, new JsonArray(x, y, w, h), null);
+        switch (_tool)
+        {
+            case "redact" or "pixelate": AddImageRedaction(x, y, w, h, _tool == "pixelate" ? "pixelate" : "black"); return;
+            case "crop": SetCrop(x, y, w, h); return;
+            case "arrow" or "line": AddAnnotation(_tool, new JsonArray((int)a.X, (int)a.Y, (int)b.X, (int)b.Y), null); return;
+            case "spotlight": AddAnnotation("spotlight", new JsonArray(x, y, w, h), null, new JsonObject { ["dim"] = WidthToDim(_stroke) }); return;
+            case "magnifier":
+                {
+                    if (w < 8 || h < 8 || _currentMeta == null) { ShowStep(); return; }
+                    // Linse im sichtbaren Ausschnitt platzieren (Rechnung relativ zum Ausschnitt, dann zurückverschieben)
+                    var sr = _currentMeta.SourceRect;
+                    var rel = AnnotationGeometry.NewMagnifier(new System.Drawing.RectangleF(x - sr.X, y - sr.Y, w, h), new System.Drawing.Size(sr.Width, sr.Height));
+                    var mag = AnnotationGeometry.Moved(new JsonObject { ["type"] = "magnifier", ["geom"] = rel }, sr.X, sr.Y)!;
+                    AddAnnotation("magnifier", mag, null, new JsonObject { ["shape"] = "round" });
+                    return;
+                }
+            default: AddAnnotation(_tool, new JsonArray(x, y, w, h), null); return;
+        }
     }
 
-    void AddAnnotation(string type, JsonArray geom, string? text)
+    void AddAnnotation(string type, JsonNode geom, string? text, JsonObject? extraStyle = null)
     {
         var s = Sel; if (s == null || _currentMeta == null) return;
         string frame = _currentMeta.FrameId;
@@ -963,21 +1023,26 @@ sealed partial class ViewerWindow
         Change(e =>
         {
             var arr = e["annotations"] as JsonArray ?? new JsonArray();
-            var a = new JsonObject { ["id"] = NextId(e, "annotations", "a"), ["frame"] = frame, ["anchor"] = s.Anchor, ["type"] = type, ["geom"] = geom, ["style"] = new JsonObject { ["color"] = color, ["width"] = width, ["fontSize"] = fontSize } };
+            var style = new JsonObject { ["color"] = color, ["width"] = width, ["fontSize"] = fontSize };
+            foreach (var kv in extraStyle ?? new JsonObject()) style[kv.Key] = kv.Value?.DeepClone();
+            var a = new JsonObject { ["id"] = NextId(e, "annotations", "a"), ["frame"] = frame, ["anchor"] = s.Anchor, ["type"] = type, ["geom"] = geom, ["style"] = style };
             if (text != null) a["text"] = text;
             arr.Add(a); e["annotations"] = arr;
         }, refill: false);
+        _status.Text = type switch
+        {
+            "magnifier" => Loc.L("Lupe eingefügt – Linse und Quelle lassen sich getrennt verschieben, der runde Griff ändert den Zoom.", "Magnifier added – lens and source can be moved separately, the round handle changes the zoom."),
+            "spotlight" => Loc.L("Spotlight eingefügt – die Strichstärke bestimmt, wie stark der Rest abgedunkelt wird.", "Spotlight added – the stroke width sets how much the rest is dimmed."),
+            _ => _status.Text
+        };
     }
 
     JsonObject? AnnotationEdit(JsonObject edits, string id) => (edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Str("id") == id);
 
-    void MoveAnnotation(string id, double dx, double dy) => Change(e =>
+    void MoveAnnotation(string id, double dx, double dy, int part = 1) => Change(e =>
     {
-        if (AnnotationEdit(e, id) is not { } a || a["geom"] is not JsonArray g) return;
-        var v = g.Select(D).ToList();
-        if (a.Str("type") is "arrow" or "line" && v.Count >= 4) { v[0] += dx; v[1] += dy; v[2] += dx; v[3] += dy; }
-        else if (v.Count >= 2) { v[0] += dx; v[1] += dy; }
-        a["geom"] = new JsonArray(v.Select(x => (JsonNode)(int)Math.Round(x)).ToArray());
+        if (AnnotationEdit(e, id) is not { } a) return;
+        a["geom"] = AnnotationGeometry.Moved(a, (float)dx, (float)dy, part);
     }, refill: false);
 
     void RecolorSelected(string hex)
@@ -989,7 +1054,14 @@ sealed partial class ViewerWindow
     void RestrokeSelected(int width, int fontSize)
     {
         if (_selAnn is not { } id) return;
-        Change(e => { if (AnnotationEdit(e, id) is { } a) { var st = a.Obj("style") ?? new JsonObject(); st["width"] = width; st["fontSize"] = fontSize; a["style"] = st; } }, refill: false);
+        Change(e =>
+        {
+            if (AnnotationEdit(e, id) is not { } a) return;
+            var st = a.Obj("style") ?? new JsonObject();
+            st["width"] = width; st["fontSize"] = fontSize;
+            if (a.Str("type") == "spotlight") st["dim"] = WidthToDim(width);
+            a["style"] = st;
+        }, refill: false);
     }
 
     // ---------------- Zuschneiden ----------------
@@ -997,11 +1069,11 @@ sealed partial class ViewerWindow
     void SetCrop(int x, int y, int w, int h)
     {
         var s = Sel; if (s == null) return;
-        if (w < 32 || h < 32) { _status.Text = "Der Ausschnitt ist zu klein (mindestens 32 × 32 Pixel)."; return; }
+        if (w < 32 || h < 32) { _status.Text = Loc.L("Der Ausschnitt ist zu klein (mindestens 32 × 32 Pixel).", "The selection is too small (at least 32 × 32 pixels)."); return; }
         Change(e => StepEdit(e, s.Anchor)["crop"] = new JsonArray(x, y, w, h), refill: false);
         SelectTool("select");
         _zoom.FitNow();
-        _status.Text = $"Schritt {s.Number} zugeschnitten ({w} × {h}) – rückgängig mit Strg+Z oder „Zuschnitt entfernen“.";
+        _status.Text = Loc.F("Schritt {0} zugeschnitten ({1} × {2}) – rückgängig mit Strg+Z oder „Zuschnitt entfernen“.", "Step {0} cropped ({1} × {2}) – undo with Ctrl+Z or “Remove crop”.", s.Number, w, h);
     }
 
     void RemoveCrop(ViewStep s) => Change(e => StepEdit(e, s.Anchor).Remove("crop"), refill: false);
@@ -1012,8 +1084,9 @@ sealed partial class ViewerWindow
         var s = Sel; if (s == null || _view.CropFor(s) is not { } c) return;
         var m = s.Monitor ?? s.Json.Obj("position")?.Str("m");
         var targets = _view.All.Where(x => x.PreFrame != null && (m == null || (x.Monitor ?? x.Json.Obj("position")?.Str("m")) == m || x.Monitor == null)).ToList();
+        _view.SnapshotBefore = "cropAll";
         Change(e => { foreach (var t in targets) StepEdit(e, t.Anchor)["crop"] = new JsonArray(c.X, c.Y, c.Width, c.Height); });
-        _status.Text = $"Zuschnitt auf {targets.Count} Schritte übertragen – rückgängig mit Strg+Z.";
+        _status.Text = Loc.N(targets.Count, "Zuschnitt auf 1 Schritt übertragen – rückgängig mit Strg+Z.", "Zuschnitt auf {0} Schritte übertragen – rückgängig mit Strg+Z.", "Crop applied to 1 step – undo with Ctrl+Z.", "Crop applied to {0} steps – undo with Ctrl+Z.");
     }
 
     // ---------------- Großansicht ----------------
@@ -1023,11 +1096,10 @@ sealed partial class ViewerWindow
     {
         if (i < 0 || i >= _list.Items.Count || ((ListBoxItem)_list.Items[i]).Tag is not ViewStep s) return null;
         string variant = i == _list.SelectedIndex && _variantOverride != null ? _variantOverride : DefaultVariant(s);
-        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen")
-            ?? StepImages.Render(_view, s, "before", "original");
+        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", authorAnnotations: true)
+            ?? StepImages.Render(_view, s, "before", "original", authorAnnotations: true);
         if (img == null) return null;
-        using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
-        return (U.ToSource(img.Bitmap), $"Schritt {s.Number} von {_view.All.Count}  ·  {s.AuthorTitle ?? s.Title}");
+        return (U.ToSource(img.Bitmap), Loc.F("Schritt {0} von {1}  ·  {2}", "Step {0} of {1}  ·  {2}", s.Number, _view.All.Count, s.AuthorTitle ?? s.Title));
     }
 
     void OpenLightbox()
@@ -1041,7 +1113,7 @@ sealed partial class ViewerWindow
     void EditAnnotationText(JsonObject a)
     {
         var id = a.Str("id"); if (id == null) return;
-        var d = new InputDialog("Text der Markierung", a.Str("text") ?? "") { Owner = this };
+        var d = new InputDialog(Loc.L("Text der Markierung", "Text of the marker"), a.Str("text") ?? "") { Owner = this };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         Change(e => { if (AnnotationEdit(e, id) is { } x) x["text"] = d.Value; }, refill: false);
     }
@@ -1081,7 +1153,7 @@ sealed partial class ViewerWindow
         {
             if (ds.ChapterTitle == null) ToggleChapter(ds.Anchor, true);
             if (Sel is { } ds2 && ds2.Comments.Count == 0)
-                Change(e => { var arr = e["comments"] as JsonArray ?? new JsonArray(); arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = ds2.Anchor, ["kind"] = "tip", ["text"] = "Mit Strg+1 geht es schneller.", ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" }); e["comments"] = arr; }, refill: false);
+                Change(e => { var arr = e["comments"] as JsonArray ?? new JsonArray(); arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = ds2.Anchor, ["kind"] = "tip", ["text"] = _view.Language == "en" ? "Ctrl+1 is faster." : "Mit Strg+1 geht es schneller.", ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" }); e["comments"] = arr; }, refill: false);
             Flush();
             if (_details.Parent is ScrollViewer sv) { sv.ScrollToEnd(); Flush(); save(); sv.ScrollToHome(); }
         }
@@ -1107,10 +1179,10 @@ sealed partial class ViewerWindow
         {
             _selAnn = null;
             Change(e => { if (e["annotations"] is JsonArray arr && AnnotationEdit(e, id) is { } a) arr.Remove(a); }, refill: false);
-            _status.Text = "Markierung gelöscht – rückgängig mit Strg+Z";
+            _status.Text = Loc.L("Markierung gelöscht – rückgängig mit Strg+Z", "Markup deleted – undo with Ctrl+Z");
             return;
         }
-        if (_currentMeta == null || !AnnotationsFor(_currentMeta.FrameId).Any()) { _status.Text = "Dieses Bild hat keine eigenen Markierungen."; return; }
-        if (Msg.Show("Alle eigenen Markierungen dieses Bildes entfernen?", "Markierungen", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) ClearAnnotations();
+        if (_currentMeta == null || !AnnotationsFor(_currentMeta.FrameId).Any()) { _status.Text = Loc.L("Dieses Bild hat keine eigenen Markierungen.", "This image has no markup of its own."); return; }
+        if (Msg.Show(Loc.L("Alle eigenen Markierungen dieses Bildes entfernen?", "Remove all own markup from this image?"), Loc.L("Markierungen", "Markup"), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) ClearAnnotations();
     }
 }

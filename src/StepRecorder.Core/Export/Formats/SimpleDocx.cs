@@ -42,8 +42,43 @@ public sealed class SimpleDocx
         return sb.Append("</w:r>").ToString();
     }
 
-    public void Heading(string text, int level = 1)
-        => _body.Append($"<w:p><w:pPr><w:pStyle w:val=\"{(level == 0 ? "Title" : "Heading" + level)}\"/></w:pPr>{Run(text)}</w:p>");
+    int _bookmarkId;
+
+    /// <summary>Überschrift; mit <paramref name="bookmark"/> als Sprungziel des Inhaltsverzeichnisses.</summary>
+    public void Heading(string text, int level = 1, string? bookmark = null)
+    {
+        string bs = "", be = "";
+        if (bookmark != null) { int id = ++_bookmarkId; bs = $"<w:bookmarkStart w:id=\"{id}\" w:name=\"{X(bookmark)}\"/>"; be = $"<w:bookmarkEnd w:id=\"{id}\"/>"; }
+        _body.Append($"<w:p><w:pPr><w:pStyle w:val=\"{(level == 0 ? "Title" : "Heading" + level)}\"/></w:pPr>{bs}{Run(text)}{be}</w:p>");
+    }
+
+    /// <summary>Name eines Sprungziels im Stil von Word (versteckt, weil mit „_“ beginnend).</summary>
+    public static string TocBookmark(int index) => "_Toc" + (100000000 + index).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Echtes Inhaltsverzeichnis: Feld <c>TOC \o "1-2" \h \z \u</c> in einem Inhaltsverzeichnis-Block. Das Zwischenergebnis
+    /// sind die heutigen Einträge als Verweise; Seitenzahlen ergänzt Word bei „Felder aktualisieren“. Bewusst ohne
+    /// <c>w:updateFields</c>/<c>w:dirty</c> – beides löst bei jedem Öffnen eine Rückfrage aus.
+    /// </summary>
+    public void Toc(string heading, IEnumerable<(string text, int level, string bookmark)> entries)
+    {
+        var list = entries.ToList();
+        var sb = new StringBuilder("<w:sdt><w:sdtPr><w:docPartObj><w:docPartGallery w:val=\"Table of Contents\"/><w:docPartUnique/></w:docPartObj></w:sdtPr><w:sdtContent>");
+        sb.Append($"<w:p><w:pPr><w:pStyle w:val=\"TOCHeading\"/></w:pPr>{Run(heading)}</w:p>");
+        const string fieldBegin = "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> TOC \\o \"1-2\" \\h \\z \\u </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>";
+        for (int i = 0; i < list.Count; i++)
+        {
+            var (text, level, bm) = list[i];
+            sb.Append($"<w:p><w:pPr><w:pStyle w:val=\"TOC{Math.Clamp(level, 1, 2)}\"/><w:tabs><w:tab w:val=\"right\" w:leader=\"dot\" w:pos=\"9628\"/></w:tabs></w:pPr>");
+            if (i == 0) sb.Append(fieldBegin);
+            sb.Append($"<w:hyperlink w:anchor=\"{X(bm)}\" w:history=\"1\">{Run(text)}</w:hyperlink>");
+            if (i == list.Count - 1) sb.Append("<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>");
+            sb.Append("</w:p>");
+        }
+        if (list.Count == 0) sb.Append("<w:p>").Append(fieldBegin).Append("<w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>");
+        sb.Append("</w:sdtContent></w:sdt>");
+        _body.Append(sb);
+    }
 
     public void Paragraph(string text, bool bold = false, bool italic = false, string? color = null, bool mono = false)
         => _body.Append($"<w:p>{Run(text, bold, italic, color, null, mono)}</w:p>");
@@ -147,6 +182,10 @@ public sealed class SimpleDocx
 <w:style w:type=""paragraph"" w:styleId=""Heading1""><w:name w:val=""heading 1""/><w:basedOn w:val=""Normal""/><w:next w:val=""Normal""/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before=""360"" w:after=""120""/><w:outlineLvl w:val=""0""/></w:pPr><w:rPr><w:b/><w:color w:val=""{Accent}""/><w:sz w:val=""32""/></w:rPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""Heading2""><w:name w:val=""heading 2""/><w:basedOn w:val=""Normal""/><w:next w:val=""Normal""/><w:qFormat/><w:pPr><w:keepNext/><w:spacing w:before=""240"" w:after=""80""/><w:outlineLvl w:val=""1""/></w:pPr><w:rPr><w:b/><w:color w:val=""262522""/><w:sz w:val=""26""/></w:rPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""Heading3""><w:name w:val=""heading 3""/><w:basedOn w:val=""Normal""/><w:next w:val=""Normal""/><w:qFormat/><w:pPr><w:keepNext/><w:outlineLvl w:val=""2""/></w:pPr><w:rPr><w:b/><w:sz w:val=""24""/></w:rPr></w:style>
+<w:style w:type=""paragraph"" w:styleId=""TOCHeading""><w:name w:val=""TOC Heading""/><w:basedOn w:val=""Heading1""/><w:next w:val=""Normal""/><w:uiPriority w:val=""39""/><w:unhideWhenUsed/><w:qFormat/><w:pPr><w:outlineLvl w:val=""9""/></w:pPr></w:style>
+<w:style w:type=""paragraph"" w:styleId=""TOC1""><w:name w:val=""toc 1""/><w:basedOn w:val=""Normal""/><w:next w:val=""Normal""/><w:uiPriority w:val=""39""/><w:unhideWhenUsed/><w:pPr><w:spacing w:after=""60""/></w:pPr><w:rPr><w:b/></w:rPr></w:style>
+<w:style w:type=""paragraph"" w:styleId=""TOC2""><w:name w:val=""toc 2""/><w:basedOn w:val=""Normal""/><w:next w:val=""Normal""/><w:uiPriority w:val=""39""/><w:unhideWhenUsed/><w:pPr><w:spacing w:after=""40""/><w:ind w:left=""400""/></w:pPr></w:style>
+<w:style w:type=""character"" w:styleId=""Hyperlink""><w:name w:val=""Hyperlink""/><w:uiPriority w:val=""99""/><w:unhideWhenUsed/><w:rPr><w:color w:val=""1C1B19""/></w:rPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""ListBullet""><w:name w:val=""List Bullet""/><w:basedOn w:val=""Normal""/><w:pPr><w:ind w:left=""360"" w:hanging=""360""/></w:pPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""Note""><w:name w:val=""Note""/><w:basedOn w:val=""Normal""/><w:pPr><w:pBdr><w:left w:val=""single"" w:sz=""18"" w:space=""6"" w:color=""E0A800""/></w:pBdr><w:shd w:val=""clear"" w:color=""auto"" w:fill=""FFF8E1""/><w:ind w:left=""200""/></w:pPr></w:style>
 </w:styles>";

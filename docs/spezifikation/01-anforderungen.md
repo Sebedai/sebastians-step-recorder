@@ -31,10 +31,10 @@ Dieses Dokument ist der **Gesamtindex** aller Anforderungen. Die einzelnen Anfor
 
 | Kapitel | Präfix | Anzahl | Muss | Soll | Kann | Themenblöcke |
 |---|---|---:|---:|---:|---:|---|
-| [02 Architektur](02-architektur.md#16-anforderungen) | `ARC` | 65 | 38 | 27 | 0 | Prozesse · Schichten und Schreiben · Betriebsarten · Technologie · Build · Konfiguration und Betrieb |
+| [02 Architektur](02-architektur.md#16-anforderungen) | `ARC` | 76 | 43 | 33 | 0 | Prozesse · Schichten und Schreiben · Betriebsarten · Technologie · Build · Konfiguration und Betrieb · Oberflächensprache, Protokoll, Export- und Pack-Ablauf |
 | [03 Aufzeichnungskern](03-aufzeichnungskern.md) | `AUF` | 109 | 73 | 35 | 1 | Lebenszyklus und Zeit · Eingabe · Bild · Aufnahmebereich · Unsichtbarkeit · UI Automation · Fenster/System/Zwischenablage/Lücken · Leistung |
 | [04 Datenformat](04-datenformat.md) | `DAT` | 76 | 54 | 20 | 2 | Formate und Ordner · Ereigniskopf, Zeit, Koordinaten · Eingaben und Lücken · Bilder · `steps.json` · `edits.json` · Versionierung und Robustheit |
-| [05 Schritterkennung](05-schritterkennung.md) | `SCH` | 61 | 46 | 15 | 0 | Grundsätze · Schrittarten · Ziel, Wirkung, Bilder · Belegstufen, Wichtigkeit · Textvorlagen · Bericht · Neuberechnung |
+| [05 Schritterkennung](05-schritterkennung.md) | `SCH` | 64 | 47 | 17 | 0 | Grundsätze · Schrittarten · Ziel, Wirkung, Bilder · Belegstufen, Wichtigkeit · Textvorlagen · Bericht · Neuberechnung |
 | [06 KI-Export](06-ki-export-und-mcp.md) | `KI` | 41 | 29 | 12 | 0 | Paketaufbau · `trace.md` · Bilder · Detailstufen · Entschärfung · Schwärzung |
 | [06 MCP-Server](06-ki-export-und-mcp.md) | `MCP` | 36 | 25 | 10 | 1 | Start und Sandbox · Tools · Paging und Budgets · Bilder · Schwärzung · Robustheit |
 | [07 Aufnahme-Bedienung](07-aufnahme-bedienung.md) | `BED` | 98 | 57 | 39 | 2 | Start · Aufnahmebereiche · Leiste · Tastenkürzel · Kommentar/Marker · Pause/Privattaste · Unsichtbarkeit · Einstellungen · `record` |
@@ -42,9 +42,9 @@ Dieses Dokument ist der **Gesamtindex** aller Anforderungen. Die einzelnen Anfor
 | [09 Anleitungs-Export](09-anleitungs-export.md) | `EXP` | 94 | 45 | 45 | 4 | Dialog · Optionen · HTML · Markdown · DOCX · PDF · Vorlagen · Sprache · Entschärfung · Vorprüfung · Kommandozeile |
 | [10 Datenschutz](10-datenschutz-und-sicherheit.md) | `DS` | 67 | 41 | 25 | 1 | Grundsätze · Schutzstufen · Passwort-Rückhaltung · Terminal · Privattaste · Ausschlüsse · Zwischenablage · Schwärzung · Durchsicht · Netzwerk · Signierung |
 | 01 (dieses Dokument) | `NFA` | 20 | 18 | 2 | 0 | kapitelübergreifend |
-| **Summe** | | **796** | **482** | **301** | **13** | |
+| **Summe** | | **810** | **488** | **309** | **13** | |
 
-Gezählt sind gültige Anforderungen; entfallen sind BED-066 und VIE-004 (Entscheidungen E24, E19). Gemischte Prioritäten sind nach ihrem höchsten Teil gezählt. Die Zahlen werden bei jeder Spezifikationsversion neu ermittelt (Abschnitt 7).
+Gezählt sind gültige Anforderungen; entfallen sind BED-066 und VIE-004 (Entscheidungen E24, E19). Die Zeilen 02 und 05 enthalten die zuletzt ergänzten Anforderungen ARC-066–076 und SCH-062–064 (umgesetzte Ausbaupakete); die Summenzeile ist aus diesen Werten fortgeschrieben und bei der nächsten Neuermittlung (Abschnitt 7) zu prüfen. Gemischte Prioritäten sind nach ihrem höchsten Teil gezählt. Die Zahlen werden bei jeder Spezifikationsversion neu ermittelt (Abschnitt 7).
 
 ## 3. Nicht-funktionale Anforderungen
 
@@ -53,7 +53,7 @@ Diese Anforderungen gelten für das ganze Produkt. Sie fassen zusammen und verwe
 | ID | Anforderung | Priorität | Abnahmekriterium | Einzelregelungen |
 |---|---|---|---|---|
 | NFA-001 | **Portabilität:** Das Programm läuft als einzelne EXE (oder entpacktes ZIP) ohne Installation, ohne Adminrechte, ohne Registry-Einträge, ohne Dienst. | Muss | T-01 | ARC-031–033, ARC-038, ARC-039, ARC-050 |
-| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 10 als eingebettete Laufzeit. | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
+| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 10 als eingebettete Laufzeit (*Stand: gebaut wird mit .NET 8, Wechsel offen*). | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
 | NFA-003 | **Vollständigkeit:** Jedes Eingabeereignis steht im Rohprotokoll oder ist durch einen Lückenmarker mit Ursache erklärt. | Muss | T-02; `validate` | AUF-087, AUF-088, DAT-018, SCH-005, SCH-035 |
 | NFA-004 | **Ehrlichkeit:** Jeder Schritt trägt eine Belegstufe; nichts wird erfunden, Unsicheres wird als solches ausgewiesen. | Muss | T-09 | SCH-027, SCH-028, SCH-033, KI-008, KI-016, MCP-031 |
 | NFA-005 | **Reaktionszeit des Systems:** Die Aufnahme verzögert keine Eingabe spürbar; 99,9 % der Hook-Aufrufe unter 1 ms. | Muss | VE-01 | ARC-003, ARC-004, AUF-012, DS-021 |
@@ -67,11 +67,11 @@ Diese Anforderungen gelten für das ganze Produkt. Sie fassen zusammen und verwe
 | NFA-013 | **Einfachheit:** Kernablauf 1 (aufnehmen → ansehen → kopieren) und Kernablauf 2 (aufnehmen → bearbeiten → exportieren) gelingen mit der in [08 §2.1](08-viewer.md) festgelegten Höchstzahl an Klicks und Tasten. | Muss | Bedienabläufe in 07/08 | BED-001–009, VIE-142 |
 | NFA-014 | **Bedienbarkeit per Tastatur:** Alle Funktionen von Leiste und Viewer sind ohne Maus erreichbar; Kürzelübersicht im Programm. | Muss | Tastaturdurchgang | BED-050–057, BED-111, VIE-123, VIE-124 |
 | NFA-015 | **Barrierefreiheit der eigenen Oberfläche:** Eigene Fenster sind über UI Automation bedienbar, kontrastreich in Hell und Dunkel, skalieren mit der Systemeinstellung. | Soll | Prüfung mit Sprachausgabe und 200 % Skalierung | BED-111, BED-112, VIE-122, VIE-124 |
-| NFA-016 | **Sprachen:** Oberfläche, Textvorlagen und Exporte in Deutsch und Englisch; Bezeichner im Datenformat englisch. | Muss (de), Soll (en) | Sprachumschaltung ohne fehlende Texte | BED-104, BED-105, SCH-031, SCH-032, EXP-080–083, KI-024 |
+| NFA-016 | **Sprachen:** Oberfläche, Textvorlagen und Exporte in Deutsch und Englisch; Bezeichner im Datenformat englisch. *Stand: Oberfläche und Meldungen sind vollständig zweisprachig (ARC-066).* | Muss (de), Soll (en) | Sprachumschaltung ohne fehlende Texte | BED-104, BED-105, SCH-031, SCH-032, EXP-080–083, KI-024 |
 | NFA-017 | **Offene, stabile Formate:** Sitzungsformat und KI-Paket sind dokumentiert, versioniert, mit JSON-Schemata; neue Programmversionen lesen ältere Sitzungen. | Muss | Migrationstests | DAT-001, DAT-038–040, DAT-045 |
 | NFA-018 | **Reproduzierbarkeit:** Gleiche Eingabe ergibt gleiche Schritte und bytegleiche Exporte; Builds sind deterministisch. | Soll | Golden-Journal-Regression; Build-Vergleich | SCH-001, SCH-002, KI-022, ARC-034 |
 | NFA-019 | **Lizenzen:** Nur Abhängigkeiten mit freizügigen Lizenzen (MIT, Apache-2.0, BSD); Lizenzhinweise Dritter werden mitgeliefert. | Muss | Lizenzprüfung im CI | ARC-026–028 |
-| NFA-020 | **Vertrauenswürdige Auslieferung:** Releases sind signiert, mit Prüfsummen, ohne Verschleierung oder Laufzeitpacker. | Muss (für 1.0) | Release-Checkliste [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | ARC-035, DS-050–052 |
+| NFA-020 | **Vertrauenswürdige Auslieferung:** Releases sind signiert, mit Prüfsummen, ohne Verschleierung oder Laufzeitpacker. *Stand: Prüfsummen und Release über GitHub-Workflow (ARC-076); Signierung offen – die Lizenz CC BY-ND 4.0 ist keine OSI-Lizenz, die SignPath Foundation verlangt (Klärung in [11 §9](11-roadmap-tests-risiken.md#9-offene-entscheidungen)).* | Muss (für 1.0) | Release-Checkliste [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | ARC-035, DS-050–052 |
 
 ## 4. Rückverfolgung der Vorgaben
 
@@ -116,6 +116,19 @@ Jede Vorgabe des Auftraggebers ist mindestens einer Anforderung mit Abnahmekrite
 | V-30 | **Volltextsuche über alle Sitzungen** | ARC-053–055, VIE-220–223; MCP `search` mit `scope: all` | T-15 (keine geschützten Inhalte im Index) |
 | V-31 | **Einstellungen, Vorlagen und Profile austauschen** | ARC-064, ARC-065, BED-160–163 | T-17 |
 
+**Umgesetzte Ausbaupakete** (Auswahl; Auftraggeber hat alle acht Pakete freigegeben, die Funktionen sind gebaut – Stand siehe [11 §2](11-roadmap-tests-risiken.md#2-meilensteine)):
+
+| Nr. | Vorgabe | Anforderungen (Auswahl, maßgeblich) | Abnahme |
+|---|---|---|---|
+| V-32 | **Alltagskomfort:** Exportdialog mit Zielwahl, Fortschritt und Abbruch; Papierkorb; Fenster und letzten Schritt merken; Tastenkürzel einstellen; Befehlstabelle und F1-Übersicht; Suche im Editor | ARC-069, ARC-071, ARC-073; [08](08-viewer.md), [09](09-anleitungs-export.md) | ComfortTests |
+| V-33 | **Aufnahme-Bibliothek:** alle Aufnahmen finden und durchsuchen, `.steprec` packen und entpacken, bereinigte Kopie | ARC-072; [08](08-viewer.md) | LibraryTests, SanitizerTests |
+| V-34 | **Bessere Anleitungen:** Zeichenwerkzeuge, Schritte zusammenfassen, Qualitätsprüfung Q01–Q20 (`check`), Bearbeitungsstände, Arten der Ausgabe | SCH-062, SCH-064, ARC-075; [08](08-viewer.md), [09](09-anleitungs-export.md) | EditorFeatureTests, GuideFeatureTests, EditHistoryTests |
+| V-35 | **Neue Ausgabeformate:** Word mit Inhaltsverzeichnis, PDF mit Verweisen und Unicode, PowerPoint, Klick-Tour, Fehlerbericht | [09](09-anleitungs-export.md) | ExportFormatsTests, PdfTests |
+| V-36 | **Aufnahme und Datenschutz:** UAC und sicherer Desktop als Schritt, Erinnerungen, letzter Aufnahmebereich; Terminal-Eingaben prüfpflichtig, „Streng“ maskiert Terminal, Remote-Desktop und VM | SCH-049, SCH-063; [03](03-aufzeichnungskern.md), [07](07-aufnahme-bedienung.md), [10](10-datenschutz-und-sicherheit.md) | SecureDesktopTests, ReminderClockTests, RegionMemoryTests, ProtectionFixTests |
+| V-37 | **KI-Anbindung:** Tokenschätzung im KI-Dialog, „Mit KI verbinden“, Agent bittet um Vorführung (nur mit `--allow-requests`) | [06](06-ki-export-und-mcp.md) | KiEstimateTests, RecordingRequestsTests |
+| V-38 | **Englische Oberfläche** mit Prüftest gegen unübersetzte Texte | NFA-016, ARC-066 | LocalizationTests |
+| V-39 | **Fundament:** Programmprotokoll, Diagnose-Paket, robuste Einstellungen, vollständige Kommandozeile, automatischer Build | ARC-067, ARC-068, ARC-070, ARC-074, ARC-076 | FoundationTests, SettingsStateTests |
+
 Datenformat, Schrittlogik, KI-Paket und Datenschutzregeln dieser Funktionen stehen in DAT-064–073, SCH-052–060, KI-034–041, MCP-032–036 und DS-056–067.
 
 ## 5. Rückverfolgung der Review-Befunde
@@ -159,7 +172,7 @@ Beim Abgleich der parallel geschriebenen Kapitel getroffene Festlegungen. Sie ge
 | E7 | Lückenmarker `outOfScope` dürfen Ereigniszahlen je Art enthalten, `excludedApp` keine. | Ausgeschlossene Anwendungen sollen keine Spuren hinterlassen |
 | E8 | Einheitliche Platzhalter: `[geschwärzt]` / `[redacted]`, „Schritt geschwärzt“ / „Step redacted“; Bilder schwarz gefüllt. | Eindeutig für Mensch und KI |
 | E9 | Schwärzungsarten: Bereich im Bild, Textstelle, Schritt, Zeitraum; „Schritt“ wird beim Anlegen auf seinen `seq`-Bereich aufgelöst. | Übersteht Neuberechnung der Schritte |
-| E10 | Privattaste ist ein Umschalter ohne automatisches Ende; zusätzlich maskiert die Terminal-Abfrageerkennung jede erkannte Abfragezeile automatisch bis zur Eingabetaste (bzw. Abbruch der Abfrage). | Auch doppelte Passwortabfragen geschützt |
+| E10 | Privattaste ist ein Umschalter ohne automatisches Ende; zusätzlich soll die Terminal-Abfrageerkennung jede erkannte Abfragezeile automatisch bis zur Eingabetaste (bzw. Abbruch der Abfrage) maskieren – *noch nicht umgesetzt, siehe E29*. | Auch doppelte Passwortabfragen geschützt |
 | E11 | Interne und ausgeblendete Kommentare erscheinen in keiner Ausgabe (Anleitung, KI-Paket, MCP). | Kommentare können Vertrauliches enthalten |
 | E12 | Sperren, Benutzerwechsel und Trennen pausieren die Aufnahme; sie läuft erst nach Bestätigung weiter (Lücken `sessionLocked`, dann `paused`). | Nach dem Entsperren kann jemand anderes am Rechner sitzen |
 | E13 | Zwischendateien (extern bearbeiten, Herausziehen, Exportvorschau) liegen im Sitzungsordner unter `export/.tmp/`, nie in `%TEMP%`. | Keine Spuren außerhalb des Sitzungsordners |
@@ -178,6 +191,10 @@ Beim Abgleich der parallel geschriebenen Kapitel getroffene Festlegungen. Sie ge
 | E26 | Ein verworfener weiterer Aufnahmeabschnitt (z. B. abgebrochene Neuaufnahme) wird markiert und von der Leseschicht aus allen Ausgaben herausgehalten; das Journal wird nie gekürzt. „Aufnahme verwerfen“ betrifft dann nur diesen Abschnitt. Die Ersetzung trägt die Aufzeichnungssteuerung nach sauberem Stopp ein. | Nur-Anhängen-Prinzip bleibt unangetastet |
 | E27 | `--profile` meint überall das Aufnahmeprofil; das Bildprofil des KI-Exports heißt `--image-profile`. | Keine Verwechslung in der Kommandozeile |
 | E28 | Schutzregeln der Zusatzfunktionen (Profile, Import, Suche, Vergleich, Support-Paket, Verallgemeinerung) gelten als Muss, sobald die Funktion gebaut wird. | Neue Funktionen dürfen den Schutz nie aufweichen |
+| E29 | Getipptes in Terminals, Remote-Desktop- und VM-Fenstern ist **prüfpflichtig** (`flags.plaintext`); die Stufe „Streng“ hält dort alles zurück. Die automatische Erkennung von Kennwortabfragen im Terminal (Regel T1, DS-022/DS-023) ist **nicht umgesetzt**; E10 gilt insoweit nur für die Privattaste. | Ehrlicher Stand: Schutz durch Durchsicht und Stufenwahl statt durch eine Erkennung, die nur in wenigen Terminals möglich wäre |
+| E30 | Schritte lassen sich nur für **Anleitungen** zusammenfassen (`edits.merges`); `steps.json`, KI-Paket, MCP, Vergleich und AutoHotkey-Export behalten die Einzelschritte. | Die Spur bleibt vollständig, die Anleitung darf kürzer sein |
+| E31 | Die Sprache der Oberfläche (`uiLanguage`) ist unabhängig von der Sprache der Anleitungstexte. Texte, die in eine Aufnahme oder einen Export gehen, folgen der Inhaltssprache; das Manifest nennt weiter die Windows-Sprache. | Ein englisch bedienter Rechner erzeugt keine gemischten Anleitungen |
+| E32 | Löschen aus der Oberfläche geht nur in den Papierkorb; wo es keinen gibt, fragt das Programm ausdrücklich. Ordner-Exporte leeren nie einen fremden Ordner (Exit-Code 8). | Kein stilles, endgültiges Löschen |
 
 ## 7. Pflege
 
