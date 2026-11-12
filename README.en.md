@@ -15,13 +15,14 @@ A single file, no installation, no admin rights, no internet. The program never 
 ## Contents
 
 - [Quick start](#quick-start)
-- [The four recording modes](#the-four-recording-modes)
+- [The recording modes](#the-recording-modes)
 - [While recording](#while-recording)
 - [The editor](#the-editor)
 - [Designing user guides](#designing-user-guides)
 - [Export formats](#export-formats)
 - [Privacy](#privacy)
 - [For AI and automation](#for-ai-and-automation)
+- [For software developers](#for-software-developers)
 - [System requirements and notes](#system-requirements-and-notes)
 - [Frequently asked questions](#frequently-asked-questions)
 - [License](#license)
@@ -40,7 +41,7 @@ On first start, Windows SmartScreen may show a warning because the file is not s
 
 ---
 
-## The four recording modes
+## The recording modes
 
 The mode determines how precisely things are recorded. More detail means more accurate AI and script output, but also larger recordings.
 
@@ -49,6 +50,7 @@ The mode determines how precisely things are recorded. More detail means more ac
 | **Guide** | Step-by-step guides for people | **Lean:** clicks, entries and keys; no mouse paths; extra images only for large changes | The editor opens |
 | **Support case** | Making an error reproducible for the help desk | **Detailed:** all inputs including mouse paths; extra images also for small changes; extended application context | Review the inputs, then a ZIP package is created |
 | **AI trace** | Procedures for AI assistants or AutoHotkey | **Complete:** everything; extra images for every visible change; extended application context | The AI export opens |
+| **Reproduce bug** | Documenting a bug for developers | **Detailed** like support case, goal and expected result captured up front, program context (program exit, hangs, build) | The editor jumps to the failure point |
 | **Custom** | When you want to decide exactly yourself | **Freely selectable:** input types, extra images, application context, action after stopping | selectable |
 
 "Customize …" takes over the level of detail of a mode as a starting point for "Custom".
@@ -86,6 +88,7 @@ A small **recording bar** floats at the top of the screen, showing the time, the
 | **Ctrl+Shift+F8** | Private key: inputs are only counted, not stored |
 | **Ctrl+Shift+F6** | Discard the last step |
 | **Ctrl+Shift+F4** | Show / hide the bar (minimize to the notification area) |
+| **Ctrl+Shift+F3** | Instant screenshot: pick an area, draw on it in the editor, copy (while recording: snapshot) |
 
 **Dictation:** Instead of typing, simply speak your explanations. Each sentence is saved as a comment at the point where you started it. Recognition runs offline via Windows speech recognition; the microphone is only open while dictation is running (red microphone on the bar), and only the text is stored.
 
@@ -117,7 +120,10 @@ After recording, the editor opens: the steps on the left, the image in the middl
 **More features**
 - **Play:** the steps as a slide show.
 - **Preview:** view the finished guide in the browser.
-- **Compare:** put two recordings of the same procedure side by side (F7).
+- **Compare:** put two recordings of the same procedure side by side (F7) – pair list, both images side by side with highlighted image differences, timing differences; can be saved as Markdown with before/after images.
+- **Command palette** (Ctrl+Shift+P): find any command by name.
+- **Response times:** every step shows how long the application took; the "Slow" filter shows only slow steps.
+- **Copy as Markdown:** one step (Ctrl+M) or all steps (Ctrl+Shift+M) – for pull requests, issues and wikis.
 - **German and English:** with "DE | EN" above the image you maintain texts in both languages – one recording becomes two guides.
 - Everything is saved automatically; undo with Ctrl+Z.
 
@@ -146,10 +152,11 @@ On the **"Document"** tab, the steps become a proper user guide:
 | **PDF** | finished document with cover page, table of contents and page numbers | printing, sharing, archiving |
 | **Word (.docx)** | editable document with real headings | further editing in Word or LibreOffice |
 | **HTML** | a single file, images embedded, images can be enlarged by clicking | e-mail, intranet, viewing without any other program |
-| **Markdown** | text plus image folder | wikis, Git repositories, Confluence, Obsidian |
-| **GIF** | animated short version: title image, then each step with number and heading | teams, chat, wiki, quick preview |
+| **Markdown** | text plus image folder `<name>-bilder/`, ASCII file names, note boxes for GitHub/GitLab or Obsidian, optional front matter (YAML); the same recording gives the same file | wikis, Git repositories, Docusaurus, MkDocs, Obsidian |
+| **GIF** | animated short version: title image, then each step with number and heading; with a size target (e.g. 10 MB for pull requests) | teams, chat, wiki, quick preview |
 | **AI package** | trace, steps, images and reading guide for AI assistants | ChatGPT, Claude & co. |
 | **AutoHotkey** | AutoHotkey v2 script that repeats the procedure | automating recurring procedures |
+| **UI test** | test draft for FlaUI (C#), pywinauto (Python) or Playwright (browser steps), optionally as a test AI package | automated UI tests |
 | **Support package** | ZIP with HTML guide and AI package | passing errors to the help desk |
 
 **Readable for people:** For the AI package and AutoHotkey there is the option *"Readable for people – fully commented"*. Every detail – including system info, screens, evidence quality, coordinates and gaps – is then explained in plain language, each step gets an "In words" sentence, and a `LIESMICH.md` plus explanations in the JSON files are added; the script explains its structure and every step. Without the option the export stays concise and saves tokens when only an AI reads it.
@@ -193,8 +200,26 @@ All exports are created without additional software. The program sends nothing �
   | `SebastiansStepRecorder.exe record [--scope screen\|app\|region] [--profile …] [--title …]` | start recording immediately |
   | `SebastiansStepRecorder.exe record --stop` | stop the running recording |
   | `SebastiansStepRecorder.exe export <recording> --format pdf\|docx\|html\|md\|gif\|ki\|ahk` | export |
-  | `SebastiansStepRecorder.exe compare <A> <B>` | compare two recordings |
+  | `SebastiansStepRecorder.exe compare <A> <B> [--images]` | compare two recordings (with image differences) |
+  | `SebastiansStepRecorder.exe list` · `steps <recording>` | list recordings or steps (`--json`) |
+  | `SebastiansStepRecorder.exe testability <recording> --strict` | report controls without an AutomationId (exit 9 for CI) |
   | `SebastiansStepRecorder.exe --help` | all options |
+
+  Instead of a recording path you can always write `latest` – the newest recording.
+
+---
+
+## For software developers
+
+**Bugs with full context.** The *Reproduce bug* mode also records what the program did: program exit with exit code ("crash" only for unambiguous error codes), "not responding", crash data from the event log, product version, build identity and – as additional information – Git branch and commit. At the "Error" and "Expected" markers the visible text of the window is stored (e.g. the error message). Optionally (*Settings → Developer*, off by default, always subject to review): error texts from the event log (.NET stack traces), clipboard content and new lines of explicitly named **log files** (`record --log app.log`).
+
+**Agent loop (MCP).** An agent such as Claude Code gets the failure point with the preceding steps, selectors, wait signals, program context and image in one call with `get_failure_context`. The MCP prompts *analyze bug*, *write UI test*, *write guide* and *verify fix* appear as slash commands. With `--allow-requests` the agent can ask for a re-test recording and compare it with the bug recording using `compare_sessions`. "Connect to AI" creates the setup for Claude Code, VS Code, Cursor and Codex.
+
+**UI tests from recordings.** *Export → UI test* creates a test draft: FlaUI (C#, xUnit), pywinauto (pytest) or Playwright (browser steps only). Selectors by stability (AutomationId before name and type, coordinates only as a marked fallback), waiting for windows instead of fixed pauses, "Expected" and "Error" markers as assertions, passwords only from environment variables. The **testability report** shows which controls lack an AutomationId – in the editor or as a CI step (`testability --strict`). The program itself never replays anything.
+
+**Faster every day.** *Settings → Developer → Stay ready in the notification area* keeps the program reachable so that **Ctrl+Shift+F9** starts a recording at any time (no autostart, nothing captured while idle). `steprec.cmd` next to the EXE lets consoles wait for a recording to finish. Instant screenshot with **Ctrl+Shift+F3**, command palette with **Ctrl+Shift+P**.
+
+**Docs and reviews in the repository.** Markdown with stable names for clean diffs, terminal commands as code blocks, "Copy all steps as Markdown", GIF with a size target and the visual comparison with before/after images for pull requests.
 
 ---
 

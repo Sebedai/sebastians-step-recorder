@@ -820,7 +820,7 @@ Formate `flaui`, `pywinauto`, `playwright` und `test-ki` (12, Pakete 16 und 17; 
 | Eingaben | Text als Literal; maskierte und ungeprüfte Eingaben (`{unreviewed:N}`) nur aus Umgebungsvariablen `WERT_<n>`. Tastenkürzel über `VirtualKeyShort` bzw. pywinauto-Notation. |
 | Nicht abgebildet | Kommentare, Lücken (als Kommentar), Spurdaten, Mausbewegungen ohne Aktion. Ziehen nur als gekennzeichneter Notbehelf. |
 
-Wie bei Anleitungen ist die Durchsicht auffälliger Eingaben im Editor Voraussetzung; kopflos stehen Platzhalter. Der MCP-Server liefert Entwurf, Regeln und Testbarkeit mit `get_automation` und `target` ([06](06-ki-mcp-schnittstelle.md)).
+Wie bei Anleitungen ist die Durchsicht auffälliger Eingaben im Editor Voraussetzung; kopflos stehen Platzhalter. Der MCP-Server liefert Entwurf, Regeln und Testbarkeit mit `get_automation` und `target` ([06](06-ki-export-und-mcp.md)).
 
 **Testbarkeits-Bericht** (Editor: Exportieren → „Testbarkeit prüfen …“; Kommandozeile: `testability <Sitzung> [--json] [--strict]`, [02](02-architektur.md)): je benutztem Bedienelement (Klick, Eingabe, Ziehen, Scrollen; je Programm, Typ, Name und AutomationId einmal) die Befunde `noUiaElement`, `noAutomationId`, `noName`, `nameNotUnique`, `coordinatesOnly`, `volatileWindowClass` mit Schwere (`warning`, wenn nur Koordinaten bleiben; `hint` bei fehlender AutomationId) und Empfehlung. `--strict` endet mit Exit-Code 9, sobald eine Warnung vorliegt – so kann die CI fehlende AutomationIds anmahnen.
 

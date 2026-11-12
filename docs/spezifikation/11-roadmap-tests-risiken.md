@@ -66,7 +66,24 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 - **Zurückgestellt:** Abschnitt neu aufnehmen und ersetzen (damit Aufnahmeabschnitte, Ersetzungen und Nahtstellen aus [05, Abschnitt 16](05-schritterkennung.md)), Lesezeichen und Textbausteine, Seitenformat (Letter, quer) und eigene Word-Vorlage, weitere Sprachen der automatischen Texte, Video-Export, ARM64, Bedienhilfen der Oberfläche (Namen für Sprachausgabe), Terminal-Regeln T2 und T3 (O-11).
 - **Vorab-Experimente VE-01 bis VE-14** und die Berichte unter `docs/experimente/` liegen nicht vor; die Messkriterien aus Abschnitt 3 sind damit nicht belegt.
 
-**Weiterer Ausbau für Software-Entwickler.** Der Fahrplan in [12](12-entwickler-fahrplan.md) plant die Pakete 8–19 (Vorgaben V-40 bis V-45): Agenten-Schleife, Reaktionszeiten, Programm-Kontext (Programmende, Fehlertext, Ereignisanzeige, Protokolldateien), Bereitschaft im Infobereich, Befehlspalette, UI-Tests aus Aufnahmen, Doku im Repository und visueller Vergleich. Er nennt außerdem Abweichungen zwischen Grundsätzen und Code (A-1 bis A-10), die vor den Paketen mit neuen Quellen zu klären sind; die Fragen dazu stehen als O-12 bis O-19 in Abschnitt [9](#9-offene-entscheidungen), die Experimente als VE-15 bis VE-23 in Abschnitt [3.2](#32-experimente-für-den-entwickler-fahrplan). Stand aller Pakete: geplant.
+**Weiterer Ausbau für Software-Entwickler.** Der Fahrplan in [12](12-entwickler-fahrplan.md) plant die Pakete 8–19 (Vorgaben V-40 bis V-45): Agenten-Schleife, Reaktionszeiten, Programm-Kontext (Programmende, Fehlertext, Ereignisanzeige, Protokolldateien), Bereitschaft im Infobereich, Befehlspalette, UI-Tests aus Aufnahmen, Doku im Repository und visueller Vergleich. Er nennt außerdem Abweichungen zwischen Grundsätzen und Code (A-1 bis A-10); die Fragen dazu stehen als O-12 bis O-19 in Abschnitt [9](#9-offene-entscheidungen), die Experimente als VE-15 bis VE-23 in Abschnitt [3.2](#32-experimente-für-den-entwickler-fahrplan).
+
+| Paket | Inhalt | Stand |
+|---|---|---|
+| V Vorarbeiten | A-1 bis A-10 abgeglichen: `%USERPROFILE%` statt Profilpfad, Befehlszeile nur mit erweitertem Kontext, Listen und Bäume über UI Automation statt fremdem Prozessspeicher, Abschlusszeile von `record` | erledigt |
+| 8 Agenten-Schleife | `get_failure_context`, `include` bei `get_steps`, MCP-Prompts, Agenten-Notizen, Prüfaufnahme (`retestOf`), `list`, `latest`, `steps --json`, Schrittbereich beim Export, „Mit KI verbinden“ für weitere Programme | erledigt |
+| 9 Reaktionszeiten | Anzeige und Filter im Editor, Zeitvergleich, Q21, Zeile in Protokoll und MCP | erledigt |
+| 10 Kontext I | Programmende mit Exit-Code, Hänger, Ereignisanzeige (Absturzfakten), Build-Stand (PE, PDB, Git); Regelversion 1.7.0 | erledigt |
+| 11 Kontext II | Text-Schnappschuss modaler Fenster und bei Markern | erledigt |
+| 12 Kontext III | Allgemeine Prüfposten der Durchsicht, „nie unbemerkt schwächer“, Leser-Mindestversion, Freitext der Ereignisanzeige, Zwischenablage-Inhalt | erledigt |
+| 13 Kontext IV | Protokolldateien (`record --log`) | erledigt |
+| 14 Bereitschaft | Infobereich, Modus „Fehler nachstellen“, `steprec.cmd` | erledigt |
+| 15 Tempo | Befehlspalette, Sofort-Bildschirmfoto | erledigt |
+| 16, 17 UI-Tests | FlaUI, pywinauto, Playwright, Test-KI-Paket, Testbarkeits-Bericht, `get_automation` mit `target` | erledigt; Ausführen erzeugter Tests gegen eine Zielanwendung offen (VE-21) |
+| 18 Doku im Repository | Markdown nach 09 §6, Kopieren als Markdown, GIF-Größenziel | erledigt; GitHub-Vorschau von Hand offen |
+| 19 Visueller Vergleich | Vergleichsfenster mit Bildern, Bildunterschiede, `compare --images`, `compare_sessions` mit `images` | erledigt |
+
+Die Vorab-Experimente VE-15 bis VE-23 brauchen echte Programme, Terminals und Hardware und liegen nicht vor; die Pakete sind durch automatische Tests mit synthetischen Aufnahmen belegt.
 
 ## 3. Vorab-Experimente (M0)
 

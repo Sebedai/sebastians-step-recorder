@@ -15,13 +15,14 @@ Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das P
 ## Inhalt
 
 - [Schnellstart](#schnellstart)
-- [Die vier Aufnahmemodi](#die-vier-aufnahmemodi)
+- [Die Aufnahmemodi](#die-aufnahmemodi)
 - [Während der Aufnahme](#während-der-aufnahme)
 - [Der Editor](#der-editor)
 - [Bedienungsanleitungen gestalten](#bedienungsanleitungen-gestalten)
 - [Exportformate](#exportformate)
 - [Datenschutz](#datenschutz)
 - [Für KI und Automatisierung](#für-ki-und-automatisierung)
+- [Für Software-Entwickler](#für-software-entwickler)
 - [Systemvoraussetzungen und Hinweise](#systemvoraussetzungen-und-hinweise)
 - [Häufige Fragen](#häufige-fragen)
 - [Lizenz](#lizenz)
@@ -40,7 +41,7 @@ Beim ersten Start warnt Windows SmartScreen eventuell, weil die Datei nicht sign
 
 ---
 
-## Die vier Aufnahmemodi
+## Die Aufnahmemodi
 
 Der Modus legt fest, wie genau aufgezeichnet wird. Mehr Detail heißt genauere KI- und Skript-Ausgaben, aber auch größere Aufnahmen.
 
@@ -49,6 +50,7 @@ Der Modus legt fest, wie genau aufgezeichnet wird. Mehr Detail heißt genauere K
 | **Anleitung** | Schritt-für-Schritt-Anleitungen für Menschen | **Schlank:** Klicks, Eingaben und Tasten; keine Mauswege; Zusatzbilder nur bei großen Änderungen | Editor öffnet sich |
 | **Support-Fall** | Fehler für den Helpdesk nachvollziehbar machen | **Ausführlich:** alle Eingaben inklusive Mauswegen; Zusatzbilder auch bei kleinen Änderungen; erweiterter Programmkontext | Eingaben prüfen, dann entsteht ein ZIP-Paket |
 | **KI-Spur** | Abläufe für KI-Assistenten oder AutoHotkey | **Vollständig:** alles; Zusatzbilder bei jeder sichtbaren Änderung; erweiterter Programmkontext | KI-Export öffnet sich |
+| **Fehler nachstellen** | Einen Fehler für Entwickler belegen | **Ausführlich** wie Support-Fall, Ziel und erwartetes Ergebnis gleich mit erfasst, Programm-Kontext (Programmende, Hänger, Build-Stand) | Editor springt zur Fehlerstelle |
 | **Eigene** | Wenn Sie es genau selbst bestimmen wollen | **Frei wählbar:** Eingabearten, Zusatzbilder, Programmkontext, Aktion nach dem Stopp | wählbar |
 
 „Anpassen …“ übernimmt den Detailgrad eines Modus als Ausgangspunkt für „Eigene“.
@@ -86,6 +88,7 @@ Oben auf dem Bildschirm schwebt eine kleine **Aufnahmeleiste** mit Zeit, Schritt
 | **Strg+Umschalt+F8** | Privattaste: Eingaben werden nur gezählt, nicht gespeichert |
 | **Strg+Umschalt+F6** | Letzten Schritt verwerfen |
 | **Strg+Umschalt+F4** | Leiste ein-/ausblenden (in den Infobereich minimieren) |
+| **Strg+Umschalt+F3** | Sofort-Bildschirmfoto: Bereich wählen, im Editor bemalen, kopieren (während einer Aufnahme: Schnappschuss) |
 
 **Diktat:** Statt zu tippen, sprechen Sie Ihre Erklärungen einfach. Jeder Satz wird als Kommentar an der Stelle gespeichert, an der Sie ihn begonnen haben. Die Erkennung läuft offline über die Windows-Spracherkennung; das Mikrofon ist nur offen, solange das Diktat läuft (rotes Mikrofon in der Leiste), und gespeichert wird nur der Text.
 
@@ -117,7 +120,10 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 **Weitere Funktionen**
 - **Abspielen:** Schritte als Diashow.
 - **Vorschau:** die fertige Anleitung im Browser ansehen.
-- **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7).
+- **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7) – Paarliste, beide Bilder nebeneinander mit hervorgehobenen Bildunterschieden, Zeitunterschiede; als Markdown mit Vorher/Nachher-Bildern speicherbar.
+- **Befehlspalette** (Strg+Umschalt+P): jeden Befehl über seinen Namen finden.
+- **Reaktionszeiten:** Jeder Schritt zeigt, wie lange die Anwendung gebraucht hat; der Filter „Langsam“ zeigt nur langsame Schritte.
+- **Als Markdown kopieren:** einen Schritt (Strg+M) oder alle Schritte (Strg+Umschalt+M) – für Pull Requests, Issues und Wikis.
 - **Deutsch und Englisch:** Mit „DE | EN“ über der Schrittliste pflegen Sie Texte in beiden Sprachen – aus einer Aufnahme werden zwei Anleitungen.
 - Alles wird automatisch gespeichert; Rückgängig mit Strg+Z.
 
@@ -146,10 +152,11 @@ Ganz oben in der Schrittliste steht **„Titelseite und Einleitung“**: Dort wi
 | **PDF** | fertiges Dokument mit Deckblatt, Inhaltsverzeichnis und Seitenzahlen | Drucken, Weitergeben, Archivieren |
 | **Word (.docx)** | bearbeitbares Dokument mit echten Überschriften | Weiterbearbeiten in Word oder LibreOffice |
 | **HTML** | eine einzige Datei, Bilder eingebettet, Bilder per Klick vergrößerbar | E-Mail, Intranet, Ansehen ohne weitere Programme |
-| **Markdown** | Text plus Bilderordner | Wikis, Git-Repositories, Confluence, Obsidian |
-| **GIF** | animierte Kurzfassung: Titelbild, dann jeder Schritt mit Nummer und Überschrift | Teams, Chat, Wiki, schnelle Vorschau |
+| **Markdown** | Text plus Bilderordner `<name>-bilder/`, ASCII-Dateinamen, Hinweiskästen für GitHub/GitLab oder Obsidian, auf Wunsch Kopfdaten (YAML); gleiche Aufnahme ergibt dieselbe Datei | Wikis, Git-Repositories, Docusaurus, MkDocs, Obsidian |
+| **GIF** | animierte Kurzfassung: Titelbild, dann jeder Schritt mit Nummer und Überschrift; mit Größenziel (z. B. 10 MB für Pull Requests) | Teams, Chat, Wiki, schnelle Vorschau |
 | **KI-Paket** | Protokoll, Schritte, Bilder und Lesehilfe für KI-Assistenten | ChatGPT, Claude & Co. |
 | **AutoHotkey** | AutoHotkey-v2-Skript, das den Ablauf wiederholt | Automatisierung wiederkehrender Abläufe |
+| **UI-Test** | Testentwurf für FlaUI (C#), pywinauto (Python) oder Playwright (Browser-Schritte), auf Wunsch als Test-KI-Paket | automatisierte Oberflächentests |
 | **Support-Paket** | ZIP mit HTML-Anleitung und KI-Paket | Fehler an den Helpdesk geben |
 
 **Für Menschen lesbar:** Beim KI-Paket und bei AutoHotkey gibt es die Option *„Für Menschen lesbar – ausführlich kommentiert“*. Dann wird jede Angabe – auch Systeminfos, Bildschirme, Belegqualität, Koordinaten und Lücken – in Klartext erklärt, jeder Schritt bekommt einen Satz „In Worten“, dazu kommen eine `LIESMICH.md` und Erklärungen in den JSON-Dateien; das Skript erklärt seinen Aufbau und jeden Schritt. Ohne die Option bleibt der Export knapp und spart Tokens, wenn ihn nur eine KI liest.
@@ -193,8 +200,26 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
   | `SebastiansStepRecorder.exe record [--scope screen\|app\|region] [--profile …] [--title …]` | Aufnahme sofort starten |
   | `SebastiansStepRecorder.exe record --stop` | laufende Aufnahme beenden |
   | `SebastiansStepRecorder.exe export <Aufnahme> --format pdf\|docx\|html\|md\|gif\|ki\|ahk` | exportieren |
-  | `SebastiansStepRecorder.exe compare <A> <B>` | zwei Aufnahmen vergleichen |
+  | `SebastiansStepRecorder.exe compare <A> <B> [--images]` | zwei Aufnahmen vergleichen (mit Bildunterschieden) |
+  | `SebastiansStepRecorder.exe list` · `steps <Aufnahme>` | Aufnahmen bzw. Schritte auflisten (`--json`) |
+  | `SebastiansStepRecorder.exe testability <Aufnahme> --strict` | Bedienelemente ohne AutomationId melden (Exit 9 für die CI) |
   | `SebastiansStepRecorder.exe --help` | alle Optionen |
+
+  Statt eines Aufnahmepfads geht überall `latest` – die neueste Aufnahme.
+
+---
+
+## Für Software-Entwickler
+
+**Fehler mit allem Kontext.** Der Modus *Fehler nachstellen* hält zusätzlich fest, was das Programm tat: Programmende mit Exit-Code (Absturz nur bei eindeutigen Fehlercodes), „reagiert nicht“, Absturzdaten der Ereignisanzeige, Produktversion, Build-Kennung und – als Zusatzangabe – Git-Zweig und Commit. Bei den Markern „Fehler“ und „Erwartet“ wird der sichtbare Text des Fensters gespeichert (z. B. die Fehlermeldung). Auf Wunsch (*Einstellungen → Entwickler*, ab Werk aus, immer prüfpflichtig): Fehlertexte der Ereignisanzeige (.NET-Stacktraces), Inhalt der Zwischenablage und neue Zeilen ausdrücklich genannter **Protokolldateien** (`record --log app.log`).
+
+**Agenten-Schleife (MCP).** Ein Agent wie Claude Code holt mit `get_failure_context` die Fehlerstelle samt vorigen Schritten, Selektoren, Wartesignalen, Programm-Kontext und Bild in einem Aufruf. Die MCP-Prompts *Fehler analysieren*, *UI-Test schreiben*, *Anleitung schreiben* und *Behebung prüfen* erscheinen als Slash-Befehle. Mit `--allow-requests` kann der Agent um eine Prüfaufnahme bitten und sie mit `compare_sessions` gegen die Fehleraufnahme abgleichen. „Mit KI verbinden“ erzeugt die Einrichtung für Claude Code, VS Code, Cursor und Codex.
+
+**UI-Tests aus Aufnahmen.** *Exportieren → UI-Test* erzeugt einen Testentwurf: FlaUI (C#, xUnit), pywinauto (pytest) oder Playwright (nur Browser-Schritte). Selektoren nach Stabilität (AutomationId vor Name und Typ, Koordinaten nur als gekennzeichneter Notbehelf), Warten auf Fenster statt fester Pausen, Marker „Erwartet“ und „Fehler“ als Prüfungen, Kennwörter nur aus Umgebungsvariablen. Der **Testbarkeits-Bericht** zeigt, welchen Bedienelementen eine AutomationId fehlt – im Editor oder als CI-Schritt (`testability --strict`). Das Programm selbst spielt nichts ab.
+
+**Schneller im Alltag.** *Einstellungen → Entwickler → Im Infobereich bereit bleiben* hält das Programm erreichbar, damit **Strg+Umschalt+F9** jederzeit eine Aufnahme startet (kein Autostart, im Leerlauf keine Erfassung). `steprec.cmd` neben der EXE lässt Konsolen auf das Ende einer Aufnahme warten. Sofort-Bildschirmfoto mit **Strg+Umschalt+F3**, Befehlspalette mit **Strg+Umschalt+P**.
+
+**Doku und Reviews im Repository.** Markdown mit stabilen Namen für saubere Diffs, Terminal-Befehle als Codeblock, „Alle Schritte als Markdown kopieren“, GIF mit Größenziel und der visuelle Vergleich mit Vorher/Nachher-Bildern für Pull Requests.
 
 ---
 
