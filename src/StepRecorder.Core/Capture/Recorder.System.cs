@@ -289,6 +289,10 @@ public sealed partial class Recorder
                 long t = Now();
                 Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = e.Reason == SessionSwitchReason.SessionLock ? "sessionLock" : "consoleDisconnect" });
                 BeginGap(e.Reason == SessionSwitchReason.SessionLock ? "sessionLocked" : "sessionDisconnected", t, "possible", "all");
+                // gesperrt: keine Bilder des Sperrbildschirms; eine offene UAC-Lücke geht in der Sperr-Lücke auf
+                if (_gaps.ContainsKey("secureDesktop")) EndGap("secureDesktop", t, new JsonObject { ["end"] = "sessionLocked" });
+                _desk.Reset();
+                _frames.Suspend();
             }
         }
         else if (e.Reason is SessionSwitchReason.SessionUnlock or SessionSwitchReason.ConsoleConnect or SessionSwitchReason.RemoteConnect)
@@ -299,6 +303,7 @@ public sealed partial class Recorder
                 if (!_gaps.ContainsKey("sessionLocked") && !_gaps.ContainsKey("sessionDisconnected")) return;
                 Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = e.Reason == SessionSwitchReason.SessionUnlock ? "sessionUnlock" : "consoleConnect" });
                 EndGap("sessionLocked", t); EndGap("sessionDisconnected", t);
+                _frames.ResumeAfterSuspend();
             }
             Pause("lock");
             ResumeConfirmationNeeded?.Invoke();
@@ -311,8 +316,12 @@ public sealed partial class Recorder
         {
             if (_w.Closed) return;
             long t = Now();
-            if (e.Mode == PowerModes.Suspend) { Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "powerSuspend" }); BeginGap("suspend", t, "none", "all"); }
-            else if (e.Mode == PowerModes.Resume) { Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "powerResume" }); EndGap("suspend", t); }
+            if (e.Mode == PowerModes.Suspend) { Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "powerSuspend" }); BeginGap("suspend", t, "none", "all"); _desk.Reset(); _frames.Suspend(); }
+            else if (e.Mode == PowerModes.Resume)
+            {
+                Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "powerResume" }); EndGap("suspend", t);
+                if (!_gaps.ContainsKey("sessionLocked") && !_gaps.ContainsKey("sessionDisconnected")) { _frames.ResumeAfterSuspend(); if (State == RecorderState.Recording) _frames.Immediate("resume", null, forceKey: true); }
+            }
         }
     }
 

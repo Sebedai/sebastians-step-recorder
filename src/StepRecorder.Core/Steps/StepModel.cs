@@ -36,5 +36,5 @@ public sealed class StepDraft
 
 public static class StepParams
 {
-    public const string BuilderVersion = "1.4.0";
+    public const string BuilderVersion = "1.5.0";
 }

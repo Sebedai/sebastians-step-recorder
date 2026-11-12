@@ -27,7 +27,7 @@ public sealed partial class Recorder
                     FlushPendingKeys(force: false);
                     Idle();
                 }
-                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollReminder(); }
+                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollDesktop(); PollReminder(); }
             }
             catch (Exception ex) { Warning?.Invoke("Eingabeverarbeitung: " + ex.Message); }
         }
@@ -57,6 +57,50 @@ public sealed partial class Recorder
         {
             long t = Now();
             if (_batch.Any(r => r.Kind == RingKind.Keyboard)) _reminder.Key(t); else _reminder.Activity(t);
+        }
+    }
+
+    readonly DesktopWatch _desk = new();
+
+    /// <summary>
+    /// Sicherer Desktop (UAC-Abfrage, Strg+Alt+Entf, Bildschirmschoner) im 250-ms-Takt: Lücke „secureDesktop“ mit Art
+    /// (uac/other), keine Bilder währenddessen; danach Tastenstatus abgleichen und ein Schlüsselbild erzwingen.
+    /// Keine eigene Lücke, solange der Rechner gesperrt oder im Ruhezustand ist.
+    /// </summary>
+    void PollDesktop()
+    {
+        string name;
+        try { name = DesktopProbe.Read(); } catch { return; }
+        bool consent = !string.Equals(name, "Default", StringComparison.OrdinalIgnoreCase) && DesktopProbe.ConsentRunning();
+        lock (_gate)
+        {
+            if (_w.Closed || State != RecorderState.Recording) return;
+            if (_gaps.ContainsKey("sessionLocked") || _gaps.ContainsKey("sessionDisconnected") || _gaps.ContainsKey("suspend")) return;
+            long t = Now();
+            switch (_desk.Observe(name, consent))
+            {
+                case DesktopWatch.Change.Enter:
+                    {
+                        Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "secure", ["desktop"] = _desk.Desktop });
+                        var g = BeginGap("secureDesktop", t, "possible", "all");
+                        g.Detail = new JsonObject { ["desktop"] = _desk.Desktop, ["kind"] = _desk.Kind };
+                        _frames.Suspend();
+                        break;
+                    }
+                case DesktopWatch.Change.Leave:
+                    {
+                        string? gid = _gaps.TryGetValue("secureDesktop", out var og) ? og.Id : null;
+                        var detail = og?.Detail ?? new JsonObject();
+                        detail["kind"] = _desk.Kind.Length > 0 ? _desk.Kind : detail.Str("kind") ?? "other";
+                        EndGap("secureDesktop", t, detail);
+                        Emit(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "default" });
+                        _keys.Reset();
+                        Emit(KeyStateSync("secureDesktop", gid));
+                        _frames.ResumeAfterSuspend();
+                        _frames.Immediate("resume", null, forceKey: true);
+                        break;
+                    }
+            }
         }
     }
 

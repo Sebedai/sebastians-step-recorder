@@ -241,6 +241,7 @@ public static class TextTemplates
             "comment" => de ? "Kommentar" : "Comment",
             "snapshot" => de ? "Schnappschuss" : "Snapshot",
             "marker" => input.Str("markerKind") switch { "error" => de ? "Fehler tritt auf" : "Error occurs", "expected" => de ? "Soll-Zustand" : "Expected state", "important" => de ? "Wichtige Stelle" : "Important point", _ => "Marker" },
+            "gap" when input.Str("cause") == "secureDesktop" && input.Str("desktopKind") == "uac" => de ? "Benutzerkontensteuerung bestätigen" : "Confirm User Account Control",
             "gap" => (de ? "Lücke: " : "Gap: ") + ShortCause(input.Str("cause") ?? "unknown", lang),
             _ => kind
         };
@@ -298,6 +299,9 @@ public static class TextTemplates
             "comment" => guide ? (commentText ?? "") : (de ? $"Kommentar des Autors: {commentText}" : $"Author's comment: {commentText}"),
             "snapshot" => guide ? "" : (de ? "Schnappschuss" : "Snapshot"),
             "marker" => MarkerText(input, lang, guide),
+            "gap" when input.Str("cause") == "secureDesktop" && input.Str("desktopKind") == "uac" => guide
+                ? (de ? "Bestätigen Sie die Abfrage der Benutzerkontensteuerung (Windows fragt, ob das Programm Änderungen vornehmen darf). Diese Abfrage wird aus Sicherheitsgründen nicht aufgezeichnet." : "Confirm the User Account Control prompt (Windows asks whether the program may make changes). For security reasons this prompt is not recorded.")
+                : (de ? $"Abfrage der Benutzerkontensteuerung (sicherer Desktop, {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}): Eingaben und Bilder wurden nicht aufgezeichnet." : $"User Account Control prompt (secure desktop, {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}): input and images were not recorded."),
             "gap" => guide ? (de ? "Hinweis: " : "Note: ") + CauseText(input.Str("cause") ?? "unknown", lang)
                            : (de ? $"Lücke von {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}: " : $"Gap of {Duration(step.Long("tTo") - step.Long("tFrom"), lang)}: ") + CauseText(input.Str("cause") ?? "unknown", lang),
             _ => ""

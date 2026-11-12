@@ -106,6 +106,9 @@ public sealed partial class StepBuilder
 
     static bool InputChannels(JsonArray ch) => ch.Any(c => c?.GetValue<string>() is "keyboard" or "mouse" or "all");
 
+    /// <summary>Liegt der Zeitpunkt in einer Lücke ohne verwertbaren Bildschirm (sicherer Desktop, Sperre, Ruhezustand)?</summary>
+    bool InBlindGap(long t) => _gapSpans.Any(g => g.cause is "secureDesktop" or "sessionLocked" or "sessionDisconnected" or "suspend" && t >= g.from && t <= g.to);
+
     // =====================================================================================
     // Eingabeschritte
     // =====================================================================================

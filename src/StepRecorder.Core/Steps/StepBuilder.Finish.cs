@@ -113,6 +113,8 @@ public sealed partial class StepBuilder
                     pre = _ev.LastOrDefault(e => e.Str("type") == "frame" && e.Long("t") <= st.TFrom && (m == null || e.Str("m") == m) && Stored(e));
                     post = _ev.FirstOrDefault(e => e.Str("type") == "frame" && e.Long("t") >= st.TTo && e.Str("trigger") is "settle" or "change" && (m == null || e.Str("m") == m) && Stored(e));
                     if (st.Kind == "move" || st.Kind == "gap") post ??= null;
+                    // Lücken ohne Bildschirm (sicherer Desktop, Sperre, Ruhezustand): der Schritt bleibt ohne Bild
+                    if (st.Kind == "gap" && st.InputObj.Str("cause") is "secureDesktop" or "sessionLocked" or "sessionDisconnected" or "suspend") { pre = null; post = null; }
                     m = pre?.Str("m") ?? m;
                     break;
                 }
@@ -136,7 +138,7 @@ public sealed partial class StepBuilder
                     post = pc.LastOrDefault(e => e.Str("m") == m) ?? pc.LastOrDefault();
                     if (post == null)
                     {
-                        post = _ev.FirstOrDefault(e => e.Str("type") == "frame" && e.Long("t") > st.TTo && (m == null || e.Str("m") == m) && Stored(e));
+                        post = _ev.FirstOrDefault(e => e.Str("type") == "frame" && e.Long("t") > st.TTo && (m == null || e.Str("m") == m) && Stored(e) && !InBlindGap(e.Long("t")));
                         if (post == null) issues.Add("postMissing");
                     }
                     else if (post.Obj("settle").Str("reason") == "timeout") issues.Add("postTimeout");

@@ -33,7 +33,7 @@ public static class SyntheticSession
     /// <summary>Im Terminal getippter Befehl (withTerminal).</summary>
     public const string TerminalCanary = "echo kanarie42";
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false)
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -144,6 +144,18 @@ public static class SyntheticSession
             }
             w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w3", ["focus"] = tf, ["ctx"] = "nonText" });
             w.Append(new JsonObject { ["t"] = t + 30_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w3" });
+        }
+        if (withUac)
+        {
+            // Abfrage der Benutzerkontensteuerung: sicherer Desktop, danach Tastenstatus und Schlüsselbild
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "secure", ["desktop"] = "inaccessible" });
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "gap", ["gapId"] = "gu", ["phase"] = "begin", ["cause"] = "secureDesktop", ["tFrom"] = t, ["channels"] = new JsonArray("all"), ["inputLost"] = "possible" });
+            w.Append(new JsonObject { ["t"] = t + 3_000_000, ["type"] = "gap", ["gapId"] = "gu", ["phase"] = "end", ["cause"] = "secureDesktop", ["tFrom"] = t, ["tTo"] = t + 3_000_000, ["channels"] = new JsonArray("all"), ["inputLost"] = "possible", ["detail"] = new JsonObject { ["desktop"] = "inaccessible", ["kind"] = "uac" } });
+            w.Append(new JsonObject { ["t"] = t + 3_000_000, ["type"] = "system", ["kind"] = "desktopSwitch", ["to"] = "default" });
+            w.Append(new JsonObject { ["t"] = t + 3_000_000, ["type"] = "keystate.sync", ["reason"] = "secureDesktop", ["gapId"] = "gu", ["down"] = new JsonArray(), ["mouseDown"] = new JsonArray(), ["locks"] = new JsonArray() });
+            Frame(t + 3_050_000, "f000099", "resume", null, Color.Gray);
+            t += 3_000_000;
         }
         // Lücke (Pause)
         t += 1_000_000;

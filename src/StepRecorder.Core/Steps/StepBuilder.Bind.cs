@@ -54,6 +54,9 @@ public sealed partial class StepBuilder
             st.InputObj["cause"] = g.cause;
             st.InputObj["channels"] = g.channels.DeepClone();
             st.InputObj["inputLost"] = g.inputLost;
+            // sicherer Desktop: Art (uac/other) steht im Ende-Ereignis der Lücke
+            if (g.cause == "secureDesktop" && _ev.LastOrDefault(e => e.Str("type") == "gap" && e.Str("gapId") == g.id && e.Str("phase") == "end")?.Obj("detail")?.Str("kind") is { } dk)
+                st.InputObj["desktopKind"] = dk;
             if (!input) st.Importance = "trace";
             // offene Schritte, die in die Lücke laufen, sind unvollständig
             foreach (var s in _steps.Where(s => s.IsAction && s.TFrom < g.from && s.TTo > g.from)) s.Flags.Add("incomplete");
