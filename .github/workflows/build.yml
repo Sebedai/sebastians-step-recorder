@@ -1,0 +1,53 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore StepRecorder.sln
+      - name: Build
+        run: dotnet build StepRecorder.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
+      - name: Test
+        # Der Integrationstest braucht einen interaktiven Desktop (echte Hooks, Mausbewegung)
+        run: dotnet test StepRecorder.sln -c Release --no-build --filter "Category!=Integration"
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Publish
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          # Directory.Build.props leitet die Ausgabe um – deshalb ausdrücklich -o
+          dotnet publish src/StepRecorder.App/StepRecorder.csproj -c Release -p:Version=$version -p:ContinuousIntegrationBuild=true -o "$env:RUNNER_TEMP\publish"
+          $files = Get-ChildItem "$env:RUNNER_TEMP\publish" -File
+          if ($files.Count -ne 1 -or $files[0].Name -ne 'SebastiansStepRecorder.exe') { throw "Unerwarteter Inhalt: $($files.Name -join ', ')" }
+          $hash = (Get-FileHash $files[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  SebastiansStepRecorder.exe" | Out-File -Encoding ascii "$env:RUNNER_TEMP\publish\SHA256SUMS.txt"
+      - name: Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" "$env:RUNNER_TEMP\publish\SebastiansStepRecorder.exe" "$env:RUNNER_TEMP\publish\SHA256SUMS.txt" --generate-notes
