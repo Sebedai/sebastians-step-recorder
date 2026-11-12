@@ -182,30 +182,45 @@ sealed class RecordingController
         string K(string n, string d) => De(h.GetValueOrDefault(n, d));
         var elapsed = (_pausedAt ?? DateTime.Now) - _started - _pausedTotal;
         bool paused = _rec.State == RecorderState.Paused;
+        // dieselben Gruppen wie das Menü „⋯“ der Leiste – und vollständig, damit alles auch ohne Leiste erreichbar ist
         var m = U.MenuScope(new ContextMenu());
-        void Add(string head, string gesture, Action a, bool enabled = true)
-        {
-            var mi = U.Mi(head, gesture, a); mi.IsEnabled = enabled;
-            m.Items.Add(mi);
-        }
+        void Add(string head, string gesture, Action a, string? glyph = null) => m.Items.Add(U.Mi(head, gesture, a, glyph));
         m.Items.Add(new MenuItem { Header = $"Aufnahme {(paused ? "pausiert" : "läuft")} · {elapsed:mm\\:ss} · {_rec.ActionCount} Schritte", IsEnabled = false });
         m.Items.Add(new Separator());
-        Add(paused ? "Fortsetzen" : "Pause", K("instantPause", "Ctrl+Shift+F9"), TogglePause);
-        Add("Beenden und speichern", K("stop", "Ctrl+Shift+F10"), Stop);
+        Add(paused ? "Fortsetzen" : "Pause", K("instantPause", "Ctrl+Shift+F9"), TogglePause, paused ? Theme.IPlay : Theme.IPause);
+        Add("Aufnahme beenden", K("stop", "Ctrl+Shift+F10"), Stop, Theme.IStop);
         m.Items.Add(new Separator());
-        Add("Fehlerstelle markieren", K("markerError", "Ctrl+Shift+F1"), () => Marker("error"));
-        Add("Marker setzen", K("marker", "Ctrl+Shift+F7"), () => Marker("note"));
-        Add("Kommentar …", K("comment", "Ctrl+Shift+F12"), Comment);
-        Add(_dict.Active ? "Diktat beenden" : "Diktat starten (Mikrofon)", K("dictation", "Ctrl+Shift+F5"), ToggleDictation);
-        Add("Schnappschuss", K("snapshot", "Ctrl+Shift+F11"), () => Marker("snapshot"));
-        Add(_rec.PrivacyMode ? "Privattaste aus" : "Privattaste ein", K("privacy", "Ctrl+Shift+F8"), TogglePrivacy);
-        Add("Letzten Schritt verwerfen", K("discard", "Ctrl+Shift+F6"), DiscardPrevious);
+        Add("Kommentar …", K("comment", "Ctrl+Shift+F12"), Comment, Theme.IComment);
+        Add(_dict.Active ? "Diktat beenden" : "Diktat starten (Mikrofon)", K("dictation", "Ctrl+Shift+F5"), ToggleDictation, "\uE720");
+        m.Items.Add(MarkerMenu(K));
+        Add("Schnappschuss", K("snapshot", "Ctrl+Shift+F11"), () => Marker("snapshot"), Theme.ICamera);
+        m.Items.Add(new Separator());
+        Add(_rec.PrivacyMode ? "Privattaste aus" : "Privattaste ein", K("privacy", "Ctrl+Shift+F8"), TogglePrivacy, Theme.IUnlock);
+        Add("Letzten Schritt zurücknehmen", K("discard", "Ctrl+Shift+F6"), DiscardPrevious, Theme.IUndo);
+        Add("Letzte Eingabe schwärzen", "", RedactLastInput, Theme.IShield);
         m.Items.Add(new Separator());
         Add(_bar?.IsVisible == true ? "Leiste ausblenden" : "Leiste anzeigen", K("bar", "Ctrl+Shift+F4"), ToggleBar);
-        Add("Aufnahme verwerfen …", "", Discard);
+        Add("Tastenkürzel …", "", ShowShortcuts, Theme.IKeyboard);
+        m.Items.Add(new Separator());
+        Add("Aufnahme verwerfen …", "", Discard, Theme.IDelete);
         m.Placement = System.Windows.Controls.Primitives.PlacementMode.MousePoint;
         m.IsOpen = true;
     }
+
+    /// <summary>Untermenü „Marker setzen“: Notiz, Fehler, Erwartet, Wichtig und Marker mit eigenem Text.</summary>
+    internal MenuItem MarkerMenu(Func<string, string, string> key)
+    {
+        var sub = U.Mi("Marker setzen", null, null, Theme.IFlag);
+        sub.Items.Add(U.Mi("Notiz", key("marker", "Ctrl+Shift+F7"), () => Marker("note")));
+        sub.Items.Add(U.Mi("Fehler", key("markerError", "Ctrl+Shift+F1"), () => Marker("error"), Theme.IError));
+        sub.Items.Add(U.Mi("Erwartet", key("markerExpected", "Ctrl+Shift+F2"), () => Marker("expected"), Theme.ICheck));
+        sub.Items.Add(U.Mi("Wichtig", null, () => Marker("important"), Theme.IImportant));
+        sub.Items.Add(new Separator());
+        sub.Items.Add(U.Mi("Marker mit Text …", null, () => { var d = new CommentWindow("Marker-Text"); if (d.ShowDialog() == true) Marker("important", d.Text); }));
+        return sub;
+    }
+
+    internal void ShowShortcuts() => Shortcuts.ShowWindow(null, Shortcuts.Recording(), "Tastenkürzel während der Aufnahme");
 
     /// <summary>Leiste in den Infobereich minimieren.</summary>
     public void MinimizeToTray()
@@ -399,23 +414,23 @@ sealed class RecordingBar : Window
         var comment = B(Theme.IComment, "Kommentar (Strg+Umschalt+F12)", c.Comment);
         _dictBtn = B("\uE720", "Diktat: Gesprochenes wird offline zu Kommentaren (Strg+Umschalt+F5)", c.ToggleDictation, _dictIcon);
         var marker = B(Theme.IFlag, "Marker setzen (Strg+Umschalt+F7) – Rechtsklick: Art wählen", () => c.Marker("note"));
+        string HK(string n, string d) => Shortcuts.De(AppSettings.Load().Hotkeys.GetValueOrDefault(n, d));
         var mm = U.MenuScope(new ContextMenu());
-        foreach (var (k, n, g) in new[] { ("note", "Notiz", "Strg+Umschalt+F7"), ("error", "Fehler", "Strg+Umschalt+F1"), ("expected", "Erwartet", "Strg+Umschalt+F2"), ("important", "Wichtig", "") })
-            mm.Items.Add(U.Mi(n, g, () => c.Marker(k)));
+        foreach (var it in c.MarkerMenu(HK).Items.Cast<object>().ToList()) { if (it is FrameworkElement fe) (LogicalTreeHelper.GetParent(fe) as ItemsControl)?.Items.Remove(fe); mm.Items.Add(it); }
         marker.ContextMenu = mm;
         var photo = B(Theme.ICamera, "Schnappschuss (Strg+Umschalt+F11)", () => c.Marker("snapshot"));
         _privacy = B(Theme.IUnlock, "Privattaste: Eingaben nicht speichern (Strg+Umschalt+F8)", c.TogglePrivacy, _privacyIcon);
-        var discard = B(Theme.IUndo, "Letzten Schritt verwerfen (Strg+Umschalt+F6)", c.DiscardPrevious);
+        var discard = B(Theme.IUndo, "Letzten Schritt zurücknehmen (Strg+Umschalt+F6)", c.DiscardPrevious);
         var more = B(Theme.IMore, "Weitere Funktionen", () => { });
         var minimize = B("\uE921", "In den Infobereich minimieren (Strg+Umschalt+F4) – Symbol unten rechts in der Taskleiste", c.MinimizeToTray);
         var menu = U.MenuScope(new ContextMenu());
-        void Add(string h, string g, Action a) => menu.Items.Add(U.Mi(h, g, a));
-        Add("Letzte Eingabe schwärzen", "", c.RedactLastInput);
-        Add("Marker mit Text …", "", () => { var d = new CommentWindow("Marker-Text"); if (d.ShowDialog() == true) c.Marker("important", d.Text); });
-        Add("In den Infobereich minimieren", "Strg+Umschalt+F4", c.MinimizeToTray);
-        Add("Tastenkürzel …", "", () => Msg.Show("Tastenkürzel während der Aufnahme\n\nStrg+Umschalt+F9  Pause / Fortsetzen\nStrg+Umschalt+F10  Stopp\nStrg+Umschalt+F12  Kommentar\nStrg+Umschalt+F5  Diktat ein/aus\nStrg+Umschalt+F7  Marker\nStrg+Umschalt+F1  Marker „Fehler“\nStrg+Umschalt+F2  Marker „Erwartet“\nStrg+Umschalt+F11  Schnappschuss\nStrg+Umschalt+F8  Privattaste\nStrg+Umschalt+F6  Letzten Schritt verwerfen\nStrg+Umschalt+F4  Leiste ein/aus\n\nAlle Befehle gibt es auch per Rechtsklick auf das Symbol unten rechts im Infobereich der Taskleiste.", "Tastenkürzel"));
+        void Add(string h, string g, Action a, string? glyph = null) => menu.Items.Add(U.Mi(h, g, a, glyph));
+        menu.Items.Add(c.MarkerMenu(HK));
+        Add("Letzte Eingabe schwärzen", "", c.RedactLastInput, Theme.IShield);
         menu.Items.Add(new Separator());
-        Add("Aufnahme verwerfen …", "", c.Discard);
+        Add("Tastenkürzel …", "", c.ShowShortcuts, Theme.IKeyboard);
+        menu.Items.Add(new Separator());
+        Add("Aufnahme verwerfen …", "", c.Discard, Theme.IDelete);
         more.Click += (_, _) => { menu.PlacementTarget = more; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };

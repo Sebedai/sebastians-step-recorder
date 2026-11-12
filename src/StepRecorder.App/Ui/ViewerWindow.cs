@@ -33,7 +33,6 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     Wpf.Ui.Controls.TitleBar? _titleBar;
     ToggleButton _allToggle = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
-    readonly TextBlock _titleBlock = new() { FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBlock _metaBlock = new() { FontSize = Theme.FsCaption, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBlock _listCount = new() { FontSize = Theme.FsCaption, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _imgCaption = new() { FontSize = Theme.FsCaption, Foreground = Theme.Night.Fg };
@@ -77,6 +76,13 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && Session.LooksLikeSession(f[0])) UiApp.Instance.OpenViewer(f[0]); };
     }
 
+    /// <summary>Fenstertitel und Titelleiste: „Aufnahmetitel – Programmname“.</summary>
+    void UpdateTitle()
+    {
+        Title = _view.Title + " – " + AppInfo.DisplayName;
+        if (_titleBar != null) _titleBar.Title = Title;
+    }
+
     void Load()
     {
         _view?.Dispose();
@@ -84,22 +90,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         if (_view.Edits.Obj("guide")?["address"] == null && AppSettings.Load().Address == "informal")
         { var g = _view.Edits.Obj("guide") ?? new JsonObject(); g["address"] = "informal"; _view.Edits["guide"] = g; _view.Rebuild(); }
         ApplyDefaultTemplate();
-        Title = _view.Title + " – " + AppInfo.DisplayName;
-    }
-
-    Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
-    {
-        var content = U.MenuContent(glyph, text);
-        var b = U.Make(style ?? "Ghost"); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
-        b.Click += (_, _) => ShowMenu(b, items());
-        return b;
-    }
-
-    static void ShowMenu(FrameworkElement target, params (string label, Action action)[] items)
-    {
-        var m = Menu(items);
-        m.PlacementTarget = target; m.Placement = PlacementMode.Bottom;
-        m.IsOpen = true;
+        UpdateTitle();
     }
 
     // =====================================================================================
@@ -153,6 +144,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         _overlay.Children.Clear();
         _currentMeta?.Dispose(); _currentMeta = null;
         _img.Source = null; _current = null;
+        if (s == null && _cover) { ApplyCoverMode(); return; }
         if (s == null) { _details.Children.Clear(); _cropOff.Visibility = Visibility.Collapsed; _imgCaptionPill.Visibility = Visibility.Collapsed; _noImage.Visibility = Visibility.Visible; _imgHost.Visibility = Visibility.Collapsed; return; }
         string variant = _display == "crop" && !s.Manual && !s.ImageReplaced ? "crop" : (_variantOverride ?? DefaultVariant(s));
         var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop");
@@ -302,8 +294,8 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     void Adapt()
     {
         double w = ActualWidth;
-        // Schwellen passend zur Kopfzeile in 14 px: erst „Abspielen“/„Vorschau“, dann die übrigen Beschriftungen ausblenden
-        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1400) || (lvl == 2 && w < 1220) || (lvl == 3 && w < 1500) ? Visibility.Collapsed : Visibility.Visible;
+        // Schwellen passend zur Kopfzeile: erst „Abspielen“/„Vorschau“, dann „Durchsicht“/„Kopieren“; „Mausmarken“ über dem Bild ab 1400 px
+        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1180) || (lvl == 2 && w < 1040) || (lvl == 3 && w < 1400) ? Visibility.Collapsed : Visibility.Visible;
         bool narrow = w < 1240;
         if (_leftCol == null || narrow == _narrow) return;
         _narrow = narrow;
@@ -332,31 +324,6 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     static readonly (string key, string label)[] MarkKeys = { ("clickMarker", "Klickpunkt"), ("dragPath", "Zug- und Haltepfad"), ("elementFrame", "Zielrahmen"), ("labels", "Hinweise (Haltedauer, Scrollrichtung)"), ("approachPath", "Mausweg davor"), ("keyCaps", "Tasten und Texteingaben") };
 
     static bool MarkOf(MouseMarks m, string key) => key switch { "clickMarker" => m.Click, "dragPath" => m.Path, "elementFrame" => m.Target, "labels" => m.Labels, "keyCaps" => m.KeyCaps, _ => m.Approach };
-
-    void ShowMarksMenu(FrameworkElement target)
-    {
-        var s = Sel;
-        var all = _view.MarksFor(null);
-        var m = U.MenuScope(new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom });
-        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T(t), FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false, Padding = new Thickness(10, 8, 10, 4) });
-        void Item(string label, bool on, Action a, string gesture = "")
-        {
-            var mi = U.Mi(label, gesture, a);
-            mi.IsCheckable = true; mi.IsChecked = on; mi.StaysOpenOnClick = false;
-            m.Items.Add(mi);
-        }
-        Head("Alle Schritte");
-        foreach (var (key, label) in MarkKeys) { bool on = MarkOf(all, key); Item(label, on, () => SetMark(null, key, !on)); }
-        if (s != null)
-        {
-            m.Items.Add(new Separator());
-            Head($"Nur Schritt {s.Number}");
-            var cur = _view.MarksFor(s);
-            Item(cur.Any ? "Alle Markierungen ausblenden" : "Markierungen einblenden", false, ToggleStepMarks, "H");
-            if (StepMarksEdit(s) != null) Item("Wie alle Schritte", false, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false));
-        }
-        m.IsOpen = true;
-    }
 
     JsonObject? StepMarksEdit(ViewStep s) => (_view.Edits.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Long("anchor") == s.Anchor)?.Obj("auto");
 
@@ -449,37 +416,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         var d = new InputDialog("Titel der Anleitung", _view.Title) { Owner = this };
         if (d.ShowDialog() != true) return;
         Change(e => { var g = e.Obj("guide") ?? new JsonObject(); g["title"] = d.Value; e["guide"] = g; });
-        _titleBlock.Text = _view.Title;
-    }
-
-    void EditText()
-    {
-        var s = Sel; if (s == null) return;
-        var d = new InputDialog("Text des Schritts", s.AuthorBody ?? s.Guide, s.AuthorTitle ?? s.Title) { Owner = this };
-        if (d.ShowDialog() != true) return;
-        Change(e =>
-        {
-            var se = StepEdit(e, s.Anchor);
-            var text = se["text"] as JsonObject ?? new JsonObject();
-            text[_view.Language] = new JsonObject { ["title"] = d.TitleValue, ["body"] = d.Value, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
-            se["text"] = text;
-            MarkUnreviewedComment(e);
-        });
-    }
-
-    void MarkUnreviewedComment(JsonObject e) { }
-
-    void AddComment()
-    {
-        var s = Sel; if (s == null) return;
-        var d = new InputDialog("Kommentar", "", null, kinds: true) { Owner = this };
-        if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
-        Change(e =>
-        {
-            var arr = e["comments"] as JsonArray ?? new JsonArray();
-            arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
-            e["comments"] = arr;
-        });
+        UpdateTitle();
     }
 
     void RemoveComment(string? id) => Change(e => { if (e["comments"] is JsonArray arr) foreach (var c in arr.Where(c => c.Str("id") == id).ToList()) arr.Remove(c); });
@@ -651,7 +588,9 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             case Key.S when m == (ModifierKeys.Control | ModifierKeys.Shift): SaveImage(); break;
             case Key.S when m == ModifierKeys.Control: _status.Text = "Automatisch gespeichert"; break;
             case Key.M when m == ModifierKeys.Control: CopyMarkdown(); break;
-            case Key.E when m == ModifierKeys.Control: ShowExportDialog("html"); break;
+            case Key.E when m == ModifierKeys.Control: ShowExport(); break;
+            case Key.O when m == ModifierKeys.Control: OpenSessionDialog(); break;
+            case Key.F1: ShowShortcuts(); break;
             case Key.R when m == (ModifierKeys.Control | ModifierKeys.Shift): ShowReview(); break;
             case Key.G when m == (ModifierKeys.Control | ModifierKeys.Shift): Generalize(); break;
             case Key.Z when m == ModifierKeys.Control: Undo(); break;
@@ -683,13 +622,14 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             case Key.P when m == ModifierKeys.None: SelectTool("pixelate"); break;
             case Key.C when m == ModifierKeys.None: SelectTool("crop"); break;
             case Key.F7: Compare(); break;
-            case Key.Insert: InsertNote(); break;
-            case Key.K when m == ModifierKeys.None: AddComment(); break;
+            case Key.Insert: AddNote(); break;
+            case Key.K when m == ModifierKeys.None: AddNote(); break;
             case Key.H when m == ModifierKeys.None: ToggleStepMarks(); break;
             case Key.W when m == ModifierKeys.None: ToggleBeforeAfter(); break;
             case Key.Escape: StopPlay(); break;
-            case Key.Down or Key.Right when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: if (_list.SelectedIndex < _list.Items.Count - 1) _list.SelectedIndex++; break;
-            case Key.Up or Key.Left when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: if (_list.SelectedIndex > 0) _list.SelectedIndex--; break;
+            case Key.Down or Key.Right when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: Run("nextStep"); break;
+            case Key.Up or Key.Left when m == ModifierKeys.None && !_list.IsKeyboardFocusWithin: Run("prevStep"); break;
+            case Key.Up when m == ModifierKeys.None && _list.SelectedIndex == 0: ShowCover(); break;
             default: handled = false; break;
         }
         if (handled) e.Handled = true;

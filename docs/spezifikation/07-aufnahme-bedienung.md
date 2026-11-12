@@ -160,36 +160,32 @@ Profile lassen sich mit der EXE weitergeben: Eine Datei `profiles.json` neben de
 
 ### 4.1 Aufbau
 
+Das Startfenster ist eine kleine App im Stil von Windows 11 (Mica-Hintergrund, eigene Titelleiste) mit einer
+Navigationsspalte links: **Neue Aufnahme** · **Aufnahmen** · unten **Einstellungen** · **Hilfe**. Unter 900 px
+Fensterbreite zeigt die Spalte nur Symbole. Die Seite „Neue Aufnahme“ passt immer ohne Scrollen ins Fenster.
+
 ```
-┌─ StepRecorder ───────────────────────────────── [Einstellungen] [?] [x] ┐
-│                                                                                  │
-│  Profil: [Anleitung              v]          > Ziel der Aufnahme (optional)      │
-│                                                                                  │
-│  Was soll aufgenommen werden?                                                    │
-│                                                                                  │
-│  ┌──────────────────────┐  ┌──────────────────────┐  ┌──────────────────────┐    │
-│  │  GANZER BILDSCHIRM   │  │  EINE ANWENDUNG      │  │  BEREICH             │    │
-│  │                      │  │                      │  │                      │    │
-│  │  Monitor mit         │  │  Fenster anklicken   │  │  Rechteck aufziehen  │    │
-│  │  Aktivität       [v] │  │  oder Liste      [v] │  │                  [v] │    │
-│  └──────────────────────┘  └──────────────────────┘  └──────────────────────┘    │
-│   zuletzt gewählt · Eingabetaste                                                 │
-│                                                                                  │
-│  ┌──────────────────────────────────────────────────────────────────────────┐    │
-│  │  SUPPORT-PAKET · Problem aufnehmen, durchsehen, als ZIP weitergeben  [>] │    │
-│  └──────────────────────────────────────────────────────────────────────────┘    │
-│                                                                                  │
-│  Sofortaufnahme: Strg+Umschalt+F9                            [Mehr Optionen v]   │
-│ ──────────────────────────────────────────────────────────────────────────────── │
-│  Schutzstufe: Schutznetz. In Terminal-, Remote- und VM-Fenstern werden Eingaben  │
-│  lesbar aufgezeichnet (Privattaste: Strg+Umschalt+F8).                           │
-│  Speicherort: D:\Werkzeuge\StepRecorder\Sessions                                 │
-│ ──────────────────────────────────────────────────────────────────────────────── │
-│  Zuletzt verwendet                                           [Alle Aufnahmen]    │
-│  [Bild] 2026-11-11 14.30 – Editor – notiz.txt        23 Schritte    2 min        │
-│  [Bild] 2026-11-10 09.12 – Explorer – Dokumente      11 Schritte    1 min        │
-└──────────────────────────────────────────────────────────────────────────────────┘
+┌─ Sebastians Step Recorder ─────────────────────────────────────────────────────── – □ × ┐
+│ ● Neue Aufnahme  │ Neue Aufnahme                                                         │
+│ ◷ Aufnahmen      │ Zweck                                                   ┌ Zuletzt ─ › Alle ┐ │
+│                  │ [● Anleitung][○ Support-Fall][○ KI-Spur][○ Eigene]       │ [Bild] Editor …  │ │
+│                  │ Schlank – nur was Menschen …         ▬▬▭▭ Schlank        │ [Bild] Explorer …│ │
+│                  │ ✓ Klicks ✓ Tastatur … ohne Mauswege        ✎ Anpassen …  └──────────────────┘ │
+│                  │ Bereich                 [Monitor mit Aktivität v]  ⚑ Ziel und Titel …        │
+│                  │ ▣ Ganzer Bildschirm  Alles auf dem Monitor …   [Eingabe] startet ›          │
+│                  │ ▢ Eine Anwendung     Danach ein Fenster anklicken …                ›          │
+│                  │ ⌗ Bereich            Danach ein Rechteck aufziehen …               ›          │
+│ ⚙ Einstellungen  │ ⛨ Passwortfelder werden maskiert                                             │
+│ ? Hilfe          │                                                                               │
+└──────────────────┴───────────────────────────────────────────────────────────────────────────────┘
 ```
+
+| Seite | Inhalt |
+|---|---|
+| Neue Aufnahme | Zweck (vier Auswahlkarten mit Detailgrad und „Anpassen …“), Bereich (drei Karten – ein Klick startet), Monitorwahl, „Ziel und Titel …“, rechts „Zuletzt“ mit Verweis „Alle Aufnahmen“ |
+| Aufnahmen | Alle Aufnahmen des Aufnahmeordners und die zuletzt geöffneten, gruppiert nach Heute · Gestern · Diese Woche · Diesen Monat · Früher; Suche, „Öffnen …“ (`Strg+O`), „Aufnahmeordner“; Rechtsklick: Öffnen, Im Explorer zeigen |
+| Einstellungen | Die Einstellungen als Seite ([13](#13-einstellungen)) |
+| Hilfe | So funktioniert es (vier Schritte), alle Tastenkürzel aus einer gemeinsamen Liste, Hinweis für KI-Agenten (MCP), Version, Lizenz, Update-Suche |
 
 ### 4.2 Kacheln
 
@@ -222,7 +218,7 @@ Die flache Kachel **Support-Paket** (Soll) ist kein Startknopf: Sie öffnet den 
 - **Mehr Optionen** (eingeklappt): Countdown (0, 3 oder 5 Sekunden), Sitzungsname, „an bestehende Sitzung anhängen“, Zwischenablage-Inhalt aufzeichnen.
 - **Statuszeile:** Schutzstufe und Speicherort. Ein Klick führt in die jeweilige Einstellung. Zur Schutzstufe „Schutznetz“ steht dort in einem Satz ihre Grenze: In Terminal-, Remote- und VM-Fenstern werden Eingaben lesbar aufgezeichnet ([10](10-datenschutz-und-sicherheit.md#4-schutzstufen)). Liegt der Speicherort in einem synchronisierten Ordner oder ist wenig Platz frei, steht dort ein Warnzeichen mit Erklärung.
 - **Zuletzt verwendet:** bis zu fünf Sitzungen – zuletzt aufgenommene und zuletzt geöffnete, die jüngste oben; ein Klick öffnet sie im Viewer. Die Liste liegt in der Zustandsdatei des Programms ([02](02-architektur.md#konfiguration)). **Alle Aufnahmen** öffnet die Sitzungsbibliothek ([08](08-viewer.md#11-sitzungen-verwalten)).
-- **Einstellungen** und **Hilfe** mit Kürzelübersicht.
+- **Einstellungen** und **Hilfe** (mit der vollständigen Kürzelübersicht) sind Seiten der Navigation, ebenso die Sitzungsbibliothek **Aufnahmen**.
 - Sind Tastenkürzel durch andere Programme belegt, steht das als Hinweiszeile über den Kacheln (siehe [8.3](#83-konflikte)).
 
 ### 4.5 Fensterwahl
@@ -833,7 +829,7 @@ Die Abnahme der Garantie – ein bekanntes Testmuster muss mit darüberliegenden
 
 ## 13 Einstellungen
 
-Die Einstellungen sind ein eigenes Fenster mit Gruppen in der linken Spalte. Sie liegen portabel beim Programm, nicht in der Registry; Ablageort und Format regelt [02](02-architektur.md#konfiguration). Änderungen gelten sofort; laufende Aufnahmen übernehmen nur Einstellungen der Leiste.
+Die Einstellungen sind eine Seite des Startfensters (Navigation „Einstellungen“; aus dem Editor über Datei › Einstellungen …). Die Bereiche – Allgemein · Aufnahme · Modus „Eigene“ · Speicher und Schutz – stehen als Auswahlleiste oben; „Speichern“ übernimmt die Änderungen, „Verwerfen“ nimmt sie zurück. Sie liegen portabel beim Programm, nicht in der Registry; Ablageort und Format regelt [02](02-architektur.md#konfiguration). Änderungen gelten sofort; laufende Aufnahmen übernehmen nur Einstellungen der Leiste.
 
 | Gruppe | Einstellung | Werte | Standard |
 |---|---|---|---|

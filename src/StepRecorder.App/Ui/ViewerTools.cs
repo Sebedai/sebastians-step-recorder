@@ -42,28 +42,31 @@ sealed partial class ViewerWindow
         _details.Children.Clear();
         _editTitle = _editBody = null; _editAnchor = null;
         bool ro = _view.Session.ReadOnly;
-        _details.Children.Add(U.Heading($"{steps.Count} Schritte ausgewählt", Theme.FsTitle, new Thickness(0, 0, 0, 4)));
+        _details.Children.Add(U.Heading($"{steps.Count} Schritte ausgewählt", Theme.FsTitle, new Thickness(0, 4, 0, 4)));
         _details.Children.Add(U.Hint("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte."));
-
-        WrapPanel Row() { var w = new WrapPanel { Margin = new Thickness(-3, -3, 0, 0) }; _details.Children.Add(w); return w; }
         Button B(string? glyph, string text, Action a, string? tip = null) { var b = U.Btn(glyph, text, a, tip); b.IsEnabled = !ro; return b; }
+        WrapPanel Row(Panel target) { var w = new WrapPanel { Margin = new Thickness(-3, -3, 0, 12) }; target.Children.Add(w); return w; }
 
-        _details.Children.Add(U.SectionLabel("Sichtbarkeit", new Thickness(0, 20, 0, 10)));
-        var r1 = Row();
-        r1.Children.Add(B(Theme.IEye, "Ausblenden", () => BulkEdit(steps, se => se["hidden"] = true)));
-        r1.Children.Add(B(Theme.IEye, "Einblenden", () => BulkEdit(steps, se => se["hidden"] = false)));
+        // gleiche Reihenfolge wie bei einem Schritt: Hinweise, Einordnung, Bild in der Anleitung
+        var notes = Section("Hinweise");
+        Row(notes).Children.Add(B(Theme.IComment, $"Hinweis zu {steps.Count} Schritten hinzufügen …", () => AddNoteToMany(steps)));
 
-        _details.Children.Add(U.SectionLabel("Wichtigkeit", new Thickness(0, 20, 0, 10)));
-        var r2 = Row();
+        var place = Section("Einordnung");
+        place.Children.Add(U.Text("Wichtigkeit", Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6)));
+        var r2 = Row(place);
         foreach (var (imp, name) in new[] { ("primary", "Hauptschritt"), ("secondary", "Nebenschritt"), ("trace", "Spur") })
             r2.Children.Add(B(null, name, () => BulkEdit(steps.Where(s => !s.Manual), se => se["importance"] = imp)));
+        place.Children.Add(U.Text("Kapitel und Sichtbarkeit", Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6)));
+        var r1 = Row(place);
+        r1.Children.Add(B(Theme.IDoc, "Kapitel vor dem ersten beginnen", () => ToggleChapter(steps[0].Anchor, true), "Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel"));
+        r1.Children.Add(B(Theme.IEye, "Ausblenden", () => BulkEdit(steps, se => se["hidden"] = true)));
+        r1.Children.Add(B(Theme.IEye, "Einblenden", () => BulkEdit(steps, se => se.Remove("hidden"))));
 
-        _details.Children.Add(U.SectionLabel("Im Dokument", new Thickness(0, 20, 0, 10)));
-        var r3 = Row();
-        r3.Children.Add(B(Theme.IDoc, "Kapitel davor beginnen", () => ToggleChapter(steps[0].Anchor, true), "Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel"));
+        var img = Section("Bild in der Anleitung");
+        var r3 = Row(img);
         r3.Children.Add(B(Theme.ICamera, "Bilder zeigen", () => BulkEdit(steps, se => se.Remove("showImage"))));
         r3.Children.Add(B(Theme.ICamera, "Bilder weglassen", () => BulkEdit(steps, se => se["showImage"] = false)));
-        var size = new ComboBox { MinWidth = 220, IsEnabled = !ro, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var size = new ComboBox { MinWidth = 220, IsEnabled = !ro, Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left };
         size.Items.Add("Bildgröße für alle …");
         size.Items.Add("wie im Dokument");
         foreach (var (_, name) in DocSettings.Sizes) size.Items.Add(name);
@@ -73,27 +76,13 @@ sealed partial class ViewerWindow
             int i = size.SelectedIndex; if (i <= 0) return;
             BulkEdit(steps, se => { if (i == 1) se.Remove("imageSize"); else se["imageSize"] = DocSettings.Sizes[i - 2].id; });
         };
-        _details.Children.Add(size);
+        img.Children.Add(size);
 
-        _details.Children.Add(U.SectionLabel("Hinweiskasten", new Thickness(0, 20, 0, 10)));
-        var r4 = Row();
-        foreach (var (k, name) in NoteKinds)
-            r4.Children.Add(B(Theme.IAdd, name, () =>
-            {
-                var d = new InputDialog($"{name} zu {steps.Count} Schritten hinzufügen", "") { Owner = this };
-                if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
-                Change(e =>
-                {
-                    var arr = e["comments"] as JsonArray ?? new JsonArray();
-                    foreach (var s in steps) arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = k, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
-                    e["comments"] = arr;
-                });
-            }));
         var manual = steps.Where(s => s.Manual).ToList();
         if (manual.Count > 0)
         {
-            _details.Children.Add(U.SectionLabel("Eingefügte Schritte", new Thickness(0, 20, 0, 10)));
-            Row().Children.Add(B(Theme.IDelete, $"{manual.Count} eingefügte löschen", () => DeleteManual(manual)));
+            var ins = Section("Eingefügte Schritte");
+            Row(ins).Children.Add(B(Theme.IDelete, $"{manual.Count} eingefügte löschen", () => DeleteManual(manual)));
         }
     }
 
@@ -295,7 +284,7 @@ sealed partial class ViewerWindow
             }
         }
         if (dryRun) Do((JsonObject)_view.Edits.DeepClone());
-        else if (true) { Change(Do); _titleBlock.Text = _view.Title; }
+        else { Change(Do); UpdateTitle(); }
         return hits;
     }
 
@@ -340,7 +329,7 @@ sealed partial class ViewerWindow
         _view.Language = lang; _view.Rebuild();
         _thumbs.Clear();
         Fill(keep);
-        if (_detailTab == 2) DocDetails();
+        if (_cover) ApplyCoverMode();
         _status.Text = lang == "en" ? "Texts in English – the German texts are kept separately." : "Texte auf Deutsch – die englischen Texte bleiben getrennt erhalten.";
     }
 }

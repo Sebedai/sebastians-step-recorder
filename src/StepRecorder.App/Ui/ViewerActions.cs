@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -147,6 +147,9 @@ sealed partial class ViewerWindow
     // Export, Durchsicht, Support-Paket, Übersicht, Vergleich
     // =====================================================================================
 
+    /// <summary>„Exportieren …“ (Knopf, Menü, Strg+E): Exportdialog mit dem zuletzt gewählten Format.</summary>
+    void ShowExport() => ShowExportDialog(StepRecorder.Settings.AppSettings.Load().LastExportFormat is { Length: > 0 } f ? f : "html");
+
     public void ShowExportDialog(string format)
     {
         if (_view.UnreviewedCount > 0 && format != "ki")
@@ -156,7 +159,12 @@ sealed partial class ViewerWindow
         }
         var d = new ExportDialog(format, _view.Language, StepRecorder.Export.DocSettings.From(_view.Edits.Obj("guide"))) { Owner = this };
         if (d.ShowDialog() != true) return;
-        if (d.Format is "ki" or "ahk") { var st = StepRecorder.Settings.AppSettings.Load(); if (st.ExportReadable != d.Readable) { st.ExportReadable = d.Readable; st.Save(); } }
+        {
+            var st = StepRecorder.Settings.AppSettings.Load();
+            if (d.Format is "ki" or "ahk") st.ExportReadable = d.Readable;
+            st.LastExportFormat = d.Format;
+            st.Save();
+        }
         var view = SessionView.Open(_path, headless: d.Format == "ki", lang: d.Language);
         try
         {
@@ -262,7 +270,7 @@ sealed class InputDialog : Window
     readonly TextBlock _titleLabel = U.Text("Titel", Theme.FsHint, true, Theme.Fg2, new Thickness(0, 0, 0, 6));
     public string Value => _value.Text;
     public string TitleValue => _title?.Text ?? "";
-    public string Kind => _kinds == null ? "note" : Array.FindIndex(_kinds, k => k.IsChecked == true) switch { 1 => "tip", 2 => "warning", 3 => "internal", _ => "note" };
+    public string Kind => _kinds == null ? "note" : ViewerWindow.NoteKindsUi[Math.Max(0, Array.FindIndex(_kinds, k => k.IsChecked == true))].kind;
     public string TitleLabel { set => _titleLabel.Text = value; }
 
     public InputDialog(string prompt, string value, string? title = null, bool kinds = false)
@@ -272,9 +280,9 @@ sealed class InputDialog : Window
         var p = new StackPanel();
         if (kinds)
         {
-            var (track, items) = U.Segmented("kind", 0, (Theme.IComment, "Hinweis"), (Theme.ICheck, "Tipp"), (Theme.IWarn, "Achtung"), (Theme.ILock, "Intern"));
+            var (track, items) = U.Segmented("kind", 0, ViewerWindow.NoteKindsUi.Select(k => ((string?)k.glyph, k.name)).ToArray());
             _kinds = items;
-            items[3].ToolTip = "Erscheint in keiner Ausgabe";
+            items[^1].ToolTip = "Erscheint in keiner Ausgabe";
             track.Margin = new Thickness(0, 0, 0, 16);
             p.Children.Add(track);
         }

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using StepRecorder.Capture;
 using StepRecorder.Data;
 using StepRecorder.Settings;
@@ -71,11 +71,13 @@ sealed class UiApp : Application
         ShowStart();
     }
 
-    public void ShowStart()
+    /// <summary>Startfenster zeigen, auf Wunsch gleich mit einer bestimmten Seite (new | sessions | settings | help).</summary>
+    public void ShowStart(string page = "new")
     {
         if (_start == null || !_start.IsLoaded) { _start = new StartWindow(); _start.Closed += (_, _) => { _start = null; MaybeShutdown(); }; }
         _start.Show();
         _start.Activate();
+        _start.ShowPage(page);
     }
 
     public void HideStart() => _start?.Hide();

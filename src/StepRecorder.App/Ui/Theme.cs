@@ -117,6 +117,10 @@ static class Theme
         app.Resources["FsCaption"] = FsCaption; app.Resources["FsHint"] = FsHint; app.Resources["FsBody"] = FsBody; app.Resources["FsSub"] = FsSub; app.Resources["FsTitle"] = FsTitle;
         app.Resources["ControlHeight"] = ControlHeight;
         app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/SebastiansStepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
+        // Menüs beim Öffnen ausrichten (Namen gleich breit, Tastenkürzel in einer Spalte)
+        void Align(ItemsControl m) => m.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => U.AlignMenu(m));
+        EventManager.RegisterClassHandler(typeof(System.Windows.Controls.ContextMenu), System.Windows.Controls.ContextMenu.OpenedEvent, new RoutedEventHandler((s, _) => Align((ItemsControl)s)));
+        EventManager.RegisterClassHandler(typeof(System.Windows.Controls.MenuItem), System.Windows.Controls.MenuItem.SubmenuOpenedEvent, new RoutedEventHandler((s, e) => { if (ReferenceEquals(e.OriginalSource, s)) Align((ItemsControl)s); }));
     }
 
     static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }

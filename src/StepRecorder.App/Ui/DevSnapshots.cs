@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
@@ -38,7 +38,8 @@ static class DevSnapshots
                 t.Stop();
                 Save(w);
                 if (w is ViewerWindow v) Demo(v);
-                else if (w is not StartWindow) { if (IsModal(w)) w.DialogResult = false; else w.Close(); }
+                else if (w is StartWindow sw) sw.DevPages(() => Save(sw));
+                else { if (IsModal(w)) w.DialogResult = false; else w.Close(); }
             };
             t.Start();
         }));
@@ -66,6 +67,30 @@ static class DevSnapshots
         catch (Exception ex) { UiApp.Log("snapshot: " + ex); }
     }
 
+    /// <summary>Offene Menüs (eigene Popup-Fenster) abbilden: alle sichtbaren Popups des Programms rendern.</summary>
+    public static void SaveOpenPopups(string name)
+    {
+        if (_dir == null) return;
+        int k = 0;
+        foreach (var src in PresentationSource.CurrentSources.OfType<System.Windows.Interop.HwndSource>().ToList())
+        {
+            if (src.RootVisual is not FrameworkElement root || root is Window || root.ActualWidth < 8 || !root.IsVisible) continue;
+            if (root.GetType().Name != "PopupRoot") continue;
+            try
+            {
+                double scale = src.CompositionTarget.TransformToDevice.M11;
+                var rtb = new RenderTargetBitmap((int)(root.ActualWidth * scale), (int)(root.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                var under = new DrawingVisual();
+                using (var dc = under.RenderOpen()) dc.DrawRectangle(Theme.Bg, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+                rtb.Render(under); rtb.Render(root);
+                var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
+                using var fs = File.Create(Path.Combine(_dir, $"{++_n:00}-Menu-{Sanitize(name)}{(k++ > 0 ? "-" + k : "")}.png"));
+                enc.Save(fs);
+            }
+            catch (Exception ex) { UiApp.Log("snapshot popup: " + ex); }
+        }
+    }
+
     static string Sanitize(string s) => new(s.Where(char.IsLetterOrDigit).Take(20).ToArray());
 
     static void Demo(ViewerWindow v)
@@ -79,11 +104,11 @@ static class DevSnapshots
                 Save(v);
             }
             v.DevDemo(() => Save(v));
+            v.DevMenus();
             new ExportDialog("html", "de") { Owner = v }.ShowDialog();
             new ExportDialog("ki", "de") { Owner = v }.ShowDialog();
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();
-            for (int tab = 0; tab < 4; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();
             new CommentWindow().ShowDialog();
             Msg.Show("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Aufnahme verwerfen", MessageBoxButton.YesNo, MessageBoxImage.Warning);
             var bar = new RecordingBar(new RecordingController(new RecordingOptions()));

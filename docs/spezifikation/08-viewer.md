@@ -127,33 +127,24 @@ Weitere Festlegungen:
 ### 4.1 Überblick
 
 ```
-┌─ 2026-11-11 14.30 – Editor – notiz.txt ────────────────────────────────────────────────────────────────────────┐
-│ [Neue Aufnahme] [Abspielen]  Suche: [___________] [Filter v]  [Schritte|Galerie]  [Kopieren v] [Export v] [...]│
-├───────────────────┬────────────────────────────────────────────────────┬───────────────────────────────────────┤
-│ SCHRITTE  23      │ [V][A][R][O][T][N][M][L][C][S][X][P] Stil v  <- -> │ SCHRITT 7 · Klick                     │
-│ [Haupt | Alle]    │ ┌────────────────────────────────────────────────┐ │                                       │
-│ ┌────┐ 5  Klick   │ │                                                │ │ Klicken Sie auf die                   │
-│ │bild│ „Datei“    │ │                                                │ │ Schaltfläche „Speichern“.             │
-│ └────┘            │ │                                                │ │              [Ändern F2]              │
-│ ┌────┐ 6  Text    │ │              Bild des Schritts                 │ │                                       │
-│ │bild│ „notiz…“   │ │                    (o) Klickmarke              │ │ Kommentare                            │
-│ └────┘            │ │                                                │ │ [+ Kommentar K]                       │
-│>┌────┐ 7  Klick   │ │                                                │ │                                       │
-│ │bild│ „Speich…“  │ └────────────────────────────────────────────────┘ │ Ziel    Schaltfläche                  │
-│ └────┘            │ [Vorher|Nachher|Änderung]  Darstellung [1|2|3]     │         „Speichern“                   │
-│ ░░ Lücke · 8 s    │ Zoom [Einpassen v]                   [Bild ziehen] │ Fenster „Speichern unter“             │
-│ ┌────┐ 8  Taste   │                                                    │ Beleg   belegt                        │
-│ │bild│ Strg+S     │                                                    │ > Technische Details                  │
-├───────────────────┴────────────────────────────────────────────────────┴───────────────────────────────────────┤
-│ |·|··|·····|··#|··░░░░|···|·|·····|         00:01:23 / 00:06:36          F Marker   ░ Lücke                    │
-├────────────────────────────────────────────────────────────────────────────────────────────────────────────────┤
-│ Schritt 7 von 23 · Gespeichert · 2 Schwärzungen aktiv · Eingaben: 3 ungeprüft · Texte: Deutsch, Sie            │
-└────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+┌─ Datei im Editor speichern – Sebastians Step Recorder ─────────────────────────────────────────── – □ × ┐
+│ Datei Bearbeiten Schritt Bild Ansicht Prüfen Hilfe        ↶ ↷ │ ▷ Abspielen 👁 Vorschau ☑ Durchsicht │ ⧉ Kopieren v [Exportieren …] │
+├───────────────────────────┬──────────────────────────────────────────────────┬───────────────────────────┤
+│ [Schritte durchsuchen   ] │ [Vorher|Nachher] [Ganzer Bildschirm v] 🖱 Mausmarken v   ‹ 2/4 › │ [Schritt|Technik]         │
+│ [Schritte|Mit Spur] [DE|EN]│ ┌──────────────────────────────────────────────┐ │ Text                      │
+│ 🗎 Titelseite und Einleitung│ │                                              │ │ ┌ Überschrift ──────────┐ │
+│ 1 [Bild] Menüpunkt „Datei“ │ │               Bild des Schritts              │ │ │ Anleitungstext        │ │
+│ 2 [Bild] „notiz.txt“ …     │ │                                              │ │ └───────────────────────┘ │
+│ 3  ⚠  Lücke: Pause         │ └──────────────────────────────────────────────┘ │ Hinweise · Einordnung ·   │
+│ 4 [Bild] Soll-Zustand      │                           [− 100 % + Einpassen] │ Bild in der Anleitung     │
+├───────────────────────────┴──────────────────────────────────────────────────┴───────────────────────────┤
+│ Schritt 2 von 4 · Automatisch gespeichert · Eingaben geprüft · Deutsch          11.11.2026 · 4 Hauptschritte │
+└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 | Bereich | Inhalt | Ein- und ausblenden |
 |---|---|---|
-| Kopfleiste | Sitzungstitel (anklickbar zum Umbenennen), Neue Aufnahme, Abspielen, Suche, Filter, Ansicht, Kopieren, Export, Menü | immer sichtbar |
+| Kopfleiste | Menüleiste (Datei · Bearbeiten · Schritt · Bild · Ansicht · Prüfen · Hilfe) und rechts die häufigsten Befehle: Rückgängig, Wiederholen, Abspielen, Vorschau, Durchsicht, Kopieren, Exportieren | immer sichtbar |
 | Zielzeile (Soll) | Ziel der Aufnahme, erwartetes Ergebnis und Bezug ([4.4](#44-ziel-der-aufnahme-und-marker-typen)) | nur vorhanden, wenn ein Ziel angegeben ist; einklappbar |
 | Schrittliste (links) | Vorschaubild, Nummer, Schrittart, Kurztext, Kennzeichen; Lücken als eigene Zeilen | `Strg+B` |
 | Bildbereich (Mitte) | Werkzeugleiste, Bild, Umschalter für Vorher/Nachher/Änderung, Darstellung, Zoom | immer sichtbar |
@@ -162,6 +153,13 @@ Weitere Festlegungen:
 | Statusleiste | Position, Speicherstatus, aktive Schwärzungen, Stand der Eingaben-Durchsicht, Sprache der Texte | immer sichtbar |
 
 Die Trennlinien sind verschiebbar; Aufteilung, Fenstergröße und Zoom werden gemerkt. Bei schmalem Fenster klappt zuerst der Detailbereich ein. `F11` zeigt nur das Bild.
+
+### 4.1a Menüführung
+
+- **Eine Heimat je Funktion:** Jede Funktion des Editors steht genau einmal in der Menüleiste. Befehlsknöpfe, Rechtsklick-Menüs und Tastenkürzel sind Abkürzungen dorthin und tragen denselben Namen, dasselbe Symbol und dasselbe Kürzel. Grundlage ist ein Befehlskatalog im Programm, aus dem auch die Kürzelübersicht (Hilfe › Tastenkürzel, `F1`) entsteht.
+- **Kurze Menüs:** höchstens etwa zehn Einträge, Gruppen durch Trennlinien, Tastenkürzel rechtsbündig in einer Spalte, „…“ bei Einträgen mit Dialog, Unumkehrbares (Endgültig schwärzen, Aufnahme verwerfen) zuletzt. Das Rechtsklick-Menü am Schritt folgt dem Menü „Schritt“ und fasst Kopieren, Bild und Einfügen in Untermenüs.
+- **Auswahl links, Eigenschaften rechts:** Ganz oben in der Schrittliste steht „Titelseite und Einleitung“. Ausgewählt zeigt die Mitte eine Vorschau der Titelseite mit der Gliederung; rechts stehen die Einstellungen der Anleitung (Titelseite, Einleitung und Texte, Aufbau, Bilder, Gestaltung, Vorlage, weitere Aufnahmen). Bei einem Schritt zeigt der Reiter „Schritt“ die Karten Text · Hinweise · Einordnung · Bild in der Anleitung, der Reiter „Technik“ die technischen Angaben.
+- **Ein Begriff je Sache:** Hinweis (Kasten in der Anleitung; Arten Hinweis, Tipp, Achtung, Wichtig, Ergebnis, Intern), Kommentar (Bemerkung während der Aufnahme), Marker, Mausmarken (automatische Klick- und Tastenmarken), Zeichnungen (selbst gezeichnet), Bildausschnitt, Zuschnitt, Titelseite, Einleitung.
 
 ### 4.2 Schrittliste
 
@@ -1099,7 +1097,7 @@ Was diese Ziele voraussetzen:
 
 ## 15 Tastenkürzel
 
-Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, solange in einem Textfeld getippt wird. Alle Kürzel sind in den Einstellungen änderbar (Soll).
+Die Kürzel gelten im Viewer-Fenster. Die Übersicht im Programm (Hilfe › Tastenkürzel, `F1`) entsteht aus dem Befehlskatalog und ist damit immer vollständig. Buchstaben ohne Zusatztaste wirken nicht, solange in einem Textfeld getippt wird. Alle Kürzel sind in den Einstellungen änderbar (Soll).
 
 **Navigation**
 

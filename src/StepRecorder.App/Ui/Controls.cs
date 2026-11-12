@@ -127,26 +127,44 @@ static class U
     /// Menüeintrag mit gut lesbarem Tastenkürzel rechts (WPF-UI zeigt Kürzel sonst klein und blass). Die Spalten
     /// richten sich über <see cref="MenuScope"/> am Menü aus.
     /// </summary>
-    public static MenuItem Mi(string label, string? gesture = null, Action? click = null)
+    public static MenuItem Mi(string label, string? gesture = null, Action? click = null, string? glyph = null)
     {
-        var g = new Grid();
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "miLabel" });
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto, SharedSizeGroup = "miKey" });
+        var g = new Grid { Tag = MenuGridTag };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         g.Children.Add(new TextBlock { Text = label, VerticalAlignment = VerticalAlignment.Center });
-        if (!string.IsNullOrEmpty(gesture))
-        {
-            var k = new TextBlock { Text = gesture, Foreground = Theme.Muted, FontSize = Theme.FsCaption, Margin = new Thickness(32, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
-            Grid.SetColumn(k, 1); g.Children.Add(k);
-        }
-        var mi = new MenuItem { Header = g };
+        var k = new TextBlock { Text = gesture ?? "", Foreground = Theme.Muted, FontSize = Theme.FsCaption, Margin = new Thickness(32, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right };
+        Grid.SetColumn(k, 1); g.Children.Add(k);
+        // Symbolspalte immer belegen, damit Einträge mit und ohne Symbol bündig stehen
+        var mi = new MenuItem { Header = g, Icon = glyph != null ? Icon(glyph, 16) : new Border { Width = 16, Height = 16 } };
         System.Windows.Automation.AutomationProperties.SetName(mi, Loc.T(label));
         if (!string.IsNullOrEmpty(gesture)) System.Windows.Automation.AutomationProperties.SetAcceleratorKey(mi, Loc.T(gesture));
         if (click != null) mi.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
         return mi;
     }
 
-    /// <summary>Kontextmenü, in dem die Spalten von <see cref="Mi"/> untereinander ausgerichtet sind.</summary>
-    public static ContextMenu MenuScope(ContextMenu m) { Grid.SetIsSharedSizeScope(m, true); return m; }
+    const string MenuGridTag = "mi";
+
+    /// <summary>Kontextmenü mit ausgerichteten Spalten (Ausrichtung übernimmt <see cref="AlignMenu"/> beim Öffnen).</summary>
+    public static ContextMenu MenuScope(ContextMenu m) => m;
+
+    /// <summary>
+    /// Richtet die Einträge eines geöffneten Menüs aus: alle Namen gleich breit, Tastenkürzel rechtsbündig in einer Spalte.
+    /// Wird beim Öffnen jedes Menüs aufgerufen (Klassenereignisse in <see cref="Theme.Init"/>).
+    /// </summary>
+    public static void AlignMenu(ItemsControl menu)
+    {
+        var grids = menu.Items.OfType<MenuItem>().Select(m => m.Header as Grid).Where(g => g?.Tag as string == MenuGridTag).Cast<Grid>().ToList();
+        if (grids.Count == 0) return;
+        double label = 0, key = 0;
+        foreach (var g in grids)
+        {
+            foreach (var t in g.Children.OfType<TextBlock>()) t.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            label = Math.Max(label, g.Children[0].DesiredSize.Width);
+            key = Math.Max(key, g.Children[1].DesiredSize.Width);
+        }
+        foreach (var g in grids) { g.ColumnDefinitions[0].Width = new GridLength(Math.Ceiling(label)); g.ColumnDefinitions[1].Width = new GridLength(Math.Ceiling(key)); }
+    }
 
     public static Button Btn(string s, Action click, string? tip = null, double minW = 0) => Btn(null, s, click, tip, null, minW);
 

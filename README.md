@@ -29,7 +29,7 @@ Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das P
 ## Schnellstart
 
 1. **`SebastiansStepRecorder.exe` herunterladen** und an einen beliebigen Ort legen, z. B. `C:\Tools\` oder einen USB-Stick. Doppelklick startet das Programm.
-2. **Modus wählen:** Wofür ist die Aufnahme? Im Zweifel „Anleitung“.
+2. **Zweck wählen:** Wofür ist die Aufnahme? Im Zweifel „Anleitung“. (Links im Startfenster liegen außerdem **Aufnahmen** – alle bisherigen Aufnahmen mit Suche –, **Einstellungen** und **Hilfe** mit allen Tastenkürzeln.)
 3. **Bereich anklicken:** ganzer Bildschirm (oder einfach die Eingabetaste), eine einzelne Anwendung oder ein selbst aufgezogener Ausschnitt. Die Aufnahme startet sofort.
 4. **Vorführen:** ganz normal arbeiten. Zum Beenden **Strg+Umschalt+F10** drücken oder in der Aufnahmeleiste auf „Stopp“ klicken.
 5. **Nachbearbeiten und exportieren:** Der Editor öffnet sich mit allen Schritten. Texte anpassen, Bilder markieren, dann **Exportieren** – fertig.
@@ -93,7 +93,7 @@ Oben auf dem Bildschirm schwebt eine kleine **Aufnahmeleiste** mit Zeit, Schritt
 
 ## Der Editor
 
-Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das Bild, rechts Text und Einstellungen.
+Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das Bild, rechts Text und Einstellungen. Oben steht eine Menüleiste wie in Editor oder Paint (Datei · Bearbeiten · Schritt · Bild · Ansicht · Prüfen · Hilfe) – dort findet sich jede Funktion an genau einer Stelle; rechts daneben die häufigsten Befehle als Knöpfe. **F1** zeigt alle Tastenkürzel.
 
 **Schritte**
 - Überschrift und Anleitungstext direkt bearbeiten (mit Rechtschreibprüfung) – die automatisch erzeugten Texte sind ein guter Anfang.
@@ -102,32 +102,32 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Eigene Schritte einfügen:** reine Textschritte oder Bildschritte aus Datei, Zwischenablage oder einem neuen Bildschirmfoto.
 - **Bild ersetzen oder neu aufnehmen**, wenn sich die Oberfläche geändert hat – das Original lässt sich jederzeit wiederherstellen.
 - **Suchen und Ersetzen** (Strg+H) über alle Überschriften, Texte, Hinweise und Kapitel.
-- **Automatisch aufgeräumt:** Beim ersten Öffnen blendet der Editor überflüssige Schritte aus – den Klick ins Feld direkt vor der Eingabe, doppelte Klicks auf dasselbe Element, Fensterwechsel hin und sofort zurück und Eingaben, die wieder gelöscht wurden. Nichts wird gelöscht: Strg+Z macht es rückgängig, unter *⋯ → Aufräumen* sehen Sie jeden Vorschlag mit Begründung.
+- **Automatisch aufgeräumt:** Beim ersten Öffnen blendet der Editor überflüssige Schritte aus – den Klick ins Feld direkt vor der Eingabe, doppelte Klicks auf dasselbe Element, Fensterwechsel hin und sofort zurück und Eingaben, die wieder gelöscht wurden. Nichts wird gelöscht: Strg+Z macht es rückgängig, unter *Prüfen → Aufräumen* sehen Sie jeden Vorschlag mit Begründung.
 - **Bessere Texte:** Menüs erscheinen als Pfad („Datei › Speichern unter“), Schaltflächen im Menüband mit ihrer Gruppe. Eine **Begriffsliste** in den Einstellungen ersetzt technische Namen durch Ihre eigenen (z. B. „SAP Easy Access=SAP-Startseite“).
 
 **Bilder**
 - Vorher-/Nachher-Bild, ganzer Bildschirm, nur das Anwendungsfenster oder ein Ausschnitt um die Aktion (mit kleiner Übersicht des ganzen Bildschirms).
-- Zeichenwerkzeuge: Pfeil, Rahmen, Ellipse, Hervorheben, Text, nummerierte Markierungen, Schwärzen, Verpixeln, Zuschneiden – in sechs Farben und drei Strichstärken.
-- Automatische Markierungen: Klickpunkt, Zugweg, angeklicktes Element und gedrückte Tasten als kleine Tastenkappen im Bild – einzeln abschaltbar.
+- Zeichenwerkzeuge: Pfeil, Rahmen, Ellipse, Hervorheben, Text, Nummern, Schwärzen, Verpixeln, Zuschneiden – in sechs Farben und drei Strichstärken.
+- Mausmarken: Klickpunkt, Zugweg, angeklicktes Element und gedrückte Tasten als kleine Tastenkappen im Bild – einzeln abschaltbar (*Ansicht → Mausmarken*).
 - Zoom (Strg+Mausrad), Großansicht (F11 oder Doppelklick), Bild kopieren (Strg+C).
-- **Kurzer Clip je Schritt:** *Kopieren → Kurzen Clip speichern (GIF)* zeigt den Schritt als kleine Animation – vom Vorher-Bild über die Zwischenbilder bis zum Ergebnis.
+- **Kurzer Clip je Schritt:** *Bild → Kurzen Clip speichern (GIF)* zeigt den Schritt als kleine Animation – vom Vorher-Bild über die Zwischenbilder bis zum Ergebnis.
 
 **Weitere Funktionen**
 - **Abspielen:** Schritte als Diashow.
 - **Vorschau:** die fertige Anleitung im Browser ansehen.
 - **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7).
-- **Deutsch und Englisch:** Mit „DE | EN“ über dem Bild pflegen Sie Texte in beiden Sprachen – aus einer Aufnahme werden zwei Anleitungen.
+- **Deutsch und Englisch:** Mit „DE | EN“ über der Schrittliste pflegen Sie Texte in beiden Sprachen – aus einer Aufnahme werden zwei Anleitungen.
 - Alles wird automatisch gespeichert; Rückgängig mit Strg+Z.
 
 ---
 
 ## Bedienungsanleitungen gestalten
 
-Im Reiter **„Dokument“** wird aus den Schritten eine richtige Bedienungsanleitung:
+Ganz oben in der Schrittliste steht **„Titelseite und Einleitung“**: Dort wird aus den Schritten eine richtige Bedienungsanleitung – mit Vorschau der Titelseite und Gliederung in der Mitte:
 
 - **Titelseite:** Titel, Untertitel, Version, Zielgruppe, Autor oder Firma, **Logo**.
 - **Texte:** Einleitung, Voraussetzungen (als Aufzählung) und ein Abschluss.
-- **Aufbau:** Deckblatt, Inhaltsverzeichnis (im PDF mit Seitenzahlen), Nummerierung als 1.1, 1.2 … oder fortlaufend.
+- **Aufbau:** eigene Titelseite, Inhaltsverzeichnis (im PDF mit Seitenzahlen), Nummerierung als 1.1, 1.2 … oder fortlaufend.
 - **Kapitel:** An jedem Schritt lässt sich ein neues Kapitel mit eigener Einleitung beginnen.
 - **Hinweiskästen:** Hinweis, Tipp, Achtung, Wichtig und Ergebnis – farbig abgesetzt.
 - **Bilder:** Größe (klein bis volle Breite), Anordnung unter oder neben dem Text, Bildausschnitt; je Schritt änderbar oder ganz ausblendbar.
@@ -217,13 +217,13 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 Nein. Leiste, Rahmen, Menüs und Dialoge des Programms werden von Windows aus den Bildschirmfotos ausgeschlossen. Wo das nicht geht (z. B. Windows Server 2019), nimmt das Programm mit ausgeblendeter Anzeige auf.
 
 **Kann ich eine Aufnahme später erweitern?**
-Ja: im Editor unter „Dokument“ → „Aufnahme fortsetzen“ oder „Aufnahme anhängen“. Einzelne Bilder lassen sich neu aufnehmen, eigene Schritte einfügen.
+Ja: im Editor unter *Datei → Aufnahme fortsetzen* oder *Aufnahme anhängen* (auch unter „Titelseite und Einleitung“ → „Weitere Aufnahmen“). Einzelne Bilder lassen sich neu aufnehmen, eigene Schritte einfügen.
 
 **Was passiert mit Kennwörtern?**
 Eingaben in Passwortfeldern werden nie gespeichert. Für Kennwörter außerhalb von Passwortfeldern (z. B. im Terminal) gibt es die Privattaste Strg+Umschalt+F8.
 
 **Kann ich eine Aufnahme weitergeben, ohne den Editor?**
-Ja – entweder als exportierte Datei (PDF, HTML …) oder den ganzen Aufnahmeordner. Wer das Programm hat, öffnet den Ordner über „Öffnen“ (dort `manifest.json` wählen) oder zieht ihn einfach auf das Startfenster.
+Ja – entweder als exportierte Datei (PDF, HTML …) oder den ganzen Aufnahmeordner. Wer das Programm hat, öffnet den Ordner unter „Aufnahmen“ → „Öffnen …“ (dort `manifest.json` wählen) oder zieht ihn einfach auf das Startfenster.
 
 ---
 

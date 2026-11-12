@@ -117,6 +117,8 @@ public sealed class AppSettings
     public string CaptureBackend { get; set; } = "auto";
     /// <summary>KI- und AutoHotkey-Export für Menschen lesbar (ausführlich kommentiert) – zuletzt gewählt.</summary>
     public bool ExportReadable { get; set; }
+    /// <summary>Zuletzt gewähltes Exportformat (html | md | docx | pdf | gif | ki | ahk) – Vorwahl für „Exportieren …“ und Strg+E.</summary>
+    public string LastExportFormat { get; set; } = "html";
     public Dictionary<string, string> Hotkeys { get; set; } = new()
     {
         ["instantPause"] = "Ctrl+Shift+F9", ["stop"] = "Ctrl+Shift+F10", ["snapshot"] = "Ctrl+Shift+F11", ["comment"] = "Ctrl+Shift+F12",

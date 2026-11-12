@@ -12,14 +12,13 @@ using StepRecorder.ReadLayer;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Editor für Bedienungsanleitungen: Reiter „Dokument“ (Titelseite, Einleitung, Voraussetzungen, Abschluss,
-/// Aufbau, Bilder, Gestaltung) sowie pro Schritt Kapitelbeginn, Bildoptionen und Hinweiskästen.
+/// Editor für Bedienungsanleitungen: „Titelseite und Einleitung“ (Titelseite, Einleitung, Voraussetzungen, Abschluss,
+/// Aufbau, Bilder, Gestaltung, Vorlage, weitere Aufnahmen) sowie Kapitel und Hinweise am Schritt.
 /// </summary>
 sealed partial class ViewerWindow
 {
     string? _focusCommentId;
 
-    static readonly (string kind, string name)[] NoteKinds = { ("note", "Hinweis"), ("tip", "Tipp"), ("warning", "Achtung"), ("important", "Wichtig"), ("result", "Ergebnis") };
 
     static JsonObject GuideOf(JsonObject edits) { var g = edits["guide"] as JsonObject ?? new JsonObject(); edits["guide"] = g; return g; }
 
@@ -32,6 +31,7 @@ sealed partial class ViewerWindow
         if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen."); }
         UpdateUndo();
         _status.Text = "Gespeichert";
+        if (_cover) _coverHost.Content = CoverPreview();
         if (refillLater) Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => { if (!_details.IsKeyboardFocusWithin) Fill(); });
     }
 
@@ -59,7 +59,7 @@ sealed partial class ViewerWindow
     }
 
     // =====================================================================================
-    // Reiter „Dokument“
+    // Titelseite und Einleitung (Einstellungen der Anleitung)
     // =====================================================================================
 
     void DocDetails()
@@ -70,20 +70,109 @@ sealed partial class ViewerWindow
         string lang = _view.Language;
         var d = DocSettings.From(guide, lang);
         string GS(string key) => DocSettings.GuideText(guide, key, lang) ?? "";
-        bool en = lang != "de";
+        bool en = lang != "de", ro = _view.Session.ReadOnly;
 
-        var intro = U.Hint("Alles, was aus den Schritten eine fertige Bedienungsanleitung macht. Gilt für HTML, Word, PDF, Markdown und GIF.", new Thickness(0, 0, 0, 12));
-        _details.Children.Add(intro);
+        _details.Children.Add(U.Heading("Titelseite und Einleitung", Theme.FsTitle, new Thickness(0, 4, 0, 4)));
+        _details.Children.Add(U.Hint("Alles, was aus den Schritten eine fertige Anleitung macht – gilt für HTML, Word, PDF, Markdown und GIF.", new Thickness(0, 0, 0, 12)));
         if (en) _details.Children.Add(Callout(false, "Englische Fassung", "Titel, Untertitel, Zielgruppe, Texte, Voraussetzungen und Fußzeile gelten hier nur für Englisch. Leer gelassene Felder übernehmen die deutsche Fassung."));
-        var actions = new WrapPanel { Margin = new Thickness(-3, 0, 0, 6) };
-        actions.Children.Add(U.Btn(Theme.IEye, "Vorschau im Browser", PreviewDocument, "Anleitung als HTML erzeugen und im Standardbrowser öffnen", "Primary"));
-        actions.Children.Add(U.Btn(Theme.IExport, "Exportieren …", () => ShowExportDialog("pdf"), "Als PDF, Word, HTML, Markdown oder GIF speichern (Strg+E)"));
+        var actions = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
+        actions.Children.Add(U.Btn(Theme.IEye, "Vorschau im Browser", PreviewDocument, "Anleitung als HTML erzeugen und im Standardbrowser öffnen"));
+        actions.Children.Add(U.Btn(Theme.IExport, "Exportieren …", ShowExport, EditorCommands.Tip("export"), "Primary"));
         _details.Children.Add(actions);
 
-        // Vorlagen
-        _details.Children.Add(U.SectionLabel("Vorlage"));
+        // Titelseite
+        var title = Section("Titelseite");
+        title.Children.Add(U.Field("Titel", CommitBox(GS("title") is { Length: > 0 } tt ? tt : _view.Title, v => { if (v.Length == 0) return; QuietChange(e => SetGuideText(e, "title", v)); UpdateTitle(); }, "Titel der Anleitung")));
+        title.Children.Add(U.Field("Untertitel", CommitBox(d.Subtitle, v => LocDocChange("subtitle", v), "z. B. Kurzanleitung für neue Mitarbeitende")));
+        var two = new Grid();
+        two.ColumnDefinitions.Add(new ColumnDefinition()); two.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); two.ColumnDefinitions.Add(new ColumnDefinition());
+        var ver = U.Field("Version", CommitBox(d.Version, v => DocChange(x => x.Version = v), "z. B. 1.0"));
+        var aud = U.Field("Zielgruppe", CommitBox(d.Audience, v => LocDocChange("audience", v), "z. B. Vertrieb"));
+        Grid.SetColumn(aud, 2); two.Children.Add(ver); two.Children.Add(aud);
+        title.Children.Add(two);
+        title.Children.Add(U.Field("Autor oder Firma", CommitBox(d.Author, v => DocChange(x => x.Author = v), "erscheint auf der Titelseite")));
+        var logoRow = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
+        if (d.LogoBytes() is { } lb)
+        {
+            try
+            {
+                var bi = new System.Windows.Media.Imaging.BitmapImage(); bi.BeginInit(); bi.StreamSource = new MemoryStream(lb); bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; bi.EndInit(); bi.Freeze();
+                logoRow.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(Theme.RSmall), Padding = new Thickness(6), Margin = new Thickness(3, 3, 8, 3), BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = new Image { Source = bi, MaxHeight = 40, MaxWidth = 140 } });
+            }
+            catch { }
+        }
+        var pick = U.Btn(Theme.IOpen, d.Logo.Length > 0 ? "Anderes Logo …" : "Logo wählen …", PickLogo, "PNG, JPG oder BMP – erscheint auf der Titelseite bzw. im Kopf"); pick.IsEnabled = !ro;
+        logoRow.Children.Add(pick);
+        if (d.Logo.Length > 0) logoRow.Children.Add(U.Btn(Theme.IDelete, "Entfernen", () => DocChange(x => x.Logo = "", quiet: false)));
+        title.Children.Add(U.Field("Logo", logoRow));
+
+        // Einleitung und Texte
+        var texts = Section("Einleitung und Texte");
+        texts.Children.Add(U.Field("Einleitung", CommitBox(GS("intro"), v => QuietChange(e => SetGuideText(e, "intro", v)), "Wozu dient die Anleitung, was ist das Ergebnis?", true),
+            "Ziel und erwartetes Ergebnis der Aufnahme werden automatisch ergänzt."));
+        texts.Children.Add(U.Field("Voraussetzungen", CommitBox(d.Prerequisites, v => LocDocChange("prerequisites", v), "Eine pro Zeile, z. B. Zugang zum Portal", true),
+            "Erscheint als Aufzählung vor dem ersten Schritt."));
+        texts.Children.Add(U.Field("Abschluss", CommitBox(GS("outro"), v => QuietChange(e => SetGuideText(e, "outro", v)), "z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", true)));
+
+        // Aufbau
+        var build = Section("Aufbau");
+        CheckBox Check(string text, bool value, Action<bool> set, string tip)
+        {
+            var c = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 0, 0, 8), ToolTip = tip, IsEnabled = !ro };
+            c.Checked += (_, _) => set(true); c.Unchecked += (_, _) => set(false);
+            return c;
+        }
+        build.Children.Add(Check("Eigene Titelseite", d.Cover, v => DocChange(x => x.Cover = v, quiet: false), "Eigene erste Seite mit Logo, Titel, Untertitel, Version, Autor und Datum"));
+        build.Children.Add(Check("Inhaltsverzeichnis", d.Toc, v => DocChange(x => x.Toc = v), "Mit Kapiteln und Schritten; im PDF mit Seitenzahlen. Erscheint ab 3 Kapiteln oder 6 Schritten."));
+        build.Children.Add(Check("Datum anzeigen", d.ShowDate, v => DocChange(x => x.ShowDate = v, quiet: false), "Stand-Datum auf der Titelseite bzw. im Kopf"));
+        int numIdx = d.Numbering switch { "flat" => 1, "none" => 2, _ => 0 };
+        var (numTrack, nums) = U.Segmented("dnum", numIdx, (null, "1.1, 1.2 …"), (null, "1, 2, 3 …"), (null, "Keine"));
+        for (int i = 0; i < 3; i++) { string v = new[] { "chapter", "flat", "none" }[i]; nums[i].Checked += (_, _) => DocChange(x => x.Numbering = v); }
+        build.Children.Add(U.Field("Nummerierung der Schritte", numTrack, "„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt unter „Einordnung“ an.", new Thickness(0, 8, 0, 16)));
+
+        // Bilder
+        var images = Section("Bilder");
+        var viewBox = new ComboBox { MinWidth = 220, HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = !ro };
+        foreach (var (_, name) in DocSettings.Views) viewBox.Items.Add(name);
+        viewBox.SelectedIndex = Math.Max(0, Array.FindIndex(DocSettings.Views, x => x.id == d.View));
+        viewBox.SelectionChanged += (_, _) => { string v = DocSettings.Views[Math.Max(0, viewBox.SelectedIndex)].id; DocChange(x => x.View = v); };
+        var ov = new CheckBox { Content = "Im Bereich um die Aktion eine kleine Übersicht des ganzen Bildschirms zeigen", IsChecked = d.Overview, Margin = new Thickness(0, 8, 0, 0), IsEnabled = !ro };
+        ov.Checked += (_, _) => DocChange(x => x.Overview = true); ov.Unchecked += (_, _) => DocChange(x => x.Overview = false);
+        images.Children.Add(U.Field("Bildausschnitt", U.Col(viewBox, ov), "„Bereich um die Aktion“ zeigt je Schritt nur die Umgebung von Klick oder Eingabe – gut lesbar, auch auf kleinen Seiten. Vorschau im Editor über dem Bild unter „Bildausschnitt“."));
+        int sizeIdx = Math.Max(0, Array.FindIndex(DocSettings.Sizes, x => x.id == d.ImageSize));
+        var (sizeTrack, sizes) = U.Segmented("dsize", sizeIdx, DocSettings.Sizes.Select(x => ((string?)null, x.name)).ToArray());
+        for (int i = 0; i < sizes.Length; i++) { string v = DocSettings.Sizes[i].id; sizes[i].Checked += (_, _) => DocChange(x => x.ImageSize = v); }
+        images.Children.Add(U.Field("Größe", sizeTrack, "Je Schritt änderbar unter „Bild in der Anleitung“."));
+        var (layTrack, lays) = U.Segmented("dlay", d.Layout == "side" ? 1 : 0, (null, "Unter dem Text"), (null, "Neben dem Text"));
+        lays[0].Checked += (_, _) => DocChange(x => x.Layout = "below"); lays[1].Checked += (_, _) => DocChange(x => x.Layout = "side");
+        images.Children.Add(U.Field("Anordnung", layTrack, "„Neben dem Text“ ergibt kompakte Anleitungen: Text links, Bild rechts."));
+
+        // Gestaltung
+        var look = Section("Gestaltung");
+        var swatches = new WrapPanel();
+        foreach (var (hex, name) in DocSettings.Accents)
+        {
+            bool on = string.Equals(hex, d.Accent, StringComparison.OrdinalIgnoreCase);
+            var dot = new Border
+            {
+                Width = 28, Height = 28, CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 0, 10, 0), Cursor = Cursors.Hand, ToolTip = name,
+                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), BorderBrush = on ? Theme.Fg : Theme.Line, BorderThickness = new Thickness(on ? 2.5 : 1)
+            };
+            string h = hex;
+            dot.MouseLeftButtonUp += (_, _) => { if (!ro) DocChange(x => x.Accent = h, quiet: false); };
+            swatches.Children.Add(dot);
+        }
+        look.Children.Add(U.Field("Akzentfarbe", swatches, "Für Titel, Kapitel und Schrittnummern."));
+        string addr = guide?.Str("address") ?? AppSettingsAddress();
+        var (adTrack, ads) = U.Segmented("daddr", addr == "informal" ? 1 : 0, (null, "Sie"), (null, "du"));
+        ads[0].Checked += (_, _) => Change(e => GuideOf(e)["address"] = "formal"); ads[1].Checked += (_, _) => Change(e => GuideOf(e)["address"] = "informal");
+        look.Children.Add(U.Field("Anrede in automatischen Texten", adTrack, "Von Ihnen geänderte Texte bleiben unverändert."));
+        look.Children.Add(U.Field("Fußzeile", CommitBox(d.Footer, v => LocDocChange("footer", v), "z. B. Firma · intern"), "Links in der Fußzeile; rechts steht die Seitenzahl (Word, PDF)."));
+
+        // Vorlage
         var st = StepRecorder.Settings.AppSettings.Load();
-        var tpl = new ComboBox { MinWidth = 180, IsEnabled = !_view.Session.ReadOnly };
+        var tplBox = Section("Vorlage", st.DefaultTemplate.Length > 0 ? $"Neue Aufnahmen erhalten automatisch die Vorlage „{st.DefaultTemplate}“." : "Logo, Farbe, Autor, Fußzeile, Aufbau und Bilder als Firmenlook für weitere Anleitungen übernehmen.");
+        var tpl = new ComboBox { MinWidth = 180, IsEnabled = !ro && st.DocTemplates.Count > 0 };
         tpl.Items.Add(st.DocTemplates.Count == 0 ? "Noch keine Vorlage" : "Vorlage anwenden …");
         foreach (var name in st.DocTemplates.Keys.OrderBy(x => x)) tpl.Items.Add(name + (name == st.DefaultTemplate ? "  (Standard)" : ""));
         tpl.SelectedIndex = 0;
@@ -95,120 +184,31 @@ sealed partial class ViewerWindow
             _status.Text = $"Vorlage „{name}“ angewendet – rückgängig mit Strg+Z";
         };
         var save = U.Btn(Theme.ISave, "Als Vorlage speichern …", SaveTemplate, "Logo, Farbe, Autor, Fußzeile, Aufbau und Bilder als Vorlage für weitere Anleitungen speichern");
-        var tplRow = new WrapPanel(); tplRow.Children.Add(tpl); tplRow.Children.Add(save);
-        _details.Children.Add(U.Field("Firmenlook übernehmen", tplRow, st.DefaultTemplate.Length > 0 ? $"Neue Aufnahmen erhalten automatisch die Vorlage „{st.DefaultTemplate}“." : "Eine Vorlage kann als Standard für neue Aufnahmen gelten."));
-
-        // Titelseite
-        _details.Children.Add(U.SectionLabel("Titelseite", new Thickness(0, 12, 0, 10)));
-        _details.Children.Add(U.Field("Titel", CommitBox(GS("title") is { Length: > 0 } tt ? tt : _view.Title, v => { if (v.Length == 0) return; QuietChange(e => SetGuideText(e, "title", v)); _titleBlock.Text = _view.Title; }, "Titel der Anleitung")));
-        _details.Children.Add(U.Field("Untertitel", CommitBox(d.Subtitle, v => LocDocChange("subtitle", v), "z. B. Kurzanleitung für neue Mitarbeitende")));
-        var two = new Grid();
-        two.ColumnDefinitions.Add(new ColumnDefinition()); two.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) }); two.ColumnDefinitions.Add(new ColumnDefinition());
-        var ver = U.Field("Version", CommitBox(d.Version, v => DocChange(x => x.Version = v), "z. B. 1.0"));
-        var aud = U.Field("Zielgruppe", CommitBox(d.Audience, v => LocDocChange("audience", v), "z. B. Vertrieb"));
-        Grid.SetColumn(aud, 2); two.Children.Add(ver); two.Children.Add(aud);
-        _details.Children.Add(two);
-        _details.Children.Add(U.Field("Autor oder Firma", CommitBox(d.Author, v => DocChange(x => x.Author = v), "erscheint auf der Titelseite")));
-        // Logo
-        var logoRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 4) };
-        if (d.LogoBytes() is { } lb)
-        {
-            try
-            {
-                var bi = new System.Windows.Media.Imaging.BitmapImage(); bi.BeginInit(); bi.StreamSource = new MemoryStream(lb); bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; bi.EndInit(); bi.Freeze();
-                logoRow.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(Theme.RSmall), Padding = new Thickness(6), Margin = new Thickness(0, 3, 8, 3), BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = new Image { Source = bi, MaxHeight = 40, MaxWidth = 140 } });
-            }
-            catch { }
-        }
-        logoRow.Children.Add(U.Btn(Theme.IOpen, d.Logo.Length > 0 ? "Anderes Logo …" : "Logo wählen …", PickLogo, "PNG, JPG oder BMP – erscheint auf Titelseite bzw. im Kopf"));
-        if (d.Logo.Length > 0) logoRow.Children.Add(U.Btn(Theme.IDelete, "Entfernen", () => DocChange(x => x.Logo = "", quiet: false)));
-        _details.Children.Add(U.Field("Logo", logoRow));
-
-        // Texte
-        _details.Children.Add(U.SectionLabel("Texte", new Thickness(0, 12, 0, 10)));
-        _details.Children.Add(U.Field("Über diese Anleitung", CommitBox(GS("intro"), v => QuietChange(e => SetGuideText(e, "intro", v)), "Wozu dient die Anleitung, was ist das Ergebnis?", true),
-            "Ziel und erwartetes Ergebnis der Aufnahme werden automatisch ergänzt."));
-        _details.Children.Add(U.Field("Voraussetzungen", CommitBox(d.Prerequisites, v => LocDocChange("prerequisites", v), "Eine pro Zeile, z. B. Zugang zum Portal", true),
-            "Erscheint als Aufzählung vor dem ersten Schritt."));
-        _details.Children.Add(U.Field("Abschluss", CommitBox(GS("outro"), v => QuietChange(e => SetGuideText(e, "outro", v)), "z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", true)));
-
-        // Aufbau
-        _details.Children.Add(U.SectionLabel("Aufbau", new Thickness(0, 12, 0, 10)));
-        CheckBox Check(string text, bool value, Action<bool> set, string tip)
-        {
-            var c = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 0, 0, 8), ToolTip = tip, IsEnabled = !_view.Session.ReadOnly };
-            c.Checked += (_, _) => set(true); c.Unchecked += (_, _) => set(false);
-            return c;
-        }
-        _details.Children.Add(Check("Deckblatt", d.Cover, v => DocChange(x => x.Cover = v), "Eigene Titelseite mit Logo, Titel, Untertitel, Version, Autor und Datum"));
-        _details.Children.Add(Check("Inhaltsverzeichnis", d.Toc, v => DocChange(x => x.Toc = v), "Mit Kapiteln und Schritten; im PDF mit Seitenzahlen. Erscheint ab 3 Kapiteln oder 6 Schritten."));
-        _details.Children.Add(Check("Datum anzeigen", d.ShowDate, v => DocChange(x => x.ShowDate = v), "Stand-Datum auf Titelseite bzw. im Kopf"));
-        int numIdx = d.Numbering switch { "flat" => 1, "none" => 2, _ => 0 };
-        var (numTrack, nums) = U.Segmented("dnum", numIdx, (null, "1.1, 1.2 …"), (null, "1, 2, 3 …"), (null, "Keine"));
-        for (int i = 0; i < 3; i++) { string v = new[] { "chapter", "flat", "none" }[i]; nums[i].Checked += (_, _) => DocChange(x => x.Numbering = v); }
-        _details.Children.Add(U.Field("Nummerierung der Schritte", numTrack, "„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt fest (Reiter „Schritt“ › Kapitel)."));
-
-        // Bilder
-        _details.Children.Add(U.SectionLabel("Bilder", new Thickness(0, 12, 0, 10)));
-        var viewBox = new ComboBox { MinWidth = 220, HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = !_view.Session.ReadOnly };
-        foreach (var (_, name) in DocSettings.Views) viewBox.Items.Add(name);
-        viewBox.SelectedIndex = Math.Max(0, Array.FindIndex(DocSettings.Views, x => x.id == d.View));
-        viewBox.SelectionChanged += (_, _) => { string v = DocSettings.Views[Math.Max(0, viewBox.SelectedIndex)].id; DocChange(x => x.View = v); };
-        var ov = new CheckBox { Content = "Im Ausschnitt eine kleine Übersicht des ganzen Bildschirms zeigen", IsChecked = d.Overview, Margin = new Thickness(0, 8, 0, 0), IsEnabled = !_view.Session.ReadOnly };
-        ov.Checked += (_, _) => DocChange(x => x.Overview = true); ov.Unchecked += (_, _) => DocChange(x => x.Overview = false);
-        _details.Children.Add(U.Field("Bildausschnitt", U.Col(viewBox, ov), "„Bereich um die Aktion“ zeigt je Schritt nur die Umgebung von Klick oder Eingabe – gut lesbar, auch auf kleinen Seiten. Im Editor unter „Ganzer Bildschirm ▾“ vorschauen."));
-        int sizeIdx = Math.Max(0, Array.FindIndex(DocSettings.Sizes, x => x.id == d.ImageSize));
-        var (sizeTrack, sizes) = U.Segmented("dsize", sizeIdx, DocSettings.Sizes.Select(x => ((string?)null, x.name)).ToArray());
-        for (int i = 0; i < sizes.Length; i++) { string v = DocSettings.Sizes[i].id; sizes[i].Checked += (_, _) => DocChange(x => x.ImageSize = v); }
-        _details.Children.Add(U.Field("Größe", sizeTrack, "Pro Schritt änderbar (Reiter „Schritt“ › Im Dokument)."));
-        var (layTrack, lays) = U.Segmented("dlay", d.Layout == "side" ? 1 : 0, (null, "Unter dem Text"), (null, "Neben dem Text"));
-        lays[0].Checked += (_, _) => DocChange(x => x.Layout = "below"); lays[1].Checked += (_, _) => DocChange(x => x.Layout = "side");
-        _details.Children.Add(U.Field("Anordnung", layTrack, "„Neben dem Text“ ergibt kompakte Anleitungen: Text links, Bild rechts."));
-
-        // Gestaltung
-        _details.Children.Add(U.SectionLabel("Gestaltung", new Thickness(0, 12, 0, 10)));
-        var swatches = new WrapPanel();
-        foreach (var (hex, name) in DocSettings.Accents)
-        {
-            bool on = string.Equals(hex, d.Accent, StringComparison.OrdinalIgnoreCase);
-            var dot = new Border
-            {
-                Width = 28, Height = 28, CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 0, 10, 0), Cursor = Cursors.Hand, ToolTip = name,
-                Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), BorderBrush = on ? Theme.Fg : Theme.Line, BorderThickness = new Thickness(on ? 2.5 : 1)
-            };
-            string h = hex;
-            dot.MouseLeftButtonUp += (_, _) => { DocChange(x => x.Accent = h, quiet: false); };
-            swatches.Children.Add(dot);
-        }
-        _details.Children.Add(U.Field("Akzentfarbe", swatches, "Für Titel, Kapitel und Schrittnummern."));
-        string addr = guide?.Str("address") ?? AppSettingsAddress();
-        var (adTrack, ads) = U.Segmented("daddr", addr == "informal" ? 1 : 0, (null, "Sie"), (null, "du"));
-        ads[0].Checked += (_, _) => Change(e => GuideOf(e)["address"] = "formal"); ads[1].Checked += (_, _) => Change(e => GuideOf(e)["address"] = "informal");
-        _details.Children.Add(U.Field("Anrede in automatischen Texten", adTrack, "Von Ihnen geänderte Texte bleiben unverändert."));
-        _details.Children.Add(U.Field("Fußzeile", CommitBox(d.Footer, v => LocDocChange("footer", v), "z. B. Firma · intern"), "Links in der Fußzeile; rechts steht die Seitenzahl (Word, PDF)."));
+        var tplRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 12) }; tplRow.Children.Add(tpl); tplRow.Children.Add(save);
+        tplBox.Children.Add(tplRow);
 
         // Weitere Aufnahmen
-        _details.Children.Add(U.SectionLabel("Weitere Aufnahmen", new Thickness(0, 12, 0, 10)));
         var appended = (guide?.Arr("append") ?? new JsonArray()).OfType<JsonObject>().ToList();
-        _details.Children.Add(U.Text(appended.Count == 0 ? "Längere Handbücher aus mehreren Aufnahmen: angehängte Aufnahmen erscheinen im Export als eigene Kapitel hinter dieser." : "Erscheinen im Export als eigene Kapitel hinter dieser Aufnahme:", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        var more = Section("Weitere Aufnahmen", appended.Count == 0 ? "Längere Handbücher aus mehreren Aufnahmen: angehängte Aufnahmen erscheinen im Export als eigene Kapitel hinter dieser." : "Erscheinen im Export als eigene Kapitel hinter dieser Aufnahme:");
         for (int i = 0; i < appended.Count; i++)
         {
             var a = appended[i]; int idx = i;
             string p = a.Str("path") ?? "";
-            string title = Session.LooksLikeSession(p) ? (Json.ReadObject(Path.Combine(p, "manifest.json"))?.Str("title") is { Length: > 0 } mt ? mt : Path.GetFileName(p)) : "nicht gefunden: " + Path.GetFileName(p);
+            string atitle = Session.LooksLikeSession(p) ? (Json.ReadObject(Path.Combine(p, "manifest.json"))?.Str("title") is { Length: > 0 } mt ? mt : Path.GetFileName(p)) : "nicht gefunden: " + Path.GetFileName(p);
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
             var del = U.Ghost(Theme.IDelete, null, () => Change(e => { if (GuideOf(e)["append"] is JsonArray arr && idx < arr.Count) arr.RemoveAt(idx); }, refill: false), "Nicht mehr anhängen (die Aufnahme selbst bleibt erhalten)");
             del.MinHeight = 30; del.Padding = new Thickness(7, 4, 7, 4); del.Margin = new Thickness(0);
             DockPanel.SetDock(del, Dock.Right); row.Children.Add(del);
-            var rowText = U.Row(U.Text($"{idx + 1}.", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 8, 0)), U.Text(title, Theme.FsHint, true)); rowText.VerticalAlignment = VerticalAlignment.Center;
+            var rowText = U.Row(U.Text($"{idx + 1}.", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 8, 0)), U.Text(atitle, Theme.FsHint, true)); rowText.VerticalAlignment = VerticalAlignment.Center;
             row.Children.Add(rowText);
             row.ToolTip = p;
-            _details.Children.Add(row);
+            more.Children.Add(row);
         }
-        var appRow = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
-        appRow.Children.Add(U.Btn(Theme.IAdd, "Aufnahme anhängen …", AppendSession, "Eine vorhandene Aufnahme hinten anhängen"));
-        appRow.Children.Add(U.Btn(Theme.IRecord, "Aufnahme fortsetzen", ContinueRecording, "Jetzt weiter aufnehmen – die neue Aufnahme wird automatisch angehängt"));
-        _details.Children.Add(appRow);
+        var appRow = new WrapPanel { Margin = new Thickness(-3, 0, 0, 12) };
+        appRow.Children.Add(U.Btn(EditorCommands.Get("append").Glyph, "Aufnahme anhängen …", () => Run("append"), "Eine vorhandene Aufnahme hinten anhängen"));
+        appRow.Children.Add(U.Btn(EditorCommands.Get("continueRec").Glyph, "Aufnahme fortsetzen", () => Run("continueRec"), "Jetzt weiter aufnehmen – die neue Aufnahme wird automatisch angehängt"));
+        foreach (var b in appRow.Children.OfType<Button>()) b.IsEnabled = !ro;
+        more.Children.Add(appRow);
     }
 
     /// <summary>Text in guide in der aktuellen Sprache setzen (Deutsch direkt, andere unter guide.i18n.&lt;lang&gt;).</summary>
@@ -253,7 +253,7 @@ sealed partial class ViewerWindow
         bool makeDefault = Msg.Show($"Vorlage „{name}“ gespeichert.\n\nSollen neue Aufnahmen diese Vorlage automatisch erhalten?", "Vorlage", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
         if (makeDefault) st.DefaultTemplate = name;
         st.Save();
-        if (_detailTab == 2) DocDetails();
+        if (_cover) DocDetails();
     }
 
     void ApplyTemplate(JsonObject t)
@@ -266,7 +266,7 @@ sealed partial class ViewerWindow
             g["doc"] = cur;
             if (t.Str("address") is { } a) g["address"] = a;
         }, refill: false);
-        if (_detailTab == 2) DocDetails();
+        if (_cover) DocDetails();
     }
 
     /// <summary>Neue Aufnahme ohne Dokument-Einstellungen: Standardvorlage still übernehmen.</summary>
@@ -298,7 +298,7 @@ sealed partial class ViewerWindow
             if (!arr.OfType<JsonObject>().Any(x => string.Equals(x.Str("path"), path, StringComparison.OrdinalIgnoreCase)))
                 arr.Add(new JsonObject { ["path"] = path, ["rel"] = rel, ["addedUtc"] = Json.UtcNow() });
         }, refill: false);
-        if (_detailTab == 2) DocDetails();
+        if (_cover) DocDetails();
     }
 
     void AppendSession()
@@ -354,95 +354,8 @@ sealed partial class ViewerWindow
     }
 
     // =====================================================================================
-    // Pro Schritt: Kapitel, Bild im Dokument, Hinweiskästen
+    // Pro Schritt: Kapitel und Hinweise (Oberfläche in ViewerCover.cs)
     // =====================================================================================
-
-    void StepDocSection(ViewStep s)
-    {
-        bool ro = _view.Session.ReadOnly;
-        long anchor = s.Anchor;
-
-        // Kapitel
-        _details.Children.Add(U.SectionLabel("Kapitel"));
-        var chap = new CheckBox { Content = "Hier beginnt ein neues Kapitel", IsChecked = s.ChapterTitle != null, IsEnabled = !ro, ToolTip = "Gliedert die Anleitung: Kapitelüberschrift mit Einleitung vor diesem Schritt, Eintrag im Inhaltsverzeichnis" };
-        chap.Checked += (_, _) => ToggleChapter(anchor, true);
-        chap.Unchecked += (_, _) => ToggleChapter(anchor, false);
-        _details.Children.Add(chap);
-        if (s.ChapterTitle != null)
-        {
-            var ct = CommitBox(s.ChapterTitle, v => { if (v.Length > 0) QuietChange(e => ChapterTarget(e, anchor)["title"] = v, refillLater: true); }, "Titel des Kapitels");
-            ct.FontWeight = FontWeights.SemiBold; ct.Margin = new Thickness(0, 8, 0, 0);
-            var cx = CommitBox(s.ChapterText ?? "", v => QuietChange(e => ChapterTarget(e, anchor)["text"] = v), "Kurze Einleitung zum Kapitel (optional)", true, 48);
-            cx.Margin = new Thickness(0, 6, 0, 0);
-            _details.Children.Add(ct); _details.Children.Add(cx);
-        }
-
-        // Bild im Dokument
-        _details.Children.Add(U.SectionLabel("Im Dokument"));
-        var row = new DockPanel();
-        var show = new CheckBox { Content = "Bild zeigen", IsChecked = s.ShowImage != false, IsEnabled = !ro, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0), ToolTip = "Für reine Textschritte ausschalten" };
-        show.Checked += (_, _) => Change(e => StepEdit(e, anchor).Remove("showImage"), refill: false);
-        show.Unchecked += (_, _) => Change(e => StepEdit(e, anchor)["showImage"] = false, refill: false);
-        DockPanel.SetDock(show, Dock.Left); row.Children.Add(show);
-        var size = new ComboBox { MinWidth = 150, IsEnabled = !ro && s.ShowImage != false, ToolTip = "Bildgröße nur für diesen Schritt" };
-        size.Items.Add("Größe wie im Dokument");
-        foreach (var (_, name) in DocSettings.Sizes) size.Items.Add("Bild " + name);
-        size.SelectedIndex = s.ImageSize == null ? 0 : 1 + Math.Max(0, Array.FindIndex(DocSettings.Sizes, x => x.id == s.ImageSize));
-        size.SelectionChanged += (_, _) =>
-        {
-            int i = size.SelectedIndex;
-            Change(e => { if (i <= 0) StepEdit(e, anchor).Remove("imageSize"); else StepEdit(e, anchor)["imageSize"] = DocSettings.Sizes[i - 1].id; }, refill: false);
-        };
-        row.Children.Add(size);
-        _details.Children.Add(row);
-        var imgActs = new WrapPanel { Margin = new Thickness(-3, 6, 0, 0) };
-        Button? repl = null;
-        repl = U.Btn(Theme.ICamera, s.Manual && s.PreFrame == null ? "Bild hinzufügen …" : "Bild ersetzen …", () => ReplaceImageMenu(s, repl), "Bildschirmfoto neu aufnehmen oder Bild aus Datei bzw. Zwischenablage nehmen");
-        repl.IsEnabled = !ro; imgActs.Children.Add(repl);
-        if (s.ImageReplaced) imgActs.Children.Add(U.Btn(Theme.IUndo, "Originalbild", () => Change(e => StepEdit(e, anchor).Remove("frameChoice"), refill: false), "Aufgenommenes Bild wiederherstellen"));
-        if (s.Manual) imgActs.Children.Add(U.Btn(Theme.IDelete, "Schritt löschen", () => DeleteManual(new List<ViewStep> { s }), "Eingefügten Schritt löschen"));
-        _details.Children.Add(imgActs);
-
-        // Hinweiskästen
-        _details.Children.Add(U.SectionLabel(s.Comments.Count > 0 ? $"Hinweiskästen ({s.Comments.Count})" : "Hinweiskästen"));
-        TextBox? focus = null;
-        foreach (var c in s.Comments)
-        {
-            string? cid = c.Str("id");
-            string kind = c.Str("kind") ?? "note";
-            var (_, bar, _) = GuideExport.NoteStyle(kind, "de");
-            var barBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + bar));
-            var kinds = new ComboBox { MinWidth = 130, IsEnabled = !ro, Margin = new Thickness(0, 0, 6, 0) };
-            foreach (var (_, name) in NoteKinds) kinds.Items.Add(name);
-            kinds.SelectedIndex = Math.Max(0, Array.FindIndex(NoteKinds, k => k.kind == kind));
-            kinds.SelectionChanged += (_, _) => { string k = NoteKinds[Math.Max(0, kinds.SelectedIndex)].kind; Change(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["kind"] = k; }, refill: false); };
-            var del = U.Ghost(Theme.IDelete, null, () => RemoveComment(cid), "Hinweiskasten löschen");
-            del.MinHeight = 32; del.Padding = new Thickness(8, 5, 8, 5); del.Margin = new Thickness(0);
-            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
-            DockPanel.SetDock(del, Dock.Right); head.Children.Add(del); head.Children.Add(kinds);
-            kinds.HorizontalAlignment = HorizontalAlignment.Left;
-            var text = CommitBox(c.Str("text") ?? "", v => QuietChange(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["text"] = v; }), "Text des Hinweises", true, 44);
-            if (cid != null && cid == _focusCommentId) focus = text;
-            // Karte mit farbigem Streifen links (Farbe der Hinweisart wie im Export)
-            var stripe = new Border { Width = 4, CornerRadius = new CornerRadius(2), Background = barBrush, Margin = new Thickness(0, 2, 12, 2) };
-            var inner = new DockPanel();
-            DockPanel.SetDock(stripe, Dock.Left); inner.Children.Add(stripe); inner.Children.Add(U.Col(head, text));
-            var box = U.Inset(inner, new Thickness(12, 10, 10, 12), new Thickness(0, 0, 0, 10));
-            _details.Children.Add(box);
-        }
-        if (!ro)
-        {
-            var add = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
-            foreach (var (k, name) in NoteKinds)
-            {
-                var b = U.Btn(Theme.IAdd, name, () => AddNoteBox(anchor, k), $"Hinweiskasten „{name}“ zu diesem Schritt hinzufügen", "Ghost");
-                b.Padding = new Thickness(8, 5, 8, 5); b.Margin = new Thickness(1, 0, 1, 2);
-                add.Children.Add(b);
-            }
-            _details.Children.Add(add);
-        }
-        if (focus != null) { _focusCommentId = null; var f = focus; Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { f.Focus(); f.BringIntoView(); }); }
-    }
 
     /// <summary>Kapitelobjekt zum Schreiben: Deutsch direkt, andere Sprachen unter chapter.&lt;lang&gt;.</summary>
     JsonObject ChapterTarget(JsonObject e, long anchor)

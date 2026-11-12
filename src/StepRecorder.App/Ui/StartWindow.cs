@@ -14,11 +14,11 @@ using StepRecorder.Settings;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Startfenster im Stil einer Windows-11-App (WPF-UI, Mica, eigene Titelleiste): Seitentitel „Neue Aufnahme“,
-/// links „Zweck“ und „Bereich“ (ein Klick startet), rechts eine Karte mit Reitern „Zuletzt“ und „Tastenkürzel“.
-/// Passt immer ins Fenster: Reicht der Platz nicht, wird der Inhalt gleichmäßig verkleinert statt gescrollt.
+/// Startfenster als kleine Windows-11-App (WPF-UI, Mica, eigene Titelleiste) mit linker Navigation:
+/// „Neue Aufnahme“ (Zweck und Bereich – ein Klick startet, rechts „Zuletzt“), „Aufnahmen“, „Einstellungen“, „Hilfe“.
+/// Die Seite „Neue Aufnahme“ passt immer ins Fenster: Reicht der Platz nicht, wird sie gleichmäßig verkleinert.
 /// </summary>
-sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
+sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 {
     readonly RadioButton[] _profiles;
     string _goalText = "", _expectedText = "", _referenceText = "", _titleText = "";
@@ -40,7 +40,7 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
     Button _recLink = null!, _goalLink = null!;
     Border _strip = null!;
     /// <summary>Mindestbreite des Inhalts; schmalere Fenster verkleinern ihn gleichmäßig.</summary>
-    const double MinContentWidth = 1060;
+    const double MinContentWidth = 1000;
 
     int ProfileIndex => Math.Max(0, Array.FindIndex(_profiles, r => r.IsChecked == true));
 
@@ -49,7 +49,7 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
         Title = AppInfo.DisplayName;
         Theme.Prepare(this);
         var wa = Theme.ActiveWorkArea();
-        Width = Math.Min(1160, wa.Width - 24); Height = Math.Min(780, wa.Height - 24);
+        Width = Math.Min(1180 + NavWidth, wa.Width - 24); Height = Math.Min(780, wa.Height - 24);
         MinWidth = Math.Min(640, wa.Width - 24); MinHeight = Math.Min(460, wa.Height - 24);
         WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.CanResize;
         AllowDrop = true;
@@ -58,9 +58,6 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         // ---------- Seitenkopf: Titel links, Befehle rechts (wie eine Seite der Windows-Einstellungen) ----------
         var header = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        var actions = U.Row(U.Ghost(Theme.IOpen, "Öffnen", OpenSession, "Aufnahme öffnen (Strg+O) – oder einen Aufnahmeordner hierher ziehen"), U.Ghost(Theme.ISettings, "Einstellungen", ShowSettings), U.Ghost(Theme.IHelp, "Hilfe", ShowHelp));
-        actions.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(actions, Dock.Right); header.Children.Add(actions);
         header.Children.Add(U.Heading("Neue Aufnahme", Theme.FsHero, new Thickness(0)));
 
         // ---------- Zweck ----------
@@ -102,39 +99,14 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
         var purposeLabel = U.SectionLabel("Zweck", new Thickness(0, 0, 0, 8));
         var main = U.Col(purposeLabel, modes, _strip, areaHead, areas);
 
-        // ---------- Seitenkarte: Zuletzt / Tastenkürzel ----------
-        var hk = s.Hotkeys;
-        string HK(string key, string def) => De(hk.GetValueOrDefault(key, def));
-        var keyGrid = new Grid();
-        keyGrid.ColumnDefinitions.Add(new ColumnDefinition()); keyGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        int kr = 0;
-        void K(string label, string combo)
-        {
-            keyGrid.RowDefinitions.Add(new RowDefinition());
-            var l = U.Text(label, Theme.FsBody, fg: Theme.Fg, margin: new Thickness(0, 5, 12, 5)); l.VerticalAlignment = VerticalAlignment.Center;
-            var k = U.Kbd(combo); Grid.SetRow(l, kr); Grid.SetRow(k, kr); Grid.SetColumn(k, 1);
-            keyGrid.Children.Add(l); keyGrid.Children.Add(k); kr++;
-        }
-        K("Sofort starten · Pause", HK("instantPause", "Ctrl+Shift+F9"));
-        K("Beenden", HK("stop", "Ctrl+Shift+F10"));
-        K("Fehlerstelle markieren", HK("markerError", "Ctrl+Shift+F1"));
-        K("Kommentar", HK("comment", "Ctrl+Shift+F12"));
-        K("Diktat (Mikrofon)", HK("dictation", "Ctrl+Shift+F5"));
-        K("Privattaste", HK("privacy", "Ctrl+Shift+F8"));
-        var keysTab = U.Col(keyGrid, U.Hint("Alle Befehle auch per Rechtsklick auf das Symbol unten rechts im Infobereich.", new Thickness(0, 12, 0, 0)));
-
-        var (tabTrack, tabs) = U.Segmented("stab", 0, (null, "Zuletzt"), (null, "Tastenkürzel"));
-        var openFolder = U.Btn(Theme.IFolder, null, () => { var d = AppPaths.DefaultSessionsFolder(); Directory.CreateDirectory(d); Process.Start("explorer.exe", $"\"{d}\""); }, "Aufnahmeordner im Explorer öffnen", "Ghost");
-        openFolder.Margin = new Thickness(0, 0, -6, 0);
-        var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 12) };
-        DockPanel.SetDock(openFolder, Dock.Right); sideHead.Children.Add(openFolder); sideHead.Children.Add(tabTrack);
-        var recentTab = U.Col(_stats, _recent);
-        var tabHost = new Grid();
-        tabHost.Children.Add(recentTab); tabHost.Children.Add(keysTab);
-        keysTab.Visibility = Visibility.Hidden;   // „Hidden“ statt „Collapsed“: beide Reiter gleich hoch, nichts springt
-        tabs[0].Checked += (_, _) => { recentTab.Visibility = Visibility.Visible; keysTab.Visibility = Visibility.Hidden; };
-        tabs[1].Checked += (_, _) => { recentTab.Visibility = Visibility.Hidden; keysTab.Visibility = Visibility.Visible; };
-        var side = U.Card(U.Col(sideHead, tabHost), new Thickness(16, 12, 16, 16));
+        // ---------- Seitenkarte: Zuletzt ----------
+        var allLink = U.Btn(Theme.INext, "Alle Aufnahmen", () => ShowPage("sessions"), "Alle Aufnahmen mit Suche anzeigen", "Link");
+        allLink.Margin = new Thickness(0, -4, -8, 0);
+        var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
+        DockPanel.SetDock(allLink, Dock.Right); sideHead.Children.Add(allLink);
+        var recentLabel = U.SectionLabel("Zuletzt", new Thickness(0)); recentLabel.VerticalAlignment = VerticalAlignment.Center;
+        sideHead.Children.Add(recentLabel);
+        var side = U.Card(U.Col(sideHead, _stats, _recent), new Thickness(16, 14, 16, 12));
         side.VerticalAlignment = VerticalAlignment.Top;
 
         var columns = new Grid();
@@ -144,14 +116,10 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
         columns.Children.Add(main);
         Grid.SetColumn(side, 2); columns.Children.Add(side);
 
-        // ---------- Fuß: Speicherort und Schutz links, Version rechts ----------
-        string folder = AppPaths.DefaultSessionsFolder();
+        // ---------- Fuß: Schutzhinweis, bei Bedarf neue Version ----------
         var foot = new DockPanel { Margin = new Thickness(0, 20, 0, 0) };
-        var ver = U.Text($"Version {AppInfo.Version} · offline · kostenlos", Theme.FsCaption, fg: Theme.Muted);
-        ver.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(ver, Dock.Right); foot.Children.Add(ver);
         var update = U.Btn(Theme.IGlobe, "Neue Version verfügbar", UpdateCheck.OpenReleases, "Release-Seite auf GitHub öffnen", "Link");
-        update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, 14, -4);
+        update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, -8, -4);
         DockPanel.SetDock(update, Dock.Right); foot.Children.Add(update);
         if (AppSettings.Load().CheckUpdates)
             Loaded += async (_, _) =>
@@ -159,37 +127,39 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
                 var r = await UpdateCheck.CheckAsync();
                 if (r.Newer) { update.Content = U.IconText(Theme.IGlobe, $"Version {r.Latest} verfügbar"); update.Visibility = Visibility.Visible; }
             };
-        var folderText = U.Text(folder, Theme.FsCaption, fg: Theme.Muted, margin: new Thickness(8, 0, 0, 0)); folderText.TextWrapping = TextWrapping.NoWrap; folderText.TextTrimming = TextTrimming.CharacterEllipsis; folderText.ToolTip = folder;
-        folderText.MaxWidth = 460; folderText.VerticalAlignment = VerticalAlignment.Center;
-        var footLeft = U.Row(U.Icon(Theme.IFolder, 14, Theme.Muted), folderText);
-        if (AppPaths.LooksSynced(folder)) { var sync = U.Chip("synchronisierter Ordner", Theme.WarnSoft, Theme.Warn, Theme.IWarn); sync.Margin = new Thickness(10, 0, 0, 0); footLeft.Children.Add(sync); }
-        var shield = U.Icon(Theme.IShield, 14, Theme.Muted); shield.Margin = new Thickness(20, 0, 8, 0);
-        footLeft.Children.Add(shield); footLeft.Children.Add(_protection);
+        var shield = U.Icon(Theme.IShield, 14, Theme.Muted); shield.Margin = new Thickness(0, 0, 8, 0);
+        var footLeft = U.Row(shield, _protection);
         foot.Children.Add(footLeft);
 
-        var root = new StackPanel { Margin = new Thickness(32, 12, 32, 20) };
+        var root = new StackPanel { Margin = new Thickness(28, 8, 32, 20) };
         root.Children.Add(header); root.Children.Add(columns); root.Children.Add(foot);
         // Immer ganz sichtbar, ohne Scrollen: Breite folgt dem Fenster; reicht die Höhe nicht, wird gleichmäßig verkleinert –
         // und der Inhalt so verbreitert, dass er nach dem Verkleinern wieder die ganze Fensterbreite füllt.
         var fit = new Viewbox { Child = root, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
         var host = new Grid(); host.Children.Add(fit);
         host.SizeChanged += (_, e) => FitWidth(root, e.NewSize);
-        // Fenster: Windows-Titelleiste (WPF-UI) über dem Inhalt
+        _newPage = host;
+        // Fenster: Windows-Titelleiste (WPF-UI), darunter Navigation links und die Seite rechts
         var titleBar = new Wpf.Ui.Controls.TitleBar { Title = AppInfo.DisplayName, Icon = new Wpf.Ui.Controls.ImageIcon { Source = Theme.LogoImage(32), Width = 16, Height = 16 } };
+        var body = new DockPanel();
+        var nav = BuildNav();
+        DockPanel.SetDock(nav, Dock.Left); body.Children.Add(nav); body.Children.Add(_pageHost);
         var frame = new DockPanel();
-        DockPanel.SetDock(titleBar, Dock.Top); frame.Children.Add(titleBar); frame.Children.Add(host);
+        DockPanel.SetDock(titleBar, Dock.Top); frame.Children.Add(titleBar); frame.Children.Add(body);
         Content = frame;
+        ShowPage("new");
 
         Anim.Appear(root, 0, 4, 220);
         UpdateProfile();
         FillRecent();
         // Fenster so hoch öffnen, wie der Inhalt braucht (höchstens der Arbeitsbereich)
-        root.Width = Math.Max(MinContentWidth, Width);
+        root.Width = Math.Max(MinContentWidth, Width - NavWidth);
         root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
         Height = Math.Min(wa.Height - 24, Math.Max(MinHeight, root.DesiredSize.Height + 48 + 2 * SystemParameters.ResizeFrameHorizontalBorderHeight + 8));
+        SizeChanged += (_, _) => AdaptNav();
         PreviewKeyDown += (_, e) =>
         {
-            if (e.Key == Key.Enter && !(Keyboard.FocusedElement is TextBox or Button or ComboBox)) { Begin(ScopeMode.Screen); e.Handled = true; }
+            if (e.Key == Key.Enter && _page == "new" && !(Keyboard.FocusedElement is TextBox or Button or ComboBox or RadioButton)) { Begin(ScopeMode.Screen); e.Handled = true; }
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control) { OpenSession(); e.Handled = true; }
         };
         Activated += (_, _) => { UpdateProfile(); FillRecent(); };
@@ -483,7 +453,7 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
                 return U.ToSource(small);
             }
             catch { return null; }
-        }).ContinueWith(t => { if (t.Result is { } src) { target.Source = src; Anim.Refresh(target, 0, 320); } }, TaskScheduler.FromCurrentSynchronizationContext());
+        }).ContinueWith(t => { ThumbCache[path] = t.Result; if (t.Result is { } src) { target.Source = src; Anim.Refresh(target, 0, 320); } }, TaskScheduler.FromCurrentSynchronizationContext());
     }
 
     RecordingOptions BuildOptions(ScopeMode scope)
@@ -537,19 +507,6 @@ sealed class StartWindow : Wpf.Ui.Controls.FluentWindow
             UiApp.Instance.OpenViewer(p);
         }
     }
-
-    void ShowSettings() => new SettingsWindow { Owner = this }.ShowDialog();
-
-    void ShowHelp() => Msg.Show(
-        $"So funktioniert {AppInfo.DisplayName}\n\n" +
-        "1. Modus wählen: Anleitung (schlank), Support-Fall (ausführlich), KI-Spur (vollständig) oder Eigene (selbst festgelegt). Der Modus bestimmt den Detailgrad – Eingabearten, Zusatzbilder bei Bildschirmänderungen, Programmkontext – und was nach dem Stopp passiert.\n\n" +
-        "2. Bereich wählen: ganzer Bildschirm, eine Anwendung oder ein Ausschnitt. Ein Klick startet die Aufnahme; vorführen und mit Strg+Umschalt+F10 beenden.\n\n" +
-        "Privattaste Strg+Umschalt+F8: Eingaben werden nur gezählt, nicht gespeichert.\n\n" +
-        "Editor: Texte direkt rechts ändern, Kapitel und Hinweiskästen am Schritt anlegen, im Reiter „Dokument“ Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe festlegen, Werkzeuge links am Bild (V Auswahl, A Pfeil, R Rahmen, E Ellipse, M Hervorheben, T Text, N Nummer, X Schwärzen), Markierungen anklicken und mit Entf löschen, Schritte per Ziehen umsortieren. Strg+C kopiert das Bild, Strg+E exportiert.\n\n" +
-        "KI-Zugriff: SebastiansStepRecorder.exe mcp --root <Aufnahmeordner> startet den MCP-Server (stdio).\n\n" +
-        "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.\n\n" +
-        "Kostenlos nutzbar, auch beruflich. Lizenz: CC BY-ND 4.0 (Namensnennung – keine Bearbeitungen). © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
-        "Hilfe", MessageBoxButton.OK, MessageBoxImage.Information);
 
     protected override void OnClosed(EventArgs e) { base.OnClosed(e); UiApp.Instance.MaybeShutdown(); }
 }
@@ -762,7 +719,11 @@ sealed class RegionPicker : Window
 }
 
 /// <summary>Einstellungen: Sprache, Anrede, Schutzstufe, Zusatzbilder, Aufnahmeordner, Ausschlussliste.</summary>
-sealed class SettingsWindow : Window
+/// <summary>
+/// Seite „Einstellungen“ im Startfenster: die vier Bereiche als Auswahlleiste (wie in den Windows-Einstellungen
+/// innerhalb einer Seite), unten „Speichern“ und „Verwerfen“.
+/// </summary>
+static class SettingsPage
 {
     static DockPanel Note(string text)
     {
@@ -772,12 +733,11 @@ sealed class SettingsWindow : Window
         return d;
     }
 
-    public SettingsWindow(int tab = 0)
+    public static readonly string[] Tabs = { "Allgemein", "Aufnahme", "Modus „Eigene“", "Speicher und Schutz" };
+
+    /// <summary>Baut die Seite; <paramref name="rebuild"/> baut sie mit dem genannten Bereich neu auf (für „Verwerfen“).</summary>
+    public static FrameworkElement Build(int tab, Action<int> rebuild)
     {
-        var wa = Theme.ActiveWorkArea();
-        Title = "Einstellungen"; Width = Math.Min(1080, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
-        Theme.Prepare(this, Theme.Surface);
         var s = AppSettings.Load();
         var lang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.Language == "en" ? 1 : 0 };
         var address = new ComboBox { Items = { "Sie (förmlich)", "du (persönlich)" }, SelectedIndex = s.Address == "informal" ? 1 : 0 };
@@ -839,21 +799,15 @@ sealed class SettingsWindow : Window
                             U.Field("Ausgeschlossene Programme", excl, "Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet."),
                             Note(AppPaths.Portable ? $"Portabler Modus – Einstellungen liegen neben der EXE ({AppPaths.DataDir})." : $"Einstellungen liegen in {AppPaths.DataDir}."));
         var pages = new UIElement[] { general, recording, custom, storage };
-        // Linke Navigationsspalte wie in den Windows-Einstellungen, rechts die Seite mit Überschrift
-        var navItems = new (string glyph, string text)[] { (Theme.ISettings, "Allgemein"), (Theme.IRecord, "Aufnahme"), (Theme.IChecklist, "Modus „Eigene“"), (Theme.IFolder, "Speicher und Schutz") };
-        var nav = new StackPanel { Width = 210, Margin = new Thickness(0, 0, 28, 0) };
-        var tabs = navItems.Select((n, i) => new RadioButton { GroupName = "settab", Style = Theme.Style("NavItem"), Content = U.IconText(n.glyph, n.text), IsChecked = i == 0 }).ToArray();
-        foreach (var t in tabs) nav.Children.Add(t);
-        var pageTitle = U.Heading(navItems[0].text, Theme.FsTitle, new Thickness(0, 2, 0, 16));
+        int current = Math.Clamp(tab, 0, pages.Length - 1);
+        var (track, tabs) = U.Segmented("settab", current, Tabs.Select(n => ((string?)null, n)).ToArray());
+        track.Margin = new Thickness(-4, 0, 0, 20);
         var host = new Grid();
-        foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Seiten gleich hoch
-        general.Visibility = Visibility.Visible;
-        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; pageTitle.Text = Loc.T(navItems[k].text); }; }
-        var body = new DockPanel();
-        DockPanel.SetDock(nav, Dock.Left); body.Children.Add(nav);
-        body.Children.Add(U.Col(pageTitle, host));
-        if (tab > 0 && tab < tabs.Length) tabs[tab].IsChecked = true;
-        U.Dialog(this, null, body, U.Primary("Speichern", () =>
+        foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Bereiche gleich hoch, nichts springt
+        pages[current].Visibility = Visibility.Visible;
+        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; current = k; }; }
+        var saved = U.Text("", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(14, 0, 0, 0)); saved.VerticalAlignment = VerticalAlignment.Center;
+        var save = U.Primary("Speichern", () =>
         {
             var removed = s.Excluded.Except(excl.Text.Split('\n').Select(x => x.Trim())).ToList();
             if (removed.Count > 0 && Msg.Show("Schutz abschwächen?\n\nFolgende Ausschlüsse werden entfernt und deren Eingaben künftig aufgezeichnet:\n" + string.Join(", ", removed), "Einstellungen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
@@ -874,8 +828,17 @@ sealed class SettingsWindow : Window
             s.Glossary = glossary.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Contains('=') && x.Length > 2).ToList();
             s.AutoCleanup = cleanup.IsChecked == true; s.CheckUpdates = updates.IsChecked == true;
             s.Excluded = excl.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            s.Save(); Close();
-        }), U.Btn("Abbrechen", Close));
-        U.FitDialog(this);
+            s.Save();
+            saved.Text = Loc.T("Gespeichert");
+        });
+        var discard = U.Btn("Verwerfen", () => rebuild(current), "Nicht gespeicherte Änderungen zurücknehmen");
+        var foot = U.Row(save, discard, saved);
+        foot.Margin = new Thickness(-3, 8, 0, 0);
+        var page = new StackPanel { Width = 860, HorizontalAlignment = HorizontalAlignment.Left };
+        page.Children.Add(U.Heading("Einstellungen", Theme.FsHero, new Thickness(0, 0, 0, 16)));
+        page.Children.Add(track);
+        page.Children.Add(host);
+        page.Children.Add(foot);
+        return page;
     }
 }
