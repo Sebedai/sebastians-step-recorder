@@ -112,8 +112,12 @@ sealed class StartWindow : Window
         Place(Tile(Theme.IApp, "Eine Anwendung", "danach Fenster anklicken", "Nur die Fenster eines Programms aufnehmen – alles andere bleibt außen vor", () => Begin(ScopeMode.App)), 2);
         Place(Tile(Theme.ICrop, "Bereich", "danach Rechteck aufziehen", "Einen festen Ausschnitt des Bildschirms aufnehmen", () => Begin(ScopeMode.Region)), 4);
 
+        _lastRegionLink = U.Btn(Theme.ICrop, "", () => BeginLastRegion(), Loc.L("Den zuletzt gewählten Bereich anpassen und aufnehmen – gestartet wird erst mit Eingabe", "Adjust and record the last selected area – recording starts only with Enter"), "Link");
+        _lastRegionLink.HorizontalAlignment = HorizontalAlignment.Right; _lastRegionLink.Margin = new Thickness(0, 4, -4, 0);
+        UpdateLastRegionLink();
+
         var stepOne = StepLabel("1", "Wofür ist die Aufnahme?"); stepOne.Margin = new Thickness(0, 0, 0, 10);
-        var main = Panel("Neue Aufnahme", Theme.IRecord, U.Col(stepOne, modes, _strip, areaHead, tiles), null);
+        var main = Panel("Neue Aufnahme", Theme.IRecord, U.Col(stepOne, modes, _strip, areaHead, tiles, _lastRegionLink), null);
 
         // ---------- Seitenkasten mit Reitern ----------
         string HK(string id) => RecordingController.Key(id);
@@ -191,7 +195,7 @@ sealed class StartWindow : Window
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control) { OpenSession(); e.Handled = true; }
             if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control) { UiApp.Instance.ShowLibrary(); e.Handled = true; }
         };
-        Activated += (_, _) => { UpdateProfile(); FillRecent(); };
+        Activated += (_, _) => { UpdateProfile(); FillRecent(); UpdateLastRegionLink(); };
     }
 
     // =====================================================================================
@@ -527,7 +531,28 @@ sealed class StartWindow : Window
         return o;
     }
 
-    void Begin(ScopeMode scope)
+    Button _lastRegionLink = null!;
+
+    /// <summary>„Letzter Bereich · B × H“ – nur, wenn der gemerkte Bereich auf den heutigen Monitoren noch passt.</summary>
+    void UpdateLastRegionLink()
+    {
+        var (r, fit) = RegionMemory.Resolve(AppState.Load().LastRegion, ScreenGrabber.GetMonitors());
+        _lastRegionLink.Visibility = r == null ? Visibility.Collapsed : Visibility.Visible;
+        if (r is { } rr && _lastRegionLink.Content is StackPanel sp && sp.Children.Count > 0)
+        {
+            string text = Loc.F("Letzter Bereich · {0} × {1}", "Last area · {0} × {1}", rr.Width, rr.Height) + (fit == RegionFit.Clamped ? Loc.L(" (angepasst)", " (adjusted)") : "");
+            if (sp.Children.Count > 1 && sp.Children[1] is TextBlock tb) tb.Text = text;
+            else sp.Children.Add(new TextBlock { Text = text, Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center });
+        }
+    }
+
+    void BeginLastRegion()
+    {
+        var (r, _) = RegionMemory.Resolve(AppState.Load().LastRegion, ScreenGrabber.GetMonitors());
+        Begin(ScopeMode.Region, r);
+    }
+
+    void Begin(ScopeMode scope, System.Drawing.Rectangle? preset = null)
     {
         var o = BuildOptions(scope);
         if (scope == ScopeMode.App)
@@ -540,7 +565,7 @@ sealed class StartWindow : Window
         else if (scope == ScopeMode.Region)
         {
             Hide();
-            var r = RegionPicker.Pick();
+            var r = RegionPicker.Pick(preset);
             if (r == null) { Show(); return; }
             o.Region = r;
         }
@@ -730,61 +755,149 @@ sealed class WindowPicker : Window
     [DllImport("user32.dll")] static extern bool SetWindowPos(nint h, nint after, int x, int y, int w, int hh, uint flags);
 }
 
-/// <summary>Bereichsauswahl: Rechteck aufziehen (mindestens 64×64, auf einem Monitor).</summary>
+/// <summary>
+/// Bereichsauswahl: Rechteck aufziehen (mindestens 64×64, auf einem Monitor). Mit Vorgabe (letzter Bereich) im
+/// Anpassmodus: Rahmen verschieben, an acht Griffen ziehen, Pfeiltasten (Umschalt: 10 px) – erst Eingabe startet.
+/// </summary>
 sealed class RegionPicker : Window
 {
     readonly Rectangle _sel = new() { StrokeThickness = 2, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)), Visibility = Visibility.Hidden };
+    readonly List<Rectangle> _grips = new();
     readonly TextBlock _sizeText = new();
     readonly Border _size;
     readonly System.Drawing.Rectangle _virt;
-    Win32.POINT _start; bool _drag; double _scale = 1;
-    System.Drawing.Rectangle? _result;
+    readonly bool _adjust;
+    double _scale = 1;
+    System.Drawing.Rectangle? _rect, _result;
+    Win32.POINT _start;
+    int _mode = -1;                       // -1 nichts, 0–7 Griff, 8 neu aufziehen, 9 verschieben
+    System.Drawing.Rectangle _orig;
 
-    RegionPicker()
+    RegionPicker(System.Drawing.Rectangle? preset)
     {
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = new SolidColorBrush(Color.FromArgb(110, 0, 0, 0)); Topmost = true; ShowInTaskbar = false; Cursor = Cursors.Cross;
         FontFamily = Theme.UiFont;
         _sel.Stroke = Theme.Accent;
+        _adjust = preset != null; _rect = preset;
         _size = OverlayUi.Label(_sizeText); _size.Visibility = Visibility.Hidden;
         _virt = ScreenGrabber.VirtualScreen(ScreenGrabber.GetMonitors());
         var c = new Canvas { Children = { _sel, _size } };
-        Content = new Grid { Children = { c, OverlayUi.Pill(Theme.ICrop, "Rechteck aufziehen, das aufgenommen werden soll") } };
+        for (int i = 0; i < 8; i++) { var g = new Rectangle { Width = 10, Height = 10, Fill = Brushes.White, Stroke = Theme.Accent, StrokeThickness = 1.5, Visibility = Visibility.Hidden, IsHitTestVisible = false }; _grips.Add(g); c.Children.Add(g); }
+        string hint = _adjust
+            ? Loc.L("Letzten Bereich anpassen: verschieben, an den Griffen ziehen, Pfeiltasten – Eingabe startet, Esc bricht ab", "Adjust the last area: move, drag the handles, arrow keys – Enter starts, Esc cancels")
+            : Loc.L("Rechteck aufziehen, das aufgenommen werden soll", "Drag a rectangle to record");
+        Content = new Grid { Children = { c, OverlayUi.Pill(Theme.ICrop, hint) } };
         SourceInitialized += (_, _) =>
         {
             SetWindowPos(new WindowInteropHelper(this).Handle, -1, _virt.X, _virt.Y, _virt.Width, _virt.Height, 0x0040);
             _scale = PresentationSource.FromVisual(this)?.CompositionTarget.TransformToDevice.M11 ?? 1;
         };
-        MouseLeftButtonDown += (_, _) => { Win32.GetCursorPos(out _start); _drag = true; CaptureMouse(); };
+        Loaded += (_, _) => { if (_rect != null) Draw(); };
+        MouseLeftButtonDown += (_, _) =>
+        {
+            Win32.GetCursorPos(out _start);
+            _mode = Hit(_start);
+            if (_mode < 0) _mode = 8;
+            _orig = _rect ?? default;
+            CaptureMouse();
+        };
         MouseMove += (_, _) =>
         {
-            if (!_drag) return;
-            var r = Current();
-            _sel.Visibility = Visibility.Visible; _size.Visibility = Visibility.Visible;
-            Canvas.SetLeft(_sel, (r.X - _virt.X) / _scale); Canvas.SetTop(_sel, (r.Y - _virt.Y) / _scale); _sel.Width = r.Width / _scale; _sel.Height = r.Height / _scale;
-            _sizeText.Text = $"{r.Width} × {r.Height} px"; Canvas.SetLeft(_size, (r.X - _virt.X) / _scale); Canvas.SetTop(_size, Math.Max(0, (r.Y - _virt.Y) / _scale - 36));
+            Win32.GetCursorPos(out var p);
+            if (_mode < 0) { Cursor = Hit(p) switch { 9 => Cursors.SizeAll, 0 or 4 => Cursors.SizeNWSE, 2 or 6 => Cursors.SizeNESW, 1 or 5 => Cursors.SizeNS, 3 or 7 => Cursors.SizeWE, _ => Cursors.Cross }; return; }
+            int dx = p.X - _start.X, dy = p.Y - _start.Y;
+            var o = _orig;
+            _rect = _mode switch
+            {
+                8 => System.Drawing.Rectangle.FromLTRB(Math.Min(p.X, _start.X), Math.Min(p.Y, _start.Y), Math.Max(p.X, _start.X), Math.Max(p.Y, _start.Y)),
+                9 => new System.Drawing.Rectangle(o.X + dx, o.Y + dy, o.Width, o.Height),
+                _ => Resize(o, _mode, dx, dy)
+            };
+            Draw();
         };
         MouseLeftButtonUp += (_, _) =>
         {
-            if (!_drag) return;
-            _drag = false; ReleaseMouseCapture();
-            var r = Current();
-            if (r.Width < 64 || r.Height < 64) { _sel.Visibility = Visibility.Hidden; _sizeText.Text = "mindestens 64 × 64 px"; return; }
-            var mon = ScreenGrabber.GetMonitors().OrderByDescending(m => { var i = System.Drawing.Rectangle.Intersect(m.Bounds, r); return (long)i.Width * i.Height; }).First();
-            _result = System.Drawing.Rectangle.Intersect(r, mon.Bounds);
-            DialogResult = true;
+            if (_mode < 0) return;
+            bool wasNew = _mode == 8;
+            _mode = -1; ReleaseMouseCapture();
+            if (!_adjust && wasNew) Confirm();      // ohne Vorgabe wie bisher: Loslassen startet
         };
-        KeyDown += (_, e) => { if (e.Key == Key.Escape) DialogResult = false; };
+        KeyDown += (_, e) =>
+        {
+            int step = Keyboard.Modifiers.HasFlag(ModifierKeys.Shift) ? 10 : 1;
+            switch (e.Key)
+            {
+                case Key.Escape: DialogResult = false; break;
+                case Key.Enter: Confirm(); break;
+                case Key.Left when _rect is { } r: _rect = r with { X = r.X - step }; Draw(); break;
+                case Key.Right when _rect is { } r: _rect = r with { X = r.X + step }; Draw(); break;
+                case Key.Up when _rect is { } r: _rect = r with { Y = r.Y - step }; Draw(); break;
+                case Key.Down when _rect is { } r: _rect = r with { Y = r.Y + step }; Draw(); break;
+                default: return;
+            }
+            e.Handled = true;
+        };
     }
 
-    System.Drawing.Rectangle Current()
+    static System.Drawing.Rectangle Resize(System.Drawing.Rectangle o, int grip, int dx, int dy)
     {
-        Win32.GetCursorPos(out var p);
-        return System.Drawing.Rectangle.FromLTRB(Math.Min(p.X, _start.X), Math.Min(p.Y, _start.Y), Math.Max(p.X, _start.X), Math.Max(p.Y, _start.Y));
+        int l = o.Left, t = o.Top, r = o.Right, b = o.Bottom;
+        if (grip is 0 or 6 or 7) l += dx;
+        if (grip is 2 or 3 or 4) r += dx;
+        if (grip is 0 or 1 or 2) t += dy;
+        if (grip is 4 or 5 or 6) b += dy;
+        return System.Drawing.Rectangle.FromLTRB(Math.Min(l, r), Math.Min(t, b), Math.Max(l, r), Math.Max(t, b));
     }
 
-    public static System.Drawing.Rectangle? Pick()
+    static System.Drawing.Point[] GripPoints(System.Drawing.Rectangle r) => new System.Drawing.Point[]
     {
-        var w = new RegionPicker();
+        new(r.Left, r.Top), new(r.Left + r.Width / 2, r.Top), new(r.Right, r.Top), new(r.Right, r.Top + r.Height / 2),
+        new(r.Right, r.Bottom), new(r.Left + r.Width / 2, r.Bottom), new(r.Left, r.Bottom), new(r.Left, r.Top + r.Height / 2)
+    };
+
+    /// <summary>Griff 0–7, 9 im Rahmen, -1 außerhalb.</summary>
+    int Hit(Win32.POINT p)
+    {
+        if (_rect is not { } r) return -1;
+        int tol = (int)Math.Ceiling(8 * _scale);
+        var g = GripPoints(r);
+        for (int i = 0; i < g.Length; i++) if (Math.Abs(p.X - g[i].X) <= tol && Math.Abs(p.Y - g[i].Y) <= tol) return i;
+        return r.Contains(p.X, p.Y) ? 9 : -1;
+    }
+
+    void Draw()
+    {
+        if (_rect is not { } r) return;
+        _sel.Visibility = Visibility.Visible; _size.Visibility = Visibility.Visible;
+        Canvas.SetLeft(_sel, (r.X - _virt.X) / _scale); Canvas.SetTop(_sel, (r.Y - _virt.Y) / _scale); _sel.Width = r.Width / _scale; _sel.Height = r.Height / _scale;
+        bool small = r.Width < RegionMemory.MinSize || r.Height < RegionMemory.MinSize;
+        _sizeText.Text = small ? Loc.F("{0} × {1} px – mindestens 64 × 64", "{0} × {1} px – at least 64 × 64", r.Width, r.Height) : $"{r.Width} × {r.Height} px";
+        Canvas.SetLeft(_size, (r.X - _virt.X) / _scale); Canvas.SetTop(_size, Math.Max(0, (r.Y - _virt.Y) / _scale - 36));
+        var g = GripPoints(r);
+        for (int i = 0; i < 8; i++)
+        {
+            _grips[i].Visibility = _adjust ? Visibility.Visible : Visibility.Hidden;
+            Canvas.SetLeft(_grips[i], (g[i].X - _virt.X) / _scale - 5); Canvas.SetTop(_grips[i], (g[i].Y - _virt.Y) / _scale - 5);
+        }
+    }
+
+    void Confirm()
+    {
+        if (_rect is not { } r || r.Width < RegionMemory.MinSize || r.Height < RegionMemory.MinSize) { if (_rect != null) Draw(); return; }
+        var mons = ScreenGrabber.GetMonitors();
+        var mon = RegionMemory.MonitorOf(r, mons) ?? mons.First();
+        var cut = System.Drawing.Rectangle.Intersect(r, mon.Bounds);
+        if (cut.Width < RegionMemory.MinSize || cut.Height < RegionMemory.MinSize) return;
+        _result = cut;
+        // für „Letzter Bereich“ merken (relativ zum Monitor)
+        try { AppState.Update(s => s.LastRegion = RegionMemory.Save(cut, mon)); } catch { }
+        DialogResult = true;
+    }
+
+    /// <param name="preset">Vorgabe (z. B. letzter Bereich): öffnet im Anpassmodus, gestartet wird erst mit Eingabe.</param>
+    public static System.Drawing.Rectangle? Pick(System.Drawing.Rectangle? preset = null)
+    {
+        var w = new RegionPicker(preset);
         return w.ShowDialog() == true ? w._result : null;
     }
 

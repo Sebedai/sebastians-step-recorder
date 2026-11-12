@@ -30,6 +30,8 @@ public sealed class RecordingOptions
     public string? GoalDescription { get; set; }
     public string? GoalExpected { get; set; }
     public string? GoalReference { get; set; }
+    /// <summary>Nur Oberfläche: der Bereich passt nicht mehr genau und muss vor dem Start bestätigt werden.</summary>
+    public bool RegionNeedsConfirm { get; set; }
     public string ProfileName { get; set; } = "Anleitung";
     public string ProfileId { get; set; } = "guide";
     public string AfterStop { get; set; } = "viewer";

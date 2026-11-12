@@ -72,7 +72,15 @@ sealed class UiApp : Application
         {
             if (args.Contains("--stop")) { Recording?.Stop(); return; }
             if (Recording != null) { Recording.ShowRunningNotice(); return; }
-            StartRecording(ParseRecordArgs(args));
+            var ro = ParseRecordArgs(args);
+            if (ro.Scope == ScopeMode.Region && (ro.Region == null || ro.RegionNeedsConfirm))
+            {
+                // nie stillschweigend den ganzen Bildschirm: Bereich wählen (bzw. angepassten letzten Bereich bestätigen)
+                var picked = RegionPicker.Pick(ro.Region);
+                if (picked == null) { if (_start == null) MaybeShutdown(); return; }
+                ro.Region = picked;
+            }
+            StartRecording(ro);
             return;
         }
         if (args[0] == "support") { ShowStart(); _start?.ShowSupport(); return; }
@@ -156,7 +164,12 @@ sealed class UiApp : Application
         o.AppProcess = Opt("--app");
         if (Opt("--region") is { } r)
         {
-            if (r == "last") { if (AppState.Load().LastRegion is { } lr) o.Region = new System.Drawing.Rectangle(lr.X, lr.Y, lr.W, lr.H); }
+            if (r == "last")
+            {
+                var (lr, fit) = RegionMemory.Resolve(AppState.Load().LastRegion, StepRecorder.Native.ScreenGrabber.GetMonitors());
+                // passt er unverändert: direkt nehmen; sonst öffnet StartRecording die Auswahl mit dieser Vorgabe
+                if (lr != null) { o.Region = lr; o.RegionNeedsConfirm = fit is RegionFit.Clamped; }
+            }
             else if (r.Split(',').Select(x => int.TryParse(x.Trim(), out var n) ? n : -1).ToArray() is { Length: 4 } v && v[2] > 0 && v[3] > 0) o.Region = new System.Drawing.Rectangle(v[0], v[1], v[2], v[3]);
         }
         o.Title = Opt("--title") ?? "";
