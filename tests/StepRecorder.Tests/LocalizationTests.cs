@@ -12,7 +12,10 @@ namespace StepRecorder.Tests;
 [Collection("Loc")]
 public partial class LocalizationTests
 {
-    static string TestsDir([CallerFilePath] string p = "") => Path.GetDirectoryName(p)!;
+    /// <summary>Ordner der Tests – aus den Assembly-Metadaten (im CI-Build ist <see cref="CallerFilePathAttribute"/> auf „/_/“ umgeschrieben).</summary>
+    static string TestsDir([CallerFilePath] string p = "") =>
+        typeof(LocalizationTests).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false).OfType<System.Reflection.AssemblyMetadataAttribute>()
+            .FirstOrDefault(a => a.Key == "TestsDir")?.Value is { Length: > 0 } dir && Directory.Exists(dir) ? dir : Path.GetDirectoryName(p)!;
     static string RepoRoot => Path.GetFullPath(Path.Combine(TestsDir(), "..", ".."));
 
     public sealed record Literal(string Text, bool Wrapped, int Line, string? Call);
