@@ -256,13 +256,8 @@ sealed partial class ViewerWindow
     {
         var dlg = new Microsoft.Win32.OpenFileDialog { Title = Loc.L("Zweite Aufnahme wählen (manifest.json)", "Choose second recording (manifest.json)"), Filter = Loc.L("Sitzung", "Recording") + "|manifest.json", InitialDirectory = Path.GetDirectoryName(_view.Session.Path) };
         if (dlg.ShowDialog(this) != true) return;
-        using var other = SessionView.Open(Path.GetDirectoryName(dlg.FileName)!, headless: true);
-        using var me = SessionView.Open(_path, headless: true);
-        var r = StepCompare.Compare(me, other);
-        var w = new Window { Title = Loc.L("Vergleich", "Comparison"),Width = 960, Height = 720, Owner = this };
-        Theme.Prepare(w, Theme.Surface);
-        w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = Theme.FsHint, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(28, 24, 28, 24), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
-        w.Show();
+        // Paarliste, Bilder nebeneinander, Bildunterschiede (08 §5.9, Paket 19)
+        new CompareWindow(_path, Path.GetDirectoryName(dlg.FileName)!) { Owner = this }.Show();
     }
 
     /// <summary>Zuletzt gewähltes Ziel des Formats „UI-Test“ (sonst FlaUI).</summary>

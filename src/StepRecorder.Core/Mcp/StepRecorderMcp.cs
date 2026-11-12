@@ -69,8 +69,8 @@ public sealed partial class StepRecorderMcp
             Schema(("sessionId", Str(), true), ("step", Int(1, 100000), false), ("fromSeq", Int(1, int.MaxValue), false), ("toSeq", Int(1, int.MaxValue), false), ("fromT", Str(), false), ("toT", Str(), false), ("types", StrArr(), false), ("includeMouseMoves", Bool(), false), ("limit", Int(1, 1000), false), ("cursor", Str(), false), ("maxTokens", Int(1000, 24000), false)), GetEvents));
         server.Register(new McpTool("search", "Case-insensitive text search in step texts, elements, windows, typed text, comments, goal and markers – in one session or all sessions. Redacted or hidden content is never matched.",
             Schema(("query", Str(), true), ("scope", Enum("session", "all"), false), ("sessionId", Str(), false), ("fields", StrArr(), false), ("match", Enum("all", "any"), false), ("limit", Int(1, 100), false), ("cursor", Str(), false)), Search));
-        server.Register(new McpTool("compare_sessions", "Compare the core steps of two sessions: same, changed, onlyA, onlyB with differences (target, text, effect, duration).",
-            Schema(("session_a", Str(), true), ("session_b", Str(), true), ("detail", Enum("outline", "standard", "full"), false), ("status", StrArr(), false), ("includeMinor", Bool(), false), ("limit", Int(1, 200), false), ("cursor", Str(), false)), CompareSessions));
+        server.Register(new McpTool("compare_sessions", "Compare the core steps of two sessions: same, changed, onlyA, onlyB with differences (target, text, effect, duration, response). images=true also compares the step images (difference 'image' with changedPct and changed regions; redacted content stays 'unchecked').",
+            Schema(("session_a", Str(), true), ("session_b", Str(), true), ("detail", Enum("outline", "standard", "full"), false), ("status", StrArr(), false), ("includeMinor", Bool(), false), ("images", Bool(), false), ("limit", Int(1, 200), false), ("cursor", Str(), false)), CompareSessions));
         server.Register(new McpTool("get_automation", "Everything needed to write a robust AutoHotkey v2 script for a session: per step the window (ahk_class/ahk_exe), selectors ranked by stability (ClassNN, control id/text, UI Automation, label, relative, window coordinates), inputs (text, keys, mouse button, hold times, drag path), wait signals (busy cursor, window appeared, ready time), expected state afterwards (title, changed texts, check states), menu paths, list choices, data sources, OCR text near the click; plus parameters, repetitions, environment, rules for writing the script and an automatically generated draft script. target=flaui|pywinauto|playwright returns rules and a draft UI test (FlaUI C#/xUnit, pywinauto, Playwright for browser steps) plus a testability list instead. Passwords are never included.",
             Schema(("sessionId", Str(), true), ("target", Enum("ahk", "flaui", "pywinauto", "playwright"), false), ("includeDraft", Bool(), false), ("includeRules", Bool(), false), ("ocr", Bool(), false), ("from", Int(1, 100000), false), ("to", Int(1, 100000), false)), GetAutomation));
         if (_o.AllowRequests)
@@ -568,7 +568,7 @@ public sealed partial class StepRecorderMcp
         if (ia == ib) throw new McpToolException("INVALID_ARGUMENT", "session_a and session_b must differ.");
         var va = View(ia); var vb = View(ib);
         JsonObject r;
-        try { r = StepCompare.Compare(va, vb, a.Bool("includeMinor")); }
+        try { r = StepCompare.Compare(va, vb, a.Bool("includeMinor"), images: a.Bool("images")); }
         catch (InvalidOperationException) { throw new McpToolException("COMPARISON_TOO_LARGE", "More than 5000 core steps."); }
         var statuses = a.Arr("status") != null ? a.StrList("status") : new List<string> { "changed", "onlyA", "onlyB" };
         var pairs = (r.Arr("pairs") ?? new JsonArray()).Select(p => p!.AsObject()).Where(p => statuses.Contains(p.Str("status") ?? "") || p.Str("group") == "gap").ToList();

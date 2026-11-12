@@ -40,7 +40,8 @@ Aufruf:
   SebastiansStepRecorder.exe check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
   SebastiansStepRecorder.exe validate <Aufnahme> [--json] [--thorough]
   SebastiansStepRecorder.exe testability <Aufnahme> [--json] [--strict] [--lang de|en]   Bedienelemente ohne AutomationId (--strict: Exit 9)
-  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
+  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>] [--images [--threshold 1-255]]
+      --images: Bilder vergleichen; mit md und --out zusätzlich Vorher/Nachher-Bilder im Ordner <name>-bilder
   SebastiansStepRecorder.exe steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
       Statt <Aufnahme> überall auch: latest (neueste Aufnahme im Aufnahmeordner)
@@ -83,7 +84,8 @@ Usage:
   SebastiansStepRecorder.exe check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
   SebastiansStepRecorder.exe validate <recording> [--json] [--thorough]
   SebastiansStepRecorder.exe testability <recording> [--json] [--strict] [--lang de|en]   controls without AutomationId (--strict: exit 9)
-  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>]
+  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>] [--images [--threshold 1-255]]
+      --images: compare images; with md and --out also before/after images in the folder <name>-bilder
   SebastiansStepRecorder.exe steps <recording> [--json] [--all]   step list with response times
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
       Instead of <recording> you can always write: latest (newest recording in the recordings folder)
@@ -285,14 +287,22 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int CompareCmd(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out" }, Array.Empty<string>());
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--threshold" }, new[] { "--images" });
         if (c.Error != null) return Usage(c.Error);
         if (c.Positional.Count != 2) return Usage(Loc.L("Zwei Aufnahmen angeben.", "Specify two recordings."));
-        using var va = SessionView.Open(S(c.Positional[0]), headless: true);
-        using var vb = SessionView.Open(S(c.Positional[1]), headless: true);
-        var r = StepCompare.Compare(va, vb);
         string fmt = c["--format"] ?? "md";
         if (fmt is not ("md" or "json")) return Usage("--format: md | json");
+        var io = new ImageDiffOptions();
+        if (c["--threshold"] is { } th) { if (!int.TryParse(th, out int tv) || tv < 1 || tv > 255) return Usage("--threshold: 1-255"); io.PixelThreshold = tv; }
+        bool images = c.Has("--images");
+        using var va = SessionView.Open(S(c.Positional[0]), headless: true);
+        using var vb = SessionView.Open(S(c.Positional[1]), headless: true);
+        var r = StepCompare.Compare(va, vb, images: images, imageOptions: io);
+        if (images && fmt == "md" && c["--out"] is { } mdOut)
+        {
+            foreach (var f in StepCompare.WriteMarkdownWithImages(r, va, vb, mdOut, va.Language)) Console.WriteLine(f);
+            return 0;
+        }
         string text = fmt == "json" ? Json.Pretty(r) : StepCompare.Markdown(r, va.Language);
         if (c["--out"] is { } o) { File.WriteAllText(o, text); Console.WriteLine(o); } else Console.WriteLine(text);
         return 0;
