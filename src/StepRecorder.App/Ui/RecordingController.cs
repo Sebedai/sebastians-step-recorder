@@ -163,7 +163,7 @@ sealed class RecordingController
             if (DateTime.Now < _remindUntil && DateTime.Now.Millisecond < 500) state = "remind";
             if (state != _trayState) { _trayState = state; _tray.SetIcon(TrayIcon.Render(state)); }
             string what = _rec.State == RecorderState.Paused ? Loc.L("pausiert", "paused") : _rec.PrivacyMode ? Loc.L("läuft (privat)", "running (private)") : Loc.L("läuft", "running");
-            _tray.SetTip($"{StepRecorder.Data.AppInfo.DisplayName}\n{Loc.L("Aufnahme", "Recording")} {what} · {elapsed:mm\\:ss} · {Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")}\n{Loc.L("Klick: Leiste · Rechtsklick: Menü", "Click: bar · Right-click: menu")}");
+            _tray.SetTip(StepRecorder.Data.AppInfo.DisplayName + "\n" + Loc.F("Aufnahme {0} · {1} · {2}", "Recording {0} · {1} · {2}", what, elapsed.ToString("mm\\:ss"), Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")) + "\n" + Loc.L("Klick: Leiste · Rechtsklick: Menü", "Click: bar · Right-click: menu"));
         }
     }
 
@@ -207,7 +207,7 @@ sealed class RecordingController
             mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
             m.Items.Add(mi);
         }
-        m.Items.Add(new MenuItem { Header = $"{Loc.L("Aufnahme", "Recording")} {(paused ? Loc.L("pausiert", "paused") : Loc.L("läuft", "running"))} · {elapsed:mm\\:ss} · {Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")}", IsEnabled = false });
+        m.Items.Add(new MenuItem { Header = Loc.F("Aufnahme {0} · {1} · {2}", "Recording {0} · {1} · {2}", paused ? Loc.L("pausiert", "paused") : Loc.L("läuft", "running"), elapsed.ToString("mm\\:ss"), Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")), IsEnabled = false });
         m.Items.Add(new Separator());
         Add(paused ? Loc.L("Fortsetzen", "Resume") : Loc.L("Pause", "Pause"), "instantPause", TogglePause);
         Add(Loc.L("Beenden und speichern", "Stop and save"), "stop", Stop);

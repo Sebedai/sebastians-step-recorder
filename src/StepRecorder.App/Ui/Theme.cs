@@ -20,7 +20,7 @@ static class Theme
         Danger = null!, DangerSoft = null!, Warn = null!, WarnSoft = null!, Success = null!, SuccessSoft = null!, CanvasBg = null!, ScrollThumb = null!;
     public static Color AccentColor;
     public static readonly FontFamily Icons = new("Segoe Fluent Icons, Segoe MDL2 Assets");
-    public static readonly FontFamily UiFont = new("Segoe UI Variable Text, Segoe UI");
+    public static readonly FontFamily UiFont = new FontFamily("Segoe UI Variable Text, Segoe UI");
     /// <summary>Überschriften: engere Display-Variante (Windows 11), sonst Segoe UI.</summary>
     public static readonly FontFamily Display = new("Segoe UI Variable Display, Segoe UI");
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas");

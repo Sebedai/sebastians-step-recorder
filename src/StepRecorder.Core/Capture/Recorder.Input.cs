@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Capture.Host;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 using static StepRecorder.Native.Win32;
 
 namespace StepRecorder.Capture;
@@ -213,7 +214,7 @@ public sealed partial class Recorder
             if (t - _lastWheelT >= 200_000) { _frames.PreInput(t, seq, m); QueryElement("wheel", seq, r.X, r.Y, m, x, y, win); }
             _lastWheelT = t;
             _frames.AwaitSettle(t, seq, m);
-            ActionLine?.Invoke("Scrollen");
+            ActionLine?.Invoke(Loc.L("Scrollen", "Scrolling"));
             return;
         }
 
@@ -234,7 +235,7 @@ public sealed partial class Recorder
             _frames.PreInput(t, seq, m);
             QueryElement("buttonDown", seq, r.X, r.Y, m, x, y, win, dwellSeq);
             ActionCount++;
-            ActionLine?.Invoke(logical == "secondary" ? "Rechtsklick" : "Klick");
+            ActionLine?.Invoke(logical == "secondary" ? Loc.L("Rechtsklick", "Right-click") : Loc.L("Klick", "Click"));
         }
         else
         {
@@ -580,7 +581,7 @@ public sealed partial class Recorder
             _keys.Down(vk);
             _valuePollDue = false;
             RememberRun(pk.T, 0);
-            ActionLine?.Invoke("Eingabe (maskiert)");
+            ActionLine?.Invoke(Loc.L("Eingabe (maskiert)", "Input (masked)"));
             return;
         }
         // Modifier-Ereignisse innerhalb eines maskierten Laufs zählen mit
@@ -619,9 +620,9 @@ public sealed partial class Recorder
         }
         _frames.AwaitSettle(pk.T, seq, CurrentMonitor());
         if (printable || KeyNames.IsEditKey(key)) { _valuePollDue = ctx == "textField"; RememberRun(pk.T, seq); }
-        if (combo) ActionLine?.Invoke("Tastenkombination " + string.Join("+", mods.Select(Cap).Append(key)));
-        else if (printable) ActionLine?.Invoke("Texteingabe");
-        else if (!isMod) ActionLine?.Invoke("Taste " + key);
+        if (combo) ActionLine?.Invoke(Loc.F("Tastenkombination {0}", "Key combination {0}", Loc.Keys(string.Join("+", mods.Select(Cap).Append(key)))));
+        else if (printable) ActionLine?.Invoke(Loc.L("Texteingabe", "Typing"));
+        else if (!isMod) ActionLine?.Invoke(Loc.F("Taste {0}", "Key {0}", Loc.Keys(key)));
         if (combo || terminatorKey) ActionCount++;
     }
 

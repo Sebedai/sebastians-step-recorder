@@ -8,6 +8,7 @@ using StepRecorder.Compare;
 using StepRecorder.Data;
 using StepRecorder.Export;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -32,14 +33,14 @@ sealed partial class ViewerWindow
             try { Clipboard.SetDataObject(d, true); _status.Text = confirm; return; }
             catch { System.Threading.Thread.Sleep(100); }
         }
-        Msg.Show("Die Zwischenablage ist gerade gesperrt.");
+        Msg.Show(Loc.L("Die Zwischenablage ist gerade gesperrt.", "The clipboard is currently locked."));
     }
 
     bool ConfirmUnreviewed()
     {
         if (_view.UnreviewedCount == 0 || _askedUnreviewed) return true;
         _askedUnreviewed = true;
-        return Msg.Show($"{_view.UnreviewedCount} auffällige Eingaben sind noch nicht durchgesehen. Trotzdem Text kopieren?", "Durchsicht", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        return Msg.Show(Loc.N(_view.UnreviewedCount, "1 auffällige Eingabe ist noch nicht durchgesehen. Trotzdem Text kopieren?", "{0} auffällige Eingaben sind noch nicht durchgesehen. Trotzdem Text kopieren?", "1 conspicuous input has not been reviewed yet. Copy the text anyway?", "{0} conspicuous inputs have not been reviewed yet. Copy the text anyway?"), Loc.L("Durchsicht", "Review"),MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
     }
     bool _askedUnreviewed;
 
@@ -49,7 +50,7 @@ sealed partial class ViewerWindow
         var d = new DataObject();
         d.SetImage(_current);
         if (CurrentPng() is { } png) d.SetData("PNG", new MemoryStream(png));
-        SetClipboard(d, $"Bild kopiert · {_current.PixelWidth} × {_current.PixelHeight}");
+        SetClipboard(d, Loc.F("Bild kopiert · {0} × {1}", "Image copied · {0} × {1}", _current.PixelWidth, _current.PixelHeight));
     }
 
     void CopyOriginal()
@@ -59,16 +60,16 @@ sealed partial class ViewerWindow
         if (bmp == null) return;
         var src = U.ToSource(bmp);
         var d = new DataObject(); d.SetImage(src);
-        SetClipboard(d, $"Originalbild kopiert · {src.PixelWidth} × {src.PixelHeight}");
+        SetClipboard(d, Loc.F("Originalbild kopiert · {0} × {1}", "Original image copied · {0} × {1}", src.PixelWidth, src.PixelHeight));
     }
 
-    string StepText(ViewStep s) => $"{s.Number}. {s.AuthorTitle ?? s.Title}\n{s.AuthorBody ?? s.Guide}" + string.Concat(s.Comments.Select(c => "\nHinweis: " + c.Str("text")));
+    string StepText(ViewStep s) => $"{s.Number}. {s.AuthorTitle ?? s.Title}\n{s.AuthorBody ?? s.Guide}" + string.Concat(s.Comments.Select(c => (_view.Language == "en" ? "\nNote: " : "\nHinweis: ") + c.Str("text")));
 
     void CopyText()
     {
         var s = Sel; if (s == null || !ConfirmUnreviewed()) return;
         var d = new DataObject(); d.SetText(StepText(s));
-        SetClipboard(d, "Text kopiert");
+        SetClipboard(d, Loc.L("Text kopiert", "Text copied"));
     }
 
     void CopyImageWithText()
@@ -76,21 +77,23 @@ sealed partial class ViewerWindow
         var s = Sel; if (s == null || !ConfirmUnreviewed()) return;
         var png = CurrentPng();
         var html = new StringBuilder($"<p><b>{Fmt.HtmlEscape(s.Number + ". " + (s.AuthorTitle ?? s.Title))}</b><br>{Fmt.HtmlEscape(s.AuthorBody ?? s.Guide)}</p>");
-        foreach (var c in s.Comments) html.Append($"<p><i>Hinweis:</i> {Fmt.HtmlEscape(c.Str("text"))}</p>");
+        string noteLabel = Loc.For(_view.Language, "Hinweis:", "Note:");
+        foreach (var c in s.Comments) html.Append($"<p><i>{noteLabel}</i> {Fmt.HtmlEscape(c.Str("text"))}</p>");
         if (png != null) html.Append($"<p><img width=\"{Math.Min(_current!.PixelWidth, 605)}\" src=\"data:image/png;base64,{Convert.ToBase64String(png)}\"></p>");
         var d = new DataObject();
         d.SetData(DataFormats.Html, HtmlClipboard(html.ToString()));
         d.SetText(StepText(s));
         if (_current != null) d.SetImage(_current);
-        SetClipboard(d, "Bild mit Text kopiert");
+        SetClipboard(d, Loc.L("Bild mit Text kopiert", "Image with text copied"));
     }
 
     void CopyMarkdown()
     {
         var s = Sel; if (s == null || !ConfirmUnreviewed()) return;
         var d = new DataObject();
-        d.SetText($"### {s.Number}. {s.AuthorTitle ?? s.Title}\n\n{s.AuthorBody ?? s.Guide}\n\n![Schritt {s.Number}](Schritt-{s.Number:00}.png)\n");
-        SetClipboard(d, "Als Markdown kopiert");
+        string stepWord = Loc.For(_view.Language, "Schritt", "Step");
+        d.SetText($"### {s.Number}. {s.AuthorTitle ?? s.Title}\n\n{s.AuthorBody ?? s.Guide}\n\n![{stepWord} {s.Number}]({stepWord}-{s.Number:00}.png)\n");
+        SetClipboard(d, Loc.L("Als Markdown kopiert", "Copied as Markdown"));
     }
 
     void CopyWholeGuide()
@@ -108,7 +111,7 @@ sealed partial class ViewerWindow
             var d = new DataObject();
             d.SetData(DataFormats.Html, HtmlClipboard(body));
             d.SetText(string.Join("\n\n", _view.Effective(guide: true, importance: "primary").Select(StepText)));
-            SetClipboard(d, "Ganze Anleitung kopiert");
+            SetClipboard(d, Loc.L("Ganze Anleitung kopiert", "Whole guide copied"));
         }
         finally { view.Dispose(); try { File.Delete(tmp); } catch { } }
     }
@@ -127,7 +130,8 @@ sealed partial class ViewerWindow
     {
         var s = Sel; if (s == null) return;
         var png = CurrentPng(); if (png == null) return;
-        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = $"Schritt-{s.Number:00}-{Fmt.FileSafe(s.AuthorTitle ?? s.Title, 30)}.png", Filter = "PNG|*.png" };
+        string stepWord = Loc.For(_view.Language, "Schritt", "Step");
+        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = $"{stepWord}-{s.Number:00}-{Fmt.FileSafe(s.AuthorTitle ?? s.Title, 30)}.png", Filter = "PNG|*.png" };
         if (dlg.ShowDialog(this) == true) File.WriteAllBytes(dlg.FileName, png);
     }
 
@@ -137,14 +141,14 @@ sealed partial class ViewerWindow
 
     public void StartSupportFlow()
     {
-        Msg.Show("Support-Paket in drei Schritten:\n1. Aufnahme ansehen\n2. Eingaben durchsehen\n3. Paket erstellen\n\nDas Programm versendet nichts.", "Support-Paket", MessageBoxButton.OK, MessageBoxImage.Information);
+        Msg.Show(Loc.L("Support-Paket in drei Schritten:\n1. Aufnahme ansehen\n2. Eingaben durchsehen\n3. Paket erstellen\n\nDas Programm versendet nichts.", "Support package in three steps:\n1. View the recording\n2. Review the inputs\n3. Create the package\n\nThe program does not send anything."), Loc.L("Support-Paket", "Support package"),MessageBoxButton.OK, MessageBoxImage.Information);
         ShowReview(forceAll: true);
         if (_view.UnreviewedCount > 0) return;
         var view = SessionView.Open(_path);
         try
         {
             var r = GuideExport.SupportPackage(view);
-            if (Msg.Show("Support-Paket erstellt:\n" + r.Path + "\n\nGeben Sie das ZIP selbst an den Helpdesk weiter. Im Explorer zeigen?", "Support-Paket", MessageBoxButton.YesNo) == MessageBoxResult.Yes)
+            if (Msg.Show(Loc.F("Support-Paket erstellt:\n{0}\n\nGeben Sie das ZIP selbst an den Helpdesk weiter. Im Explorer zeigen?", "Support package created:\n{0}\n\nPass the ZIP on to the help desk yourself. Show in Explorer?", r.Path), Loc.L("Support-Paket", "Support package"),MessageBoxButton.YesNo) == MessageBoxResult.Yes)
                 Process.Start("explorer.exe", $"/select,\"{r.Path}\"");
         }
         finally { view.Dispose(); }
@@ -180,35 +184,35 @@ sealed partial class ViewerWindow
         var bk = c.Obj("bookkeeping")!; var ev = c.Obj("evidence")!; var fr = c.Obj("frames")!;
         var m = _view.Session.Manifest;
         var sb = new StringBuilder();
-        sb.AppendLine($"Titel: {_view.Title}");
-        sb.AppendLine($"Aufgenommen: {_view.Session.StartUtc.ToLocalTime():dd.MM.yyyy HH:mm} · Dauer {Fmt.Time(_view.Session.DurationUs, "de")}");
-        sb.AppendLine($"Zustand: {_view.Session.State} · Profil: {m.Obj("profile").Str("name")} · Schutzstufe: {m.Obj("settings").Obj("privacy").Str("level")}");
-        if (_view.Goal() is { } g) sb.AppendLine($"Ziel: {g.Str("description")} · Erwartet: {g.Str("expected")} · Bezug: {g.Str("reference")}");
+        sb.AppendLine(Loc.F("Titel: {0}", "Title: {0}", _view.Title));
+        sb.AppendLine(Loc.F("Aufgenommen: {0} · Dauer {1}", "Recorded: {0} · Duration {1}", Loc.DateAndTime(_view.Session.StartUtc.ToLocalTime()), Fmt.Time(_view.Session.DurationUs, Loc.Lang)));
+        sb.AppendLine(Loc.F("Zustand: {0} · Profil: {1} · Schutzstufe: {2}", "State: {0} · Profile: {1} · Protection level: {2}", _view.Session.State, m.Obj("profile").Str("name"), m.Obj("settings").Obj("privacy").Str("level")));
+        if (_view.Goal() is { } g) sb.AppendLine(Loc.F("Ziel: {0} · Erwartet: {1} · Bezug: {2}", "Goal: {0} · Expected: {1} · Reference: {2}", g.Str("description"), g.Str("expected"), g.Str("reference")));
         sb.AppendLine();
-        sb.AppendLine("Vollständigkeitsbericht");
-        sb.AppendLine($"  Buchführung: {bk.Long("inputEvents")} Eingabeereignisse, {bk.Long("assigned")} zugeordnet, {bk.Long("orphans")} ohne Schritt");
-        sb.AppendLine($"  Belegqualität: {ev.Long("actionSteps")} Aktionsschritte · {ev.Long("confirmed")} belegt · {ev.Long("inputOnly")} nur Eingabe · {ev.Long("unknown")} unbekannt");
-        sb.AppendLine($"  Lücken: {c.Obj("gaps").Long("count")} ({Fmt.Dur(c.Obj("gaps").Long("totalUs"), "de")})");
-        sb.AppendLine($"  Bilder: {fr.Long("requested")} angefordert · {fr.Long("stored")} gespeichert · {fr.Long("same")} unverändert · Vorher-Bild garantiert {fr.Long("preGuaranteed")}/{fr.Long("preGuaranteed") + fr.Long("preNotGuaranteed")}");
+        sb.AppendLine(Loc.L("Vollständigkeitsbericht", "Completeness report"));
+        sb.AppendLine(Loc.F("  Buchführung: {0} Eingabeereignisse, {1} zugeordnet, {2} ohne Schritt", "  Bookkeeping: {0} input events, {1} assigned, {2} without a step", bk.Long("inputEvents"), bk.Long("assigned"), bk.Long("orphans")));
+        sb.AppendLine(Loc.F("  Belegqualität: {0} Aktionsschritte · {1} belegt · {2} nur Eingabe · {3} unbekannt", "  Evidence quality: {0} action steps · {1} confirmed · {2} input only · {3} unknown", ev.Long("actionSteps"), ev.Long("confirmed"), ev.Long("inputOnly"), ev.Long("unknown")));
+        sb.AppendLine(Loc.F("  Lücken: {0} ({1})", "  Gaps: {0} ({1})", c.Obj("gaps").Long("count"), Fmt.Dur(c.Obj("gaps").Long("totalUs"), Loc.Lang)));
+        sb.AppendLine(Loc.F("  Bilder: {0} angefordert · {1} gespeichert · {2} unverändert · Vorher-Bild garantiert {3}/{4}", "  Images: {0} requested · {1} stored · {2} unchanged · Before image guaranteed {3}/{4}", fr.Long("requested"), fr.Long("stored"), fr.Long("same"), fr.Long("preGuaranteed"), fr.Long("preGuaranteed") + fr.Long("preNotGuaranteed")));
         foreach (var gp in _view.Steps.Arr("gaps") ?? new JsonArray())
-            sb.AppendLine($"  – {Fmt.Time(gp.Long("tFrom"), "de")}: {Steps.TextTemplates.CauseText(gp.Str("cause") ?? "", "de")}");
+            sb.AppendLine($"  – {Fmt.Time(gp.Long("tFrom"), Loc.Lang)}: {Steps.TextTemplates.CauseText(gp.Str("cause") ?? "", Loc.Lang)}");
         sb.AppendLine();
         long bytes = 0; try { bytes = new DirectoryInfo(_view.Session.Path).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length); } catch { }
-        sb.AppendLine($"Speicher: {bytes / 1024.0 / 1024.0:0.0} MB · {_view.Session.Path}");
-        var r = Msg.Show(sb + "\n\nOrdner im Explorer öffnen?", "Sitzungsübersicht", MessageBoxButton.YesNo, MessageBoxImage.Information);
+        sb.AppendLine(Loc.F("Speicher: {0:0.0} MB · {1}", "Storage: {0:0.0} MB · {1}", bytes / 1024.0 / 1024.0, _view.Session.Path));
+        var r = Msg.Show(sb + Loc.L("\n\nOrdner im Explorer öffnen?", "\n\nOpen folder in Explorer?"), Loc.L("Sitzungsübersicht", "Recording overview"),MessageBoxButton.YesNo, MessageBoxImage.Information);
         if (r == MessageBoxResult.Yes) Process.Start("explorer.exe", $"\"{_view.Session.Path}\"");
     }
 
     void Compare()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Title = "Zweite Aufnahme wählen (manifest.json)", Filter = "Sitzung|manifest.json", InitialDirectory = Path.GetDirectoryName(_view.Session.Path) };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Title = Loc.L("Zweite Aufnahme wählen (manifest.json)", "Choose second recording (manifest.json)"), Filter = Loc.L("Sitzung", "Recording") + "|manifest.json", InitialDirectory = Path.GetDirectoryName(_view.Session.Path) };
         if (dlg.ShowDialog(this) != true) return;
         using var other = SessionView.Open(Path.GetDirectoryName(dlg.FileName)!, headless: true);
         using var me = SessionView.Open(_path, headless: true);
         var r = StepCompare.Compare(me, other);
-        var w = new Window { Title = "Vergleich", Width = 960, Height = 720, Owner = this };
+        var w = new Window { Title = Loc.L("Vergleich", "Comparison"),Width = 960, Height = 720, Owner = this };
         Theme.Prepare(w, Theme.Surface);
-        w.Content = new TextBox { Text = StepCompare.Markdown(r, "de"), FontFamily = Theme.Mono, FontSize = 12.5, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(20, 16, 20, 16), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+        w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = 12.5, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(20, 16, 20, 16), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
         w.Show();
     }
 }
@@ -219,7 +223,7 @@ sealed class InputDialog : Window
     readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 260, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     readonly TextBox? _title;
     readonly RadioButton[]? _kinds;
-    readonly TextBlock _titleLabel = U.Text("Titel", 12.5, true, Theme.Fg2, new Thickness(0, 0, 0, 5));
+    readonly TextBlock _titleLabel = U.Text(Loc.L("Titel", "Title"), 12.5, true, Theme.Fg2, new Thickness(0, 0, 0, 5));
     public string Value => _value.Text;
     public string TitleValue => _title?.Text ?? "";
     public string Kind => _kinds == null ? "note" : Array.FindIndex(_kinds, k => k.IsChecked == true) switch { 1 => "tip", 2 => "warning", 3 => "internal", _ => "note" };
@@ -232,19 +236,19 @@ sealed class InputDialog : Window
         var p = new StackPanel();
         if (kinds)
         {
-            var (track, items) = U.Segmented("kind", 0, (Theme.IComment, "Hinweis"), (Theme.ICheck, "Tipp"), (Theme.IWarn, "Achtung"), (Theme.ILock, "Intern"));
+            var (track, items) = U.Segmented("kind", 0, (Theme.IComment, Loc.L("Hinweis", "Note")), (Theme.ICheck, Loc.L("Tipp", "Tip")), (Theme.IWarn, Loc.L("Achtung", "Warning")), (Theme.ILock, Loc.L("Intern", "Internal")));
             _kinds = items;
-            items[3].ToolTip = "Erscheint in keiner Ausgabe";
+            items[3].ToolTip = Loc.L("Erscheint in keiner Ausgabe", "Does not appear in any output");
             track.Margin = new Thickness(0, 0, 0, 14);
             p.Children.Add(track);
         }
         if (title != null) { _title = new TextBox { Text = title }; p.Children.Add(new StackPanel { Margin = new Thickness(0, 0, 0, 14), Children = { _titleLabel, _title } }); }
         _value.Text = value;
-        p.Children.Add(title != null ? U.Field("Text", _value, margin: new Thickness(0)) : _value);
-        var hint = U.Row(U.Kbd("Strg+Eingabe"), U.Text("übernimmt", 12, fg: Theme.Muted, margin: new Thickness(4, 1, 0, 0)));
+        p.Children.Add(title != null ? U.Field(Loc.L("Text", "Text"), _value, margin: new Thickness(0)) : _value);
+        var hint = U.Row(U.Kbd(Loc.Keys("Ctrl+Enter")), U.Text(Loc.L("übernimmt", "applies"), 12, fg: Theme.Muted, margin: new Thickness(4, 1, 0, 0)));
         hint.Margin = new Thickness(0, 10, 0, 0);
         p.Children.Add(hint);
-        U.Dialog(this, prompt, p, U.Primary("Übernehmen", () => DialogResult = true), U.Btn("Abbrechen", () => DialogResult = false));
+        U.Dialog(this, prompt, p, U.Primary(Loc.L("Übernehmen", "Apply"), () => DialogResult = true), U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == System.Windows.Input.Key.Enter && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control) { DialogResult = true; e.Handled = true; }
@@ -261,17 +265,17 @@ sealed class ReviewWindow : Window
 
     public ReviewWindow(SessionView view)
     {
-        Title = "Durchsicht der Eingaben"; Width = 760; Height = 620; MinHeight = 400; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
+        Title = Loc.L("Durchsicht der Eingaben", "Input review"); Width = 760; Height = 620; MinHeight = 400; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Bg);
         var flagged = view.All.Where(s => s.Unreviewed).ToList();
         var others = view.All.Where(s => s.Kind == "type" && !s.Unreviewed && !s.Json.Obj("input")!.Bool("masked")).ToList();
         var list = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
-        list.Children.Add(U.Text("Durchsicht der Eingaben", 18, true, margin: new Thickness(0, 0, 0, 4)));
-        list.Children.Add(U.Text(flagged.Count == 0 ? "Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen." : $"{flagged.Count} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", 13, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 16)));
+        list.Children.Add(U.Text(Loc.L("Durchsicht der Eingaben", "Input review"), 18, true, margin: new Thickness(0, 0, 0, 4)));
+        list.Children.Add(U.Text(flagged.Count == 0 ? Loc.L("Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen.", "No conspicuous inputs. Please briefly check the remaining inputs.") : Loc.N(flagged.Count, "1 auffällige Eingabe – bitte entscheiden, ob sie bleiben darf.", "{0} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", "1 conspicuous input – please decide whether it may stay.", "{0} conspicuous inputs – please decide for each whether it may stay."), 13, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 16)));
         var choices = new List<(ViewStep, RadioButton[])>();
         foreach (var s in flagged)
         {
-            var (track, items) = U.Segmented("rv" + s.Anchor, -1, (Theme.ICheck, "In Ordnung"), (Theme.IRedact, "Schwärzen"));
+            var (track, items) = U.Segmented("rv" + s.Anchor, -1, (Theme.ICheck, Loc.L("In Ordnung", "OK")), (Theme.IRedact, Loc.L("Schwärzen", "Redact")));
             track.VerticalAlignment = VerticalAlignment.Center;
             choices.Add((s, items));
             var dock = new DockPanel();
@@ -279,40 +283,40 @@ sealed class ReviewWindow : Window
             var badge = U.IconBadge(Theme.IWarn, 34, Theme.WarnSoft, Theme.Warn, 14); badge.Margin = new Thickness(0, 0, 14, 0); badge.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(badge, Dock.Left); dock.Children.Add(badge);
             dock.Children.Add(U.Col(
-                U.Text($"Schritt {s.Number} · {s.Json.Obj("ctx")?.Str("title")}", 12, fg: Theme.Muted),
+                U.Text(Loc.F("Schritt {0} · {1}", "Step {0} · {1}", s.Number, s.Json.Obj("ctx")?.Str("title")), 12, fg: Theme.Muted),
                 new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 12, 3) },
-                U.Text("Grund: " + Patterns.KindName(s.FlagReason ?? "", "de"), 12, fg: Theme.Warn)));
+                U.Text(Loc.L("Grund: ", "Reason: ") + Patterns.KindName(s.FlagReason ?? "", Loc.Lang), 12, fg: Theme.Warn)));
             list.Children.Add(U.Card(dock, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 10)));
         }
         // Viele Terminal-Befehle: übrige Klartext-Eingaben gesammelt freigeben (Musterfunde brauchen weiter eine Einzelentscheidung)
         var plain = choices.Where(c => c.Item1.FlagReason == "plaintextWindow").ToList();
         if (plain.Count > 1)
         {
-            var all = U.Btn($"Übrige Klartext-Eingaben ({plain.Count}): in Ordnung", () => { foreach (var (_, items) in plain) if (items.All(r => r.IsChecked != true)) items[0].IsChecked = true; });
+            var all = U.Btn(Loc.F("Übrige Klartext-Eingaben ({0}): in Ordnung", "Remaining plain-text inputs ({0}): OK", plain.Count), () => { foreach (var (_, items) in plain) if (items.All(r => r.IsChecked != true)) items[0].IsChecked = true; });
             all.HorizontalAlignment = HorizontalAlignment.Left; all.Margin = new Thickness(0, 0, 0, 12);
-            all.ToolTip = "Setzt alle noch offenen Eingaben aus Terminal-, Remote-Desktop- und VM-Fenstern auf „In Ordnung“. Auffällige Muster (Schlüssel, IBAN …) bleiben einzeln zu entscheiden.";
+            all.ToolTip = Loc.L("Setzt alle noch offenen Eingaben aus Terminal-, Remote-Desktop- und VM-Fenstern auf „In Ordnung“. Auffällige Muster (Schlüssel, IBAN …) bleiben einzeln zu entscheiden.", "Sets all still-open inputs from terminal, remote desktop and VM windows to “OK”. Conspicuous patterns (keys, IBAN …) still have to be decided individually.");
             list.Children.Insert(2, all);
         }
         if (others.Count > 0)
         {
-            list.Children.Add(U.Overline($"Unauffällige Eingaben ({others.Count})", new Thickness(0, 14, 0, 8)));
+            list.Children.Add(U.Overline(Loc.F("Unauffällige Eingaben ({0})", "Inconspicuous inputs ({0})", others.Count), new Thickness(0, 14, 0, 8)));
             var box = new StackPanel();
             foreach (var s in others.Take(50))
             {
                 var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
-                var n = U.Text($"Schritt {s.Number}", 12, fg: Theme.Muted); n.Width = 76; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
+                var n = U.Text(Loc.F("Schritt {0}", "Step {0}", s.Number), 12, fg: Theme.Muted); n.Width = 76; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
                 row.Children.Add(new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 12.5, TextWrapping = TextWrapping.Wrap });
                 box.Children.Add(row);
             }
             list.Children.Add(U.Card(box, new Thickness(16, 10, 16, 10)));
         }
-        var ok = U.Primary("Fertig", () =>
+        var ok = U.Primary(Loc.L("Fertig", "Done"), () =>
         {
-            if (choices.Any(c => c.Item2.All(r => r.IsChecked != true))) { Msg.Show("Noch nicht alles entschieden\n\nBitte für jede auffällige Eingabe „In Ordnung“ oder „Schwärzen“ wählen.", "Durchsicht", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+            if (choices.Any(c => c.Item2.All(r => r.IsChecked != true))) { Msg.Show(Loc.L("Noch nicht alles entschieden\n\nBitte für jede auffällige Eingabe „In Ordnung“ oder „Schwärzen“ wählen.", "Not everything decided yet\n\nPlease choose “OK” or “Redact” for every conspicuous input."), Loc.L("Durchsicht", "Review"),MessageBoxButton.OK, MessageBoxImage.Information); return; }
             foreach (var (s, items) in choices) Decisions.Add((s, items[0].IsChecked == true ? "kept" : "redacted"));
             DialogResult = true;
         });
-        var cancel = U.Btn("Abbrechen", () => DialogResult = false);
+        var cancel = U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false);
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } };
         ok.Margin = new Thickness(8, 0, 0, 0); cancel.Margin = new Thickness(8, 0, 0, 0); cancel.MinWidth = 96;
         var foot = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(20, 12, 20, 12), Child = footer };

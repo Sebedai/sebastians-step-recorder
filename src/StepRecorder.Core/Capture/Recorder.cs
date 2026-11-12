@@ -5,6 +5,7 @@ using System.Windows.Automation;
 using StepRecorder.Capture.Host;
 using StepRecorder.Data;
 using StepRecorder.Native;
+using StepRecorder.Settings;
 using static StepRecorder.Native.Win32;
 
 namespace StepRecorder.Capture;
@@ -69,7 +70,7 @@ public sealed partial class Recorder : IDisposable
     /// <summary>Startet die Aufnahme. Gibt den Sitzungsordner zurück.</summary>
     public string Start(string? hostExe = null)
     {
-        if (State != RecorderState.Ready) throw new InvalidOperationException("Aufnahme läuft bereits");
+        if (State != RecorderState.Ready) throw new InvalidOperationException(Loc.L("Aufnahme läuft bereits", "A recording is already running"));
         SetState(RecorderState.PreRun);
         GapIds.Reset();
         _topo = Topology.Read(0);
@@ -114,7 +115,7 @@ public sealed partial class Recorder : IDisposable
 
         // Hooks setzen → Bestätigung = t0
         if (!_host.Command(InputRing.TargetRun, 1500))
-            throw new InvalidOperationException("Capture-Host hat die Hooks nicht bestätigt.");
+            throw new InvalidOperationException(Loc.L("Capture-Host hat die Hooks nicht bestätigt.", "The capture host did not confirm the input hooks."));
         _qpc0 = Stopwatch.GetTimestamp();
         _reminder = new ReminderClock(Options.IdleReminderMinutes, Options.PrivacyReminderSeconds, 0);
         var part0 = (JsonObject)manifest["parts"]![0]!;
@@ -416,7 +417,7 @@ public sealed partial class Recorder : IDisposable
             var frameIds = _frames.Immediate("manual", seq, inputMonitor: CurrentMonitor());
             if (frameIds.Count > 0) m["frame"] = frameIds[0];
             Emit(m);
-            ActionLine?.Invoke(kind == "snapshot" ? "Schnappschuss" : "Marker gesetzt");
+            ActionLine?.Invoke(kind == "snapshot" ? Loc.L("Schnappschuss", "Snapshot") : Loc.L("Marker gesetzt", "Marker set"));
         }
     }
 
@@ -447,7 +448,7 @@ public sealed partial class Recorder : IDisposable
         {
             long t = Now();
             Emit(new JsonObject { ["t"] = t, ["type"] = "marker", ["id"] = "mk" + ++_markerN, ["kind"] = "discardPrevious" });
-            ActionLine?.Invoke("Letzter Schritt verworfen");
+            ActionLine?.Invoke(Loc.L("Letzter Schritt verworfen", "Last step discarded"));
         }
     }
 
@@ -469,7 +470,7 @@ public sealed partial class Recorder : IDisposable
                 ["seqRanges"] = new JsonArray(new JsonArray(_lastRunFromSeq, _lastRunToSeq)), ["images"] = true, ["createdUtc"] = Json.UtcNow(), ["by"] = "user"
             });
             _lastRunFromSeq = 0;
-            ActionLine?.Invoke("Letzte Eingabe geschwärzt");
+            ActionLine?.Invoke(Loc.L("Letzte Eingabe geschwärzt", "Last input redacted"));
         }
     }
     readonly List<JsonObject> _pendingRedactions = new();

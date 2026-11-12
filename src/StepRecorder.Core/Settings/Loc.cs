@@ -54,6 +54,12 @@ public static class Loc
 
     public static string L(string de, string en) => Lang switch { "de" => de, "qps" => "⟦" + en + "⟧", _ => en };
 
+    /// <summary>
+    /// Inhalt statt Oberfläche: Text in der Sprache der Anleitungstexte (<paramref name="lang"/> = „de“/„en“),
+    /// z. B. Vorgaben, die in die Aufnahme oder einen Export geschrieben werden – unabhängig von der Oberflächensprache.
+    /// </summary>
+    public static string For(string? lang, string de, string en) => lang == "de" ? de : en;
+
     /// <summary>Mit nummerierten Platzhaltern ({0}, {1} …) – die Wortstellung darf je Sprache abweichen.</summary>
     public static string F(string de, string en, params object?[] args) => string.Format(Culture, L(de, en), args);
 

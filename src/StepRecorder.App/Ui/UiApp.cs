@@ -193,15 +193,15 @@ sealed class UiApp : Application
     {
         switch (profile.ToLowerInvariant())
         {
-            case "support" or "support-fall": o.ProfileId = "support"; o.ProfileName = "Support-Fall"; o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "supportPackage"; break;
-            case "aitrace" or "ki-spur": o.ProfileId = "aiTrace"; o.ProfileName = "KI-Spur"; o.Scope = ScopeMode.Screen; o.AfterStop = "export"; break;
+            case "support" or "support-fall": o.ProfileId = "support"; o.ProfileName = Loc.L("Support-Fall", "Support case"); o.Scope = ScopeMode.Screen; o.Monitors = "active"; o.AfterStop = "supportPackage"; break;
+            case "aitrace" or "ki-spur": o.ProfileId = "aiTrace"; o.ProfileName = Loc.L("KI-Spur", "AI trace"); o.Scope = ScopeMode.Screen; o.AfterStop = "export"; break;
             case "custom" or "eigene":
                 var s = AppSettings.Load();
-                o.ProfileId = "custom"; o.ProfileName = "Eigene";
+                o.ProfileId = "custom"; o.ProfileName = Loc.L("Eigene", "Custom");
                 o.Off = new HashSet<string>(RecordingOptions.Channels.Where(c => !s.Records(c.key)).Select(c => c.key));
                 o.ChangeFrames = s.ChangeFrames; o.AppContext = s.CustomAppContext; o.AfterStop = s.CustomAfterStop; o.DetailLevel = "Eigene";
                 return;
-            default: o.ProfileId = "guide"; o.ProfileName = "Anleitung"; break;
+            default: o.ProfileId = "guide"; o.ProfileName = Loc.L("Anleitung", "Guide"); break;
         }
         if (DetailPresets.For(o.ProfileId) is { } p) DetailPresets.Apply(o, p);
     }

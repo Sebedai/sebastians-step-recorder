@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Text.Json.Nodes;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Capture;
 
@@ -57,15 +58,22 @@ public sealed class RecordingOptions
     public bool Rec(string channel) => !Off.Contains(channel);
 
     /// <summary>Einstellbare Eingabearten: Schlüssel, Name, Erklärung.</summary>
-    public static readonly (string key, string name, string hint)[] Channels =
+    public static (string key, string name, string hint)[] Channels => ChannelsFor(null);
+
+    /// <param name="lang">null = Oberflächensprache; „de“/„en“ = Sprache eines Exports.</param>
+    public static (string key, string name, string hint)[] ChannelsFor(string? lang)
     {
-        ("clicks", "Mausklicks", "Links-, Rechts- und Doppelklicks – mit Bild und angeklicktem Element"),
-        ("wheel", "Scrollen", "Mausrad und Scrollen mit dem Touchpad"),
-        ("moves", "Mausbewegungen", "Mauswege und Verweilen über Elementen (Zeigen); Zugwege beim Ziehen bleiben erhalten"),
-        ("typing", "Texteingaben", "Getippte Zeichen samt Korrekturen; Passwortfelder werden immer maskiert"),
-        ("hotkeys", "Tastenkombinationen", "Mit Strg, Alt oder Win, z. B. Strg+C, Alt+Tab, Win+E"),
-        ("keys", "Einzeltasten", "Eingabe, Tab, Esc, Pfeiltasten, F-Tasten und ähnliche"),
-    };
+        string T(string de, string en) => lang == null ? Loc.L(de, en) : Loc.For(lang, de, en);
+        return new[]
+        {
+            ("clicks", T("Mausklicks", "Mouse clicks"), T("Links-, Rechts- und Doppelklicks – mit Bild und angeklicktem Element", "Left, right and double clicks – with image and the clicked element")),
+            ("wheel", T("Scrollen", "Scrolling"), T("Mausrad und Scrollen mit dem Touchpad", "Mouse wheel and touchpad scrolling")),
+            ("moves", T("Mausbewegungen", "Mouse movements"), T("Mauswege und Verweilen über Elementen (Zeigen); Zugwege beim Ziehen bleiben erhalten", "Mouse paths and hovering over elements (pointing); drag paths are always kept")),
+            ("typing", T("Texteingaben", "Typing"), T("Getippte Zeichen samt Korrekturen; Passwortfelder werden immer maskiert", "Typed characters including corrections; password fields are always masked")),
+            ("hotkeys", T("Tastenkombinationen", "Key combinations"), T("Mit Strg, Alt oder Win, z. B. Strg+C, Alt+Tab, Win+E", "With Ctrl, Alt or Win, e.g. Ctrl+C, Alt+Tab, Win+E")),
+            ("keys", T("Einzeltasten", "Single keys"), T("Eingabe, Tab, Esc, Pfeiltasten, F-Tasten und ähnliche", "Enter, Tab, Esc, arrow keys, function keys and similar")),
+        };
+    }
 
     public static string ChannelName(string key) => Channels.FirstOrDefault(c => c.key == key).name ?? key;
 

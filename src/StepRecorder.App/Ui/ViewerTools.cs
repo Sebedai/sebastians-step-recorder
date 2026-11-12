@@ -10,6 +10,7 @@ using StepRecorder.Data;
 using StepRecorder.Export;
 using StepRecorder.Native;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -39,31 +40,31 @@ sealed partial class ViewerWindow
         _details.Children.Clear();
         _editTitle = _editBody = null; _editAnchor = null;
         bool ro = _view.Session.ReadOnly;
-        var head = U.Text($"{steps.Count} Schritte ausgewählt", 17, true, margin: new Thickness(0, 0, 0, 2)); head.FontFamily = Theme.Display;
+        var head = U.Text(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), 17, true, margin: new Thickness(0, 0, 0, 2)); head.FontFamily = Theme.Display;
         _details.Children.Add(head);
-        _details.Children.Add(U.Text("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        _details.Children.Add(U.Text(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click selects a range. Everything here applies to all selected steps."), 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
 
         WrapPanel Row() { var w = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) }; _details.Children.Add(w); return w; }
         Button B(string? glyph, string text, Action a, string? tip = null) { var b = U.Btn(glyph, text, a, tip); b.IsEnabled = !ro; return b; }
 
-        _details.Children.Add(U.Overline("Sichtbarkeit", new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.Overline(Loc.L("Sichtbarkeit", "Visibility"), new Thickness(0, 14, 0, 6)));
         var r1 = Row();
-        r1.Children.Add(B(Theme.IEye, "Ausblenden", () => BulkEdit(steps, se => se["hidden"] = true)));
-        r1.Children.Add(B(Theme.IEye, "Einblenden", () => BulkEdit(steps, se => se["hidden"] = false)));
+        r1.Children.Add(B(Theme.IEye, Loc.L("Ausblenden", "Hide"), () => BulkEdit(steps, se => se["hidden"] = true)));
+        r1.Children.Add(B(Theme.IEye, Loc.L("Einblenden", "Show"), () => BulkEdit(steps, se => se["hidden"] = false)));
 
-        _details.Children.Add(U.Overline("Wichtigkeit", new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.Overline(Loc.L("Wichtigkeit", "Importance"), new Thickness(0, 14, 0, 6)));
         var r2 = Row();
-        foreach (var (imp, name) in new[] { ("primary", "Hauptschritt"), ("secondary", "Nebenschritt"), ("trace", "Spur") })
+        foreach (var (imp, name) in new[] { ("primary", Loc.L("Hauptschritt", "Main step")), ("secondary", Loc.L("Nebenschritt", "Secondary step")), ("trace", Loc.L("Spur", "Trace")) })
             r2.Children.Add(B(null, name, () => BulkEdit(steps.Where(s => !s.Manual), se => se["importance"] = imp)));
 
-        _details.Children.Add(U.Overline("Im Dokument", new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.Overline(Loc.L("Im Dokument", "In the document"), new Thickness(0, 14, 0, 6)));
         var r3 = Row();
-        r3.Children.Add(B(Theme.IDoc, "Kapitel davor beginnen", () => ToggleChapter(steps[0].Anchor, true), "Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel"));
-        r3.Children.Add(B(Theme.ICamera, "Bilder zeigen", () => BulkEdit(steps, se => se.Remove("showImage"))));
-        r3.Children.Add(B(Theme.ICamera, "Bilder weglassen", () => BulkEdit(steps, se => se["showImage"] = false)));
+        r3.Children.Add(B(Theme.IDoc, Loc.L("Kapitel davor beginnen", "Start chapter before"), () => ToggleChapter(steps[0].Anchor, true), Loc.L("Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel", "A new chapter starts before the first selected step")));
+        r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder zeigen", "Show images"), () => BulkEdit(steps, se => se.Remove("showImage"))));
+        r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder weglassen", "Omit images"), () => BulkEdit(steps, se => se["showImage"] = false)));
         var size = new ComboBox { MinWidth = 200, IsEnabled = !ro, Margin = new Thickness(3, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
-        size.Items.Add("Bildgröße für alle …");
-        size.Items.Add("wie im Dokument");
+        size.Items.Add(Loc.L("Bildgröße für alle …", "Image size for all …"));
+        size.Items.Add(Loc.L("wie im Dokument", "as in the document"));
         foreach (var (_, name) in DocSettings.Sizes) size.Items.Add(name);
         size.SelectedIndex = 0;
         size.SelectionChanged += (_, _) =>
@@ -73,12 +74,12 @@ sealed partial class ViewerWindow
         };
         _details.Children.Add(size);
 
-        _details.Children.Add(U.Overline("Hinweiskasten", new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.Overline(Loc.L("Hinweiskasten", "Note"), new Thickness(0, 14, 0, 6)));
         var r4 = Row();
         foreach (var (k, name) in NoteKinds)
             r4.Children.Add(B(Theme.IAdd, name, () =>
             {
-                var d = new InputDialog($"{name} zu {steps.Count} Schritten hinzufügen", "") { Owner = this };
+                var d = new InputDialog(Loc.F("{0} zu {1} Schritten hinzufügen", "Add {0} to {1} steps", name, steps.Count), "") { Owner = this };
                 if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
                 Change(e =>
                 {
@@ -90,8 +91,8 @@ sealed partial class ViewerWindow
         var manual = steps.Where(s => s.Manual).ToList();
         if (manual.Count > 0)
         {
-            _details.Children.Add(U.Overline("Eingefügte Schritte", new Thickness(0, 14, 0, 6)));
-            Row().Children.Add(B(Theme.IDelete, $"{manual.Count} eingefügte löschen", () => DeleteManual(manual)));
+            _details.Children.Add(U.Overline(Loc.L("Eingefügte Schritte", "Inserted steps"), new Thickness(0, 14, 0, 6)));
+            Row().Children.Add(B(Theme.IDelete, Loc.N(manual.Count, "{0} eingefügte löschen", "{0} eingefügte löschen", "Delete {0} inserted step", "Delete {0} inserted steps"), () => DeleteManual(manual)));
         }
     }
 
@@ -103,7 +104,7 @@ sealed partial class ViewerWindow
         Change(e => { foreach (var s in list) edit(StepEdit(e, s.Anchor)); });
         // Auswahl wiederherstellen
         foreach (var it in _list.Items.OfType<ListBoxItem>()) if (it.Tag is ViewStep vs && keep.Contains(vs.Id)) it.IsSelected = true;
-        _status.Text = $"{list.Count} Schritte geändert – rückgängig mit Strg+Z";
+        _status.Text = Loc.N(list.Count, "{0} Schritte geändert – rückgängig mit Strg+Z", "{0} Schritte geändert – rückgängig mit Strg+Z", "1 step changed – undo with Ctrl+Z", "{0} steps changed – undo with Ctrl+Z");
     }
 
     // =====================================================================================
@@ -115,18 +116,18 @@ sealed partial class ViewerWindow
     {
         var m = Menu(new (string, Action)[]
         {
-            ("Textschritt einfügen", () => InsertManual(null)),
+            (Loc.L("Textschritt einfügen", "Insert text step"), () => InsertManual(null)),
             ("-", () => { }),
-            ("Bildschritt: Bild aus Datei …", () => { if (PickImageFile() is { } b) using (b) InsertManual(b); }),
-            ("Bildschritt: Bild aus der Zwischenablage", () => { if (ClipboardImage() is { } b) using (b) InsertManual(b); else Msg.Show("In der Zwischenablage ist kein Bild."); }),
-            ("Bildschritt: Bildschirmfoto in 3 Sekunden …", () => CaptureAfterCountdown(b => InsertManual(b))),
+            (Loc.L("Bildschritt: Bild aus Datei …", "Image step: image from file …"), () => { if (PickImageFile() is { } b) using (b) InsertManual(b); }),
+            (Loc.L("Bildschritt: Bild aus der Zwischenablage", "Image step: image from clipboard"), () => { if (ClipboardImage() is { } b) using (b) InsertManual(b); else Msg.Show(Loc.L("In der Zwischenablage ist kein Bild.", "There is no image on the clipboard.")); }),
+            (Loc.L("Bildschritt: Bildschirmfoto in 3 Sekunden …", "Image step: screenshot in 3 seconds …"), () => CaptureAfterCountdown(b => InsertManual(b))),
         });
         m.PlacementTarget = anchor; m.Placement = System.Windows.Controls.Primitives.PlacementMode.Top; m.IsOpen = true;
     }
 
     void InsertManual(System.Drawing.Bitmap? image)
     {
-        if (_view.Session.ReadOnly) { Msg.Show("Diese Sitzung ist schreibgeschützt."); return; }
+        if (_view.Session.ReadOnly) { Msg.Show(Loc.L("Diese Sitzung ist schreibgeschützt.", "This recording is read-only.")); return; }
         var cur = Sel;
         long after = cur == null ? 0 : cur.Manual ? cur.After : cur.Anchor;
         string? img = image != null ? _view.AddAsset(image, "schritt") : null;
@@ -135,7 +136,7 @@ sealed partial class ViewerWindow
         {
             var arr = e["inserted"] as JsonArray ?? new JsonArray();
             anchor = -(1000 + arr.OfType<JsonObject>().Select(x => -x.Long("anchor") - 1000).DefaultIfEmpty(0).Max() + 1);
-            arr.Add(new JsonObject { ["anchor"] = anchor, ["after"] = after, ["title"] = image != null ? "Bild" : "Neuer Schritt", ["body"] = "", ["image"] = img, ["createdUtc"] = Json.UtcNow() });
+            arr.Add(new JsonObject { ["anchor"] = anchor, ["after"] = after, ["title"] = image != null ? Loc.For(_view.Language, "Bild", "Image") : Loc.For(_view.Language, "Neuer Schritt", "New step"), ["body"] = "", ["image"] = img, ["createdUtc"] = Json.UtcNow() });
             e["inserted"] = arr;
             // in einer vorhandenen Reihenfolge direkt hinter den ausgewählten Schritt setzen
             if (e["order"] is JsonArray order && order.Count > 0 && cur != null)
@@ -149,7 +150,7 @@ sealed partial class ViewerWindow
             _list.SelectedItems.Clear(); item.IsSelected = true; _list.ScrollIntoView(item);
             Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, FocusInlineTitle);
         }
-        _status.Text = "Schritt eingefügt – Überschrift und Text rechts eingeben.";
+        _status.Text = Loc.L("Schritt eingefügt – Überschrift und Text rechts eingeben.", "Step inserted – enter the heading and text on the right.");
     }
 
     void DeleteManual(List<ViewStep> steps)
@@ -163,7 +164,7 @@ sealed partial class ViewerWindow
             if (e["comments"] is JsonArray cm) foreach (var x in cm.OfType<JsonObject>().Where(x => anchors.Contains(x.Long("anchor"))).ToList()) cm.Remove(x);
             if (e["order"] is JsonArray or) foreach (var x in or.Where(x => x is JsonValue v && v.TryGetValue<long>(out var l) && anchors.Contains(l)).ToList()) or.Remove(x);
         });
-        _status.Text = "Eingefügte Schritte gelöscht – rückgängig mit Strg+Z";
+        _status.Text = Loc.L("Eingefügte Schritte gelöscht – rückgängig mit Strg+Z", "Inserted steps deleted – undo with Ctrl+Z");
     }
 
     // =====================================================================================
@@ -174,11 +175,11 @@ sealed partial class ViewerWindow
     {
         var items = new List<(string, Action)>
         {
-            ("Bild neu aufnehmen (Bildschirmfoto in 3 Sekunden) …", () => CaptureAfterCountdown(b => ReplaceImage(s, b))),
-            ("Bild aus Datei …", () => { if (PickImageFile() is { } b) using (b) ReplaceImage(s, b); }),
-            ("Bild aus der Zwischenablage", () => { if (ClipboardImage() is { } b) using (b) ReplaceImage(s, b); else Msg.Show("In der Zwischenablage ist kein Bild."); }),
+            (Loc.L("Bild neu aufnehmen (Bildschirmfoto in 3 Sekunden) …", "Retake image (screenshot in 3 seconds) …"), () => CaptureAfterCountdown(b => ReplaceImage(s, b))),
+            (Loc.L("Bild aus Datei …", "Image from file …"), () => { if (PickImageFile() is { } b) using (b) ReplaceImage(s, b); }),
+            (Loc.L("Bild aus der Zwischenablage", "Image from clipboard"), () => { if (ClipboardImage() is { } b) using (b) ReplaceImage(s, b); else Msg.Show(Loc.L("In der Zwischenablage ist kein Bild.", "There is no image on the clipboard.")); }),
         };
-        if (s.ImageReplaced) { items.Add(("-", () => { })); items.Add(("Originalbild wiederherstellen", () => Change(e => StepEdit(e, s.Anchor).Remove("frameChoice"), refill: false))); }
+        if (s.ImageReplaced) { items.Add(("-", () => { })); items.Add((Loc.L("Originalbild wiederherstellen", "Restore original image"), () => Change(e => StepEdit(e, s.Anchor).Remove("frameChoice"), refill: false))); }
         var m = Menu(items);
         if (anchor != null) { m.PlacementTarget = anchor; m.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom; }
         m.IsOpen = true;
@@ -186,20 +187,20 @@ sealed partial class ViewerWindow
 
     void ReplaceImage(ViewStep s, System.Drawing.Bitmap bmp)
     {
-        if (_view.Session.ReadOnly) { Msg.Show("Diese Sitzung ist schreibgeschützt."); return; }
+        if (_view.Session.ReadOnly) { Msg.Show(Loc.L("Diese Sitzung ist schreibgeschützt.", "This recording is read-only.")); return; }
         string id = _view.AddAsset(bmp, "ersatz");
         if (s.Manual) Change(e => { if (e["inserted"] is JsonArray ins) foreach (var x in ins.OfType<JsonObject>().Where(x => x.Long("anchor") == s.Anchor)) x["image"] = id; }, refill: false);
         else Change(e => StepEdit(e, s.Anchor)["frameChoice"] = new JsonObject { ["pre"] = id, ["post"] = id, ["by"] = "user" }, refill: false);
         InvalidateThumb(s);
-        _status.Text = "Bild ersetzt – „Originalbild wiederherstellen“ im Menü des Schritts macht das rückgängig.";
+        _status.Text = Loc.L("Bild ersetzt – „Originalbild wiederherstellen“ im Menü des Schritts macht das rückgängig.", "Image replaced – “Restore original image” in the step menu undoes this.");
     }
 
     System.Drawing.Bitmap? PickImageFile()
     {
-        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = "Bilder|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Alle Dateien|*.*" };
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.L("Bilder|*.png;*.jpg;*.jpeg;*.bmp;*.gif|Alle Dateien|*.*", "Images|*.png;*.jpg;*.jpeg;*.bmp;*.gif|All files|*.*") };
         if (dlg.ShowDialog(this) != true) return null;
         try { using var tmp = new System.Drawing.Bitmap(dlg.FileName); return new System.Drawing.Bitmap(tmp); }
-        catch (Exception ex) { Msg.Show("Das Bild lässt sich nicht öffnen:\n" + ex.Message); return null; }
+        catch (Exception ex) { Msg.Show(Loc.L("Das Bild lässt sich nicht öffnen:\n", "The image cannot be opened:\n") + ex.Message); return null; }
     }
 
     static System.Drawing.Bitmap? ClipboardImage()
@@ -222,7 +223,7 @@ sealed partial class ViewerWindow
     {
         var start = UiApp.Instance.Windows.OfType<StartWindow>().FirstOrDefault(w => w.IsVisible);
         Hide(); start?.Hide();
-        var cd = new CountdownWindow(3, "Bildschirmfoto in");
+        var cd = new CountdownWindow(3, Loc.L("Bildschirmfoto in", "Screenshot in"));
         cd.Finished += () =>
         {
             Dispatcher.BeginInvoke(DispatcherPriority.Background, async () =>
@@ -307,7 +308,7 @@ sealed partial class ViewerWindow
 
     void ScanImagesForPersonalData()
     {
-        if (!Ocr.Available) { Msg.Show("Texterkennung nicht verfügbar\n\nFür diese Funktion braucht Windows ein OCR-Sprachpaket (Einstellungen › Zeit und Sprache › Sprache › Optionen › „Optische Zeichenerkennung“).", "Persönliche Daten suchen", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        if (!Ocr.Available) { Msg.Show(Loc.L("Texterkennung nicht verfügbar\n\nFür diese Funktion braucht Windows ein OCR-Sprachpaket (Einstellungen › Zeit und Sprache › Sprache › Optionen › „Optische Zeichenerkennung“).", "Text recognition not available\n\nThis feature needs a Windows OCR language pack (Settings › Time & language › Language & region › Language options › “Optical character recognition”)."), Loc.L("Persönliche Daten suchen", "Find personal data"), MessageBoxButton.OK, MessageBoxImage.Information); return; }
         new PiiScanWindow(this, _view) { Owner = this }.ShowDialog();
     }
 
@@ -327,7 +328,7 @@ sealed partial class ViewerWindow
                 });
             e["redactions"] = arr;
         });
-        _status.Text = $"{list.Count} Stellen in Bildern geschwärzt – rückgängig mit Strg+Z";
+        _status.Text = Loc.N(list.Count, "{0} Stellen in Bildern geschwärzt – rückgängig mit Strg+Z", "{0} Stellen in Bildern geschwärzt – rückgängig mit Strg+Z", "1 place in images redacted – undo with Ctrl+Z", "{0} places in images redacted – undo with Ctrl+Z");
     }
 
     // =====================================================================================
@@ -343,7 +344,9 @@ sealed partial class ViewerWindow
         _thumbs.Clear();
         Fill(keep);
         if (_detailTab == 2) DocDetails();
-        _status.Text = lang == "en" ? "Texts in English – the German texts are kept separately." : "Texte auf Deutsch – die englischen Texte bleiben getrennt erhalten.";
+        _status.Text = lang == "en"
+            ? Loc.L("Texte auf Englisch – die deutschen Texte bleiben getrennt erhalten.", "Texts in English – the German texts are kept separately.")
+            : Loc.L("Texte auf Deutsch – die englischen Texte bleiben getrennt erhalten.", "Texts in German – the English texts are kept separately.");
     }
 }
 
@@ -383,24 +386,24 @@ sealed class CountdownWindow : Window
 /// <summary>Suchen und Ersetzen über alle Schritte, Hinweise, Kapitel und Dokumenttexte.</summary>
 sealed class SearchReplaceWindow : Window
 {
-    readonly TextBox _find = new() { Tag = "Suchen nach …" }, _repl = new() { Tag = "Ersetzen durch …" };
-    readonly CheckBox _case = new() { Content = "Groß-/Kleinschreibung beachten", Margin = new Thickness(0, 0, 18, 6) }, _word = new() { Content = "Nur ganze Wörter", Margin = new Thickness(0, 0, 18, 6) };
-    readonly CheckBox _steps = new() { Content = "Überschriften und Texte", IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _notes = new() { Content = "Hinweiskästen", IsChecked = true, Margin = new Thickness(0, 0, 18, 6) },
-        _chapters = new() { Content = "Kapitel", IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _doc = new() { Content = "Titel und Dokumenttexte", IsChecked = true, Margin = new Thickness(0, 0, 18, 6) };
+    readonly TextBox _find = new() { Tag = Loc.L("Suchen nach …", "Find …") }, _repl = new() { Tag = Loc.L("Ersetzen durch …", "Replace with …") };
+    readonly CheckBox _case = new() { Content = Loc.L("Groß-/Kleinschreibung beachten", "Match case"), Margin = new Thickness(0, 0, 18, 6) }, _word = new() { Content = Loc.L("Nur ganze Wörter", "Whole words only"), Margin = new Thickness(0, 0, 18, 6) };
+    readonly CheckBox _steps = new() { Content = Loc.L("Überschriften und Texte", "Headings and texts"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _notes = new() { Content = Loc.L("Hinweiskästen", "Notes"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) },
+        _chapters = new() { Content = Loc.L("Kapitel", "Chapters"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _doc = new() { Content = Loc.L("Titel und Dokumenttexte", "Title and document texts"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) };
     readonly TextBlock _count = new() { FontSize = 12.5, Margin = new Thickness(0, 8, 0, 0) };
     readonly ViewerWindow _v;
 
     public SearchReplaceWindow(ViewerWindow v)
     {
         _v = v;
-        Title = "Suchen und Ersetzen"; Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = Loc.L("Suchen und Ersetzen", "Find and replace"); Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         var opts = new WrapPanel(); foreach (var c in new[] { _case, _word }) opts.Children.Add(c);
         var scope = new WrapPanel(); foreach (var c in new[] { _steps, _notes, _chapters, _doc }) scope.Children.Add(c);
-        var body = U.Col(U.Field("Suchen", _find), U.Field("Ersetzen durch", _repl), opts, U.Overline("Wo", new Thickness(0, 10, 0, 6)), scope, _count,
-            U.Text("Ersetzt wird in der aktuellen Textsprache. Automatisch erzeugte Texte werden dabei zu Ihren eigenen Texten.", 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0)));
-        var go = U.Primary("Alle ersetzen", Apply);
-        U.Dialog(this, "Suchen und Ersetzen", body, go, U.Btn("Schließen", Close));
+        var body = U.Col(U.Field(Loc.L("Suchen", "Find"), _find), U.Field(Loc.L("Ersetzen durch", "Replace with"), _repl), opts, U.Overline(Loc.L("Wo", "Where"), new Thickness(0, 10, 0, 6)), scope, _count,
+            U.Text(Loc.L("Ersetzt wird in der aktuellen Textsprache. Automatisch erzeugte Texte werden dabei zu Ihren eigenen Texten.", "Replacements apply to the current text language. Automatically generated texts become your own texts."), 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0)));
+        var go = U.Primary(Loc.L("Alle ersetzen", "Replace all"), Apply);
+        U.Dialog(this, Loc.L("Suchen und Ersetzen", "Find and replace"), body, go, U.Btn(Loc.L("Schließen", "Close"), Close));
         foreach (var t in new[] { _find, _repl }) t.TextChanged += (_, _) => Count();
         foreach (var c in new[] { _case, _word, _steps, _notes, _chapters, _doc }) { c.Checked += (_, _) => Count(); c.Unchecked += (_, _) => Count(); }
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) Close(); };
@@ -419,9 +422,9 @@ sealed class SearchReplaceWindow : Window
     void Count()
     {
         var rx = Rx();
-        if (rx == null) { _count.Text = "Suchbegriff eingeben."; _count.Foreground = Theme.Muted; return; }
+        if (rx == null) { _count.Text = Loc.L("Suchbegriff eingeben.", "Enter a search term."); _count.Foreground = Theme.Muted; return; }
         int n = _v.ReplaceAll(rx, _repl.Text, _steps.IsChecked == true, _notes.IsChecked == true, _chapters.IsChecked == true, _doc.IsChecked == true, dryRun: true);
-        _count.Text = n == 0 ? "Keine Treffer." : $"{n} Treffer";
+        _count.Text = n == 0 ? Loc.L("Keine Treffer.", "No matches.") : Loc.N(n, "{0} Treffer", "{0} Treffer", "1 match", "{0} matches");
         _count.Foreground = n == 0 ? Theme.Muted : Theme.AccentText;
     }
 
@@ -429,7 +432,7 @@ sealed class SearchReplaceWindow : Window
     {
         var rx = Rx(); if (rx == null) return;
         int n = _v.ReplaceAll(rx, _repl.Text, _steps.IsChecked == true, _notes.IsChecked == true, _chapters.IsChecked == true, _doc.IsChecked == true, dryRun: false);
-        _count.Text = $"{n} Stellen ersetzt – rückgängig mit Strg+Z im Editor.";
+        _count.Text = Loc.N(n, "{0} Stellen ersetzt – rückgängig mit Strg+Z im Editor.", "{0} Stellen ersetzt – rückgängig mit Strg+Z im Editor.", "1 replacement made – undo with Ctrl+Z in the editor.", "{0} replacements made – undo with Ctrl+Z in the editor.");
         _count.Foreground = Theme.Success;
     }
 }
@@ -441,7 +444,7 @@ sealed class PiiScanWindow : Window
     readonly SessionView _view;
     readonly StackPanel _list = new();
     readonly TextBlock _status = new() { FontSize = 12.5, Margin = new Thickness(0, 0, 0, 8) };
-    readonly ComboBox _style = new() { Items = { "Schwärzen", "Verpixeln" }, SelectedIndex = 0, MinWidth = 140 };
+    readonly ComboBox _style = new() { Items = { Loc.L("Schwärzen", "Redact"), Loc.L("Verpixeln", "Pixelate") }, SelectedIndex = 0, MinWidth = 140 };
     readonly List<(CheckBox cb, string frame, string m, System.Drawing.Rectangle rect)> _hits = new();
     readonly Button _apply;
     bool _cancel;
@@ -449,22 +452,22 @@ sealed class PiiScanWindow : Window
     public PiiScanWindow(ViewerWindow v, SessionView view)
     {
         _v = v; _view = view;
-        Title = "Persönliche Daten in Bildern"; Width = 640; Height = 560; ResizeMode = ResizeMode.CanResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = Loc.L("Persönliche Daten in Bildern", "Personal data in images"); Width = 640; Height = 560; ResizeMode = ResizeMode.CanResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         var body = new DockPanel();
-        var top = U.Col(U.Text("Die Texterkennung von Windows sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln. Gefundene Stellen werden nur im jeweiligen Bild geschwärzt.", 12.5, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)), _status);
+        var top = U.Col(U.Text(Loc.L("Die Texterkennung von Windows sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln. Gefundene Stellen werden nur im jeweiligen Bild geschwärzt.", "Windows text recognition searches all images for email addresses, IBANs, card numbers, phone numbers and keys. Matches are redacted only in the image where they were found."), 12.5, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)), _status);
         DockPanel.SetDock(top, Dock.Top); body.Children.Add(top);
         body.Children.Add(new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 330 });
-        _apply = U.Primary("Ausgewählte schwärzen", Apply, Theme.IShield);
+        _apply = U.Primary(Loc.L("Ausgewählte schwärzen", "Redact selected"), Apply, Theme.IShield);
         _apply.IsEnabled = false;
         var root = new DockPanel();
         var footer = new DockPanel { Margin = new Thickness(20, 12, 20, 12) };
-        var right = U.Row(_apply, U.Btn("Schließen", () => { _cancel = true; Close(); }));
+        var right = U.Row(_apply, U.Btn(Loc.L("Schließen", "Close"), () => { _cancel = true; Close(); }));
         DockPanel.SetDock(right, Dock.Right); footer.Children.Add(right);
-        footer.Children.Add(U.Row(U.Text("Art", 12.5, fg: Theme.Muted, margin: new Thickness(0, 7, 8, 0)), _style));
+        footer.Children.Add(U.Row(U.Text(Loc.L("Art", "Style"), 12.5, fg: Theme.Muted, margin: new Thickness(0, 7, 8, 0)), _style));
         var foot = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Child = footer };
         DockPanel.SetDock(foot, Dock.Bottom); root.Children.Add(foot);
-        var head = U.Text("Persönliche Daten in Bildern suchen", 18, true, margin: new Thickness(0, 0, 0, 10)); head.FontFamily = Theme.Display;
+        var head = U.Text(Loc.L("Persönliche Daten in Bildern suchen", "Find personal data in images"), 18, true, margin: new Thickness(0, 0, 0, 10)); head.FontFamily = Theme.Display;
         root.Children.Add(new Border { Padding = new Thickness(24, 20, 24, 12), Child = U.Col(head, body) });
         Content = root;
         Closed += (_, _) => _cancel = true;
@@ -480,7 +483,8 @@ sealed class PiiScanWindow : Window
         foreach (var (frame, step) in frames)
         {
             if (_cancel) return;
-            _status.Text = $"Bild {++done} von {frames.Count} wird geprüft …  ({found} Fundstellen)";
+            done++;
+            _status.Text = Loc.F("Bild {0} von {1} wird geprüft …  ({2} Fundstellen)", "Checking image {0} of {1} …  ({2} findings)", done, frames.Count, found);
             var res = await Task.Run(() =>
             {
                 using var bmp = _view.Frame(frame);
@@ -494,7 +498,7 @@ sealed class PiiScanWindow : Window
                 var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
                 DockPanel.SetDock(cb, Dock.Left); row.Children.Add(cb);
                 var label = new TextBlock { FontSize = 12.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
-                label.Inlines.Add(new System.Windows.Documents.Run($"Schritt {(step.Manual ? "eingefügt" : step.Number.ToString())}  ") { FontFamily = Theme.Mono, Foreground = Theme.Muted });
+                label.Inlines.Add(new System.Windows.Documents.Run(Loc.F("Schritt {0}  ", "Step {0}  ", step.Manual ? Loc.L("eingefügt", "inserted") : step.Number.ToString())) { FontFamily = Theme.Mono, Foreground = Theme.Muted });
                 label.Inlines.Add(new System.Windows.Documents.Run(Patterns.KindName(kind) + ": ") { FontWeight = FontWeights.SemiBold });
                 label.Inlines.Add(new System.Windows.Documents.Run(text));
                 label.MouseLeftButtonUp += (_, _) => cb.IsChecked = cb.IsChecked != true;
@@ -503,8 +507,10 @@ sealed class PiiScanWindow : Window
                 _hits.Add((cb, frame, m, rect));
             }
         }
-        _status.Text = found == 0 ? $"{frames.Count} Bilder geprüft – keine Fundstellen. Namen und frei geschriebene Angaben erkennt die Suche nicht; bitte trotzdem selbst durchsehen."
-                                  : $"{frames.Count} Bilder geprüft – {found} Fundstellen. Bitte prüfen und auswählen.";
+        _status.Text = found == 0
+            ? Loc.N(frames.Count, "{0} Bilder geprüft – keine Fundstellen. Namen und frei geschriebene Angaben erkennt die Suche nicht; bitte trotzdem selbst durchsehen.", "{0} Bilder geprüft – keine Fundstellen. Namen und frei geschriebene Angaben erkennt die Suche nicht; bitte trotzdem selbst durchsehen.",
+                "1 image checked – no findings. The search does not detect names or free-form details; please review the images yourself anyway.", "{0} images checked – no findings. The search does not detect names or free-form details; please review the images yourself anyway.")
+            : Loc.F("{0} Bilder geprüft – {1} Fundstellen. Bitte prüfen und auswählen.", "{0} image(s) checked – {1} finding(s). Please review and select.", frames.Count, found);
         _apply.IsEnabled = found > 0;
     }
 

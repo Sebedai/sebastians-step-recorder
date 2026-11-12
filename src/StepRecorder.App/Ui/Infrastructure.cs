@@ -8,6 +8,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using StepRecorder.Data;
 using StepRecorder.Native;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -55,7 +56,7 @@ static class Invisibility
     public static bool SelfTest()
     {
         // Entwicklertest: Verhalten wie unter Windows Server 2019 nachstellen
-        if (Environment.GetEnvironmentVariable("STEPRECORDER_FORCE_NOINVIS") == "1") return Fail("erzwungen (STEPRECORDER_FORCE_NOINVIS)");
+        if (Environment.GetEnvironmentVariable("STEPRECORDER_FORCE_NOINVIS") == "1") return Fail(Loc.L("erzwungen (STEPRECORDER_FORCE_NOINVIS)", "forced (STEPRECORDER_FORCE_NOINVIS)"));
         Window? probe = null;
         try
         {
@@ -68,8 +69,8 @@ static class Invisibility
             probe.SourceInitialized += (_, _) => Apply(probe);
             probe.ContentRendered += (_, _) => rendered = true;
             var h = new WindowInteropHelper(probe).EnsureHandle();
-            if (!Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE)) return Fail("SetWindowDisplayAffinity fehlgeschlagen");
-            if (!Win32.GetWindowDisplayAffinity(h, out uint aff) || aff != Win32.WDA_EXCLUDEFROMCAPTURE) return Fail($"Affinität nicht gesetzt (0x{aff:X})");
+            if (!Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE)) return Fail(Loc.L("SetWindowDisplayAffinity fehlgeschlagen", "SetWindowDisplayAffinity failed"));
+            if (!Win32.GetWindowDisplayAffinity(h, out uint aff) || aff != Win32.WDA_EXCLUDEFROMCAPTURE) return Fail(Loc.F("Affinität nicht gesetzt (0x{0:X})", "Affinity not set (0x{0:X})", aff));
 
             var src = PresentationSource.FromVisual(probe) ?? HwndSource.FromHwnd(h);
             double sx = src?.CompositionTarget?.TransformToDevice.M11 ?? 1, sy = src?.CompositionTarget?.TransformToDevice.M22 ?? 1;
@@ -85,8 +86,8 @@ static class Invisibility
 
             double magenta = Ratio(during, c => c.R > 200 && c.G < 60 && c.B > 200);
             double blackNow = Ratio(during, c => c.R < 8 && c.G < 8 && c.B < 8), blackBefore = Ratio(before, c => c.R < 8 && c.G < 8 && c.B < 8);
-            if (magenta > 0.2) return Fail($"Testmuster sichtbar ({magenta:P0})");
-            if (blackNow > 0.9 && blackBefore < 0.5) return Fail("Ersatzbalken (schwarz) sichtbar");
+            if (magenta > 0.2) return Fail(Loc.F("Testmuster sichtbar ({0:P0})", "Test pattern visible ({0:P0})", magenta));
+            if (blackNow > 0.9 && blackBefore < 0.5) return Fail(Loc.L("Ersatzbalken (schwarz) sichtbar", "Substitute bar (black) visible"));
             LastFailure = null; LastResult = true;
             return true;
         }

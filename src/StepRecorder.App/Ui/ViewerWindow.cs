@@ -29,16 +29,16 @@ sealed partial class ViewerWindow : Window
     readonly Grid _imgHost = new();
     readonly StackPanel _details = new() { Margin = new Thickness(22, 20, 22, 24) };
     readonly TextBlock _status = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBox _search = new() { Tag = "Schritte durchsuchen", Padding = new Thickness(32, 7, 8, 7), ToolTip = "Suche (Strg+F)" };
+    readonly TextBox _search = new() { Tag = Loc.L("Schritte durchsuchen", "Search steps"), Padding = new Thickness(32, 7, 8, 7), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)") };
     ToggleButton _allToggle = null!;
     ComboBox _dispBox = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
-    readonly TextBlock _titleBlock = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock _titleBlock = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = Loc.L("Klicken zum Umbenennen", "Click to rename"),TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBlock _metaBlock = new() { FontSize = 12, Margin = new Thickness(0, 1, 0, 0) };
     readonly TextBlock _listCount = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _imgCaption = new() { FontSize = 12, Foreground = Brushes.White };
     readonly Border _imgCaptionPill;
-    readonly TextBlock _noImage = new() { Text = "Für diesen Schritt gibt es kein Bild.", FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+    readonly TextBlock _noImage = new() { Text = Loc.L("Für diesen Schritt gibt es kein Bild.", "There is no image for this step."),FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
     readonly TextBlock _reviewCount = new() { FontSize = 11, FontWeight = FontWeights.SemiBold };
     Border _reviewBadge = null!;
     readonly TextBlock _playIcon = new();
@@ -128,28 +128,32 @@ sealed partial class ViewerWindow : Window
 
     static string KindLabel(string kind) => kind switch
     {
-        "click" => "Klick", "doubleClick" => "Doppelklick", "tripleClick" => "Dreifachklick", "rightClick" => "Rechtsklick", "drag" => "Ziehen", "scroll" => "Scrollen",
-        "type" => "Eingabe", "hotkey" => "Tastenkürzel", "key" => "Taste", "hover" => "Zeigen", "windowSwitch" => "Fensterwechsel", "system" => "System", "wait" => "Warten",
-        "comment" => "Kommentar", "snapshot" => "Schnappschuss", "marker" => "Marker", "gap" => "Lücke", "move" => "Mausbewegung", "manual" => "Eingefügt", _ => kind
+        "click" => Loc.L("Klick", "Click"), "doubleClick" => Loc.L("Doppelklick", "Double-click"), "tripleClick" => Loc.L("Dreifachklick", "Triple-click"), "rightClick" => Loc.L("Rechtsklick", "Right-click"), "drag" => Loc.L("Ziehen", "Drag"), "scroll" => Loc.L("Scrollen", "Scroll"),
+        "type" => Loc.L("Eingabe", "Input"), "hotkey" => Loc.L("Tastenkürzel", "Shortcut"), "key" => Loc.L("Taste", "Key"), "hover" => Loc.L("Zeigen", "Point"), "windowSwitch" => Loc.L("Fensterwechsel", "Window switch"), "system" => Loc.L("System", "System"), "wait" => Loc.L("Warten", "Wait"),
+        "comment" => Loc.L("Kommentar", "Comment"), "snapshot" => Loc.L("Schnappschuss", "Snapshot"), "marker" => Loc.L("Marker", "Marker"), "gap" => Loc.L("Lücke", "Gap"), "move" => Loc.L("Mausbewegung", "Mouse movement"), "manual" => Loc.L("Eingefügt", "Inserted"), _ => kind
     };
 
-    static string ImportanceLabel(string imp) => imp switch { "primary" => "Hauptschritt", "secondary" => "Nebenschritt", _ => "Spur" };
+    static string ImportanceLabel(string imp) => imp switch { "primary" => Loc.L("Hauptschritt", "Main step"), "secondary" => Loc.L("Nebenschritt", "Secondary step"), _ => Loc.L("Spur", "Trace") };
+
+    /// <summary>Anführungszeichen je Oberflächensprache („…“ bzw. “…”).</summary>
+    static string Q(string? t) => Loc.L($"„{t}“", $"“{t}”");
 
     void UpdateStatus()
     {
         int redactions = _view.Edits.Arr("redactions")?.Count ?? 0;
         var s = Sel;
-        var parts = new List<string> { s != null ? $"Schritt {s.Number} von {_view.All.Count}" : $"{_view.All.Count} Schritte", "Automatisch gespeichert" };
-        if (redactions > 0) parts.Add($"{redactions} Schwärzungen");
-        parts.Add(_view.UnreviewedCount > 0 ? $"{_view.UnreviewedCount} Eingaben ungeprüft" : "Eingaben geprüft");
-        parts.Add(_view.Language == "de" ? "Deutsch" : "English");
-        if (_view.Session.ReadOnly) parts.Add("schreibgeschützt");
-        if (_view.Session.State == "recovered") parts.Add("nach Absturz wiederhergestellt");
+        var parts = new List<string> { s != null ? Loc.F("Schritt {0} von {1}", "Step {0} of {1}", s.Number, _view.All.Count) : Loc.N(_view.All.Count, "1 Schritt", "{0} Schritte", "1 step", "{0} steps"), Loc.L("Automatisch gespeichert", "Saved automatically") };
+        if (redactions > 0) parts.Add(Loc.N(redactions, "1 Schwärzung", "{0} Schwärzungen", "1 redaction", "{0} redactions"));
+        parts.Add(_view.UnreviewedCount > 0 ? Loc.N(_view.UnreviewedCount, "1 Eingabe ungeprüft", "{0} Eingaben ungeprüft", "1 input unreviewed", "{0} inputs unreviewed") : Loc.L("Eingaben geprüft", "Inputs reviewed"));
+        parts.Add(_view.Language == "de" ? Loc.L("Deutsch", "German") : Loc.L("English", "English"));
+        if (_view.Session.ReadOnly) parts.Add(Loc.L("schreibgeschützt", "read-only"));
+        if (_view.Session.State == "recovered") parts.Add(Loc.L("nach Absturz wiederhergestellt", "recovered after crash"));
         _status.Text = string.Join("   ·   ", parts);
         _reviewCount.Text = _view.UnreviewedCount.ToString();
         _reviewBadge.Visibility = _view.UnreviewedCount > 0 ? Visibility.Visible : Visibility.Collapsed;
         int primary = _view.All.Count(x => x.Importance == "primary");
-        _metaBlock.Text = $"{_view.Session.StartUtc.ToLocalTime():dd.MM.yyyy, HH:mm} Uhr   ·   {primary} Hauptschritte   ·   {Fmt.Time(_view.Session.DurationUs, "de")}";
+        var started = _view.Session.StartUtc.ToLocalTime();
+        _metaBlock.Text = Loc.L($"{started:dd.MM.yyyy, HH:mm} Uhr", Loc.DateAndTime(started)) + "   ·   " + Loc.N(primary, "1 Hauptschritt", "{0} Hauptschritte", "1 main step", "{0} main steps") + "   ·   " + Fmt.Time(_view.Session.DurationUs, Loc.Lang);
     }
 
     // =====================================================================================
@@ -185,7 +189,8 @@ sealed partial class ViewerWindow : Window
         _noImage.Visibility = has ? Visibility.Collapsed : Visibility.Visible;
         _imgCaptionPill.Visibility = has ? Visibility.Visible : Visibility.Collapsed;
         var crop = _view.CropFor(s);
-        _imgCaption.Text = $"Schritt {s.Number}   ·   {(variant switch { "after" => "Nachher-Bild", "crop" => "Ausschnitt", _ => "Vorher-Bild" })}{(crop != null && _tool != "crop" ? "   ·   zugeschnitten" : "")}{(img != null ? $"   ·   {img.Bitmap.Width} × {img.Bitmap.Height}" : "")}";
+        string variantLabel = variant switch { "after" => Loc.L("Nachher-Bild", "After image"), "crop" => Loc.L("Ausschnitt", "Detail"), _ => Loc.L("Vorher-Bild", "Before image") };
+        _imgCaption.Text = Loc.F("Schritt {0}", "Step {0}", s.Number) + "   ·   " + variantLabel + (crop != null && _tool != "crop" ? "   ·   " + Loc.L("zugeschnitten", "cropped") : "") + (img != null ? $"   ·   {img.Bitmap.Width} × {img.Bitmap.Height}" : "");
         _cropOff.Visibility = crop != null ? Visibility.Visible : Visibility.Collapsed;
         // Beim Zuschneiden: bisherigen Zuschnitt gestrichelt zeigen
         if (_tool == "crop" && crop is { } c && _currentMeta != null)
@@ -218,7 +223,7 @@ sealed partial class ViewerWindow : Window
         var code = AhkExport.Snippet(s);
         if (code.Length > 0)
         {
-            var copy = U.Btn(Theme.ICopy, "Code kopieren", () => { var d = new DataObject(); d.SetText(code); SetClipboard(d, "AutoHotkey-Code kopiert"); }, "AutoHotkey-v2-Code für diesen Schritt kopieren", "Link");
+            var copy = U.Btn(Theme.ICopy, Loc.L("Code kopieren", "Copy code"), () => { var d = new DataObject(); d.SetText(code); SetClipboard(d, Loc.L("AutoHotkey-Code kopiert", "AutoHotkey code copied")); }, Loc.L("AutoHotkey-v2-Code für diesen Schritt kopieren", "Copy AutoHotkey v2 code for this step"), "Link");
             DockPanel.SetDock(copy, Dock.Right); head.Children.Add(copy);
         }
         var ov = U.Overline("AutoHotkey", new Thickness(0, 8, 0, 0)); head.Children.Add(ov);
@@ -226,19 +231,20 @@ sealed partial class ViewerWindow : Window
         TextBox Mono(string t) => ReadOnlyText(t, Theme.Fg, 12, Theme.Mono);
         var win = w32.Obj("window");
         if (w32.Obj("ahk")?.Str("winTitle") is { } wt)
-            info("WinTitle", U.Col(Mono(wt), ReadOnlyText((win?.Str("title") is { } t ? $"„{t}“ · " : "") + (win?.Str("state") ?? "") + (win?.LongN("dpi") is long dpi ? $" · {dpi} dpi" : ""), Theme.Muted, 12)));
+            info("WinTitle", U.Col(Mono(wt), ReadOnlyText((win?.Str("title") is { } t ? Q(t) + " · " : "") + (win?.Str("state") ?? "") + (win?.LongN("dpi") is long dpi ? $" · {dpi} dpi" : ""), Theme.Muted, 12)));
         if (w32.Obj("control") is { } ctl)
         {
             var v = U.Col(Mono((ctl.Str("classNN") ?? ctl.Str("class") ?? "") + (ctl.LongN("id") is long id ? $"  · ID {id}" : "")));
-            if (ctl.Str("text") is { } ct) v.Children.Add(ReadOnlyText($"Text: „{ct}“", Theme.Fg2, 12));
-            else if (ctl.Str("textWithheld") is { } tw) v.Children.Add(ReadOnlyText(tw switch { "password" => "Passwortfeld – Inhalt nicht gelesen", "editable" => "Eingabefeld – Inhalt nur über UIA", _ => "Text im Privatmodus nicht gelesen" }, Theme.Muted, 12));
+            if (ctl.Str("text") is { } ct) v.Children.Add(ReadOnlyText(Loc.F("Text: „{0}“", "Text: “{0}”", ct), Theme.Fg2, 12));
+            else if (ctl.Str("textWithheld") is { } tw) v.Children.Add(ReadOnlyText(tw switch { "password" => Loc.L("Passwortfeld – Inhalt nicht gelesen", "Password field – content not read"), "editable" => Loc.L("Eingabefeld – Inhalt nur über UIA", "Input field – content only via UIA"), _ => Loc.L("Text im Privatmodus nicht gelesen", "Text not read in private mode") }, Theme.Muted, 12));
             if (ctl.Obj("rect") is { } r) v.Children.Add(ReadOnlyText($"Client ({r.Int("x")}, {r.Int("y")}) · {r.Int("w")} × {r.Int("h")}", Theme.Muted, 12));
             info("Control", v);
         }
         if (w32.Obj("point") is { } pt)
         {
             string Xy(string k) => pt.Arr(k) is { Count: 2 } a ? $"{a[0]}, {a[1]}" : "–";
-            var lines = $"Fenster  {Xy("window")}\nClient   {Xy("client")}\nScreen   {Xy("screen")}";
+            string xyWindow = Xy("window"), xyClient = Xy("client"), xyScreen = Xy("screen");
+            var lines = Loc.F("Fenster  {0}\nClient   {1}\nScreen   {2}", "Window  {0}\nClient   {1}\nScreen   {2}", xyWindow, xyClient, xyScreen);
             if (w32.Obj("control")?.Arr("point") is { Count: 2 } cp) lines += $"\nControl  {cp[0]}, {cp[1]}";
             info("Position", Mono(lines));
         }
@@ -248,52 +254,52 @@ sealed partial class ViewerWindow : Window
             try { swatch.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + px[2..])); } catch { }
             info("Pixel", U.Row(swatch, Mono(px)));
         }
-        if (w32.Obj("focus")?.Str("classNN") is { } fnn) info("Fokus", Mono(fnn));
-        if (w32.Str("cursor") is { } cur) info("Zeiger", Mono(cur));
+        if (w32.Obj("focus")?.Str("classNN") is { } fnn) info(Loc.L("Fokus", "Focus"), Mono(fnn));
+        if (w32.Str("cursor") is { } cur) info(Loc.L("Zeiger", "Pointer"), Mono(cur));
         var j = s.Json;
         if (j.Arr("selectors") is { Count: > 0 } sel)
         {
             var lines = sel.OfType<JsonObject>().Take(6).Select(x => $"{new string('●', x.Int("score"))}{new string('○', 5 - x.Int("score"))}  {x.Str("kind")}: " + (x.Str("kind") switch
             {
-                "uia" => string.Join(" · ", new[] { x.Str("controlType"), x.Str("name") is { } n ? "„" + n + "“" : null, x.Str("automationId") is { } aid ? "AutomationId " + aid : null, x.LongN("index") is long ix ? $"Nr. {ix}/{x.LongN("of")}" : null }.Where(t => t != null)),
-                "label" => $"„{x.Str("text")}“ ({(x.Str("relation") == "rightOf" ? "links daneben" : "darüber")})",
-                "relative" => $"{x.Dbl("x") * 100:0.#} % / {x.Dbl("y") * 100:0.#} %",
+                "uia" => string.Join(" · ", new[] { x.Str("controlType"), x.Str("name") is { } n ? Q(n) : null, x.Str("automationId") is { } aid ? "AutomationId " + aid : null, x.LongN("index") is long ix ? Loc.F("Nr. {0}/{1}", "No. {0}/{1}", ix, x.LongN("of")) : null }.Where(t => t != null)),
+                "label" => Loc.F("„{0}“ ({1})", "“{0}” ({1})", x.Str("text"), x.Str("relation") == "rightOf" ? Loc.L("links daneben", "to the left of it") : Loc.L("darüber", "above it")),
+                "relative" => Loc.F("{0:0.#} % / {1:0.#} %", "{0:0.#}% / {1:0.#}%", x.Dbl("x") * 100, x.Dbl("y") * 100),
                 "window" => $"{x.Int("x")}, {x.Int("y")}",
                 "keyboard" => x.Str("accelerator") ?? x.Str("accessKey") ?? "",
                 _ => x["value"]?.ToString() ?? ""
             }));
-            info("Wege", ReadOnlyText(string.Join("\n", lines), Theme.Fg, 12));
+            info(Loc.L("Wege", "Selectors"), ReadOnlyText(string.Join("\n", lines), Theme.Fg, 12));
         }
         if (j.Obj("sync") is { } sy)
         {
             var parts = new List<string>();
-            if (sy.LongN("busyMs") is long b) parts.Add($"beschäftigt {b} ms ({sy.Str("busyShape")})");
-            if (sy.Obj("waitWindow")?.Str("title") is { } ww) parts.Add($"Fenster „{ww}“ nach {sy.Obj("waitWindow")!.Long("afterMs")} ms");
-            if (sy.LongN("settleMs") is long st) parts.Add($"Bild ruhig nach {st} ms");
-            if (sy.LongN("readyMs") is long rd) parts.Add($"bereit nach {rd} ms");
-            if (sy.LongN("thinkMs") is long th) parts.Add($"Denkpause {th} ms");
-            if (parts.Count > 0) info("Warten", ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
+            if (sy.LongN("busyMs") is long b) parts.Add(Loc.F("beschäftigt {0} ms ({1})", "busy {0} ms ({1})", b, sy.Str("busyShape")));
+            if (sy.Obj("waitWindow")?.Str("title") is { } ww) parts.Add(Loc.F("Fenster „{0}“ nach {1} ms", "Window “{0}” after {1} ms", ww, sy.Obj("waitWindow")!.Long("afterMs")));
+            if (sy.LongN("settleMs") is long st) parts.Add(Loc.F("Bild ruhig nach {0} ms", "Image settled after {0} ms", st));
+            if (sy.LongN("readyMs") is long rd) parts.Add(Loc.F("bereit nach {0} ms", "ready after {0} ms", rd));
+            if (sy.LongN("thinkMs") is long th) parts.Add(Loc.F("Denkpause {0} ms", "Thinking pause {0} ms", th));
+            if (parts.Count > 0) info(Loc.L("Warten", "Waiting"),ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
         }
         if (j.Obj("verify") is { } vf)
         {
             var parts = new List<string>();
-            if (vf.Obj("titleChanged") is { } tc) parts.Add($"Titel → „{tc.Str("to")}“");
+            if (vf.Obj("titleChanged") is { } tc) parts.Add(Loc.F("Titel → „{0}“", "Title → “{0}”", tc.Str("to")));
             foreach (var ch in vf.Arr("changes")?.OfType<JsonObject>().Take(5) ?? Enumerable.Empty<JsonObject>())
-                parts.Add(ch.Str("checked") is { } ck ? $"{ch.Str("c")}: {ck}" : ch.Str("to") is { } to ? $"{ch.Str("c")}: „{to}“" : ch.Str("appeared") is { } ap ? $"{ch.Str("c")} neu: „{ap}“" : ch.Str("disappeared") is { } dp ? $"{ch.Str("c")} weg" : $"{ch.Str("c")} geändert");
-            if (vf.Str("focus") is { } ff) parts.Add($"Fokus danach {ff}");
-            if (parts.Count > 0) info("Prüfung", ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
+                parts.Add(ch.Str("checked") is { } ck ? $"{ch.Str("c")}: {ck}" : ch.Str("to") is { } to ? $"{ch.Str("c")}: " + Q(to) : ch.Str("appeared") is { } ap ? Loc.F("{0} neu: „{1}“", "{0} new: “{1}”", ch.Str("c"), ap) : ch.Str("disappeared") is { } dp ? Loc.F("{0} weg", "{0} gone", ch.Str("c")) : Loc.F("{0} geändert", "{0} changed", ch.Str("c")));
+            if (vf.Str("focus") is { } ff) parts.Add(Loc.F("Fokus danach {0}", "Focus afterwards {0}", ff));
+            if (parts.Count > 0) info(Loc.L("Prüfung", "Verification"),ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
         }
-        if (j.Obj("menuPath")?.Arr("items") is { Count: > 0 } mi) info("Menü", ReadOnlyText(string.Join(" › ", mi.Select(x => x?.GetValue<string>())), Theme.Fg, 12));
-        if (j.Obj("choose")?.Str("item") is { } chItem) info("Auswahl", ReadOnlyText($"„{chItem}“" + (j.Obj("choose")!.LongN("index") is long ci ? $" (Nr. {ci} von {j.Obj("choose")!.LongN("of")})" : ""), Theme.Fg, 12));
+        if (j.Obj("menuPath")?.Arr("items") is { Count: > 0 } mi) info(Loc.L("Menü", "Menu"), ReadOnlyText(string.Join(" › ", mi.Select(x => x?.GetValue<string>())), Theme.Fg, 12));
+        if (j.Obj("choose")?.Str("item") is { } chItem) info(Loc.L("Auswahl", "Selection"), ReadOnlyText(Q(chItem) + (j.Obj("choose")!.LongN("index") is long ci ? Loc.F(" (Nr. {0} von {1})", " (No. {0} of {1})", ci, j.Obj("choose")!.LongN("of")) : ""), Theme.Fg, 12));
         if (w32.Obj("window")?.Obj("app") is { } app)
-            info("Programm", ReadOnlyText(string.Join("\n", new[] { app.Str("product") is { } pr ? pr + (app.Str("version") is { } ver ? " " + ver : "") : null, app["elevated"]?.GetValue<bool>() == true ? "läuft als Administrator" : null, app.Str("commandLine") }.Where(t => t != null)), Theme.Muted, 12));
+            info(Loc.L("Programm", "Program"), ReadOnlyText(string.Join("\n", new[] { app.Str("product") is { } pr ? pr + (app.Str("version") is { } ver ? " " + ver : "") : null, app["elevated"]?.GetValue<bool>() == true ? Loc.L("läuft als Administrator", "runs as administrator") : null, app.Str("commandLine") }.Where(t => t != null)), Theme.Muted, 12));
         if (w32.Arr("texts") is { Count: > 0 } texts)
         {
             var sb = new StringBuilder();
             foreach (var t in texts) sb.Append(t.Str("c")).Append("  ").Append(t.Str("t")?.Replace("\n", " ")).AppendLine();
             _details.Children.Add(new Expander
             {
-                Header = $"Fenstertexte ({texts.Count})", Margin = new Thickness(0, 10, 0, 0),
+                Header = Loc.F("Fenstertexte ({0})", "Window texts ({0})", texts.Count), Margin = new Thickness(0, 10, 0, 0),
                 Content = new Border { Background = Theme.Surface2, CornerRadius = new CornerRadius(5), Padding = new Thickness(12, 10, 12, 10), Child = ReadOnlyText(sb.ToString().TrimEnd(), Theme.Fg2, 11.5, Theme.Mono) }
             });
         }
@@ -333,22 +339,22 @@ sealed partial class ViewerWindow : Window
     static string MouseSummary(string kind, JsonObject mi)
     {
         var lines = new List<string>();
-        string button = mi.Str("button") switch { "secondary" => "rechte Taste", "middle" => "mittlere Taste", "x1" or "x2" => "Zusatztaste", _ => "linke Taste" };
-        var mods = mi.StrList("mods").Select(x => x switch { "ctrl" => "Strg", "shift" => "Umschalt", "alt" => "Alt", "win" => "Win", _ => x }).ToList();
+        string button = mi.Str("button") switch { "secondary" => Loc.L("rechte Taste", "right button"), "middle" => Loc.L("mittlere Taste", "middle button"), "x1" or "x2" => Loc.L("Zusatztaste", "extra button"), _ => Loc.L("linke Taste", "left button") };
+        var mods = mi.StrList("mods").Select(x => x switch { "ctrl" => Loc.Keys("Ctrl"), "shift" => Loc.Keys("Shift"), "alt" => "Alt", "win" => "Win", _ => x }).ToList();
         lines.Add((mods.Count > 0 ? string.Join("+", mods) + " + " : "") + button);
         if (kind == "drag")
         {
-            lines.Add($"gedrückt {mi.Long("durationUs") / 1000} ms · Weg {mi.Long("distancePx")} px");
-            if (mi.Long("holdBeforeMoveUs") >= 100_000) lines.Add($"vor der Bewegung gehalten {mi.Long("holdBeforeMoveUs") / 1000} ms");
-            if (mi.Long("holdAtEndUs") >= 100_000) lines.Add($"über dem Ziel verweilt {mi.Long("holdAtEndUs") / 1000} ms");
+            lines.Add(Loc.F("gedrückt {0} ms · Weg {1} px", "pressed {0} ms · path {1} px", mi.Long("durationUs") / 1000, mi.Long("distancePx")));
+            if (mi.Long("holdBeforeMoveUs") >= 100_000) lines.Add(Loc.F("vor der Bewegung gehalten {0} ms", "held {0} ms before moving", mi.Long("holdBeforeMoveUs") / 1000));
+            if (mi.Long("holdAtEndUs") >= 100_000) lines.Add(Loc.F("über dem Ziel verweilt {0} ms", "stayed over the target {0} ms", mi.Long("holdAtEndUs") / 1000));
         }
-        else if (mi.LongN("pressUs") is long pu) lines.Add($"gedrückt {pu / 1000} ms" + (mi.Bool("longPress") ? " (gedrückt gehalten)" : ""));
+        else if (mi.LongN("pressUs") is long pu) lines.Add(Loc.F("gedrückt {0} ms", "pressed {0} ms", pu / 1000) + (mi.Bool("longPress") ? Loc.L(" (gedrückt gehalten)", " (held down)") : ""));
         return string.Join("\n", lines);
     }
 
     // ---------------- Mausmarkierungen ----------------
 
-    static readonly (string key, string label)[] MarkKeys = { ("clickMarker", "Klickpunkt"), ("dragPath", "Zug- und Haltepfad"), ("elementFrame", "Zielrahmen"), ("labels", "Hinweise (Haltedauer, Scrollrichtung)"), ("approachPath", "Mausweg davor"), ("keyCaps", "Tasten und Texteingaben") };
+    static (string key, string label)[] MarkKeys => new[] { ("clickMarker", Loc.L("Klickpunkt", "Click point")), ("dragPath", Loc.L("Zug- und Haltepfad", "Drag and hold path")), ("elementFrame", Loc.L("Zielrahmen", "Target frame")), ("labels", Loc.L("Hinweise (Haltedauer, Scrollrichtung)", "Notes (hold time, scroll direction)")), ("approachPath", Loc.L("Mausweg davor", "Mouse path before")), ("keyCaps", Loc.L("Tasten und Texteingaben", "Keys and typed text")) };
 
     static bool MarkOf(MouseMarks m, string key) => key switch { "clickMarker" => m.Click, "dragPath" => m.Path, "elementFrame" => m.Target, "labels" => m.Labels, "keyCaps" => m.KeyCaps, _ => m.Approach };
 
@@ -364,15 +370,15 @@ sealed partial class ViewerWindow : Window
             mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
             m.Items.Add(mi);
         }
-        Head("Alle Schritte");
+        Head(Loc.L("Alle Schritte", "All steps"));
         foreach (var (key, label) in MarkKeys) { bool on = MarkOf(all, key); Item(label, on, () => SetMark(null, key, !on)); }
         if (s != null)
         {
             m.Items.Add(new Separator());
-            Head($"Nur Schritt {s.Number}");
+            Head(Loc.F("Nur Schritt {0}", "Step {0} only", s.Number));
             var cur = _view.MarksFor(s);
-            Item(cur.Any ? "Alle Markierungen ausblenden" : "Markierungen einblenden", false, ToggleStepMarks, "H");
-            if (StepMarksEdit(s) != null) Item("Wie alle Schritte", false, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false));
+            Item(cur.Any ? Loc.L("Alle Markierungen ausblenden", "Hide all markers") : Loc.L("Markierungen einblenden", "Show markers"), false, ToggleStepMarks, "H");
+            if (StepMarksEdit(s) != null) Item(Loc.L("Wie alle Schritte", "Same as all steps"), false, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false));
         }
         m.IsOpen = true;
     }
@@ -405,16 +411,16 @@ sealed partial class ViewerWindow : Window
             else if (!all.Any) foreach (var k in MouseMarks.Keys.Where(k => k != "approachPath")) auto[k] = true;
             if (auto.Count == 0) se.Remove("auto");
         }, refill: false);
-        _status.Text = show ? $"Mausmarkierungen bei Schritt {s.Number} eingeblendet" : $"Mausmarkierungen bei Schritt {s.Number} ausgeblendet";
+        _status.Text = show ? Loc.F("Mausmarkierungen bei Schritt {0} eingeblendet", "Mouse markers shown for step {0}", s.Number) : Loc.F("Mausmarkierungen bei Schritt {0} ausgeblendet", "Mouse markers hidden for step {0}", s.Number);
     }
 
     static string EffectSummary(JsonObject eff)
     {
         var parts = new List<string>();
-        foreach (var w in eff.Arr("windowsOpened") ?? new JsonArray()) parts.Add($"„{w.Str("title")}“ erschien");
-        foreach (var w in eff.Arr("windowsClosed") ?? new JsonArray()) parts.Add($"„{w.Str("title")}“ geschlossen");
-        foreach (var w in eff.Arr("titleChanges") ?? new JsonArray()) parts.Add($"Titel → „{w.Str("to")}“");
-        if (eff.Obj("screen") is { } sc && sc.Dbl("changedRatio") > 0) parts.Add($"Bildschirm {sc.Dbl("changedRatio") * 100:0.0} % geändert");
+        foreach (var w in eff.Arr("windowsOpened") ?? new JsonArray()) parts.Add(Loc.F("„{0}“ erschien", "“{0}” appeared", w.Str("title")));
+        foreach (var w in eff.Arr("windowsClosed") ?? new JsonArray()) parts.Add(Loc.F("„{0}“ geschlossen", "“{0}” closed", w.Str("title")));
+        foreach (var w in eff.Arr("titleChanges") ?? new JsonArray()) parts.Add(Loc.F("Titel → „{0}“", "Title → “{0}”", w.Str("to")));
+        if (eff.Obj("screen") is { } sc && sc.Dbl("changedRatio") > 0) parts.Add(Loc.F("Bildschirm {0:0.0} % geändert", "Screen {0:0.0}% changed", sc.Dbl("changedRatio") * 100));
         return parts.Count == 0 ? "–" : string.Join(" · ", parts);
     }
 
@@ -424,12 +430,12 @@ sealed partial class ViewerWindow : Window
 
     void Change(Action<JsonObject> edit, bool refill = true)
     {
-        if (_view.Session.ReadOnly) { Msg.Show("Diese Sitzung ist schreibgeschützt (.steprec). Bitte entpacken, um sie zu bearbeiten."); return; }
+        if (_view.Session.ReadOnly) { Msg.Show(Loc.L("Diese Sitzung ist schreibgeschützt (.steprec). Bitte entpacken, um sie zu bearbeiten.", "This recording is read-only (.steprec). Please extract it to edit it.")); return; }
         _undo.Add(Json.Line(_view.Edits)); _redo.Clear();
         string ImageEdits() => (_view.Edits["redactions"]?.ToJsonString() ?? "") + (_view.Edits["substitutions"]?.ToJsonString() ?? "");
         string before = ImageEdits();
         edit(_view.Edits);
-        if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen."); }
+        if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show(Loc.L("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen.", "The recording was changed in the meantime; please try again.")); }
         bool allImages = before != ImageEdits();
         if (allImages) _thumbs.Clear(); else if (Sel is { } cur) _thumbs.Remove(cur.Id);
         QualityInvalidate();
@@ -438,8 +444,8 @@ sealed partial class ViewerWindow : Window
         UpdateUndo();
     }
 
-    void Undo() { if (_undo.Count == 0) return; _redo.Add(Json.Line(_view.Edits)); Restore(_undo[^1]); _undo.RemoveAt(_undo.Count - 1); UpdateUndo(); _status.Text = "Rückgängig gemacht"; }
-    void Redo() { if (_redo.Count == 0) return; _undo.Add(Json.Line(_view.Edits)); Restore(_redo[^1]); _redo.RemoveAt(_redo.Count - 1); UpdateUndo(); _status.Text = "Wiederholt"; }
+    void Undo() { if (_undo.Count == 0) return; _redo.Add(Json.Line(_view.Edits)); Restore(_undo[^1]); _undo.RemoveAt(_undo.Count - 1); UpdateUndo(); _status.Text = Loc.L("Rückgängig gemacht", "Undone"); }
+    void Redo() { if (_redo.Count == 0) return; _undo.Add(Json.Line(_view.Edits)); Restore(_redo[^1]); _redo.RemoveAt(_redo.Count - 1); UpdateUndo(); _status.Text = Loc.L("Wiederholt", "Redone"); }
     void Restore(string json)
     {
         var rev = _view.Edits.Long("revision");
@@ -467,7 +473,7 @@ sealed partial class ViewerWindow : Window
 
     void Rename()
     {
-        var d = new InputDialog("Titel der Anleitung", _view.Title) { Owner = this };
+        var d = new InputDialog(Loc.L("Titel der Anleitung", "Guide title"), _view.Title) { Owner = this };
         if (d.ShowDialog() != true) return;
         Change(e => { var g = e.Obj("guide") ?? new JsonObject(); g["title"] = d.Value; e["guide"] = g; });
         _titleBlock.Text = _view.Title;
@@ -476,7 +482,7 @@ sealed partial class ViewerWindow : Window
     void EditText()
     {
         var s = Sel; if (s == null) return;
-        var d = new InputDialog("Text des Schritts", s.AuthorBody ?? s.Guide, s.AuthorTitle ?? s.Title) { Owner = this };
+        var d = new InputDialog(Loc.L("Text des Schritts", "Step text"),s.AuthorBody ?? s.Guide, s.AuthorTitle ?? s.Title) { Owner = this };
         if (d.ShowDialog() != true) return;
         Change(e =>
         {
@@ -493,7 +499,7 @@ sealed partial class ViewerWindow : Window
     void AddComment()
     {
         var s = Sel; if (s == null) return;
-        var d = new InputDialog("Kommentar", "", null, kinds: true) { Owner = this };
+        var d = new InputDialog(Loc.L("Kommentar", "Comment"), "", null, kinds: true) { Owner = this };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         Change(e =>
         {
@@ -508,7 +514,7 @@ sealed partial class ViewerWindow : Window
     void InsertNote()
     {
         var s = Sel; if (s == null) return;
-        var d = new InputDialog("Hinweis einfügen (als Kommentar am Schritt)", "", null, kinds: true) { Owner = this };
+        var d = new InputDialog(Loc.L("Hinweis einfügen (als Kommentar am Schritt)", "Insert note (as a comment on the step)"),"", null, kinds: true) { Owner = this };
         if (d.ShowDialog() != true) return;
         Change(e => { var arr = e["comments"] as JsonArray ?? new JsonArray(); arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value, ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" }); e["comments"] = arr; });
     }
@@ -553,7 +559,7 @@ sealed partial class ViewerWindow : Window
     /// <summary>Text überall schwärzen: sucht alle Fundstellen; gespeichert werden nur Ziele (seq + Feld), nie der Text.</summary>
     void RedactText()
     {
-        var d = new InputDialog("Welcher Text soll überall geschwärzt werden?", "") { Owner = this };
+        var d = new InputDialog(Loc.L("Welcher Text soll überall geschwärzt werden?", "Which text should be redacted everywhere?"), "") { Owner = this };
         if (d.ShowDialog() != true || d.Value.Length < 2) return;
         string needle = d.Value;
         var targets = new JsonArray();
@@ -569,14 +575,14 @@ sealed partial class ViewerWindow : Window
                 foreach (var rg in st.Json.Obj("seq")?.Arr("input") ?? new JsonArray())
                     for (long q = rg![0]!.GetValue<long>(); q <= rg[1]!.GetValue<long>(); q++)
                         if (_view.Session.BySeq(q) is { } ke && ke.Str("ch") != null) targets.Add(new JsonObject { ["seq"] = q, ["field"] = "ch" });
-        if (targets.Count == 0) { Msg.Show("Keine Fundstelle."); return; }
+        if (targets.Count == 0) { Msg.Show(Loc.L("Keine Fundstelle.", "No matches found.")); return; }
         Change(e =>
         {
             var arr = e["redactions"] as JsonArray ?? new JsonArray();
             arr.Add(new JsonObject { ["id"] = NextId(e, "redactions", "r"), ["kind"] = "text", ["targets"] = targets, ["createdUtc"] = Json.UtcNow(), ["by"] = "user" });
             e["redactions"] = arr;
         });
-        Msg.Show($"{targets.Count} Fundstellen geschwärzt (Texte). Im Bild sichtbare Stellen bitte zusätzlich mit dem Werkzeug „Schwärzen“ markieren.", "Schwärzen");
+        Msg.Show(Loc.F("{0} Fundstellen geschwärzt (Texte). Im Bild sichtbare Stellen bitte zusätzlich mit dem Werkzeug „Schwärzen“ markieren.", "{0} matches redacted (texts). Please also mark places visible in the image with the “Redact” tool.", targets.Count), Loc.L("Schwärzen", "Redact"));
     }
 
     static IEnumerable<(string path, string value)> StringFields(JsonNode? n, string prefix)
@@ -602,11 +608,11 @@ sealed partial class ViewerWindow : Window
     void Generalize()
     {
         var user = Environment.UserName;
-        var d = new InputDialog("Persönlichen Wert verallgemeinern – Wert (z. B. Benutzername):", user, "Benutzername") { Owner = this };
-        d.TitleLabel = "Platzhalter";
+        var d = new InputDialog(Loc.L("Persönlichen Wert verallgemeinern – Wert (z. B. Benutzername):", "Generalize a personal value – value (e.g. user name):"), user, Loc.L("Benutzername", "User name")) { Owner = this };
+        d.TitleLabel = Loc.L("Platzhalter", "Placeholder");
         if (d.ShowDialog() != true || d.Value.Trim().Length < 3) return;
         string ph = new string(d.TitleValue.Where(c => char.IsLetterOrDigit(c) || c is ' ' or '_' or '-').ToArray()).Trim();
-        if (ph.Length == 0) ph = "Wert";
+        if (ph.Length == 0) ph = _view.Language == "en" ? "Value" : "Wert";
         Change(e =>
         {
             var arr = e["substitutions"] as JsonArray ?? new JsonArray();

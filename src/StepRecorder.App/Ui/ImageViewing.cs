@@ -3,6 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App.Ui;
 
@@ -106,8 +107,8 @@ sealed class ZoomPanel : Grid
             if (fg != null) b.Foreground = fg;
             return b;
         }
-        return U.Row(B(Theme.IZoomOut, null, ZoomOut, "Verkleinern (Strg+Minus, Strg+Mausrad)"), pct, B(Theme.IZoomIn, null, ZoomIn, "Vergrößern (Strg+Plus, Strg+Mausrad)"),
-            B(Theme.IFit, "Einpassen", FitNow, "Ganzes Bild zeigen (Strg+0)"), B(Theme.IActual, "100 %", Actual, "Originalgröße (Strg+1)"));
+        return U.Row(B(Theme.IZoomOut, null, ZoomOut, Loc.L("Verkleinern (Strg+Minus, Strg+Mausrad)", "Zoom out (Ctrl+Minus, Ctrl+mouse wheel)")), pct, B(Theme.IZoomIn, null, ZoomIn, Loc.L("Vergrößern (Strg+Plus, Strg+Mausrad)", "Zoom in (Ctrl+Plus, Ctrl+mouse wheel)")),
+            B(Theme.IFit, Loc.L("Einpassen", "Fit"), FitNow, Loc.L("Ganzes Bild zeigen (Strg+0)", "Show whole image (Ctrl+0)")), B(Theme.IActual, "100 %", Actual, Loc.L("Originalgröße (Strg+1)", "Actual size (Ctrl+1)")));
     }
 
     /// <summary>Tastenkürzel für Zoom; true, wenn behandelt.</summary>
@@ -139,7 +140,7 @@ sealed class ImageLightbox : Window
     public ImageLightbox(Func<int, (BitmapSource img, string caption)?> get, int index, int count)
     {
         _get = get; _index = index; _count = count;
-        Title = "Großansicht"; WindowState = WindowState.Maximized; ShowInTaskbar = false;
+        Title = Loc.L("Großansicht", "Full view"); WindowState = WindowState.Maximized; ShowInTaskbar = false;
         var dark = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x11));
         Theme.Prepare(this, dark);
         Background = dark;
@@ -153,13 +154,13 @@ sealed class ImageLightbox : Window
             var b = U.Ghost(glyph, null, () => Go(_index + dir), tip); b.Foreground = light; b.Padding = new Thickness(10, 8, 10, 8);
             return b;
         }
-        var close = U.Ghost(Theme.IClose, "Schließen", Close, "Schließen (Esc)"); close.Foreground = light;
+        var close = U.Ghost(Theme.IClose, Loc.L("Schließen", "Close"), Close, Loc.L("Schließen (Esc)", "Close (Esc)")); close.Foreground = light;
         var bar = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
-        var right = U.Row(_zoom.Toolbar(light), new Border { Width = 1, Height = 22, Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)), Margin = new Thickness(10, 0, 10, 0) }, Nav(Theme.IPrev, -1, "Vorheriges Bild (←)"), Nav(Theme.INext, +1, "Nächstes Bild (→)"), close);
+        var right = U.Row(_zoom.Toolbar(light), new Border { Width = 1, Height = 22, Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)), Margin = new Thickness(10, 0, 10, 0) }, Nav(Theme.IPrev, -1, Loc.L("Vorheriges Bild (←)", "Previous image (←)")), Nav(Theme.INext, +1, Loc.L("Nächstes Bild (→)", "Next image (→)")), close);
         right.VerticalAlignment = VerticalAlignment.Center;
         DockPanel.SetDock(right, Dock.Right); bar.Children.Add(right); bar.Children.Add(_caption);
         var top = new Border { Background = new SolidColorBrush(Color.FromArgb(210, 0x17, 0x16, 0x14)), Child = bar };
-        var hint = new TextBlock { Text = "Strg+Mausrad zoomen · Leertaste oder mittlere Maustaste + Ziehen verschieben · Doppelklick: Einpassen / 100 % · ← → blättern · Esc schließt", Foreground = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 10) };
+        var hint = new TextBlock { Text = Loc.L("Strg+Mausrad zoomen · Leertaste oder mittlere Maustaste + Ziehen verschieben · Doppelklick: Einpassen / 100 % · ← → blättern · Esc schließt", "Ctrl+mouse wheel to zoom · Space or middle mouse button + drag to pan · Double-click: Fit / 100 % · ← → to browse · Esc to close"), Foreground = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 10) };
         var root = new DockPanel();
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         DockPanel.SetDock(hint, Dock.Bottom); root.Children.Add(hint);

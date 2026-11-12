@@ -10,7 +10,8 @@ namespace StepRecorder.App;
 /// <summary>Kopflose Befehle: export, check, validate, compare, steps, settings, record --stop/--self-test. Exit-Codes nach 02 §8.6.</summary>
 static class Cli
 {
-    const string HelpDe = """
+    public static string Help => Loc.L(
+"""
 Sebastians Step Recorder – portabler Schrittrekorder
 
 Aufruf:
@@ -42,9 +43,8 @@ Aufruf:
 
 Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Aufnahme nicht gefunden · 4 Prüfung fehlgeschlagen · 5 abgebrochen
             6 Aufnahme läuft · 7 Voraussetzung fehlt · 8 Ziel nicht beschreibbar · 9 --strict-Abbruch
-""";
-
-    const string HelpEn = """
+""",
+"""
 Sebastians Step Recorder – portable step recorder
 
 Usage:
@@ -76,9 +76,7 @@ Usage:
 
 Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check failed · 5 cancelled
             6 recording in progress · 7 prerequisite missing · 8 target not writable · 9 --strict abort
-""";
-
-    public static string Help => Loc.L(HelpDe, HelpEn);
+""");
 
     public static int Run(string[] args)
     {

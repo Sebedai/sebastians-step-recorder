@@ -1,3 +1,5 @@
+using StepRecorder.Settings;
+
 namespace StepRecorder.Export;
 
 /// <summary>Ziel ist nicht beschreibbar oder würde fremde Dateien überschreiben (Exit-Code 8).</summary>
@@ -17,19 +19,19 @@ public static class ExportFolders
     /// <summary>Prüft nur (ohne zu löschen), ob ein Ordner ersetzt werden dürfte.</summary>
     public static void CheckOwnable(string dir, string marker)
     {
-        if (File.Exists(dir)) throw new ExportTargetException($"Ziel ist eine Datei, kein Ordner: {dir}");
+        if (File.Exists(dir)) throw new ExportTargetException(Loc.F("Ziel ist eine Datei, kein Ordner: {0}", "The target is a file, not a folder: {0}", dir));
         if (Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any() && !File.Exists(Path.Combine(dir, marker)))
-            throw new ExportTargetException($"Der Zielordner ist nicht leer und enthält keinen früheren Export ({marker}) – er wird nicht überschrieben: {dir}");
+            throw new ExportTargetException(Loc.F("Der Zielordner ist nicht leer und enthält keinen früheren Export ({0}) – er wird nicht überschrieben: {1}", "The target folder is not empty and contains no earlier export ({0}) – it will not be overwritten: {1}", marker, dir));
     }
 
     public static void PrepareOwned(string dir, string marker)
     {
-        if (File.Exists(dir)) throw new ExportTargetException($"Ziel ist eine Datei, kein Ordner: {dir}");
+        if (File.Exists(dir)) throw new ExportTargetException(Loc.F("Ziel ist eine Datei, kein Ordner: {0}", "The target is a file, not a folder: {0}", dir));
         if (Directory.Exists(dir))
         {
             bool empty = !Directory.EnumerateFileSystemEntries(dir).Any();
             if (!empty && !File.Exists(Path.Combine(dir, marker)))
-                throw new ExportTargetException($"Der Zielordner ist nicht leer und enthält keinen früheren Export ({marker}) – er wird nicht überschrieben: {dir}");
+                throw new ExportTargetException(Loc.F("Der Zielordner ist nicht leer und enthält keinen früheren Export ({0}) – er wird nicht überschrieben: {1}", "The target folder is not empty and contains no earlier export ({0}) – it will not be overwritten: {1}", marker, dir));
             if (!empty) Directory.Delete(dir, true);
         }
         Directory.CreateDirectory(dir);

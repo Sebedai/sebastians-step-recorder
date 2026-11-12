@@ -1,21 +1,19 @@
 using System.Runtime.CompilerServices;
 using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
 using StepRecorder.Settings;
 
 namespace StepRecorder.Tests;
 
 /// <summary>
-/// Sicherheitsnetz der Zweisprachigkeit: Deutsch aussehende Texte außerhalb von <c>Loc.L/F/N(…)</c> dürfen je Datei
-/// nicht mehr werden (Baseline <c>loc-baseline.json</c>; neu schreiben mit STEPRECORDER_LOC_BASELINE=update).
+/// Sicherheitsnetz der Zweisprachigkeit: In der App gibt es keine deutsch aussehenden Texte außerhalb von
+/// <c>Loc.L/F/N/For(…)</c>. Liste der Fundstellen: STEPRECORDER_LOC_REPORT=&lt;Datei&gt; (mit STEPRECORDER_LOC_SCOPE=core für Core).
 /// </summary>
 [Collection("Loc")]
 public partial class LocalizationTests
 {
     static string TestsDir([CallerFilePath] string p = "") => Path.GetDirectoryName(p)!;
     static string RepoRoot => Path.GetFullPath(Path.Combine(TestsDir(), "..", ".."));
-    static string BaselineFile => Path.Combine(TestsDir(), "loc-baseline.json");
 
     public sealed record Literal(string Text, bool Wrapped, int Line, string? Call);
 
@@ -41,8 +39,8 @@ public partial class LocalizationTests
                 int s = i; while (i < src.Length && (char.IsLetterOrDigit(src[i]) || src[i] is '_' or '.')) i++;
                 string ident = src[s..i];
                 int j = i; while (j < src.Length && src[j] == ' ') j++;
-                if (j < src.Length && src[j] == '(' && (ident is "Loc.L" or "Loc.F" or "Loc.N" or "Loc.Keys" or "Settings.Loc.L" or "Settings.Loc.F" or "Settings.Loc.N"
-                    || ident.EndsWith("Log") || ident.EndsWith(".Write") && ident.Contains("AppLog") || ident is "Debug.Assert" or "nameof" or "Theme.Style" or "Style" or "FindResource" or "Regex" or "GeneratedRegex"))
+                if (j < src.Length && src[j] == '(' && (ident is "Loc.L" or "Loc.F" or "Loc.N" or "Loc.Keys" or "Loc.For" or "Settings.Loc.L" or "Settings.Loc.F" or "Settings.Loc.N"
+                    || ident.EndsWith("Log") || ident.EndsWith(".Write") && ident.Contains("AppLog") || ident is "Debug.Assert" or "nameof" or "Theme.Style" or "Style" or "FindResource" or "Regex" or "GeneratedRegex" or "FontFamily"))
                     pendingCall = ident;
                 continue;
             }
@@ -91,7 +89,7 @@ public partial class LocalizationTests
                     i = k + 1;
                 }
                 var call = calls.Count > 0 ? calls.Peek().name : null;
-                bool wrapped = calls.Any(x => x.name.StartsWith("Loc.") || x.name.StartsWith("Settings.Loc.") || x.name.EndsWith("Log") || x.name.Contains("AppLog") || x.name is "Debug.Assert" or "nameof" or "Theme.Style" or "Style" or "FindResource" or "Regex" or "GeneratedRegex");
+                bool wrapped = calls.Any(x => x.name.StartsWith("Loc.") || x.name.StartsWith("Settings.Loc.") || x.name.EndsWith("Log") || x.name.Contains("AppLog") || x.name is "Debug.Assert" or "nameof" or "Theme.Style" or "Style" or "FindResource" or "Regex" or "GeneratedRegex" or "FontFamily");
                 result.Add(new Literal(sb.ToString(), wrapped, startLine, call));
                 continue;
             }
@@ -105,17 +103,6 @@ public partial class LocalizationTests
     static IEnumerable<string> AppSources() => Directory.EnumerateFiles(Path.Combine(RepoRoot, "src", "StepRecorder.App"), "*.cs", SearchOption.AllDirectories)
         .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}") && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}"));
 
-    static Dictionary<string, int> Count()
-    {
-        var d = new Dictionary<string, int>();
-        foreach (var f in AppSources().OrderBy(x => x, StringComparer.Ordinal))
-        {
-            int n = Scan(File.ReadAllText(f)).Count(l => !l.Wrapped && LooksGerman(l.Text));
-            if (n > 0) d[Path.GetRelativePath(RepoRoot, f).Replace('\\', '/')] = n;
-        }
-        return d;
-    }
-
     [Fact]
     public void Scanner_FindsWrappedAndBareLiterals()
     {
@@ -127,18 +114,28 @@ public partial class LocalizationTests
         Assert.Contains(lits, l => l.Text.Contains("Länger") && !l.Wrapped);
     }
 
-    [Fact]
-    public void BareGermanLiterals_DoNotIncrease()
+    /// <summary>Liste der verbliebenen Texte (Datei:Zeile: Text) – nur zum Abarbeiten, z. B. STEPRECORDER_LOC_REPORT=&lt;Datei&gt;.</summary>
+    static void Report(string path)
     {
-        var now = Count();
-        if (Environment.GetEnvironmentVariable("STEPRECORDER_LOC_BASELINE") == "update")
-        {
-            File.WriteAllText(BaselineFile, JsonSerializer.Serialize(new SortedDictionary<string, int>(now), new JsonSerializerOptions { WriteIndented = true }));
-            return;
-        }
-        var baseline = File.Exists(BaselineFile) ? JsonSerializer.Deserialize<Dictionary<string, int>>(File.ReadAllText(BaselineFile))! : new();
-        var worse = now.Where(kv => kv.Value > baseline.GetValueOrDefault(kv.Key)).Select(kv => $"{kv.Key}: {kv.Value} (erlaubt {baseline.GetValueOrDefault(kv.Key)})").ToList();
-        Assert.True(worse.Count == 0, "Neue unübersetzte Texte – bitte Loc.L(\"…\", \"…\") verwenden:\n" + string.Join("\n", worse));
+        var sb = new StringBuilder();
+        var files = Environment.GetEnvironmentVariable("STEPRECORDER_LOC_SCOPE") == "core"
+            ? Directory.EnumerateFiles(Path.Combine(RepoRoot, "src", "StepRecorder.Core"), "*.cs", SearchOption.AllDirectories).Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            : AppSources();
+        foreach (var f in files.OrderBy(x => x, StringComparer.Ordinal))
+            foreach (var l in Scan(File.ReadAllText(f)).Where(l => !l.Wrapped && LooksGerman(l.Text)))
+                sb.Append(Path.GetRelativePath(RepoRoot, f).Replace('\\', '/')).Append(':').Append(l.Line).Append(": ").AppendLine(l.Text.Replace("\n", "\\n"));
+        File.WriteAllText(path, sb.ToString());
+    }
+
+    [Fact]
+    public void BareGermanLiterals_None()
+    {
+        if (Environment.GetEnvironmentVariable("STEPRECORDER_LOC_REPORT") is { Length: > 0 } report) Report(report);
+        var found = AppSources().OrderBy(x => x, StringComparer.Ordinal)
+            .SelectMany(f => Scan(File.ReadAllText(f)).Where(l => !l.Wrapped && LooksGerman(l.Text))
+                .Select(l => $"{Path.GetRelativePath(RepoRoot, f).Replace('\\', '/')}:{l.Line}: {l.Text}"))
+            .ToList();
+        Assert.True(found.Count == 0, "Unübersetzte Texte – bitte Loc.L(\"…\", \"…\") verwenden (Inhalt der Aufnahme: Loc.For(lang, …)):\n" + string.Join("\n", found.Take(30)));
     }
 
     [Fact]

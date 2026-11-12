@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Export;
 
@@ -38,7 +39,7 @@ public sealed class DocSettings
     public static JsonObject? SanitizeTemplate(JsonObject? t, out string? problem)
     {
         problem = null;
-        if (t == null) { problem = "keine Vorlage"; return null; }
+        if (t == null) { problem = Loc.L("keine Vorlage", "no template"); return null; }
         var r = new JsonObject();
         foreach (var k in TemplateKeys)
         {
@@ -54,19 +55,19 @@ public sealed class DocSettings
                 case "view": if (t.Str(k) is "screen" or "window" or "crop") r[k] = t.Str(k); break;
                 case "accent":
                     if (t.Str(k) is { Length: 7 } a && a[0] == '#' && a[1..].All(Uri.IsHexDigit)) r[k] = a;
-                    else problem = "Akzentfarbe ungültig";
+                    else problem = Loc.L("Akzentfarbe ungültig", "invalid accent colour");
                     break;
                 case "logo":
                     if (t.Str(k) is { Length: > 0 } logo)
                     {
-                        if (logo.Length > 4_000_000) { problem = "Logo zu groß"; break; }
+                        if (logo.Length > 4_000_000) { problem = Loc.L("Logo zu groß", "logo too large"); break; }
                         try
                         {
                             using var ms = new MemoryStream(Convert.FromBase64String(logo));
                             using var img = System.Drawing.Image.FromStream(ms);
                             r[k] = LogoFrom(img);
                         }
-                        catch { problem = "Logo ist kein gültiges Bild"; }
+                        catch { problem = Loc.L("Logo ist kein gültiges Bild", "logo is not a valid image"); }
                     }
                     break;
                 default:
@@ -77,10 +78,10 @@ public sealed class DocSettings
         return r;
     }
 
-    public static readonly (string hex, string name)[] Accents =
-        { ("#C2410C", "Orange"), ("#1F4E9C", "Blau"), ("#1F7A4D", "Grün"), ("#6B3FA0", "Violett"), ("#B4233C", "Rot"), ("#2E2D2A", "Graphit") };
+    public static (string hex, string name)[] Accents => new[]
+        { ("#C2410C", Loc.L("Orange", "Orange")), ("#1F4E9C", Loc.L("Blau", "Blue")), ("#1F7A4D", Loc.L("Grün", "Green")), ("#6B3FA0", Loc.L("Violett", "Violet")), ("#B4233C", Loc.L("Rot", "Red")), ("#2E2D2A", Loc.L("Graphit", "Graphite")) };
 
-    public static readonly (string id, string name)[] Sizes = { ("s", "klein"), ("m", "mittel"), ("l", "groß"), ("full", "volle Breite") };
+    public static (string id, string name)[] Sizes => new[] { ("s", Loc.L("klein", "small")), ("m", Loc.L("mittel", "medium")), ("l", Loc.L("groß", "large")), ("full", Loc.L("volle Breite", "full width")) };
 
     /// <summary>Anteil der Inhaltsbreite für Bilder.</summary>
     public static double Factor(string? size) => size switch { "s" => 0.5, "l" => 0.85, "full" => 1.0, _ => 0.68 };
@@ -127,7 +128,7 @@ public sealed class DocSettings
         if (j["overview"] != null) d.Overview = j.Bool("overview");
     }
 
-    public static readonly (string id, string name)[] Views = { ("screen", "Ganzer Bildschirm"), ("window", "Anwendungsfenster"), ("crop", "Bereich um die Aktion") };
+    public static (string id, string name)[] Views => new[] { ("screen", Loc.L("Ganzer Bildschirm", "Full screen")), ("window", Loc.L("Anwendungsfenster", "Application window")), ("crop", Loc.L("Bereich um die Aktion", "Area around the action")) };
 
     /// <summary>Logo-Bytes (PNG) oder null.</summary>
     public byte[]? LogoBytes() { try { return Logo.Length > 0 ? Convert.FromBase64String(Logo) : null; } catch { return null; } }

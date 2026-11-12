@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text;
+using StepRecorder.Settings;
 
 namespace StepRecorder.App;
 
@@ -84,7 +85,7 @@ static class McpMode
             for (int i = 1; i < args.Length; i++)
             {
                 string a = args[i];
-                string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException("Wert fehlt für " + a);
+                string Next() => i + 1 < args.Length ? args[++i] : throw new ArgumentException(Loc.F("Wert fehlt für {0}", "Missing value for {0}", a));
                 switch (a)
                 {
                     case "--root": o.Root = Next(); break;
@@ -95,13 +96,13 @@ static class McpMode
                     case "--max-image-pixels": o.MaxImagePixels = Math.Clamp(int.Parse(Next()), 250_000, 3_750_000); break;
                     case "--max-images": o.MaxImages = Math.Clamp(int.Parse(Next()), 0, 6); break;
                     case "--log" or "--log-level": Next(); break;
-                    default: stderr.WriteLine("Unbekannte Option: " + a); return 2;
+                    default: stderr.WriteLine(Loc.F("Unbekannte Option: {0}", "Unknown option: {0}", a)); return 2;
                 }
             }
             if (string.IsNullOrEmpty(o.Root)) o.Root = Environment.GetEnvironmentVariable("STEPRECORDER_MCP_ROOT") ?? "";
             if (string.IsNullOrEmpty(o.Root)) o.Root = Settings.AppPaths.DefaultSessionsFolder();
-            if (!Directory.Exists(o.Root)) { stderr.WriteLine("Root-Ordner nicht gefunden: " + o.Root); return 3; }
-            if (Native.Win32.IsElevated()) { stderr.WriteLine("Der MCP-Server läuft nicht mit Administratorrechten."); return 7; }
+            if (!Directory.Exists(o.Root)) { stderr.WriteLine(Loc.F("Root-Ordner nicht gefunden: {0}", "Root folder not found: {0}", o.Root)); return 3; }
+            if (Native.Win32.IsElevated()) { stderr.WriteLine(Loc.L("Der MCP-Server läuft nicht mit Administratorrechten.", "The MCP server does not run with administrator rights.")); return 7; }
             var server = new Mcp.McpStdioServer("steprecorder", Data.AppInfo.Version, Mcp.StepRecorderMcp.Instructions,
                 new StreamReader(Console.OpenStandardInput(), new UTF8Encoding(false)), stdout, stderr);
             new Mcp.StepRecorderMcp(o).Register(server);
@@ -110,7 +111,7 @@ static class McpMode
         }
         catch (Exception ex)
         {
-            stderr.WriteLine("Fehler: " + ex.Message);
+            stderr.WriteLine(Loc.F("Fehler: {0}", "Error: {0}", ex.Message));
             return 1;
         }
     }
