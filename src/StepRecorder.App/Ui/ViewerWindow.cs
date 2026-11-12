@@ -282,6 +282,9 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             if (StepRecorder.ReadLayer.Timing.Of(j) is { } tm && tm.LongN("reactionMs") is long rct) parts.Insert(0, Loc.F("erste Reaktion nach {0} ms", "first reaction after {0} ms", rct));
             if (parts.Count > 0) info(Loc.L("Warten", "Waiting"), ReadOnlyText(string.Join("\n", parts), Theme.Fg, Theme.FsHint));
         }
+        // Wortlaut des Fensters (Text-Schnappschuss, Paket 11) – markierbar und kopierbar
+        foreach (var sn in _view.SnapshotsOf(s))
+            info(Loc.F("Text im Fenster „{0}“", "Window text “{0}”", sn.title.Length > 40 ? sn.title[..40] + "…" : sn.title), ReadOnlyText(sn.text + (sn.incomplete ? Loc.L("\n(unvollständig)", "\n(incomplete)") : ""), Theme.Fg, Theme.FsHint));
         if (j.Obj("verify") is { } vf)
         {
             var parts = new List<string>();

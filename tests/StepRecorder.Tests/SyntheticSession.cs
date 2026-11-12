@@ -35,7 +35,7 @@ public static class SyntheticSession
     /// <summary>Freitext eines Eintrags der Ereignisanzeige (withEventText, Paket 12).</summary>
     public const string EventLogCanary = "System.NullReferenceException: Kanarie-Stack-5T1";
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000, bool withCrash = false, bool withEventText = false)
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000, bool withCrash = false, bool withEventText = false, bool withSnapshot = false)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -85,6 +85,9 @@ public static class SyntheticSession
         E(new JsonObject { ["t"] = 1_580_000, ["inSeq"] = ++inSeq, ["type"] = "mouse.up", ["ep"] = 0, ["m"] = "M1", ["x"] = 20, ["y"] = 14, ["button"] = "primary", ["physButton"] = "left", ["win"] = "w1", ["fg"] = "w1" });
         E(new JsonObject { ["t"] = 1_600_000, ["type"] = "window.info", ["win"] = "w2", ["hwnd"] = "0x00002000", ["pid"] = 10, ["process"] = "notepad.exe", ["title"] = "Speichern unter", ["kind"] = "dialog", ["owner"] = "w1" });
         E(new JsonObject { ["t"] = 1_600_000, ["type"] = "window.open", ["win"] = "w2", ["kind"] = "dialog", ["first"] = true });
+        if (withSnapshot)
+            E(new JsonObject { ["t"] = 1_600_000, ["tObs"] = 1_950_000, ["type"] = "ui.snapshot", ["trigger"] = "dialogStart", ["win"] = "w2", ["title"] = "Speichern unter", ["ms"] = 40,
+                ["nodes"] = new JsonArray(new JsonObject { ["ct"] = "Text", ["name"] = "Dateiname:" }, new JsonObject { ["ct"] = "Button", ["name"] = "Speichern" }, new JsonObject { ["ct"] = "Button", ["name"] = "Abbrechen" }) });
         Frame(1_900_000, "f000003", "settle", up, Color.Red);
         // Fokus im Dialog, Tippen „notiz.txt“ + Enter
         long focus = w.Append(new JsonObject { ["t"] = 2_000_000, ["type"] = "focus", ["win"] = "w2", ["ctx"] = "textField", ["ctxSrc"] = "uia", ["el"] = new JsonObject { ["rid"] = "42.2", ["ct"] = "Edit", ["name"] = "Dateiname:" } });
@@ -110,7 +113,12 @@ public static class SyntheticSession
         Frame(t + enterSettleUs, "f000005", "settle", enter, Color.Green);
         if (enterSettleUs > 400_000) t += enterSettleUs;
         if (withError)
+        {
             w.Append(new JsonObject { ["t"] = t + 600_000, ["type"] = "marker", ["id"] = "mk0", ["kind"] = "error", ["label"] = "Fehlermeldung erscheint", ["frame"] = "f000005" });
+            if (withSnapshot)
+                w.Append(new JsonObject { ["t"] = t + 600_000, ["tObs"] = t + 700_000, ["type"] = "ui.snapshot", ["trigger"] = "manual", ["win"] = "w1", ["title"] = "Fehler", ["ms"] = 30,
+                    ["nodes"] = new JsonArray(new JsonObject { ["ct"] = "Text", ["name"] = "Zugriff verweigert: notiz.txt ist schreibgeschützt (Fehler 0x80070005)" }, new JsonObject { ["ct"] = "Button", ["name"] = "OK" }) });
+        }
         if (withPassword)
         {
             t += 1_000_000;

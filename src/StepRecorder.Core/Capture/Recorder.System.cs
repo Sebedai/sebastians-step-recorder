@@ -192,6 +192,7 @@ public sealed partial class Recorder
                     if (e == null || known) return;
                     if (GetWindowRect(hwnd, out var r) && (r.Width < 4 || r.Height < 4)) return;
                     Emit(new JsonObject { ["t"] = t, ["tObs"] = tObs, ["tSrc"] = "sys", ["tErr"] = 16000, ["type"] = "window.open", ["win"] = e.Id, ["kind"] = e.Kind, ["first"] = true });
+                    SnapshotIfModal(hwnd, e, t);
                     break;
                 }
             case EVENT_OBJECT_DESTROY or EVENT_OBJECT_HIDE when topLevel:

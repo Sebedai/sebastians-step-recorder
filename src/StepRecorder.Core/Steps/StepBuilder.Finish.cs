@@ -118,6 +118,25 @@ public sealed partial class StepBuilder
         if (logs.Count > 0) st.InputObj["eventLog"] = logs;
     }
 
+    /// <summary>
+    /// Text-Schnappschüsse dem Schritt zuordnen (Paket 11): ausgelöst durch Marker oder Schnappschuss → dieser Schritt;
+    /// neues modales Fenster → die Aktion davor (sie hat es geöffnet).
+    /// </summary>
+    void BindSnapshots()
+    {
+        foreach (var e in _ev.Where(x => x.Str("type") == "ui.snapshot"))
+        {
+            long t = e.Long("t");
+            StepDraft? st = e.Str("trigger") == "manual"
+                ? _steps.Where(s => s.Kind is "marker" or "snapshot" && Math.Abs(s.TFrom - t) <= 1_000_000).OrderBy(s => Math.Abs(s.TFrom - t)).FirstOrDefault()
+                : null;
+            st ??= _steps.Where(s => s.IsAction && s.TFrom <= t).OrderBy(s => s.TFrom).LastOrDefault();
+            if (st == null) continue;
+            st.Snapshots.Add(e.Long("seq"));
+            st.Related.Add(e.Long("seq"));
+        }
+    }
+
     void BuildWaitSteps()
     {
         var actions = _steps.Where(s => s.IsAction).OrderBy(s => s.TFrom).ToList();
@@ -365,6 +384,7 @@ public sealed partial class StepBuilder
             if (st.ApproachObj is { Count: > 0 }) o["approach"] = st.ApproachObj.DeepClone();
             if (st.Clipboard != null) o["clipboard"] = st.Clipboard.DeepClone();
             if (st.GapId != null) o["gapId"] = st.GapId;
+            if (st.Snapshots.Count > 0) o["snapshots"] = new JsonArray(st.Snapshots.Select(x => (JsonNode)x).ToArray());
             if (st.Flags.Count > 0) o["flags"] = new JsonArray(st.Flags.Where(f => f != "redacted").Select(f => (JsonNode)f).ToArray());
             o["prov"] = st.Prov.DeepClone();
             steps.Add(o);

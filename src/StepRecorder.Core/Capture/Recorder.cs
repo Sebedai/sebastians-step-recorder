@@ -421,6 +421,8 @@ public sealed partial class Recorder : IDisposable
             var frameIds = _frames.Immediate("manual", seq, inputMonitor: CurrentMonitor());
             if (frameIds.Count > 0) m["frame"] = frameIds[0];
             Emit(m);
+            // Wortlaut des Vordergrundfensters bei Fehler, Erwartet und Schnappschuss (03 §7.5)
+            if (kind is "error" or "expected" or "snapshot") RequestSnapshot(GetForegroundWindow(), "manual", t);
             ActionLine?.Invoke(kind == "snapshot" ? Loc.L("Schnappschuss", "Snapshot") : Loc.L("Marker gesetzt", "Marker set"));
         }
     }

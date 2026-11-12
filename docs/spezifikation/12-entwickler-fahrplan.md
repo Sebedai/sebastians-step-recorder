@@ -93,7 +93,7 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | 8 | Agenten-Schleife | V-40 | M | MCP, Kommandozeile | – | nein | erledigt |
 | 9 | Reaktionszeiten | V-45 | S | Editor, Vergleich, Ausgaben | – | nein | erledigt |
 | 10 | Kontext I: Programmende, Hänger, Build-Stand | V-41 | M | Aufzeichnungskern, Schritte | V | ja (1.7) | erledigt |
-| 11 | Kontext II: Fehlertext | V-41 | M (L bei zweitem UIA-Arbeiter) | Aufzeichnungskern, Schritte | 10 | ja | geplant |
+| 11 | Kontext II: Fehlertext | V-41 | M (L bei zweitem UIA-Arbeiter) | Aufzeichnungskern, Schritte | 10 | ja | erledigt |
 | 12 | Kontext III: prüfbare Programmausgaben | V-41 | L | Leseschicht, Durchsicht, Datenschutz | 10 | ja | geplant |
 | 13 | Kontext IV: Protokolldateien | V-41 | M | Aufzeichnungskern, Startfenster | 12 | nur bei Zuordnung zu Schritten | geplant |
 | 14 | Bereitschaft und Modus „Fehler nachstellen“ | V-43 | M | Oberfläche, Lebenszyklus | (10 für den vollen Modus) | nein | geplant |

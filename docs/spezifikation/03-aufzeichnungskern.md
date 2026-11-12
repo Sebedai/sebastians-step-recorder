@@ -943,6 +943,8 @@ Inhalt und Grenzen:
 - *Soll:* erneuter Schnappschuss, wenn sich der Titel des Vordergrundfensters ändert und der Bildschirm danach zur Ruhe kommt (Seitenwechsel in Assistenten und Browsern).
 - Für Fenster außerhalb des Aufnahmebereichs und ausgeschlossene Anwendungen entsteht kein Schnappschuss.
 
+*Stand der Umsetzung (Paket 11 aus [12](12-entwickler-fahrplan.md)):* Umgesetzt sind die Auslöser `dialogStart` – jedes neue Fenster der Art „Dialog“ oder mit deaktiviertem Besitzerfenster (modal), also auch WPF-, WinForms- und WinUI-Dialoge; 350 ms nach dem Erscheinen, höchstens einmal je Fenster in 2 s – und `manual` (Marker „Fehler“ und „Erwartet“, Schnappschuss-Taste; Vordergrundfenster). `windowOpen`, `menuOpen` und `popup` sind nicht umgesetzt. Werte werden nur von statischem Text gelesen (`Text`), nie aus Eingabe-, Dokument- oder Auswahlfeldern und nie in „Streng“; kein Schnappschuss im Privatmodus und in Terminal, Remote-Desktop und VM. Die Arbeit macht der UIA-Arbeiter (`UiaService.Snapshot`); der Schnappschuss teilt sich die Warteschlange mit der Elementermittlung (Messung VE-17). Die Schritterkennung ordnet ihn dem Marker bzw. der Aktion davor zu (`steps[].snapshots`); Editor (Detailbereich „Text im Fenster“), `trace.md`, Suche (Feld `windowText`) und MCP (`windowTexts`, `get_failure_context`) zeigen ihn.
+
 ### 7.6 Fokus und Feldinhalt
 
 **Fokus.** Jeder Fokuswechsel (WinEvent und UIA-Ereignis, zusammengeführt) löst eine Ermittlung des fokussierten Elements aus. Der Kern liefert dem Schutzfilter die Einstufungsgrundlage ([11](#andockpunkte-datenschutz), A1); dieser bestimmt den Eingabekontext, und das `focus`-Ereignis wird geschrieben. Die vollständige Beschreibung folgt als `element` mit `trigger: "focus"`.

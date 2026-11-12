@@ -87,6 +87,22 @@ public sealed partial class SessionView
         return text;
     }
 
+    /// <summary>Text-Schnappschüsse eines Schritts in Ausgabesicht (Paket 11): Auslöser, Fenstertitel, Wortlaut, unvollständig.</summary>
+    public List<(string trigger, string title, string text, bool incomplete)> SnapshotsOf(ViewStep s)
+    {
+        var list = new List<(string, string, string, bool)>();
+        if (s.Redacted) return list;
+        foreach (var n in s.Json.Arr("snapshots") ?? new JsonArray())
+        {
+            if (n is not JsonValue jv || !jv.TryGetValue<long>(out var seq) || Session.BySeq(seq) is not { } ev) continue;
+            var o = EventForOutput(ev);
+            if (o.Arr("redacted")?.Any(x => x?.GetValue<string>() is "*") == true) continue;
+            string text = DeveloperContext.SnapshotText(o);
+            if (text.Length > 0) list.Add((o.Str("trigger") ?? "", o.Str("title") ?? "", text, o.Bool("incomplete")));
+        }
+        return list;
+    }
+
     /// <summary>Inhalt eines inhaltstragenden Ereignisses in Ausgabesicht: geschwärzt → null, ungeprüft ohne Oberfläche → Platzhalter.</summary>
     public string? ContentText(JsonObject outputEvent)
     {

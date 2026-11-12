@@ -25,6 +25,8 @@ public sealed class StepDraft
     public readonly SortedSet<string> Flags = new();
     public readonly JsonArray Prov = new();
     public List<long> Comments = new();
+    /// <summary>Text-Schnappschüsse (<c>ui.snapshot</c>) zu diesem Schritt (Paket 11).</summary>
+    public List<long> Snapshots = new();
     // interne Hilfen
     public string? Monitor;
     public string? Win;

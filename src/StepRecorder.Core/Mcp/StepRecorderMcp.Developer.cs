@@ -13,7 +13,7 @@ namespace StepRecorder.Mcp;
 public sealed partial class StepRecorderMcp
 {
     /// <summary>Felder für Automatisierung und Fehlersuche, die <c>get_steps</c> mit <c>include</c> liefert und <c>get_step</c> immer.</summary>
-    public static readonly string[] AutomationKeys = { "selectors", "sync", "verify", "menuPath", "choose", "data", "list", "browser", "explorer", "office", "timing", "agentNotes" };
+    public static readonly string[] AutomationKeys = { "selectors", "sync", "verify", "menuPath", "choose", "data", "list", "browser", "explorer", "office", "timing", "agentNotes", "snapshots" };
 
     void RegisterDeveloper(McpStdioServer server)
     {
@@ -44,6 +44,10 @@ public sealed partial class StepRecorderMcp
             switch (k)
             {
                 case "timing": if (Timing.Of(s.Json) is { } t) o["timing"] = t; break;
+                case "snapshots":
+                    var snaps = v.SnapshotsOf(s);
+                    if (snaps.Count > 0) o["windowTexts"] = new JsonArray(snaps.Select(x => (JsonNode)new JsonObject { ["trigger"] = x.trigger, ["window"] = x.title, ["text"] = x.text, ["incomplete"] = x.incomplete ? true : null }.Clean()).ToArray());
+                    break;
                 case "agentNotes":
                     var notes = s.InternalComments.Where(c => c.Str("kind") == "agent").Select(c => (JsonNode)new JsonObject { ["text"] = c.Str("text"), ["atUtc"] = c.Str("atUtc") }.Clean()).ToArray();
                     if (notes.Length > 0) o["agentNotes"] = new JsonArray(notes);

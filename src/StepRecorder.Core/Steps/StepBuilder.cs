@@ -70,6 +70,7 @@ public sealed partial class StepBuilder
         BindEffects();
         BuildSystemSteps();
         BuildWaitSteps();
+        BindSnapshots();
         _steps.Sort((a, b) => a.TFrom != b.TFrom ? a.TFrom.CompareTo(b.TFrom) : a.AnchorSeq.CompareTo(b.AnchorSeq));
         foreach (var st in _steps) BindFrames(st);
         ApplyDiscards();

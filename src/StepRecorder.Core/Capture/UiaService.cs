@@ -125,6 +125,63 @@ public sealed class UiaService : IDisposable
         catch (Exception) { return new UiaResult { Status = "error", Src = "none" }; }
     }
 
+    /// <summary>
+    /// Text-Schnappschuss eines Fensters (03 §7.5; 12, Paket 11): Durchlauf in Lesereihenfolge durch die Steuerelement-Sicht,
+    /// nur sichtbare Elemente innerhalb des Fensterrechtecks, höchstens <paramref name="maxNodes"/> Knoten, 12 Ebenen und
+    /// <paramref name="budgetMs"/>. Werte (≤ 200 Zeichen) nur mit <paramref name="values"/> und nie aus Kennwortfeldern.
+    /// Ergebnis in <see cref="UiaResult.El"/>: <c>nodes</c>, <c>title</c>, <c>incomplete</c>.
+    /// </summary>
+    public UiaResult Snapshot(nint hwnd, int maxNodes, bool values, int budgetMs = 250, int maxDepth = 12)
+    {
+        var r = new UiaResult();
+        var root = AutomationElement.FromHandle(hwnd);
+        if (root == null) { r.Status = "notAvailable"; r.Src = "none"; return r; }
+        var sw = Stopwatch.StartNew();
+        var bounds = root.Current.BoundingRectangle;
+        var nodes = new JsonArray();
+        bool incomplete = false;
+        var walker = TreeWalker.ControlViewWalker;
+        void Visit(AutomationElement e, int depth)
+        {
+            if (incomplete) return;
+            if (nodes.Count >= maxNodes || sw.ElapsedMilliseconds > budgetMs || depth > maxDepth) { incomplete = true; return; }
+            AutomationElement.AutomationElementInformation c;
+            try { c = e.Current; } catch { return; }
+            if (c.IsOffscreen && depth > 0) return;
+            var b = c.BoundingRectangle;
+            bool inside = !b.IsEmpty && b.Width > 0 && b.Height > 0 && (bounds.IsEmpty || bounds.IntersectsWith(b));
+            if (depth > 0 && !inside) return;
+            string ct = ControlTypeName(c.ControlType);
+            string name = c.Name ?? "";
+            string? value = null;
+            if (values && !c.IsPassword && ct is "Text")
+                try { if (e.TryGetCurrentPattern(ValuePattern.Pattern, out var vp) && vp is ValuePattern v) value = v.Current.Value; } catch { }
+            if (depth > 0 && (name.Length > 0 || !string.IsNullOrEmpty(value)) && ct is not ("Image" or "ScrollBar" or "Thumb" or "Separator" or "TitleBar"))
+            {
+                var n = new JsonObject { ["ct"] = ct };
+                if (name.Length > 0) n["name"] = Trunc(name.Replace("\r\n", "\n"), 500);
+                if (!string.IsNullOrEmpty(value) && value != name) n["value"] = Trunc(value, 200);
+                if (c.IsPassword) n["password"] = true;
+                if (!string.IsNullOrEmpty(c.AutomationId) && !c.AutomationId.All(char.IsDigit)) n["aid"] = Trunc(c.AutomationId, 100);
+                if (!c.IsEnabled) n["enabled"] = false;
+                nodes.Add(n);
+            }
+            AutomationElement? child;
+            try { child = walker.GetFirstChild(e); } catch { return; }
+            while (child != null && !incomplete)
+            {
+                Visit(child, depth + 1);
+                try { child = walker.GetNextSibling(child); } catch { break; }
+            }
+        }
+        Visit(root, 0);
+        string title = "";
+        try { title = root.Current.Name ?? ""; } catch { }
+        r.El = new JsonObject { ["title"] = Trunc(title, 500), ["nodes"] = nodes, ["incomplete"] = incomplete ? true : null };
+        r.El.Clean();
+        return r;
+    }
+
     public UiaResult AtPoint(int vx, int vy, bool withPath = true)
     {
         var el = AutomationElement.FromPoint(new System.Windows.Point(vx, vy));

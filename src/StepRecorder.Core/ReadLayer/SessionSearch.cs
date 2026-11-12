@@ -40,6 +40,7 @@ public static class SessionSearch
             if (s.Kind == "type" && !s.Unreviewed) Add("typed", s.Json.Obj("input")?.Str("text") ?? TextTemplates.TokensNotation(s.Json.Obj("input") ?? new JsonObject()));
             foreach (var c in s.Comments) Add("comments", c.Str("text"));
             if (s.Kind == "marker") Add("markers", s.Json.Obj("input")?.Str("label"));
+            foreach (var sn in view.SnapshotsOf(s)) Add("windowText", sn.text);
         }
         return list;
     }
