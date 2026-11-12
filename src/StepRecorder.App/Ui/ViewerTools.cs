@@ -274,6 +274,10 @@ sealed partial class ViewerWindow
                     text[_view.Language] = new JsonObject { ["title"] = t1, ["body"] = b1, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
                     se["text"] = text;
                 }
+            // eigene Texte zusammengefasster Schritte
+            if (steps && e["merges"] is JsonArray mgs)
+                foreach (var t in mgs.OfType<JsonObject>().Select(m => m.Obj("text")?.Obj(_view.Language)).OfType<JsonObject>())
+                    foreach (var k in new[] { "title", "body" }) { var v = R(t.Str(k)); if (!dryRun && t[k] != null) t[k] = v; }
             if (notes && e["comments"] is JsonArray cm)
                 foreach (var c in cm.OfType<JsonObject>()) { var v = R(c.Str("text")); if (!dryRun) c["text"] = v; }
             if (chapters && e["steps"] is JsonArray st)

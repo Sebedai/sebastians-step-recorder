@@ -29,7 +29,6 @@ sealed partial class ViewerWindow
     ZoomPanel _zoom = null!;
     Button _cropOff = null!;
     int _handle = -1;               // gezogener Anfasser der Auswahl (-1 = keiner)
-    JsonArray? _handleGeom;
     readonly List<Shape> _handleShapes = new();
 
     readonly Dictionary<string, RadioButton> _toolBtns = new();
@@ -175,7 +174,7 @@ sealed partial class ViewerWindow
 
         // ---------------- Werkzeugpalette (links am Bild, zweispaltig) ----------------
         var pal = new StackPanel();
-        var toolGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+        var toolGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         pal.Children.Add(toolGrid);
         void Tool(string id, UIElement content, string tip)
         {
@@ -197,9 +196,14 @@ sealed partial class ViewerWindow
         var ellipseIcon = Bound(new Ellipse { Width = 17, Height = 12, StrokeThickness = 1.6 }, Shape.StrokeProperty);
         Tool("select", G(Theme.IPointer), "Auswählen (V) – Markierung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text");
         Tool("arrow", G(Theme.IArrow), "Pfeil (A)");
+        var lineIcon = Bound(new Line { X1 = 1, Y1 = 14, X2 = 16, Y2 = 3, StrokeThickness = 1.8, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 17, Height = 17 }, Shape.StrokeProperty);
+        Tool("line", lineIcon, Loc.L("Linie (Umschalt+A)", "Line (Shift+A)"));
+        Tool("freehand", G(Theme.IInk), Loc.L("Freihand (F) – frei zeichnen; die Linie wird beim Loslassen geglättet", "Freehand (F) – draw freely; the line is smoothed on release"));
         Tool("rect", G(Theme.IRect), "Rahmen (R)");
         Tool("ellipse", ellipseIcon, "Ellipse (E)");
         Tool("highlight", G(Theme.IHighlight), "Hervorheben (M)");
+        Tool("spotlight", G(Theme.ISpot), Loc.L("Spotlight (U) – Bereich bleibt hell, der Rest des Bildes wird abgedunkelt; die Strichstärke bestimmt, wie stark", "Spotlight (U) – the area stays bright, the rest of the image is dimmed; stroke width sets how much"));
+        Tool("magnifier", G(Theme.IMagnifier), Loc.L("Lupe (L) – Bereich aufziehen; die vergrößerte Linse lässt sich getrennt verschieben, der Griff an der Linse ändert den Zoom", "Magnifier (L) – drag an area; the enlarged lens can be moved separately, the handle on the lens changes the zoom"));
         Tool("text", G(Theme.IText), "Text (T)");
         Tool("badge", badgeIcon, "Nummer (N)");
         Tool("redact", G(Theme.IRedact), "Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket");
@@ -233,7 +237,7 @@ sealed partial class ViewerWindow
         pal.Children.Add(del);
         var palette = new Border
         {
-            Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(4), Child = pal, Width = 86,
+            Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(4), Child = pal, Width = 120,
             HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 8, 0, 8), Effect = Theme.Shadow(12, 1)
         };
 
@@ -247,7 +251,7 @@ sealed partial class ViewerWindow
         var stage = new Grid();
         stage.Children.Add(new Border { Background = Theme.Surface, Effect = Theme.Shadow(36, 6, Theme.Dark ? 0.6 : 0.2) });
         stage.Children.Add(_imgHost);
-        _zoom = new ZoomPanel(stage, () => new Size(_imgHost.Width is double w && !double.IsNaN(w) ? w : 0, _imgHost.Height is double h && !double.IsNaN(h) ? h : 0), new Thickness(112, 48, 28, 58));
+        _zoom = new ZoomPanel(stage, () => new Size(_imgHost.Width is double w && !double.IsNaN(w) ? w : 0, _imgHost.Height is double h && !double.IsNaN(h) ? h : 0), new Thickness(146, 48, 28, 58));
         _zoom.ZoomChanged += () => { if (_selAnn != null) DrawSelection(); };
         var imgArea = new Grid { Background = Theme.CanvasBg, ClipToBounds = true };
         imgArea.Children.Add(_zoom);
@@ -378,6 +382,8 @@ sealed partial class ViewerWindow
             if (!StepSearch.Matches(s, query)) continue;
             n++;
             bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
+            var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
+            if (merge is { lead: false }) dim = true;
             var g = new Grid();
             g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             g.ColumnDefinitions.Add(new ColumnDefinition());
@@ -410,6 +416,8 @@ sealed partial class ViewerWindow
             head.Inlines.Add(new System.Windows.Documents.Run(s.AuthorTitle ?? s.Title));
             var meta = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
             meta.Children.Add(U.Row(U.Icon(KindIcon(s), 11, Theme.Muted), U.Text(KindLabel(s.Kind), 11.5, fg: Theme.Muted, margin: new Thickness(5, 0, 6, 2)), new TextBlock { Text = ShortTime(Fmt.Time(s.TFrom, "de")), FontFamily = Theme.Mono, FontSize = 10.5, Foreground = Theme.Muted, Margin = new Thickness(0, 1, 8, 2), VerticalAlignment = VerticalAlignment.Top }));
+            if (merge is { lead: true } ml) meta.Children.Add(U.Chip(Loc.F("{0} zusammengefasst", "{0} merged", ml.count), Theme.AccentSoft, Theme.AccentText, Theme.ICompare));
+            else if (merge is { lead: false } mm) meta.Children.Add(U.Chip(Loc.F("→ Schritt {0}", "→ step {0}", mm.leadNumber), Theme.Surface2, Theme.Muted));
             if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
             if (s.Hidden) meta.Children.Add(U.Chip("ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye));
@@ -450,7 +458,8 @@ sealed partial class ViewerWindow
             {
                 ($"{multi.Count} Schritte ausblenden", () => BulkEdit(multi, se => se["hidden"] = true)), ($"{multi.Count} Schritte einblenden", () => BulkEdit(multi, se => se["hidden"] = false)), ("-", () => { }),
                 ("Als Hauptschritte", () => BulkEdit(multi.Where(x => !x.Manual), se => se["importance"] = "primary")), ("Als Nebenschritte", () => BulkEdit(multi.Where(x => !x.Manual), se => se["importance"] = "secondary")), ("-", () => { }),
-                ("Kapitel vor dem ersten beginnen", () => ToggleChapter(multi[0].Anchor, true)), ("Bilder weglassen", () => BulkEdit(multi, se => se["showImage"] = false)), ("Bilder zeigen", () => BulkEdit(multi, se => se.Remove("showImage"))),
+                ("Kapitel vor dem ersten beginnen", () => ToggleChapter(multi[0].Anchor, true)), ("Bilder weglassen", () => BulkEdit(multi, se => se["showImage"] = false)), ("Bilder zeigen", () => BulkEdit(multi, se => se.Remove("showImage"))), ("-", () => { }),
+                M("merge"),
             });
             mm.Placement = PlacementMode.MousePoint; mm.IsOpen = true;
             return;
@@ -464,6 +473,7 @@ sealed partial class ViewerWindow
             ("-", () => { }), (Loc.L("Schritt danach einfügen …", "Insert step after …"), () => InsertMenu(_list)),
         };
         if (s.Manual) items.Add((Loc.L("Eingefügten Schritt löschen", "Delete inserted step"), () => DeleteManual(new List<ViewStep> { s })));
+        if (!s.Manual && _view.MergeOf(s.Anchor) != null) items.Insert(items.IndexOf(M("moveDown", Loc.L("Nach unten", "Move down"))) + 1, M("unmerge"));
         if (_view.CropFor(s) != null) items.InsertRange(items.IndexOf(M("toolCrop")) + 1, new (string, Action)[] { (Loc.L("Zuschnitt entfernen", "Remove crop"), () => RemoveCrop(s)), (Loc.L("Zuschnitt auf alle Schritte übertragen", "Apply crop to all steps"), CropToAll) });
         items.AddRange(new (string, Action)[] {
             ("-", () => { }),
@@ -588,10 +598,22 @@ sealed partial class ViewerWindow
             _details.Children.Add(internalBox);
         }
 
+        // Zusammengefasste Schritte: der führende Schritt zeigt und bearbeitet den Text der Gruppe
+        var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
+        var composite = merge is { lead: true } ? _view.GuideStepFor(s) : null;
+        if (merge is { lead: true } ml)
+            _details.Children.Add(Callout(Theme.ICompare, Theme.AccentSoft, Theme.AccentText, Loc.N(ml.count, "1 Schritt zusammengefasst", "{0} Schritte zusammengefasst", "1 step merged", "{0} steps merged"),
+                Loc.F("In Anleitungen erscheinen die Schritte {0} als ein Schritt mit diesem Text; Bild vorher vom ersten, nachher vom letzten. KI-Paket und AutoHotkey zeigen weiter alle. Aufheben: {1}.", "In guides, steps {0} appear as one step with this text; before image from the first, after image from the last. AI package and AutoHotkey still show all. Dissolve: {1}.",
+                    string.Join(", ", ml.numbers), Cmd("unmerge").Gesture)));
+        else if (merge is { lead: false } mm)
+            _details.Children.Add(Callout(Theme.ICompare, Theme.Surface2, Theme.Fg2, Loc.F("Teil von Schritt {0}", "Part of step {0}", mm.leadNumber),
+                Loc.L("Dieser Schritt ist in Anleitungen im führenden Schritt enthalten; sein Text fließt dort ein, solange der führende Schritt keinen eigenen Text hat.", "In guides this step is contained in the leading step; its text is used there as long as the leading step has no text of its own.")));
+
         // Überschrift und Text direkt bearbeiten
         bool ro = _view.Session.ReadOnly;
         _editAnchor = s.Anchor;
-        _editOrigTitle = s.AuthorTitle ?? s.Title; _editOrigBody = s.AuthorBody ?? s.Guide;
+        _editOrigTitle = composite != null ? composite.AuthorTitle ?? composite.Title : s.AuthorTitle ?? s.Title;
+        _editOrigBody = composite != null ? composite.AuthorBody ?? composite.Guide : s.AuthorBody ?? s.Guide;
         _editTitle = new TextBox { Text = _editOrigTitle, FontSize = 16, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsReadOnly = ro, MaxLength = 300 };
         _editBody = new TextBox { Text = _editOrigBody, FontSize = 13.5, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MinHeight = 84, VerticalContentAlignment = VerticalAlignment.Top, IsReadOnly = ro, MaxLength = 8000 };
         var editTitle = _editTitle; var editBody = _editBody;
@@ -606,7 +628,7 @@ sealed partial class ViewerWindow
                 else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { _list.Focus(); e.Handled = true; }
             };
         }
-        bool edited = s.AuthorTitle != null || s.AuthorBody != null;
+        bool edited = composite?.MergeId is { } cmid ? MergeTextEdited(cmid) : s.AuthorTitle != null || s.AuthorBody != null;
         _details.Children.Add(U.Field("Überschrift", editTitle));
         var bodyField = U.Field("Anleitungstext", editBody, margin: new Thickness(0, 0, 0, 6));
         _details.Children.Add(bodyField);
@@ -759,19 +781,28 @@ sealed partial class ViewerWindow
         else Dispatcher.BeginInvoke(DispatcherPriority.Background, () => SaveText(anchor, t, b));
     }
 
-    void SaveText(long anchor, string title, string body) => Change(e =>
+    void SaveText(long anchor, string title, string body)
     {
-        var se = StepEdit(e, anchor);
-        var text = se["text"] as JsonObject ?? new JsonObject();
-        text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
-        se["text"] = text;
-    });
+        // führender Schritt einer Gruppe: der Text gehört dem zusammengefassten Schritt
+        if (anchor >= 0 && _view.MergeOf(anchor) is { lead: true } mg) { SaveMergeText(mg.id, title, body); return; }
+        Change(e =>
+        {
+            var se = StepEdit(e, anchor);
+            var text = se["text"] as JsonObject ?? new JsonObject();
+            text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
+            se["text"] = text;
+        });
+    }
 
-    void ResetText(ViewStep s) => Change(e =>
+    void ResetText(ViewStep s)
     {
-        var se = StepEdit(e, s.Anchor);
-        if (se["text"] is JsonObject t) { t.Remove(_view.Language); if (t.Count == 0) se.Remove("text"); }
-    });
+        if (!s.Manual && _view.MergeOf(s.Anchor) is { lead: true } mg) { ResetMergeText(mg.id); return; }
+        Change(e =>
+        {
+            var se = StepEdit(e, s.Anchor);
+            if (se["text"] is JsonObject t) { t.Remove(_view.Language); if (t.Count == 0) se.Remove("text"); }
+        });
+    }
 
     // =====================================================================================
     // Zeichnen, Auswählen, Verschieben
@@ -779,42 +810,20 @@ sealed partial class ViewerWindow
 
     static double D(JsonNode? n) => n is JsonValue v ? (v.TryGetValue<double>(out var d) ? d : v.TryGetValue<int>(out var i) ? i : v.TryGetValue<long>(out var l) ? l : 0) : 0;
 
-    /// <summary>Umriss einer Markierung in Bildkoordinaten.</summary>
-    static Rect? Bounds(JsonObject a)
-    {
-        if (a["geom"] is not JsonArray g) return null;
-        switch (a.Str("type"))
-        {
-            case "arrow" or "line" when g.Count >= 4: return new Rect(new Point(D(g[0]), D(g[1])), new Point(D(g[2]), D(g[3])));
-            case "rect" or "ellipse" or "highlight" when g.Count >= 4: return new Rect(D(g[0]), D(g[1]), Math.Max(1, D(g[2])), Math.Max(1, D(g[3])));
-            case "badge" when g.Count >= 2: return new Rect(D(g[0]) - 15, D(g[1]) - 15, 30, 30);
-            case "text" when g.Count >= 2:
-                double fs = a.Obj("style")?.Dbl("fontSize", 18) ?? 18;
-                return new Rect(D(g[0]) - 2, D(g[1]) - 2, Math.Max(1, a.Str("text")?.Length ?? 1) * fs * 0.62 + 8, fs * 1.45);
-        }
-        return null;
-    }
+    static System.Drawing.PointF PF(Point p) => new((float)p.X, (float)p.Y);
 
-    static double DistToSegment(Point p, Point a, Point b)
-    {
-        var ab = b - a; double len = ab.LengthSquared;
-        if (len < 1e-6) return (p - a).Length;
-        double t = Math.Clamp(((p - a) * ab) / len, 0, 1);
-        return (p - (a + t * ab)).Length;
-    }
+    /// <summary>Umriss einer Markierung in Bildkoordinaten (Geometrie aus dem Core, wie im Export).</summary>
+    static Rect? Bounds(JsonObject a) => AnnotationGeometry.Bounds(a) is { } r ? new Rect(r.X, r.Y, Math.Max(1, r.Width), Math.Max(1, r.Height)) : null;
 
-    JsonObject? HitAnnotation(Point p)
+    /// <summary>Markierung unter dem Punkt samt Teil (1 Markierung, 2 Linse, 3 Quelle der Lupe). Spotlights zuletzt, weil sie große Flächen decken.</summary>
+    (JsonObject? ann, int part) HitAnnotation(Point p)
     {
-        if (_currentMeta == null) return null;
-        double tol = 8 / Math.Max(0.05, _currentMeta.Scale);
-        foreach (var a in AnnotationsFor(_currentMeta.FrameId).Reverse())
-        {
-            if (Bounds(a) is not Rect b) continue;
-            if (a.Str("type") is "arrow" or "line" && a["geom"] is JsonArray g)
-            { if (DistToSegment(p, new Point(D(g[0]), D(g[1])), new Point(D(g[2]), D(g[3]))) <= tol + 4) return a; }
-            else { b.Inflate(tol, tol); if (b.Contains(p)) return a; }
-        }
-        return null;
+        if (_currentMeta == null) return (null, 0);
+        float tol = (float)(8 / Math.Max(0.05, _currentMeta.Scale));
+        var anns = AnnotationsFor(_currentMeta.FrameId).Reverse().ToList();
+        foreach (var a in anns.Where(x => x.Str("type") != "spotlight").Concat(anns.Where(x => x.Str("type") == "spotlight")))
+            if (AnnotationGeometry.Hit(a, PF(p), tol) is int part and > 0) return (a, part);
+        return (null, 0);
     }
 
     Point ToOverlay(Point img) => _currentMeta == null ? img : new Point((img.X - _currentMeta.SourceRect.X) * _currentMeta.Scale, (img.Y - _currentMeta.SourceRect.Y) * _currentMeta.Scale);
@@ -822,32 +831,7 @@ sealed partial class ViewerWindow
     /// <summary>Bildschirmpunkte → Overlay-Einheiten (damit Rahmen und Anfasser bei jedem Zoom gleich groß wirken).</summary>
     double Px(double screenPx) => screenPx / Math.Max(0.02, _zoom?.Zoom ?? 1);
 
-    /// <summary>Anfasser einer Markierung in Bildkoordinaten: Pfeil = Anfang/Ende, Flächen = vier Ecken.</summary>
-    static List<Point> HandlesOf(JsonObject a)
-    {
-        var l = new List<Point>();
-        if (a["geom"] is not JsonArray g) return l;
-        if (a.Str("type") is "arrow" or "line" && g.Count >= 4) { l.Add(new Point(D(g[0]), D(g[1]))); l.Add(new Point(D(g[2]), D(g[3]))); }
-        else if (a.Str("type") is "rect" or "ellipse" or "highlight" && g.Count >= 4)
-        {
-            double x = D(g[0]), y = D(g[1]), w = D(g[2]), h = D(g[3]);
-            l.Add(new Point(x, y)); l.Add(new Point(x + w, y)); l.Add(new Point(x + w, y + h)); l.Add(new Point(x, y + h));
-        }
-        return l;
-    }
-
-    /// <summary>Neue Geometrie, wenn Anfasser <paramref name="h"/> nach <paramref name="p"/> gezogen wird.</summary>
-    static JsonArray Resized(JsonObject a, int h, Point p)
-    {
-        var g = (JsonArray)a["geom"]!;
-        if (a.Str("type") is "arrow" or "line")
-            return h == 0 ? new JsonArray((int)p.X, (int)p.Y, (int)D(g[2]), (int)D(g[3])) : new JsonArray((int)D(g[0]), (int)D(g[1]), (int)p.X, (int)p.Y);
-        double x = D(g[0]), y = D(g[1]), r = x + D(g[2]), b = y + D(g[3]);
-        // gegenüberliegende Ecke bleibt fest
-        var fixedPt = h switch { 0 => new Point(r, b), 1 => new Point(x, b), 2 => new Point(x, y), _ => new Point(r, y) };
-        var rc = new Rect(fixedPt, p);
-        return new JsonArray((int)rc.X, (int)rc.Y, Math.Max(4, (int)rc.Width), Math.Max(4, (int)rc.Height));
-    }
+    static List<Point> HandlesOf(JsonObject a) => AnnotationGeometry.Handles(a).Select(p => new Point(p.X, p.Y)).ToList();
 
     void DrawSelection()
     {
@@ -870,11 +854,15 @@ sealed partial class ViewerWindow
         Canvas.SetLeft(_selRect, tl.X); Canvas.SetTop(_selRect, tl.Y);
         _overlay.Children.Add(_selRect);
         double hsz = Px(10);
-        foreach (var hp in HandlesOf(a))
+        var handles = HandlesOf(a);
+        for (int i = 0; i < handles.Count; i++)
         {
-            var o = ToOverlay(hp);
-            var sq = new Rectangle { Width = hsz, Height = hsz, Fill = Brushes.White, Stroke = Theme.Accent, StrokeThickness = Px(1.5), RadiusX = Px(2), RadiusY = Px(2), IsHitTestVisible = false };
-            Canvas.SetLeft(sq, o.X - hsz / 2); Canvas.SetTop(sq, o.Y - hsz / 2);
+            var o = ToOverlay(handles[i]);
+            bool zoomHandle = a.Str("type") == "magnifier" && i == 4;
+            Shape sq = zoomHandle
+                ? new Ellipse { Width = hsz * 1.2, Height = hsz * 1.2, Fill = Theme.Accent, Stroke = Brushes.White, StrokeThickness = Px(1.5), IsHitTestVisible = false, ToolTip = Loc.L("Zoom ändern", "Change zoom") }
+                : new Rectangle { Width = hsz, Height = hsz, Fill = Brushes.White, Stroke = Theme.Accent, StrokeThickness = Px(1.5), RadiusX = Px(2), RadiusY = Px(2), IsHitTestVisible = false };
+            Canvas.SetLeft(sq, o.X - sq.Width / 2); Canvas.SetTop(sq, o.Y - sq.Height / 2);
             _overlay.Children.Add(sq); _handleShapes.Add(sq);
         }
     }
@@ -882,12 +870,20 @@ sealed partial class ViewerWindow
     void SyncColorTo(JsonObject a)
     {
         _syncingColor = true;
-        if (a.Obj("style")?.Str("color") is { } hex && a.Str("type") is not "highlight")
+        if (a.Obj("style")?.Str("color") is { } hex && a.Str("type") is not ("highlight" or "spotlight"))
             _colorBtns.FirstOrDefault(c => string.Equals((string)c.Tag, hex, StringComparison.OrdinalIgnoreCase))?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
-        int w = (int)(a.Obj("style")?.Dbl("width", 4) ?? 4);
+        int w = a.Str("type") == "spotlight" ? DimToWidth(a.Obj("style")?.Dbl("dim", 0.55) ?? 0.55) : (int)(a.Obj("style")?.Dbl("width", 4) ?? 4);
         _strokeBtns.OrderBy(b => Math.Abs((int)b.Tag - w)).FirstOrDefault()?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
         _syncingColor = false;
     }
+
+    /// <summary>Strichstärke steuert beim Spotlight die Abdunklung: dünn 0,4 · mittel 0,55 · dick 0,7.</summary>
+    static double WidthToDim(int w) => w <= 2 ? 0.4 : w >= 7 ? 0.7 : 0.55;
+    static int DimToWidth(double d) => d <= 0.45 ? 2 : d >= 0.65 ? 7 : 4;
+
+    int _movePart = 1;
+    JsonNode? _handleGeom;
+    List<System.Drawing.PointF>? _freePts;
 
     void OverlayDown(object sender, MouseButtonEventArgs e)
     {
@@ -902,14 +898,15 @@ sealed partial class ViewerWindow
                 double tol = Px(9) / Math.Max(0.05, _currentMeta.Scale);
                 var hs = HandlesOf(sel);
                 for (int i = 0; i < hs.Count; i++)
-                    if ((hs[i] - p).Length <= tol) { _handle = i; _handleGeom = (JsonArray)sel["geom"]!.DeepClone(); _overlay.CaptureMouse(); return; }
+                    if ((hs[i] - p).Length <= tol) { _handle = i; _handleGeom = sel["geom"]?.DeepClone(); _overlay.CaptureMouse(); return; }
             }
-            var hit = HitAnnotation(p);
+            var (hit, part) = HitAnnotation(p);
             _selAnn = hit?.Str("id");
             DrawSelection();
             if (hit == null) { if (e.ClickCount == 2) OpenLightbox(); return; }
             SyncColorTo(hit);
             if (e.ClickCount == 2 && hit.Str("type") == "text") { EditAnnotationText(hit); return; }
+            _movePart = part;
             _moveFrom = p; _overlay.CaptureMouse();
             return;
         }
@@ -918,20 +915,24 @@ sealed partial class ViewerWindow
         {
             var p = ToImage(pos);
             string text = _tool == "badge" ? ((_view.Edits.Arr("annotations")?.Count(a => a.Str("frame") == _currentMeta.FrameId && a.Str("type") == "badge") ?? 0) + 1).ToString() : "";
-            if (_tool == "text") { var d = new InputDialog("Text der Markierung", "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
+            if (_tool == "text") { var d = new InputDialog(Loc.L("Text der Markierung", "Text of the marker"), "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
             AddAnnotation(_tool, new JsonArray((int)p.X, (int)p.Y), text);
             _dragStart = null;
             return;
         }
         var stroke = new SolidColorBrush((Color)ColorConverter.ConvertFromString(_color));
+        if (_tool == "freehand") _freePts = new() { PF(ToImage(pos)) };
         _rubber = _tool switch
         {
-            "arrow" => new Line { Stroke = stroke, StrokeThickness = _stroke },
+            "arrow" or "line" => new Line { Stroke = stroke, StrokeThickness = _stroke },
+            "freehand" => new Polyline { Stroke = stroke, StrokeThickness = _stroke, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Points = new PointCollection { pos } },
             "ellipse" => new Ellipse { Stroke = stroke, StrokeThickness = _stroke },
             "redact" => new Rectangle { Fill = Brushes.Black, Stroke = Brushes.Black, StrokeThickness = 1 },
             "pixelate" => new Rectangle { Fill = new DrawingBrush { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, Px(12), Px(12)), ViewportUnits = BrushMappingMode.Absolute, Drawing = new GeometryDrawing(new SolidColorBrush(Color.FromArgb(150, 120, 125, 135)), null, new RectangleGeometry(new Rect(0, 0, 1, 1))) }, Stroke = Brushes.Gray, StrokeThickness = Px(1) },
             "crop" => new Rectangle { Stroke = Theme.Accent, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) },
             "highlight" => new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(90, 255, 235, 59)) },
+            "spotlight" => new Rectangle { Stroke = Brushes.White, StrokeThickness = Px(1.5), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
+            "magnifier" => new Rectangle { Stroke = stroke, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 2, 2 } },
             _ => new Rectangle { Stroke = stroke, StrokeThickness = _stroke }
         };
         _overlay.Children.Add(_rubber);
@@ -943,8 +944,8 @@ sealed partial class ViewerWindow
         if (_handle >= 0 && _currentMeta != null && _selAnn != null && AnnotationsFor(_currentMeta.FrameId).FirstOrDefault(x => x.Str("id") == _selAnn) is { } ha)
         {
             // Vorschau der neuen Größe über den Auswahlrahmen
-            var probe = new JsonObject { ["type"] = ha.Str("type"), ["geom"] = _handleGeom!.DeepClone(), ["style"] = ha.Obj("style")?.DeepClone() };
-            probe["geom"] = Resized(probe, _handle, ToImage(e.GetPosition(_overlay)));
+            var probe = new JsonObject { ["type"] = ha.Str("type"), ["geom"] = _handleGeom?.DeepClone(), ["style"] = ha.Obj("style")?.DeepClone() };
+            probe["geom"] = AnnotationGeometry.Resized(probe, _handle, PF(ToImage(e.GetPosition(_overlay))));
             if (Bounds(probe) is Rect nb && _selRect != null)
             {
                 var tl = ToOverlay(nb.TopLeft); var br = ToOverlay(nb.BottomRight);
@@ -960,9 +961,14 @@ sealed partial class ViewerWindow
             return;
         }
         if (_tool == "select" && _currentMeta != null && e.LeftButton == MouseButtonState.Released)
-            _overlay.Cursor = HitAnnotation(ToImage(e.GetPosition(_overlay))) != null ? Cursors.SizeAll : Cursors.Arrow;
+            _overlay.Cursor = HitAnnotation(ToImage(e.GetPosition(_overlay))).ann != null ? Cursors.SizeAll : Cursors.Arrow;
         if (_dragStart == null || _rubber == null) return;
         var a = _dragStart.Value; var b = e.GetPosition(_overlay);
+        if (_rubber is Polyline pl && _freePts != null)
+        {
+            if ((pl.Points[^1] - b).Length >= Px(2)) { pl.Points.Add(b); _freePts.Add(PF(ToImage(b))); }
+            return;
+        }
         if (_rubber is Line l) { l.X1 = a.X; l.Y1 = a.Y; l.X2 = b.X; l.Y2 = b.Y; }
         else { Canvas.SetLeft(_rubber, Math.Min(a.X, b.X)); Canvas.SetTop(_rubber, Math.Min(a.Y, b.Y)); _rubber.Width = Math.Abs(b.X - a.X); _rubber.Height = Math.Abs(b.Y - a.Y); }
     }
@@ -975,7 +981,10 @@ sealed partial class ViewerWindow
             int hi = _handle; _handle = -1;
             var p = ToImage(e.GetPosition(_overlay));
             if (_selAnn is { } rid && _handleGeom != null)
-                Change(ed => { if (AnnotationEdit(ed, rid) is { } x) { var probe = new JsonObject { ["type"] = x.Str("type"), ["geom"] = _handleGeom.DeepClone() }; x["geom"] = Resized(probe, hi, p); } }, refill: false);
+            {
+                var start = _handleGeom.DeepClone();
+                Change(ed => { if (AnnotationEdit(ed, rid) is { } x) { var probe = new JsonObject { ["type"] = x.Str("type"), ["geom"] = start, ["style"] = x.Obj("style")?.DeepClone() }; x["geom"] = AnnotationGeometry.Resized(probe, hi, PF(p)); } }, refill: false);
+            }
             return;
         }
         if (_moveFrom != null)
@@ -983,7 +992,7 @@ sealed partial class ViewerWindow
             _overlay.ReleaseMouseCapture();
             var p = ToImage(e.GetPosition(_overlay));
             var d = p - _moveFrom.Value; _moveFrom = null;
-            if (_selAnn != null && (Math.Abs(d.X) >= 1 || Math.Abs(d.Y) >= 1)) MoveAnnotation(_selAnn, d.X, d.Y);
+            if (_selAnn != null && (Math.Abs(d.X) >= 1 || Math.Abs(d.Y) >= 1)) MoveAnnotation(_selAnn, d.X, d.Y, _movePart);
             else DrawSelection();
             return;
         }
@@ -991,15 +1000,36 @@ sealed partial class ViewerWindow
         _overlay.ReleaseMouseCapture();
         var a = ToImage(_dragStart.Value); var b = ToImage(e.GetPosition(_overlay));
         _dragStart = null; _rubber = null;
+        if (_tool == "freehand")
+        {
+            var pts = _freePts; _freePts = null;
+            if (pts == null || pts.Count < 2 || Math.Max(pts.Max(q => q.X) - pts.Min(q => q.X), pts.Max(q => q.Y) - pts.Min(q => q.Y)) < 3) { ShowStep(); return; }
+            AddAnnotation("freehand", AnnotationGeometry.Simplify(pts), null);
+            return;
+        }
         if (Math.Abs(b.X - a.X) < 3 && Math.Abs(b.Y - a.Y) < 3) { ShowStep(); return; }
         int x = (int)Math.Min(a.X, b.X), y = (int)Math.Min(a.Y, b.Y), w = (int)Math.Abs(b.X - a.X), h = (int)Math.Abs(b.Y - a.Y);
-        if (_tool is "redact" or "pixelate") { AddImageRedaction(x, y, w, h, _tool == "pixelate" ? "pixelate" : "black"); return; }
-        if (_tool == "crop") { SetCrop(x, y, w, h); return; }
-        if (_tool == "arrow") AddAnnotation("arrow", new JsonArray((int)a.X, (int)a.Y, (int)b.X, (int)b.Y), null);
-        else AddAnnotation(_tool, new JsonArray(x, y, w, h), null);
+        switch (_tool)
+        {
+            case "redact" or "pixelate": AddImageRedaction(x, y, w, h, _tool == "pixelate" ? "pixelate" : "black"); return;
+            case "crop": SetCrop(x, y, w, h); return;
+            case "arrow" or "line": AddAnnotation(_tool, new JsonArray((int)a.X, (int)a.Y, (int)b.X, (int)b.Y), null); return;
+            case "spotlight": AddAnnotation("spotlight", new JsonArray(x, y, w, h), null, new JsonObject { ["dim"] = WidthToDim(_stroke) }); return;
+            case "magnifier":
+                {
+                    if (w < 8 || h < 8 || _currentMeta == null) { ShowStep(); return; }
+                    // Linse im sichtbaren Ausschnitt platzieren (Rechnung relativ zum Ausschnitt, dann zurückverschieben)
+                    var sr = _currentMeta.SourceRect;
+                    var rel = AnnotationGeometry.NewMagnifier(new System.Drawing.RectangleF(x - sr.X, y - sr.Y, w, h), new System.Drawing.Size(sr.Width, sr.Height));
+                    var mag = AnnotationGeometry.Moved(new JsonObject { ["type"] = "magnifier", ["geom"] = rel }, sr.X, sr.Y)!;
+                    AddAnnotation("magnifier", mag, null, new JsonObject { ["shape"] = "round" });
+                    return;
+                }
+            default: AddAnnotation(_tool, new JsonArray(x, y, w, h), null); return;
+        }
     }
 
-    void AddAnnotation(string type, JsonArray geom, string? text)
+    void AddAnnotation(string type, JsonNode geom, string? text, JsonObject? extraStyle = null)
     {
         var s = Sel; if (s == null || _currentMeta == null) return;
         string frame = _currentMeta.FrameId;
@@ -1007,21 +1037,26 @@ sealed partial class ViewerWindow
         Change(e =>
         {
             var arr = e["annotations"] as JsonArray ?? new JsonArray();
-            var a = new JsonObject { ["id"] = NextId(e, "annotations", "a"), ["frame"] = frame, ["anchor"] = s.Anchor, ["type"] = type, ["geom"] = geom, ["style"] = new JsonObject { ["color"] = color, ["width"] = width, ["fontSize"] = fontSize } };
+            var style = new JsonObject { ["color"] = color, ["width"] = width, ["fontSize"] = fontSize };
+            foreach (var kv in extraStyle ?? new JsonObject()) style[kv.Key] = kv.Value?.DeepClone();
+            var a = new JsonObject { ["id"] = NextId(e, "annotations", "a"), ["frame"] = frame, ["anchor"] = s.Anchor, ["type"] = type, ["geom"] = geom, ["style"] = style };
             if (text != null) a["text"] = text;
             arr.Add(a); e["annotations"] = arr;
         }, refill: false);
+        _status.Text = type switch
+        {
+            "magnifier" => Loc.L("Lupe eingefügt – Linse und Quelle lassen sich getrennt verschieben, der runde Griff ändert den Zoom.", "Magnifier added – lens and source can be moved separately, the round handle changes the zoom."),
+            "spotlight" => Loc.L("Spotlight eingefügt – die Strichstärke bestimmt, wie stark der Rest abgedunkelt wird.", "Spotlight added – the stroke width sets how much the rest is dimmed."),
+            _ => _status.Text
+        };
     }
 
     JsonObject? AnnotationEdit(JsonObject edits, string id) => (edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Str("id") == id);
 
-    void MoveAnnotation(string id, double dx, double dy) => Change(e =>
+    void MoveAnnotation(string id, double dx, double dy, int part = 1) => Change(e =>
     {
-        if (AnnotationEdit(e, id) is not { } a || a["geom"] is not JsonArray g) return;
-        var v = g.Select(D).ToList();
-        if (a.Str("type") is "arrow" or "line" && v.Count >= 4) { v[0] += dx; v[1] += dy; v[2] += dx; v[3] += dy; }
-        else if (v.Count >= 2) { v[0] += dx; v[1] += dy; }
-        a["geom"] = new JsonArray(v.Select(x => (JsonNode)(int)Math.Round(x)).ToArray());
+        if (AnnotationEdit(e, id) is not { } a) return;
+        a["geom"] = AnnotationGeometry.Moved(a, (float)dx, (float)dy, part);
     }, refill: false);
 
     void RecolorSelected(string hex)
@@ -1033,7 +1068,14 @@ sealed partial class ViewerWindow
     void RestrokeSelected(int width, int fontSize)
     {
         if (_selAnn is not { } id) return;
-        Change(e => { if (AnnotationEdit(e, id) is { } a) { var st = a.Obj("style") ?? new JsonObject(); st["width"] = width; st["fontSize"] = fontSize; a["style"] = st; } }, refill: false);
+        Change(e =>
+        {
+            if (AnnotationEdit(e, id) is not { } a) return;
+            var st = a.Obj("style") ?? new JsonObject();
+            st["width"] = width; st["fontSize"] = fontSize;
+            if (a.Str("type") == "spotlight") st["dim"] = WidthToDim(width);
+            a["style"] = st;
+        }, refill: false);
     }
 
     // ---------------- Zuschneiden ----------------
