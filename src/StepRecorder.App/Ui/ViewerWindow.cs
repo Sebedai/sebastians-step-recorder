@@ -160,13 +160,12 @@ sealed partial class ViewerWindow : Window
         _img.Source = null; _current = null;
         if (s == null) { _details.Children.Clear(); _cropOff.Visibility = Visibility.Collapsed; _imgCaptionPill.Visibility = Visibility.Collapsed; _noImage.Visibility = Visibility.Visible; _imgHost.Visibility = Visibility.Collapsed; return; }
         string variant = _display == "crop" && !s.Manual && !s.ImageReplaced ? "crop" : (_variantOverride ?? DefaultVariant(s));
-        var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop");
-        if (img == null && variant == "after") { img = StepImages.Render(_view, s, "before", "original"); variant = "before"; }
+        var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop", authorAnnotations: true);
+        if (img == null && variant == "after") { img = StepImages.Render(_view, s, "before", "original", authorAnnotations: true); variant = "before"; }
         _showAfter = variant == "after";
         _syncBA = true; (_showAfter ? _afterBtn : _beforeBtn).IsChecked = true; _syncBA = false;
         if (img != null)
         {
-            using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
             _current = U.ToSource(img.Bitmap);
             _img.Source = _current;
             if (s.Id != _animStepId) { _animStepId = s.Id; Anim.Refresh(_imgHost, 0.2, 240); Anim.Refresh(_details, 0.35, 220); }

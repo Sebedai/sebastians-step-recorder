@@ -40,12 +40,20 @@ sealed class UiApp : Application
         HandleArgs(args);
     }
 
+    /// <summary>Tastenkürzel, die beim letzten Anmelden belegt waren (für Startfenster und Diagnose).</summary>
+    public List<string> HotkeyFailures { get; } = new();
+
     /// <summary>In „Bereit“ ist nur die Sofortaufnahme registriert.</summary>
     public void RegisterGlobalHotkeys()
     {
         _globalHotkeys ??= new Hotkeys();
         var s = AppSettings.Load();
-        _globalHotkeys.Register("instant", s.Hotkeys.GetValueOrDefault("instantPause", "Ctrl+Shift+F9"), () => { if (Recording == null) { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); } });
+        _globalHotkeys.Failed.Clear();
+        string combo = s.Hotkey("instantPause");
+        if (combo.Length > 0)
+            _globalHotkeys.Register("instant", combo, () => { if (Recording == null) { var o = OptionsFromSettings(ScopeMode.Screen); ApplyProfile(o, AppSettings.Load().LastProfile); o.Scope = ScopeMode.Screen; StartRecording(o); } });
+        HotkeyFailures.Clear();
+        if (_globalHotkeys.Failed.Contains("instant")) HotkeyFailures.Add(Loc.Keys(combo));
     }
 
     public void UnregisterGlobalHotkeys() => _globalHotkeys?.UnregisterAll();
@@ -104,7 +112,8 @@ sealed class UiApp : Application
             Scope = scope, Language = s.Language, PrivacyLevel = s.PrivacyLevel, ChangeFrames = s.ChangeFrames, Monitors = "active",
             ExcludedProcesses = s.Excluded.Count > 0 ? new List<string>(s.Excluded) : new List<string>(RecordingOptions.DefaultExcluded)
         };
-        foreach (var hk in s.Hotkeys.Values)
+        // alle wirksamen Kürzel (auch nicht gespeicherte Standardwerte) als eigene markieren – sonst würden sie als Schritt aufgezeichnet
+        foreach (var hk in s.EffectiveHotkeys().Values)
             if (Hotkeys.Parse(hk, out var m, out var vk)) o.SelfHotkeys.Add((m, vk));
         foreach (var (key, _, _) in RecordingOptions.Channels) if (!s.Records(key)) o.Off.Add(key);
         return o;

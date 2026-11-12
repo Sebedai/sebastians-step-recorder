@@ -33,6 +33,16 @@ public sealed class GuideOptions
     public bool KeyMarks { get; set; } = true;
     /// <summary>Dokument-Einstellungen; null = aus der Aufnahme (edits.json, guide.doc).</summary>
     public DocSettings? Doc { get; set; }
+    /// <summary>Art der Anleitung: standard | short (Kurzfassung) | checklist (Checkliste).</summary>
+    public string? Preset { get; set; }
+    /// <summary>Fehlt ein Autorentext in der Exportsprache: auto (automatischer Text) | other (Text der anderen Sprache).</summary>
+    public string? MissingTranslation { get; set; }
+    /// <summary>Klick-Tour: Hinweisring always | onDemand | never.</summary>
+    public string? TourHints { get; set; }
+    /// <summary>PowerPoint: Vortragsnotizen mit vollem Text.</summary>
+    public bool PptxNotes { get; set; } = true;
+    public bool Compact { get; set; }
+    public bool Checkboxes { get; set; }
 }
 
 /// <summary>
@@ -53,6 +63,8 @@ public static class GuideExport
         public List<(string label, string value)> Meta = new();
         public List<object> Blocks = new();   // Chapter | Item
         public DocSettings S = new();
+        /// <summary>Kurzfassung: kompakte Schrittdarstellung; Checkliste: Kästchen je Schritt.</summary>
+        public bool Compact, Checkboxes;
         public int StepCount => Blocks.OfType<Item>().Count();
         public bool HasChapters => Blocks.OfType<Chapter>().Any();
         public bool ShowToc => S.Toc && (HasChapters ? Blocks.Count >= 3 : StepCount >= 6);
@@ -62,10 +74,20 @@ public static class GuideExport
     public static ExportResult Export(SessionView view, GuideOptions o)
     {
         string lang = o.Language ?? view.Session.Language;
+        bool fallbackBefore = view.AuthorTextFallback;
+        // Fehlende Übersetzung: standardmäßig der automatische Text der Exportsprache (09 §10)
+        view.AuthorTextFallback = o.MissingTranslation == "other";
         view.Language = lang; view.Rebuild();
+        try { return ExportCore(view, o, lang); }
+        finally { view.AuthorTextFallback = fallbackBefore; view.Rebuild(); }
+    }
+
+    static ExportResult ExportCore(SessionView view, GuideOptions o, string lang)
+    {
         var res = new ExportResult { Unreviewed = view.UnreviewedCount };
         if (res.Unreviewed > 0 && !view.Headless)
             throw new InvalidOperationException(lang == "de" ? $"{res.Unreviewed} auffällige Eingaben sind noch nicht durchgesehen (Durchsicht der Eingaben)." : $"{res.Unreviewed} flagged inputs are not reviewed yet.");
+        GuidePresets.Apply(o.Preset, o, null);
         var doc = Build(view, o, lang);
         string title = view.Title;
         string ext = o.Format switch { "md" or "markdown" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", _ => "html" };
@@ -92,8 +114,9 @@ public static class GuideExport
     static Doc Build(SessionView view, GuideOptions o, string lang)
     {
         var guide = view.Edits.Obj("guide");
-        var d = new Doc { Lang = lang, S = o.Doc ?? DocSettings.From(guide, lang) };
+        var d = new Doc { Lang = lang, S = o.Doc ?? DocSettings.From(guide, lang), Compact = o.Compact, Checkboxes = o.Checkboxes };
         var s = d.S;
+        GuidePresets.ApplyDoc(o.Preset, s);
         if (!o.Numbering) s.Numbering = "none";
         d.Title = view.Clean(DocSettings.GuideText(guide, "title", lang) is { Length: > 0 } lt ? lt : view.Title);
         d.Subtitle = view.Clean(s.Subtitle);
@@ -111,6 +134,7 @@ public static class GuideExport
             foreach (var path in AppendedPaths(view))
             {
                 using var sub = SessionView.Open(path, headless: view.Headless, lang: lang);
+                sub.AuthorTextFallback = view.AuthorTextFallback; sub.Rebuild();
                 if (sub.UnreviewedCount > 0 && !view.Headless)
                     throw new InvalidOperationException((lang == "de" ? "Angehängte Aufnahme „" + sub.Title + "“: " : "Appended recording \"" + sub.Title + "\": ") + (lang == "de" ? $"{sub.UnreviewedCount} auffällige Eingaben sind noch nicht durchgesehen." : $"{sub.UnreviewedCount} flagged inputs are not reviewed yet."));
                 AddSteps(sub, sub.Title);
@@ -119,8 +143,11 @@ public static class GuideExport
         void AddSteps(SessionView v, string? autoChapter)
         {
         bool first = true;
-        foreach (var st in v.Effective(guide: true, importance: o.Importance, includeManual: true))
+        var stepList = v.GuideSteps(o.Importance);
+        int tick = 0;
+        foreach (var st in stepList)
         {
+            ExportJob.Tick(++tick, stepList.Count, "Schritte");
             if (st.Kind == "move") continue;
             if (first && autoChapter != null && st.ChapterTitle == null)
             {
@@ -143,13 +170,9 @@ public static class GuideExport
             byte[]? png = null; int w = 0, h = 0;
             if (o.Images && !st.Redacted && st.ShowImage != false)
             {
-                string variant = st.Manual || st.ImageReplaced ? "before" : st.Kind is "type" or "hotkey" or "key" or "system" or "wait" ? (st.PostFrame != null ? "after" : "before") : viewMode == "crop" ? "crop" : "before";
-                using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: viewMode == "window" ? "window" : "screen", mask: ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks), overview: overview);
-                if (img != null)
-                {
-                    if (st.Annotations.Count > 0) using (var g = Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, st.Annotations, img.SourceRect, img.Scale);
-                    png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height;
-                }
+                string variant = StepImages.GuideVariant(st, viewMode);
+                using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: viewMode == "window" ? "window" : "screen", mask: ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks), overview: overview, authorAnnotations: true);
+                if (img != null) { png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height; }
             }
             var notes = st.Comments.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).Where(n => n.Item2.Length > 0).ToList();
             d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize));
@@ -253,13 +276,15 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
 .zoom .zc{display:none}
 .zoom:has(input:checked) .zo{display:none}
 .zoom:has(input:checked) .zc{display:block;position:fixed;left:0;right:0;bottom:12px;text-align:center;color:#ddd}
+body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0 2px} body.compact .step p{margin:0 0 4px}
+.step h3 input.done{flex:none;width:1.15em;height:1.15em;margin:.15em 0 0;accent-color:var(--accent)}
 @page{margin:16mm 15mm}
 @media print{body{max-width:none;padding:0}.cover{min-height:auto;height:250mm;page-break-after:always;margin:0}.step{page-break-inside:avoid}.zoom .zh{display:none}nav.toc{page-break-after:always}h2.chapter{page-break-after:avoid}}
 </style>
 </head>
-<body>
 
 """);
+        sb.Append(d.Compact ? "<body class=\"compact\">\n" : "<body>\n");
         string metaHtml = string.Concat(d.Meta.Select(m => $"<span>{e(m.label)}<b>{e(m.value)}</b></span>"));
         string logoHtml = d.Logo != null ? $"<img class=\"logo\" alt=\"Logo\" src=\"data:image/png;base64,{Convert.ToBase64String(d.Logo)}\">" : "";
         if (d.S.Cover)
@@ -294,7 +319,7 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
             var it = (Item)b;
             bool side = d.S.Layout == "side" && it.Png != null;
             sb.Append($"<section class=\"step{(side ? " side" : "")}\" id=\"{it.Anchor}\">\n<div>\n");
-            sb.Append($"<h3>{(it.Number.Length > 0 ? $"<span class=\"n\">{e(it.Number)}</span>" : "")}<span>{e(it.Title)}</span></h3>\n");
+            sb.Append($"<h3>{(d.Checkboxes ? $"<input type=\"checkbox\" class=\"done\" aria-label=\"{d.L("erledigt", "done")}\">" : "")}{(it.Number.Length > 0 ? $"<span class=\"n\">{e(it.Number)}</span>" : "")}<span>{e(it.Title)}</span></h3>\n");
             if (it.Step.Redacted) sb.Append($"<p class=\"redacted\">{e(it.Text)}</p>\n");
             else if (it.Text.Length > 0 && it.Text != it.Title) sb.Append($"<p>{P(it.Text)}</p>\n");
             foreach (var (kind, text) in it.Notes)
@@ -353,6 +378,14 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 continue;
             }
             var it = (Item)b;
+            if (d.Checkboxes || d.Compact)
+            {
+                // Kurzfassung/Checkliste: ein Listenpunkt je Schritt
+                string body = it.Text.Length > 0 && it.Text != it.Title ? " – " + m(it.Text.Replace("\n", " ")) : "";
+                sb.Append(d.Checkboxes ? "- [ ] " : (it.Number.Length > 0 ? it.Number + ". " : "- ")).Append("**").Append(m(it.Title)).Append("**").Append(body).Append('\n');
+                foreach (var (kind, text) in it.Notes) sb.Append("  > **").Append(NoteStyle(kind, d.Lang).label).Append("** ").Append(m(text)).Append('\n');
+                continue;
+            }
             sb.Append(d.HasChapters ? "### " : "## ").Append(m(Heading(it.Number.Length > 0 ? it.Number + "." : "", it.Title))).Append("\n\n");
             if (it.Text.Length > 0 && it.Text != it.Title) sb.Append(m(it.Text)).Append("\n\n");
             foreach (var (kind, text) in it.Notes) sb.Append("> **").Append(NoteStyle(kind, d.Lang).label).Append("** ").Append(m(text)).Append("\n\n");
@@ -363,6 +396,7 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 sb.Append("![").Append(m(it.Title)).Append("](bilder/").Append(file).Append(")\n\n");
             }
         }
+        if (d.Checkboxes || d.Compact) sb.Append('\n');
         if (d.Outro.Length > 0) sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n").Append(m(d.Outro)).Append("\n\n");
         if (d.S.Footer.Length > 0) sb.Append("---\n\n").Append(m(d.S.Footer)).Append('\n');
         File.WriteAllText(outPath, sb.ToString(), new UTF8Encoding(false));
@@ -401,6 +435,12 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
             var it = (Item)b;
             void Text()
             {
+                if (d.Compact || d.Checkboxes)
+                {
+                    x.Rich((d.Checkboxes ? "☐  " : it.Number.Length > 0 ? it.Number + "  " : "", false), (it.Title, true), (it.Text.Length > 0 && it.Text != it.Title ? " – " + it.Text.Replace("\n", " ") : "", false));
+                    foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
+                    return;
+                }
                 x.Heading(Heading(it.Number, it.Title), 2);
                 if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
                 foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
@@ -521,6 +561,23 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 continue;
             }
             var it = (Item)b;
+            if (d.Compact || d.Checkboxes)
+            {
+                // Kurzfassung/Checkliste: eine Zeile je Schritt, Kästchen statt Nummernmarke
+                double lead = d.Checkboxes ? 20 : it.Number.Length > 0 ? Math.Max(18, SimplePdf.TextWidth(it.Number + ".", 10.5, true) + 8) : 0;
+                double th = SimplePdf.MeasureText(it.Title, cw - lead, 10.5, true);
+                pdf.EnsureSpace(th + 14);
+                record[it.Anchor] = pdf.PageCount;
+                double top2 = pdf.Y;
+                if (d.Checkboxes) pdf.StrokeRect(pdf.Margin + 1, top2 - 12, 10, 10, ink, 0.8);
+                else if (it.Number.Length > 0) pdf.DrawText(pdf.Margin, top2 - 10, it.Number + ".", 10.5, true, acc);
+                pdf.SetY(top2 + 1);
+                pdf.Paragraph(it.Title, 10.5, true, lead, 1, ink, cw - lead);
+                if (it.Text.Length > 0 && it.Text != it.Title) pdf.Paragraph(it.Text, 9.5, false, lead, 2, muted, cw - lead);
+                foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); pdf.Callout(label, text, Rgb(bar), Rgb(fill)); }
+                pdf.Space(5);
+                continue;
+            }
             bool hasImg = jpegs.TryGetValue(it, out var jp);
             bool side = hasImg && d.S.Layout == "side";
             double numW = it.Number.Length > 0 ? Math.Max(22, SimplePdf.TextWidth(it.Number, 10, true) + 10) : 0;

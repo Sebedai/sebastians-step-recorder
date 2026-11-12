@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
@@ -564,18 +564,18 @@ sealed class StartWindow : Window
         }
     }
 
-    void ShowSettings() => new SettingsWindow { Owner = this }.ShowDialog();
+    void ShowSettings()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            var w = new SettingsWindow(i == 0 ? 0 : 4) { Owner = this };
+            w.ShowDialog();
+            if (!w.ReopenRequested) break;
+        }
+        FillRecent(); UpdateProfile();
+    }
 
-    void ShowHelp() => Msg.Show(
-        $"So funktioniert {AppInfo.DisplayName}\n\n" +
-        "1. Modus wählen: Anleitung (schlank), Support-Fall (ausführlich), KI-Spur (vollständig) oder Eigene (selbst festgelegt). Der Modus bestimmt den Detailgrad – Eingabearten, Zusatzbilder bei Bildschirmänderungen, Programmkontext – und was nach dem Stopp passiert.\n\n" +
-        "2. Bereich wählen: ganzer Bildschirm, eine Anwendung oder ein Ausschnitt. Ein Klick startet die Aufnahme; vorführen und mit Strg+Umschalt+F10 beenden.\n\n" +
-        "Privattaste Strg+Umschalt+F8: Eingaben werden nur gezählt, nicht gespeichert.\n\n" +
-        "Editor: Texte direkt rechts ändern, Kapitel und Hinweiskästen am Schritt anlegen, im Reiter „Dokument“ Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe festlegen, Werkzeuge links am Bild (V Auswahl, A Pfeil, R Rahmen, E Ellipse, M Hervorheben, T Text, N Nummer, X Schwärzen), Markierungen anklicken und mit Entf löschen, Schritte per Ziehen umsortieren. Strg+C kopiert das Bild, Strg+E exportiert.\n\n" +
-        "KI-Zugriff: SebastiansStepRecorder.exe mcp --root <Aufnahmeordner> startet den MCP-Server (stdio).\n\n" +
-        "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.\n\n" +
-        "Kostenlos nutzbar, auch beruflich. Lizenz: CC BY-ND 4.0 (Namensnennung – keine Bearbeitungen). © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
-        "Hilfe", MessageBoxButton.OK, MessageBoxImage.Information);
+    void ShowHelp() => HelpDialog.Show(this);
 
     protected override void OnClosed(EventArgs e) { base.OnClosed(e); UiApp.Instance.MaybeShutdown(); }
 }
@@ -787,104 +787,3 @@ sealed class RegionPicker : Window
     [DllImport("user32.dll")] static extern bool SetWindowPos(nint h, nint after, int x, int y, int w, int hh, uint flags);
 }
 
-/// <summary>Einstellungen: Sprache, Anrede, Schutzstufe, Zusatzbilder, Aufnahmeordner, Ausschlussliste.</summary>
-sealed class SettingsWindow : Window
-{
-    static DockPanel Note(string text)
-    {
-        var d = new DockPanel();
-        var i = U.Icon(Theme.IInfo, 12, Theme.Muted); i.VerticalAlignment = VerticalAlignment.Top; i.Margin = new Thickness(0, 2, 8, 0);
-        DockPanel.SetDock(i, Dock.Left); d.Children.Add(i); d.Children.Add(U.Text(text, 12, fg: Theme.Muted));
-        return d;
-    }
-
-    public SettingsWindow(int tab = 0)
-    {
-        var wa = Theme.ActiveWorkArea();
-        Title = "Einstellungen"; Width = Math.Min(820, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
-        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
-        Theme.Prepare(this, Theme.Surface);
-        var s = AppSettings.Load();
-        var lang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.Language == "en" ? 1 : 0 };
-        var address = new ComboBox { Items = { "Sie (förmlich)", "du (persönlich)" }, SelectedIndex = s.Address == "informal" ? 1 : 0 };
-        var level = new ComboBox { Items = { "Schutznetz – Passwortfelder maskieren", "Streng – unbekannte Felder maskieren" }, SelectedIndex = s.PrivacyLevel == "strict" ? 1 : 0 };
-        var change = new ComboBox { Items = { DetailPresets.ChangeFramesName("few"), DetailPresets.ChangeFramesName("normal"), DetailPresets.ChangeFramesName("many") }, SelectedIndex = s.ChangeFrames switch { "few" => 0, "many" => 2, _ => 1 } };
-        var changeHint = U.Text(DetailPresets.ChangeFramesRule(s.ChangeFrames), 12, fg: Theme.Muted, margin: new Thickness(0, 5, 0, 0));
-        change.SelectionChanged += (_, _) => changeHint.Text = DetailPresets.ChangeFramesRule(change.SelectedIndex switch { 0 => "few", 2 => "many", _ => "normal" });
-        var folder = new TextBox { Text = s.SessionsFolder ?? AppPaths.DefaultSessionsFolder() };
-        var warn = U.Text("", 12, fg: Theme.Warn, margin: new Thickness(0, 5, 0, 0));
-        void CheckSync() { warn.Text = AppPaths.LooksSynced(folder.Text) ? "Der Ordner wird synchronisiert – Aufnahmen können dadurch Unbeteiligten zugänglich werden." : ""; warn.Visibility = warn.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed; }
-        folder.TextChanged += (_, _) => CheckSync(); CheckSync();
-        var browse = U.Btn(Theme.IFolder, null, () =>
-        {
-            using var d = new System.Windows.Forms.FolderBrowserDialog { SelectedPath = folder.Text, Description = "Aufnahmeordner wählen", UseDescriptionForTitle = true };
-            if (d.ShowDialog() == System.Windows.Forms.DialogResult.OK) folder.Text = d.SelectedPath;
-        }, "Ordner wählen …");
-        browse.Margin = new Thickness(8, 0, 0, 0);
-        var folderRow = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); folderRow.Children.Add(browse); folderRow.Children.Add(folder);
-        var excl = new TextBox { Text = string.Join(Environment.NewLine, s.Excluded), AcceptsReturn = true, Height = 150, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = 12.5 };
-
-        // zweispaltiges Raster für Felder
-        static Grid Two(params UIElement[] items)
-        {
-            var g = new Grid();
-            g.ColumnDefinitions.Add(new ColumnDefinition()); g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) }); g.ColumnDefinitions.Add(new ColumnDefinition());
-            for (int k = 0; k < items.Length; k++)
-            {
-                if (k % 2 == 0) g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-                Grid.SetRow(items[k], k / 2); Grid.SetColumn(items[k], k % 2 == 0 ? 0 : 2); g.Children.Add(items[k]);
-            }
-            return g;
-        }
-        var theme = new ComboBox { Items = { "Dunkel", "Hell", "Wie Windows" }, SelectedIndex = s.Theme switch { "light" => 1, "system" => 2, _ => 0 } };
-        var rec = new Dictionary<string, bool>(s.Record);
-        var fallback = new CheckBox { Content = "Ohne Nachfrage mit ausgeblendeter Anzeige aufnehmen, wenn die Unsichtbarkeit nicht bestätigt werden kann", IsChecked = s.InvisibleFallback == "hidden", Margin = new Thickness(0, 6, 0, 0),
-            ToolTip = "Z. B. unter Windows Server 2019: Leiste und Rahmen bleiben ausgeblendet, gesteuert wird über Tastenkürzel und das Symbol im Infobereich." };
-        var countdown = new ComboBox { Items = { "aus", "3 Sekunden", "5 Sekunden" }, SelectedIndex = s.Countdown >= 5 ? 2 : s.Countdown >= 3 ? 1 : 0 };
-        var sounds = new ComboBox { Items = { "nur bei ausgeblendeter Anzeige", "immer", "nie" }, SelectedIndex = s.SoundCues switch { "always" => 1, "never" => 2, _ => 0 } };
-
-        // ---------- Reiter ----------
-        var general = Two(U.Field("Darstellung", theme, "Gilt ab dem nächsten Start."), U.Field("Sprache der Texte", lang),
-                          U.Field("Anrede in Anleitungen", address), new Border());
-        var recording = U.Col(Two(U.Field("Schutzstufe", level, "Was bei Eingaben maskiert wird."), U.Field("Countdown vor der Aufnahme", countdown, "Bei ausgeblendeter Anzeige mindestens 3 Sekunden."),
-                                  U.Field("Signaltöne", sounds, "Bei Start, Stopp, Pause und Markern."), new Border()), fallback);
-        var custom = U.Col(U.Text("Gilt nur für den Modus „Eigene“ – die anderen Modi haben einen festen Detailgrad.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 10)),
-                           RecordChoice.Build(rec, null), U.Field("Zusatzbilder ohne Eingabe", U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
-        var storage = U.Col(U.Field("Aufnahmeordner", U.Col(folderRow, warn)),
-                            U.Field("Ausgeschlossene Programme", excl, "Ein Prozessname je Zeile – von diesen Programmen wird nichts aufgezeichnet."),
-                            Note(AppPaths.Portable ? $"Portabler Modus – Einstellungen liegen neben der EXE ({AppPaths.DataDir})." : $"Einstellungen liegen in {AppPaths.DataDir}."));
-        var pages = new UIElement[] { general, recording, custom, storage };
-        var (tabTrack, tabs) = U.Segmented("settab", 0, (Theme.ISettings, "Allgemein"), (Theme.IRecord, "Aufnahme"), (Theme.IChecklist, "Modus „Eigene“"), (Theme.IFolder, "Speicher und Schutz"));
-        tabTrack.Margin = new Thickness(0, 0, 0, 20);
-        var host = new Grid();
-        foreach (var pg in pages) { pg.Visibility = Visibility.Hidden; ((FrameworkElement)pg).VerticalAlignment = VerticalAlignment.Top; host.Children.Add(pg); }   // „Hidden“: alle Reiter gleich hoch
-        general.Visibility = Visibility.Visible;
-        for (int t = 0; t < tabs.Length; t++) { int k = t; tabs[t].Checked += (_, _) => { foreach (var pg in pages) pg.Visibility = Visibility.Hidden; pages[k].Visibility = Visibility.Visible; Anim.Refresh(pages[k], 0.2, 200); }; }
-        var body = U.Col(tabTrack, host);
-        if (tab > 0 && tab < tabs.Length) tabs[tab].IsChecked = true;
-        U.Dialog(this, null, body, U.Primary("Speichern", () =>
-        {
-            var removed = s.Excluded.Except(excl.Text.Split('\n').Select(x => x.Trim())).ToList();
-            if (removed.Count > 0 && Msg.Show("Schutz abschwächen?\n\nFolgende Ausschlüsse werden entfernt und deren Eingaben künftig aufgezeichnet:\n" + string.Join(", ", removed), "Einstellungen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            if (level.SelectedIndex == 0 && s.PrivacyLevel == "strict" && Msg.Show("Schutz abschwächen?\n\nSchutzstufe von „Streng“ auf „Schutznetz“ senken?", "Einstellungen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
-            s.Language = lang.SelectedIndex == 1 ? "en" : "de"; s.PrivacyLevel = level.SelectedIndex == 1 ? "strict" : "balanced";
-            s.ChangeFrames = change.SelectedIndex switch { 0 => "few", 2 => "many", _ => "normal" };
-            s.SessionsFolder = folder.Text.Trim(); s.Address = address.SelectedIndex == 1 ? "informal" : "formal";
-            s.Record = rec;
-            s.InvisibleFallback = fallback.IsChecked == true ? "hidden" : "ask";
-            string newTheme = theme.SelectedIndex switch { 1 => "light", 2 => "system", _ => "dark" };
-            if (newTheme != s.Theme) Msg.Show("Darstellung geändert\n\nDie neue Darstellung gilt ab dem nächsten Start des Programms.", "Einstellungen", MessageBoxButton.OK, MessageBoxImage.Information);
-            s.Theme = newTheme;
-            s.Countdown = countdown.SelectedIndex switch { 1 => 3, 2 => 5, _ => 0 };
-            s.SoundCues = sounds.SelectedIndex switch { 1 => "always", 2 => "never", _ => "hidden" };
-            s.Excluded = excl.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            s.Save(); Close();
-        }), U.Btn("Abbrechen", Close));
-        if (Content is FrameworkElement dlg)
-        {
-            Content = null;
-            dlg.Width = 800;
-            Content = new Viewbox { Child = dlg, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
-        }
-    }
-}

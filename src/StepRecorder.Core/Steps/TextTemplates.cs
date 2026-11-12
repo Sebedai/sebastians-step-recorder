@@ -47,6 +47,23 @@ public static class TextTemplates
         return s.Length > 60 ? s[..59] + "…" : s;
     }
 
+    /// <summary>
+    /// Welche Stufe der Rückfallkette die Zielbezeichnung liefert: 1 Name, 2 Beschriftung, 3 Wert, 4 Hilfetext,
+    /// 5 Vorfahre, 6 nur Position, 7 unbekannt (Qualitätsprüfung Q01).
+    /// </summary>
+    public static int TargetRule(JsonObject step, string which = "target")
+    {
+        var t = step.Obj(which);
+        var el = t?.Obj("el");
+        string ct = el.Str("ct") ?? "Unknown";
+        if (CleanName(el.Str("name")).Length > 0) return 1;
+        if (CleanName(el.Obj("labeledBy").Str("name")).Length > 0) return 2;
+        if (el.Str("value") is { Length: > 0 } && ct is "ComboBox" or "Edit" or "Spinner") return 3;
+        if (CleanName(el.Str("help")).Length > 0) return 4;
+        if (el != null && (t?.Arr("path")?.Any(p => CleanName(p.Str("name")).Length > 0) ?? false)) return 5;
+        return (which == "endTarget" ? step.Obj("endPosition") : step.Obj("position")) != null ? 6 : 7;
+    }
+
     /// <summary>Bezeichnung des Ziels (Rückfallkette: Name → beschriftet durch → Wert → Hilfe → Vorfahre → Position).</summary>
     public static string TargetLabel(JsonObject step, string lang, bool article, string which = "target")
     {

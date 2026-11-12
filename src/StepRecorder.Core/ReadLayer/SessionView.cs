@@ -44,6 +44,13 @@ public sealed class ViewStep
     public long After;
     /// <summary>Bild durch eigenes ersetzt (Bild neu aufgenommen).</summary>
     public bool ImageReplaced => PreFrame?.StartsWith("u:") == true && !Manual;
+    /// <summary>Eigener Text existiert nur in der anderen Sprache (Qualitätsprüfung Q13).</summary>
+    public bool TranslationMissing;
+    /// <summary>Zusammengefasster Schritt (nur in Anleitungen): Kennung und Mitglieder in Aufnahmereihenfolge.</summary>
+    public string? MergeId;
+    public List<ViewStep>? Members;
+
+    public ViewStep Clone() => (ViewStep)MemberwiseClone();
 }
 
 /// <summary>
@@ -98,6 +105,11 @@ public sealed class SessionView : IDisposable
     }
     public string Language { get; set; }
     public bool Headless { get; }
+    /// <summary>
+    /// Fehlt ein Autorentext in <see cref="Language"/>, den der anderen Sprache zeigen (Editor). Anleitungs-Exporte schalten das
+    /// standardmäßig ab und nehmen den automatischen Text der Exportsprache (09 §10).
+    /// </summary>
+    public bool AuthorTextFallback { get; set; } = true;
     readonly List<(Regex rx, string placeholder)> _subst = new();
     readonly HashSet<string> _redactedStrings = new(StringComparer.Ordinal);
     readonly List<(long from, long to, bool images)> _rangeRedactions = new();
@@ -219,6 +231,7 @@ public sealed class SessionView : IDisposable
             }
             catch { }
         }
+        _mergeOf = null;
         if (_redactedKeySeqs.Count > 0) ApplyKeyRedactions();
         foreach (var c in (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>())
             if (c.Str("origin") == "recording" && (c.Bool("hidden") || c.Str("kind") == "internal") && c.LongN("sourceSeq") is long src) _hiddenComments.Add(src);
@@ -339,8 +352,7 @@ public sealed class SessionView : IDisposable
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
                 if (se["discarded"] != null) vs.Discarded = se.Bool("discarded");
                 if (se.Str("importance") is { } imp) vs.Importance = imp;
-                var txt = se.Obj("text")?.Obj(Language) ?? se.Obj("text")?.Obj(Language == "de" ? "en" : "de");
-                if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
+                ApplyAuthorText(vs, se.Obj("text"));
                 if (se.Obj("frameChoice") is { } fc) { vs.PreFrame = fc.Str("pre"); vs.PostFrame = fc.Str("post"); }
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
@@ -401,8 +413,7 @@ public sealed class SessionView : IDisposable
             if (stepEdits.TryGetValue(anchor, out var se))
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
-                var txt = se.Obj("text")?.Obj(Language) ?? se.Obj("text")?.Obj(Language == "de" ? "en" : "de");
-                if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
+                ApplyAuthorText(vs, se.Obj("text"));
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
@@ -413,6 +424,16 @@ public sealed class SessionView : IDisposable
             manual.Add(vs);
         }
         Manual = manual;
+    }
+
+    /// <summary>Autorentext der Sprache übernehmen; fehlt er, je nach <see cref="AuthorTextFallback"/> den der anderen Sprache.</summary>
+    void ApplyAuthorText(ViewStep vs, JsonObject? text)
+    {
+        var own = text?.Obj(Language);
+        var other = text?.Obj(Language == "de" ? "en" : "de");
+        vs.TranslationMissing = own == null && other != null;
+        var txt = own ?? (AuthorTextFallback ? other : null);
+        if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
     }
 
     /// <summary>Kapitel am Schritt; Titel und Text je Sprache (chapter.en überschreibt für Englisch).</summary>
@@ -456,32 +477,33 @@ public sealed class SessionView : IDisposable
 
     // ---------------- Sichten ----------------
 
-    /// <summary>Wirksame Schritte (ohne verworfene Abschnitte). guide=true wendet Reihenfolge und Ausblenden an.</summary>
-    public List<ViewStep> Effective(bool guide = false, string importance = "secondary", bool includeManual = false)
+    /// <summary>
+    /// Wirksame Schritte (ohne verworfene Abschnitte). guide=true wendet Reihenfolge und Ausblenden an;
+    /// ordered=true nur die Reihenfolge (Schrittliste des Editors: Ausgeblendete bleiben sichtbar).
+    /// </summary>
+    public List<ViewStep> Effective(bool guide = false, string importance = "secondary", bool includeManual = false, bool ordered = false)
     {
         IEnumerable<ViewStep> q = All;
         Dictionary<long, int>? pos = null;
         var order = Edits.Arr("order");
         if (order is { Count: > 0 })
             pos = order.Select((o, i) => (key: o is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue, i)).Where(x => x.key != long.MinValue).GroupBy(x => x.key).ToDictionary(g => g.Key, g => g.First().i);
-        if (guide)
-        {
-            q = q.Where(s => !s.Hidden && !s.Discarded);
-            if (pos != null) q = q.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Number);
-        }
+        bool hide = guide, applyOrder = guide || ordered;
+        if (hide) q = q.Where(s => !s.Hidden && !s.Discarded);
+        if (applyOrder && pos != null) q = q.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Number);
         if (includeManual && Manual.Count > 0)
         {
             var list = q.ToList();
-            var man = Manual.Where(m => !guide || !m.Hidden).ToList();
+            var man = Manual.Where(m => !hide || !m.Hidden).ToList();
             // in der Reihenfolge-Liste geführte eigene Schritte dort einsortieren, die übrigen nach ihrem Bezugsschritt
-            if (guide && pos != null)
+            if (applyOrder && pos != null)
             {
-                var ordered = man.Where(m => pos.ContainsKey(m.Anchor)).ToList();
-                if (ordered.Count > 0)
+                var inOrder = man.Where(m => pos.ContainsKey(m.Anchor)).ToList();
+                if (inOrder.Count > 0)
                 {
-                    list.AddRange(ordered);
+                    list.AddRange(inOrder);
                     list = list.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Manual ? 1 : 0).ToList();
-                    man = man.Except(ordered).ToList();
+                    man = man.Except(inOrder).ToList();
                 }
             }
             foreach (var m in man)
@@ -500,6 +522,96 @@ public sealed class SessionView : IDisposable
             _ => q.Where(s => s.Importance != "trace" || s.Kind == "gap")
         };
         return q.ToList();
+    }
+
+    // ---------------- Zusammengefasste Schritte (nur Anleitungen) ----------------
+
+    sealed record MergeInfo(string Id, List<long> Anchors, JsonObject? Text);
+    Dictionary<long, MergeInfo>? _mergeOf;
+
+    /// <summary>
+    /// <c>edits.merges[]</c>: Gruppen aufeinanderfolgender Schritte, die in Anleitungen als ein Schritt erscheinen.
+    /// Der erste Anker führt; ein Schritt gehört höchstens zu einer Gruppe; unbekannte Anker werden übergangen.
+    /// </summary>
+    Dictionary<long, MergeInfo> Merges()
+    {
+        if (_mergeOf != null) return _mergeOf;
+        var map = new Dictionary<long, MergeInfo>();
+        var known = All.ToDictionary(s => s.Anchor);
+        foreach (var m in (Edits.Arr("merges") ?? new JsonArray()).OfType<JsonObject>())
+        {
+            var anchors = (m.Arr("anchors") ?? new JsonArray()).Select(a => a is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue)
+                .Where(a => known.ContainsKey(a) && !map.ContainsKey(a)).Distinct().ToList();
+            if (anchors.Count < 2) continue;
+            var info = new MergeInfo(m.Str("id") ?? "", anchors, m.Obj("text"));
+            foreach (var a in anchors) map[a] = info;
+        }
+        return _mergeOf = map;
+    }
+
+    /// <summary>Zugehörigkeit eines Schritts zu einer Gruppe: Kennung, ob führend, Größe, Nummer des führenden Schritts.</summary>
+    public (string id, bool lead, int count, int leadNumber, List<int> numbers)? MergeOf(long anchor)
+    {
+        if (!Merges().TryGetValue(anchor, out var m)) return null;
+        var nums = m.Anchors.Select(a => All.First(s => s.Anchor == a).Number).OrderBy(n => n).ToList();
+        return (m.Id, m.Anchors[0] == anchor, m.Anchors.Count, All.First(s => s.Anchor == m.Anchors[0]).Number, nums);
+    }
+
+    /// <summary>
+    /// Schritte, wie Anleitungen sie zeigen: <see cref="Effective"/> mit Reihenfolge, Ausblenden und eigenen Schritten,
+    /// zusammengefasste Gruppen als ein Schritt. KI-Paket, MCP, Vergleich und AutoHotkey zeigen weiter die Einzelschritte.
+    /// </summary>
+    public List<ViewStep> GuideSteps(string importance = "primary", bool includeManual = true)
+    {
+        var merges = Merges();
+        var list = Effective(guide: true, importance: "all", includeManual: includeManual);
+        var result = new List<ViewStep>();
+        foreach (var s in list)
+        {
+            if (!s.Manual && merges.TryGetValue(s.Anchor, out var m))
+            {
+                if (m.Anchors[0] != s.Anchor) continue;   // Mitglied: im führenden Schritt enthalten
+                result.Add(Composite(s, m));
+            }
+            else result.Add(s);
+        }
+        // Mitglieder ohne sichtbaren führenden Schritt bleiben verborgen (führender Schritt ausgeblendet = Gruppe ausgeblendet)
+        IEnumerable<ViewStep> q = result;
+        q = importance switch
+        {
+            "primary" => q.Where(s => s.Importance == "primary" || s.Kind == "gap" || s.Manual),
+            "all" => q,
+            _ => q.Where(s => s.Importance != "trace" || s.Kind == "gap")
+        };
+        return q.ToList();
+    }
+
+    /// <summary>Der zusammengefasste Schritt eines führenden Schritts (null, wenn er keine Gruppe führt).</summary>
+    public ViewStep? GuideStepFor(ViewStep lead) => !lead.Manual && Merges().TryGetValue(lead.Anchor, out var m) && m.Anchors[0] == lead.Anchor ? Composite(lead, m) : null;
+
+    ViewStep Composite(ViewStep lead, MergeInfo m)
+    {
+        var members = m.Anchors.Select(a => All.First(s => s.Anchor == a)).OrderBy(s => s.Number).ToList();
+        var visible = members.Where(s => !s.Redacted && (s == lead || !s.Hidden)).ToList();
+        var c = lead.Clone();
+        c.MergeId = m.Id;
+        c.Members = members;
+        c.TFrom = members.Min(s => s.TFrom); c.TTo = members.Max(s => s.TTo);
+        c.PreFrame = visible.FirstOrDefault(s => s.PreFrame != null)?.PreFrame ?? lead.PreFrame;
+        c.PostFrame = visible.LastOrDefault(s => s.PostFrame != null)?.PostFrame ?? lead.PostFrame;
+        c.Importance = members.Any(s => s.Importance == "primary") ? "primary" : members.Any(s => s.Importance == "secondary") ? "secondary" : "trace";
+        c.Unreviewed = members.Any(s => s.Unreviewed);
+        c.Comments = members.SelectMany(s => s.Comments).ToList();
+        c.Guide = string.Join(" ", visible.Select(s => (s.AuthorBody ?? s.Guide).Trim()).Where(t => t.Length > 0));
+        c.Protocol = string.Join(" ", visible.Select(s => s.Protocol.Trim()).Where(t => t.Length > 0));
+        c.AuthorTitle = null; c.AuthorBody = null; c.TranslationMissing = false;
+        var own = m.Text?.Obj(Language);
+        var other = m.Text?.Obj(Language == "de" ? "en" : "de");
+        var txt = own ?? (AuthorTextFallback ? other : null);
+        c.TranslationMissing = own == null && other != null;
+        if (txt != null) { c.AuthorTitle = Clean(txt.Str("title")); c.AuthorBody = Clean(txt.Str("body")); }
+        else c.AuthorTitle = lead.AuthorTitle;
+        return c;
     }
 
     public ViewStep? ByNumber(int n) => All.FirstOrDefault(s => s.Number == n);
@@ -658,6 +770,13 @@ public sealed class SessionView : IDisposable
             c["value"] = "{unreviewed}";
         return c;
     }
+
+    /// <summary>
+    /// Markierungen des Autors, die auf genau diesem Bild gezeichnet wurden (bereinigt: Texte mit Schwärzungen und Platzhaltern).
+    /// Gilt gleich für Editor, Vorschaubilder und Export – Markierungen des Nachher-Bilds erscheinen nicht auf dem Vorher-Bild.
+    /// </summary>
+    public List<JsonObject> AnnotationsFor(ViewStep step, string frameId)
+        => (Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().Where(a => a.Str("frame") == frameId).Select(a => (JsonObject)CleanNode(a)!).ToList();
 
     /// <summary>Aufgenommener Kommentar, den der Autor als intern markiert hat (erscheint in keiner Ausgabe).</summary>
     public bool IsHiddenComment(long seq) => _hiddenComments.Contains(seq);

@@ -28,6 +28,55 @@ public sealed class DocSettings
     /// <summary>Felder, die je Sprache gepflegt werden (guide.i18n.&lt;lang&gt; überschreibt für andere Sprachen als Deutsch).</summary>
     public static readonly string[] LocalizedKeys = { "subtitle", "audience", "prerequisites", "footer" };
 
+    /// <summary>Felder, die eine Vorlage überträgt (nicht: Untertitel, Version, Voraussetzungen – die gehören zur einzelnen Anleitung).</summary>
+    public static readonly string[] TemplateKeys = { "author", "audience", "footer", "cover", "toc", "showDate", "numbering", "imageSize", "layout", "accent", "logo", "view", "overview" };
+
+    /// <summary>
+    /// Vorlage aus fremder Quelle prüfen und bereinigen: nur bekannte Schlüssel, Längen begrenzt, Farbe #RRGGBB,
+    /// Logo neu kodiert (entfernt alles, was kein Bild ist). Null bei unbrauchbarer Vorlage.
+    /// </summary>
+    public static JsonObject? SanitizeTemplate(JsonObject? t, out string? problem)
+    {
+        problem = null;
+        if (t == null) { problem = "keine Vorlage"; return null; }
+        var r = new JsonObject();
+        foreach (var k in TemplateKeys)
+        {
+            var v = t[k];
+            if (v == null) continue;
+            switch (k)
+            {
+                case "cover" or "toc" or "showDate" or "overview":
+                    if (v is JsonValue bv && bv.TryGetValue<bool>(out var b)) r[k] = b; break;
+                case "numbering": if (t.Str(k) is "chapter" or "flat" or "none") r[k] = t.Str(k); break;
+                case "imageSize": if (t.Str(k) is "s" or "m" or "l" or "full") r[k] = t.Str(k); break;
+                case "layout": if (t.Str(k) is "below" or "side") r[k] = t.Str(k); break;
+                case "view": if (t.Str(k) is "screen" or "window" or "crop") r[k] = t.Str(k); break;
+                case "accent":
+                    if (t.Str(k) is { Length: 7 } a && a[0] == '#' && a[1..].All(Uri.IsHexDigit)) r[k] = a;
+                    else problem = "Akzentfarbe ungültig";
+                    break;
+                case "logo":
+                    if (t.Str(k) is { Length: > 0 } logo)
+                    {
+                        if (logo.Length > 4_000_000) { problem = "Logo zu groß"; break; }
+                        try
+                        {
+                            using var ms = new MemoryStream(Convert.FromBase64String(logo));
+                            using var img = System.Drawing.Image.FromStream(ms);
+                            r[k] = LogoFrom(img);
+                        }
+                        catch { problem = "Logo ist kein gültiges Bild"; }
+                    }
+                    break;
+                default:
+                    if (t.Str(k) is { } s) r[k] = s.Length > 300 ? s[..300] : s; break;
+            }
+        }
+        if (t.Str("address") is "formal" or "informal") r["address"] = t.Str("address");
+        return r;
+    }
+
     public static readonly (string hex, string name)[] Accents =
         { ("#C2410C", "Orange"), ("#1F4E9C", "Blau"), ("#1F7A4D", "Grün"), ("#6B3FA0", "Violett"), ("#B4233C", "Rot"), ("#2E2D2A", "Graphit") };
 

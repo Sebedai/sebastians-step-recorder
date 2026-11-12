@@ -87,13 +87,18 @@ static class Invisibility
             double blackNow = Ratio(during, c => c.R < 8 && c.G < 8 && c.B < 8), blackBefore = Ratio(before, c => c.R < 8 && c.G < 8 && c.B < 8);
             if (magenta > 0.2) return Fail($"Testmuster sichtbar ({magenta:P0})");
             if (blackNow > 0.9 && blackBefore < 0.5) return Fail("Ersatzbalken (schwarz) sichtbar");
+            LastFailure = null; LastResult = true;
             return true;
         }
         catch (Exception ex) { return Fail(ex.Message); }
         finally { try { probe?.Close(); } catch { } }
     }
 
-    static bool Fail(string why) { UiApp.Log("Selbsttest Unsichtbarkeit fehlgeschlagen: " + why); return false; }
+    /// <summary>Ergebnis des letzten Selbsttests (null = bestanden oder nicht gelaufen) – für Diagnose und <c>record --self-test</c>.</summary>
+    public static string? LastFailure { get; private set; }
+    public static bool? LastResult { get; private set; }
+
+    static bool Fail(string why) { LastFailure = why; LastResult = false; Settings.AppLog.Write("Selbsttest Unsichtbarkeit fehlgeschlagen: " + why); return false; }
 
     static double Ratio(System.Drawing.Bitmap b, Func<System.Drawing.Color, bool> pred)
     {
@@ -105,10 +110,11 @@ static class Invisibility
 
     static void Pump(int ms)
     {
+        // Dispatcher des aktuellen Threads – funktioniert auch ohne Application (Kommandozeile: record --self-test)
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < ms)
         {
-            Application.Current?.Dispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
+            Dispatcher.CurrentDispatcher.Invoke(DispatcherPriority.Background, new Action(() => { }));
             Thread.Sleep(10);
         }
     }
@@ -202,6 +208,8 @@ static class SingleInstance
                 var text = (Marshal.PtrToStringUni(cds.lpData, cds.cbData / 2) ?? "").TrimEnd('\0');
                 var args = text.Split('\u001F', StringSplitOptions.None);
                 handled = true;
+                // Abfrage ohne Wirkung: läuft eine Aufnahme? (2 = ja, 1 = nein)
+                if (args.Length > 0 && args[0] == "--is-recording") return new IntPtr(UiApp.Instance.Recording != null ? 2 : 1);
                 Application.Current.Dispatcher.BeginInvoke(() => ArgsReceived?.Invoke(args));
                 return new IntPtr(1);
             }
@@ -209,8 +217,21 @@ static class SingleInstance
         });
     }
 
-    public static bool Forward(string[] args)
+    public static bool Forward(string[] args) => Send(args, out _);
+
+    /// <summary>Läuft die Oberfläche bereits (in dieser Windows-Sitzung)?</summary>
+    public static bool IsUiRunning()
     {
+        if (Mutex.TryOpenExisting(MutexName, out var m)) { m.Dispose(); return true; }
+        return false;
+    }
+
+    /// <summary>Läuft in der Oberfläche gerade eine Aufnahme?</summary>
+    public static bool IsRecording() => Send(new[] { "--is-recording" }, out var r) && r == 2;
+
+    static bool Send(string[] args, out long result)
+    {
+        result = 0;
         var h = FindWindowEx(new IntPtr(-3), IntPtr.Zero, null, WindowTitle);
         if (h == IntPtr.Zero) return false;
         var text = string.Join('\u001F', args);
@@ -218,7 +239,9 @@ static class SingleInstance
         try
         {
             var cds = new COPYDATASTRUCT { dwData = 1, cbData = (text.Length + 1) * 2, lpData = ptr };
-            return SendMessageTimeout(h, 0x004A, IntPtr.Zero, ref cds, 2, 5000, out _) != IntPtr.Zero;
+            bool ok = SendMessageTimeout(h, 0x004A, IntPtr.Zero, ref cds, 2, 5000, out var res) != IntPtr.Zero;
+            result = (long)res;
+            return ok;
         }
         finally { Marshal.FreeHGlobal(ptr); }
     }

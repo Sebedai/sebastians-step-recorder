@@ -82,6 +82,7 @@ public static class AhkExport
         int nActions = 0;
         for (int i = 0; i < steps.Count; i++)
         {
+            ExportJob.Tick(i + 1, steps.Count, "Skript");
             var s = steps[i];
             var j = s.Json;
             string head = $"; --- Schritt {s.Number}: {OneLine(s.AuthorTitle ?? s.Title)}";

@@ -112,6 +112,10 @@ public sealed class AppSettings
     public string SoundCues { get; set; } = "hidden";
     /// <summary>Farbschema der Oberfläche: dark (Standard) | light | system (wie Windows).</summary>
     public string Theme { get; set; } = "dark";
+    /// <summary>Erinnerung „Aufnahme läuft noch“ nach so vielen Minuten ohne Eingabe (0 = aus).</summary>
+    public int IdleReminderMinutes { get; set; } = 10;
+    /// <summary>Erinnerung „Privattaste ist noch an“ nach so vielen Sekunden ohne Taste.</summary>
+    public int PrivacyReminderSeconds { get; set; } = 60;
     public Dictionary<string, string> Hotkeys { get; set; } = HotkeyActions.Defaults();
 
     /// <summary>Wirksames Tastenkürzel einer Aktion: gespeichert, sonst Standard; leer = bewusst ohne Kürzel.</summary>
@@ -219,6 +223,10 @@ public sealed class AppSettings
     }
 
     public bool Save() => Write(AppPaths.SettingsFile, setCache: true);
+
+    public JsonObject ToJsonObject() => JsonNode.Parse(JsonSerializer.Serialize(this, Opt))!.AsObject();
+    public static AppSettings FromJsonObject(JsonObject o) => JsonSerializer.Deserialize<AppSettings>(o.ToJsonString(), Opt) ?? new AppSettings();
+    public AppSettings Clone() => FromJsonObject(ToJsonObject());
 
     /// <summary>Speichert atomar; Fehler werden protokolliert und in <see cref="LastSaveError"/> gemeldet.</summary>
     public bool Write(string path, bool setCache = false)

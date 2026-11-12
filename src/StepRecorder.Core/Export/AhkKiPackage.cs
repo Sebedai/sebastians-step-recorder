@@ -75,8 +75,11 @@ public static class AhkKiPackage
         var steps = new JsonArray();
         var apps = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
         int ocrCount = 0;
-        foreach (var s in view.Effective(guide: true, importance: "all"))
+        var all = view.Effective(guide: true, importance: "all");
+        int tick = 0;
+        foreach (var s in all)
         {
+            ExportJob.Tick(++tick, all.Count, "Schritte");
             if (s.Kind == "move") continue;
             var item = Step(view, s, imgDir, o, ref ocrCount, apps);
             if (item != null) steps.Add(item);

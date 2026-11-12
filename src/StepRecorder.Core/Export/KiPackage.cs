@@ -30,6 +30,8 @@ public sealed class ExportResult
     public long TextTokens { get; set; }
     public long ImageTokens { get; set; }
     public string Path { get; set; } = "";
+    /// <summary>Textinhalt für die Zwischenablage (z. B. Fehlerbericht).</summary>
+    public string? Text { get; set; }
 }
 
 /// <summary>KI-Paket (06 §3–14): README_AI.md, trace.md, steps.json, ai-package.json, images/.</summary>
@@ -69,8 +71,10 @@ public static class KiPackage
         string Suffix(string v) => lang == "de" ? v switch { "before" => "vorher", "crop" => "ausschnitt", "cropEnd" => "ausschnitt-ende", "after" => "nachher", "marker" => "marker", _ => v } : v switch { "crop" => "crop", "cropEnd" => "crop-end", _ => v };
         string Prefix(ViewStep s) => (lang == "de" ? "schritt" : "step") + s.Number.ToString().PadLeft(digits, '0');
 
+        int tick = 0;
         foreach (var s in steps)
         {
+            ExportJob.Tick(++tick, steps.Count, "Bilder");
             if (s.Redacted) continue;
             var variants = ImageVariants(s, o.Detail);
             var list = new List<(string, RenderedImage)>();
@@ -353,6 +357,9 @@ public static class KiPackage
             L(); return;
         }
         if (st.AuthorTitle != null || st.AuthorBody != null) L((de ? "- Text des Autors: " : "- Author text: ") + Fmt.Quote(((st.AuthorTitle ?? "") + " " + (st.AuthorBody ?? "")).Trim(), lang, 2000));
+        if (view.MergeOf(st.Anchor) is { } mg)
+            L(de ? $"- Anleitung: in der Anleitung zusammengefasst mit Schritt {mg.numbers.First()}–{mg.numbers.Last()} (Darstellung des Autors; hier stehen die einzelnen Schritte)"
+                 : $"- Guide: combined in the guide with steps {mg.numbers.First()}–{mg.numbers.Last()} (author's presentation; the individual steps are listed here)");
         if (j.Obj("input")?.Str("markerKind") is { } mk) { L((de ? "- Marker-Typ: " : "- Marker type: ") + mk); if (j.Obj("input")!.Str("label") is { } ml) L((de ? "- Marker-Text: " : "- Marker text: ") + Fmt.Quote(ml, lang, 200)); }
         if (j.Obj("ctx") is { } ctx) L((de ? "- Fenster: " : "- Window: ") + $"{Fmt.Quote(ctx.Str("title") ?? "", lang, 120)} ({ctx.Str("process")}){(j.Obj("frames").Str("m") is { } fm ? " · " + fm : "")}");
         if (compactSecondary) { L((de ? "- Beleg: " : "- Evidence: ") + Lvl(st.EvidenceLevel, lang)); L(); return; }
@@ -418,7 +425,7 @@ public static class KiPackage
         L((de ? "- Beleg: " : "- Evidence: ") + Lvl(st.EvidenceLevel, lang) + (reasons.Count > 0 ? $" ({string.Join("; ", reasons)})" : ""));
         if (j.StrList("flags") is { Count: > 0 } flags) L((de ? "- Hinweis: " : "- Note: ") + string.Join(", ", flags));
         foreach (var cm in st.Comments) L((de ? "- Kommentar des Autors: " : "- Author comment: ") + Fmt.Quote(cm.Str("text"), lang, 2000));
-        if (st.Annotations.Count > 0) L((de ? "- Markierung des Autors: " : "- Author annotation: ") + string.Join("; ", st.Annotations.Select(a => a.Str("type") + (a.Str("text") is { } at ? " " + Fmt.Quote(at, lang, 80) : ""))));
+        if (st.Annotations.Count > 0) L((de ? "- Markierung des Autors (nur in Anleitungen eingezeichnet): " : "- Author annotation (drawn in guides only): ") + string.Join("; ", st.Annotations.Select(a => AnnotationGeometry.Describe((JsonObject)view.CleanNode(a)!, lang))));
         if (images.Count > 0)
             L((de ? "- Bilder: " : "- Images: ") + string.Join(" · ", images.Select(i => $"{i.file} ({i.img.Bitmap.Width}×{i.img.Bitmap.Height}, {(de ? "Maßstab" : "scale")} {Fmt.Num(i.img.Scale, lang, "0.###")}{(i.img.Variant is "crop" or "cropEnd" ? (de ? $", Ursprung {i.img.SourceRect.X}, {i.img.SourceRect.Y}" : $", origin {i.img.SourceRect.X}, {i.img.SourceRect.Y}") : "")} {(de ? "auf" : "on")} {i.img.Monitor})")));
         L();

@@ -213,11 +213,12 @@ static class Msg
             if (primary) b.IsDefault = true;
             return b;
         }
+        string yes = Settings.Loc.L("Ja", "Yes"), no = Settings.Loc.L("Nein", "No"), cancel = Settings.Loc.L("Abbrechen", "Cancel");
         var btns = buttons switch
         {
-            MessageBoxButton.YesNo => new[] { Make("Ja", MessageBoxResult.Yes, true), Make("Nein", MessageBoxResult.No, false) },
-            MessageBoxButton.YesNoCancel => new[] { Make("Ja", MessageBoxResult.Yes, true), Make("Nein", MessageBoxResult.No, false), Make("Abbrechen", MessageBoxResult.Cancel, false) },
-            MessageBoxButton.OKCancel => new[] { Make("OK", MessageBoxResult.OK, true), Make("Abbrechen", MessageBoxResult.Cancel, false) },
+            MessageBoxButton.YesNo => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false) },
+            MessageBoxButton.YesNoCancel => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false), Make(cancel, MessageBoxResult.Cancel, false) },
+            MessageBoxButton.OKCancel => new[] { Make("OK", MessageBoxResult.OK, true), Make(cancel, MessageBoxResult.Cancel, false) },
             _ => new[] { Make("OK", MessageBoxResult.OK, true) }
         };
         U.Dialog(w, null, body, btns);

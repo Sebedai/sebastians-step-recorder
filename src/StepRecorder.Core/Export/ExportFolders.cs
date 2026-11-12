@@ -14,6 +14,14 @@ public static class ExportFolders
     /// wenn er leer ist oder die Kennzeichen-Datei eines früheren Exports enthält (<paramref name="marker"/>).
     /// Sonst bricht der Export ab, statt fremde Dateien zu löschen.
     /// </summary>
+    /// <summary>Prüft nur (ohne zu löschen), ob ein Ordner ersetzt werden dürfte.</summary>
+    public static void CheckOwnable(string dir, string marker)
+    {
+        if (File.Exists(dir)) throw new ExportTargetException($"Ziel ist eine Datei, kein Ordner: {dir}");
+        if (Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any() && !File.Exists(Path.Combine(dir, marker)))
+            throw new ExportTargetException($"Der Zielordner ist nicht leer und enthält keinen früheren Export ({marker}) – er wird nicht überschrieben: {dir}");
+    }
+
     public static void PrepareOwned(string dir, string marker)
     {
         if (File.Exists(dir)) throw new ExportTargetException($"Ziel ist eine Datei, kein Ordner: {dir}");

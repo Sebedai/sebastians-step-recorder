@@ -235,8 +235,7 @@ sealed partial class ViewerWindow
         catch (Exception ex) { Msg.Show("Das Logo lässt sich nicht öffnen:\n" + ex.Message); }
     }
 
-    /// <summary>Felder, die eine Vorlage überträgt (nicht: Untertitel, Version, Voraussetzungen – die gehören zur einzelnen Anleitung).</summary>
-    static readonly string[] TemplateKeys = { "author", "audience", "footer", "cover", "toc", "showDate", "numbering", "imageSize", "layout", "accent", "logo", "view", "overview" };
+    static string[] TemplateKeys => DocSettings.TemplateKeys;
 
     void SaveTemplate()
     {

@@ -508,9 +508,8 @@ sealed partial class ViewerWindow
     {
         string variant = DefaultVariant(s);
         bool annotate = true;
-        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen") ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original") : null);
+        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen", authorAnnotations: true) ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original", authorAnnotations: true) : null);
         if (img == null) return null;
-        using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
         int w = 160, h = Math.Max(1, (int)Math.Round(img.Bitmap.Height * 160.0 / Math.Max(1, img.Bitmap.Width)));
         using var small = new System.Drawing.Bitmap(w, h);
         using (var g = System.Drawing.Graphics.FromImage(small))
@@ -1060,10 +1059,9 @@ sealed partial class ViewerWindow
     {
         if (i < 0 || i >= _list.Items.Count || ((ListBoxItem)_list.Items[i]).Tag is not ViewStep s) return null;
         string variant = i == _list.SelectedIndex && _variantOverride != null ? _variantOverride : DefaultVariant(s);
-        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen")
-            ?? StepImages.Render(_view, s, "before", "original");
+        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", authorAnnotations: true)
+            ?? StepImages.Render(_view, s, "before", "original", authorAnnotations: true);
         if (img == null) return null;
-        using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
         return (U.ToSource(img.Bitmap), $"Schritt {s.Number} von {_view.All.Count}  ·  {s.AuthorTitle ?? s.Title}");
     }
 
