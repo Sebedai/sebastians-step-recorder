@@ -22,6 +22,8 @@ Aufruf:
   SebastiansStepRecorder.exe export <Sitzung> --format html|md|docx|pdf|gif|ki|ahk|ahk-ki [--out <Pfad>] [--with <Sitzung>] [--lang de|en]
                                            [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original]
                                            [--zip] [--readable] [--strict] [--json]
+                                           Bilder im KI-Paket: [--before auto|immer|nie] [--no-crop] [--no-after]
+                                           Bilder in Anleitungen: [--after nie|aenderung|immer] (Nachher-Bild als „Ergebnis“)
   SebastiansStepRecorder.exe validate <Sitzung> [--json]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
   SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
@@ -54,6 +56,7 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
         catch (FileNotFoundException ex) { Console.Error.WriteLine("Sitzung nicht gefunden: " + ex.Message); return 3; }
         catch (InvalidDataException ex) { Console.Error.WriteLine("Sitzung nicht lesbar: " + ex.Message); return 3; }
         catch (UnauthorizedAccessException ex) { Console.Error.WriteLine("Ziel nicht beschreibbar: " + ex.Message); return 8; }
+        catch (ArgumentException ex) when (ex.Message.StartsWith("--")) { Console.Error.WriteLine("Aufruf: " + ex.Message); return 2; }
         catch (Exception ex) { Console.Error.WriteLine("Fehler: " + ex.Message); if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Console.Error.WriteLine(ex); return 1; }
     }
 
@@ -73,10 +76,15 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
         {
             string detail = (Opt(a, "--detail") ?? "standard") switch { "kompakt" or "compact" => "compact", "vollstaendig" or "vollständig" or "full" => "full", _ => "standard" };
             string prof = (Opt(a, "--image-profile") ?? "kompatibel") switch { "hochaufloesend" or "hochauflösend" or "highres" => "highres", "original" => "original", _ => "compatible" };
-            r = KiPackage.Export(view, new KiOptions { Detail = detail, ImageProfile = prof, OutDir = Opt(a, "--out"), Zip = Flag(a, "--zip"), IncludeEvents = !Flag(a, "--no-events"), Language = Opt(a, "--lang"), View = Opt(a, "--view") ?? "screen", Readable = Flag(a, "--readable") });
+            string before = (Opt(a, "--before") ?? "auto").ToLowerInvariant() switch { "immer" or "always" => "always", "nie" or "never" => "never", "auto" or "automatisch" => "auto", var x => throw new ArgumentException("--before: auto, immer oder nie (nicht „" + x + "“)") };
+            r = KiPackage.Export(view, new KiOptions { Detail = detail, ImageProfile = prof, OutDir = Opt(a, "--out"), Zip = Flag(a, "--zip"), IncludeEvents = !Flag(a, "--no-events"), Language = Opt(a, "--lang"), View = Opt(a, "--view") ?? "screen", Readable = Flag(a, "--readable"),
+                Before = before, Crop = !Flag(a, "--no-crop"), After = !Flag(a, "--no-after") });
         }
         else if (fmt is "html" or "md" or "markdown" or "docx" or "pdf" or "gif")
-            r = GuideExport.Export(view, new GuideOptions { Format = fmt == "markdown" ? "md" : fmt, OutPath = Opt(a, "--out"), Language = Opt(a, "--lang"), Importance = Opt(a, "--importance") ?? "primary", Overwrite = true });
+        {
+            string after = (Opt(a, "--after") ?? "nie").ToLowerInvariant() switch { "nie" or "never" or "as-edited" => "never", "aenderung" or "änderung" or "changed" => "changed", "immer" or "always" => "always", var x => throw new ArgumentException("--after: nie, aenderung oder immer (nicht „" + x + "“)") };
+            r = GuideExport.Export(view, new GuideOptions { Format = fmt == "markdown" ? "md" : fmt, OutPath = Opt(a, "--out"), Language = Opt(a, "--lang"), Importance = Opt(a, "--importance") ?? "primary", Overwrite = true, After = after });
+        }
         else if (fmt is "ahk" or "autohotkey")
             r = AhkExport.Export(view, new AhkOptions { OutPath = Opt(a, "--out"), RealTiming = Flag(a, "--real-timing"), Images = !Flag(a, "--no-images"), Readable = Flag(a, "--readable") });
         else if (fmt is "ahk-ki" or "ahkki")

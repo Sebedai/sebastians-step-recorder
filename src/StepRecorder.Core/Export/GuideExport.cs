@@ -23,6 +23,11 @@ public sealed class GuideOptions
     /// <summary>GIF: Anzeigedauer je Schritt in Sekunden.</summary>
     public double GifSeconds { get; set; } = 2.5;
     public bool Images { get; set; } = true;
+    /// <summary>
+    /// Zusätzliches Nachher-Bild („Ergebnis“) unter dem Schrittbild: <c>never</c> (Standard), <c>changed</c> = nur wenn sich der
+    /// Bildschirm sichtbar geändert hat, <c>always</c> = wann immer eines vorliegt. Entfällt, wenn das Schrittbild selbst schon das Nachher-Bild ist.
+    /// </summary>
+    public string After { get; set; } = "never";
     public bool Numbering { get; set; } = true;
     public bool ShowEvidence { get; set; }
     public bool Overwrite { get; set; } = true;
@@ -41,7 +46,8 @@ public sealed class GuideOptions
 /// </summary>
 public static class GuideExport
 {
-    sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size);
+    sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size,
+        byte[]? AfterPng = null, int AW = 0, int AH = 0);
     sealed record Chapter(string Number, string Anchor, string Title, string Text);
 
     /// <summary>Alles, was ein Dokument braucht – einmal gesammelt, für alle Formate gleich.</summary>
@@ -140,19 +146,28 @@ public static class GuideExport
                 "flat" => flat.ToString(),
                 _ => chap == 0 ? (++pre).ToString() : $"{chap}.{++inChap}"
             };
-            byte[]? png = null; int w = 0, h = 0;
+            byte[]? png = null, afterPng = null; int w = 0, h = 0, aw = 0, ah = 0;
             if (o.Images && !st.Redacted && st.ShowImage != false)
             {
                 string variant = st.Manual || st.ImageReplaced ? "before" : st.Kind is "type" or "hotkey" or "key" or "system" or "wait" ? (st.PostFrame != null ? "after" : "before") : viewMode == "crop" ? "crop" : "before";
-                using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: viewMode == "window" ? "window" : "screen", mask: ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks), overview: overview);
+                var mask = ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks);
+                string renderView = viewMode == "window" ? "window" : "screen";
+                using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, overview: overview);
                 if (img != null)
                 {
                     if (st.Annotations.Count > 0) using (var g = Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, st.Annotations, img.SourceRect, img.Scale);
                     png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height;
+                    // Ergebnis: Nachher-Bild zusätzlich, wenn gewünscht und nicht schon das Schrittbild
+                    bool wantAfter = o.After == "always" || (o.After == "changed" && StepImages.ScreenChanged(st, 0.02));
+                    if (wantAfter && variant != "after" && !st.Manual && !st.ImageReplaced && st.PostFrame != null && st.PostFrame != st.PreFrame)
+                    {
+                        using var after = StepImages.Render(v, st, "after", o.ImageProfile, annotate: true, viewMode: renderView, mask: mask);
+                        if (after != null) { afterPng = StepImages.Png(after.Bitmap); aw = after.Bitmap.Width; ah = after.Bitmap.Height; }
+                    }
                 }
             }
             var notes = st.Comments.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).Where(n => n.Item2.Length > 0).ToList();
-            d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize));
+            d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, afterPng, aw, ah));
         }
         }
 
@@ -238,6 +253,7 @@ h2.chapter{font-size:1.5em;margin:40px 0 6px;padding-bottom:8px;border-bottom:2p
 .step p{margin:0 0 8px}
 .step.side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:24px;align-items:start}
 figure{margin:10px 0 0} figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block}
+figcaption{color:var(--muted);font-size:.85em;margin:0 0 4px}
 .note{border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 10%,var(--bg));padding:8px 12px;margin:8px 0;border-radius:3px}
 .note b{color:var(--c)}
 .ev{color:var(--muted);font-size:.85em} .redacted{color:var(--muted);font-style:italic}
@@ -305,8 +321,15 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
             if (it.Png != null)
             {
                 string style = side ? "" : $" style=\"max-width:{(int)(DocSettings.Factor(it.Size) * 100)}%\"";
-                sb.Append($"{(side ? "</div>\n" : "")}<figure{style}><label class=\"zoom\" title=\"{enlarge}\"><input type=\"checkbox\"><img alt=\"{e(it.Title)}\" width=\"{it.W}\" height=\"{it.H}\" src=\"data:image/png;base64,{Convert.ToBase64String(it.Png)}\">" +
-                          $"<span class=\"zh zo\">{enlarge}</span><span class=\"zh zc\">{close}</span></label></figure>\n");
+                string Fig(byte[] png, int w, int h, string alt, string? caption) =>
+                    $"<figure{style}>{(caption != null ? $"<figcaption>{e(caption)}</figcaption>" : "")}<label class=\"zoom\" title=\"{enlarge}\"><input type=\"checkbox\"><img alt=\"{e(alt)}\" width=\"{w}\" height=\"{h}\" src=\"data:image/png;base64,{Convert.ToBase64String(png)}\">" +
+                    $"<span class=\"zh zo\">{enlarge}</span><span class=\"zh zc\">{close}</span></label></figure>\n";
+                if (side) sb.Append("</div>\n");
+                bool two = it.AfterPng != null;
+                if (side && two) sb.Append("<div>\n");
+                sb.Append(Fig(it.Png, it.W, it.H, it.Title, null));
+                if (two) sb.Append(Fig(it.AfterPng!, it.AW, it.AH, it.Title + " – " + d.L("Ergebnis", "Result"), d.L("Ergebnis", "Result")));
+                if (side && two) sb.Append("</div>\n");
             }
             else if (side) sb.Append("</div>\n");
             sb.Append("</section>\n");
@@ -359,6 +382,12 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 string file = $"schritt-{++img:000}.png";
                 File.WriteAllBytes(Path.Combine(imgDir, file), it.Png);
                 sb.Append("![").Append(m(it.Title)).Append("](bilder/").Append(file).Append(")\n\n");
+                if (it.AfterPng != null)
+                {
+                    string af = $"schritt-{img:000}-nachher.png";
+                    File.WriteAllBytes(Path.Combine(imgDir, af), it.AfterPng);
+                    sb.Append('*').Append(d.L("Ergebnis", "Result")).Append(":*\n\n![").Append(m(it.Title + " – " + d.L("Ergebnis", "Result"))).Append("](bilder/").Append(af).Append(")\n\n");
+                }
             }
         }
         if (d.Outro.Length > 0) sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n").Append(m(d.Outro)).Append("\n\n");
@@ -403,12 +432,19 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
                 foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
             }
+            void After(double maxW, double maxH)
+            {
+                if (it.AfterPng == null) return;
+                x.Paragraph(d.L("Ergebnis", "Result"), italic: true, color: "666666");
+                x.Image(it.AfterPng, "png", it.AW, it.AH, it.Title + " – " + d.L("Ergebnis", "Result"), maxW, maxH);
+            }
             if (it.Png != null && d.S.Layout == "side")
-                x.SideBySide(Text, () => x.Image(it.Png, "png", it.W, it.H, it.Title, 9.2, 9), 42);
+                x.SideBySide(Text, () => { x.Image(it.Png, "png", it.W, it.H, it.Title, 9.2, 9); After(9.2, 9); }, 42);
             else
             {
                 Text();
                 if (it.Png != null) x.Image(it.Png, "png", it.W, it.H, it.Title, 17 * DocSettings.Factor(it.Size), 17 * DocSettings.Factor(it.Size) * 0.8 + 3);
+                After(17 * DocSettings.Factor(it.Size), 17 * DocSettings.Factor(it.Size) * 0.8 + 3);
             }
         }
         if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
@@ -422,6 +458,7 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
     static void Pdf(Doc d, string outPath)
     {
         var jpegs = new Dictionary<Item, (byte[] jpg, int w, int h)>();
+        var afterJpegs = new Dictionary<Item, (byte[] jpg, int w, int h)>();
         (byte[] jpg, int w, int h)? logo = null;
         if (d.Logo != null)
         {
@@ -435,14 +472,20 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
                 using var ms = new MemoryStream(it.Png);
                 using var bmp = new Bitmap(ms);
                 jpegs[it] = (StepImages.Jpeg(bmp, 88), bmp.Width, bmp.Height);
+                if (it.AfterPng != null)
+                {
+                    using var ams = new MemoryStream(it.AfterPng);
+                    using var abmp = new Bitmap(ams);
+                    afterJpegs[it] = (StepImages.Jpeg(abmp, 88), abmp.Width, abmp.Height);
+                }
             }
         var pages = new Dictionary<string, int>();
-        PdfRender(d, jpegs, logo, pages, null);
-        var pdf = PdfRender(d, jpegs, logo, new Dictionary<string, int>(), pages);
+        PdfRender(d, jpegs, afterJpegs, logo, pages, null);
+        var pdf = PdfRender(d, jpegs, afterJpegs, logo, new Dictionary<string, int>(), pages);
         File.WriteAllBytes(outPath, pdf.ToBytes());
     }
 
-    static SimplePdf PdfRender(Doc d, Dictionary<Item, (byte[] jpg, int w, int h)> jpegs, (byte[] jpg, int w, int h)? logo, Dictionary<string, int> record, Dictionary<string, int>? known)
+    static SimplePdf PdfRender(Doc d, Dictionary<Item, (byte[] jpg, int w, int h)> jpegs, Dictionary<Item, (byte[] jpg, int w, int h)> afterJpegs, (byte[] jpg, int w, int h)? logo, Dictionary<string, int> record, Dictionary<string, int>? known)
     {
         var acc = d.S.AccentRgb();
         var ink = (0.11, 0.11, 0.10); var muted = (0.42, 0.41, 0.38); var line = (0.85, 0.84, 0.81);
@@ -564,6 +607,15 @@ footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:v
             {
                 double f = DocSettings.Factor(it.Size);
                 pdf.Image(jp.jpg, jp.w, jp.h, cw * f, 560 * f + 60);
+            }
+            if (afterJpegs.TryGetValue(it, out var aj))
+            {
+                // Ergebnis: in der Breite des Schrittbilds, bei „nebeneinander“ in der Bildspalte
+                double f = DocSettings.Factor(it.Size);
+                double ax = side ? pdf.Margin + textW + 16 : -1, amaxW = side ? imgW : cw * f, amaxH = side ? 360 : 560 * f + 60;
+                pdf.EnsureSpace(Math.Min(amaxH, aj.h * Math.Min(1, amaxW / aj.w)) + 24);
+                pdf.Paragraph(d.L("Ergebnis", "Result"), 9.5, false, side ? textW + 16 : 0, 3, muted);
+                pdf.Image(aj.jpg, aj.w, aj.h, amaxW, amaxH, ax);
             }
             pdf.Space(6);
         }

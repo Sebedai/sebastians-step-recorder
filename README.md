@@ -152,6 +152,8 @@ Im Reiter **„Dokument“** wird aus den Schritten eine richtige Bedienungsanle
 
 **Für Menschen lesbar:** Beim KI-Paket und bei AutoHotkey gibt es die Option *„Für Menschen lesbar – ausführlich kommentiert“*. Dann wird jede Angabe – auch Systeminfos, Bildschirme, Belegqualität, Koordinaten und Lücken – in Klartext erklärt, jeder Schritt bekommt einen Satz „In Worten“, dazu kommen eine `LIESMICH.md` und Erklärungen in den JSON-Dateien; das Skript erklärt seinen Aufbau und jeden Schritt. Ohne die Option bleibt der Export knapp und spart Tokens, wenn ihn nur eine KI liest.
 
+**Welche Bilder mitkommen:** Im Exportdialog wählen Sie beim KI-Paket das *Vorher-Bild* (*Automatisch*, *Immer*, *Nie*) sowie *Ausschnitt um die Aktion* und *Nachher-Bild*. *Automatisch* (Standard) legt ein Vorher-Bild nur bei, wenn der Bildschirm davor nicht schon im Paket zu sehen ist – sonst verweist das Protokoll auf das Nachher-Bild des vorigen Schritts. Bei Anleitungen (HTML, Markdown, Word, PDF) kann zusätzlich das Bild nach dem Schritt als *Ergebnis* erscheinen (*Nie*, *Bei Änderung*, *Immer*; Standard *Nie*).
+
 Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – Sie geben die Dateien selbst weiter.
 
 ---

@@ -1225,7 +1225,17 @@ Welche Schritte Haupt-, Neben- oder Spurschritt sind, legt die [Schritterkennung
 
 „Nachher bei Änderung“ heißt: Das Nachher-Bild wird beigelegt, wenn die Wirkung eine Bildänderung über dem Schwellwert meldet (Standard: 0,5 % der Fläche) oder ein Fensterereignis enthält. Ist das Nachher-Bild eines Schritts dasselbe gespeicherte Bild wie das Vorher-Bild des nächsten, wird die Datei nur einmal geschrieben und zweimal genannt.
 
-**Das Paket enthält eine Auswahl, die Sitzung alles.** Welche Bilder beiliegen, hängt nur von Detailstufe und Schrittart ab – nicht davon, welche Bilder die Aufnahme besitzt. Die Zeile „Bilder der Sitzung“ im Kopf beschreibt dagegen die Aufnahme. Darum kann dort „Vorher-Bild vor der Eingabe garantiert bei 7 von 7 Aktionsschritten“ stehen, obwohl das Paket für Tastaturschritte kein Vorher-Bild enthält: Das Bild existiert und belegt den Zustand vor der Eingabe; es liegt nur nicht bei, weil es dem Nachher-Bild des vorigen Schritts gleicht. `README_AI.md` erklärt den Unterschied (dort Abschnitt 3 und 9).
+**Bildauswahl des Autors.** Im Exportdialog (und mit `--before`, `--no-crop`, `--no-after`) legt der Autor fest, welche Bildarten die Detailstufe liefern darf:
+
+| Auswahl | Werte | Standard |
+|---|---|---|
+| Vorher-Bild | Automatisch · Immer · Nie | Automatisch |
+| Ausschnitt um die Aktion | an · aus | an |
+| Nachher-Bild | an · aus | an |
+
+„Automatisch“ legt ein Vorher-Bild nur bei, wenn der Bildschirm davor nicht schon im Paket zu sehen ist. Maßgeblich ist das jüngste Übersichtsbild im Paket auf demselben Monitor (in der Darstellung „Anwendungsfenster“ zusätzlich im selben Fenster), das noch den aktuellen Zustand zeigt: das Nachher-Bild des vorigen Schritts oder, wenn dieser den Bildschirm nicht verändert hat, dessen Vorher-Bild. Nach Lücken, System- und Warteschritten, geschwärzten Schritten und Schritten, die den Bildschirm ohne beigelegtes Nachher-Bild verändert haben, gilt der Zustand als unbekannt – dann liegt das Vorher-Bild bei. Statt eines eingesparten Vorher-Bilds nennt der Schritt das frühere Bild (`- Vorher: schritt006-nachher.png zeigt den Bildschirm vor diesem Schritt`); Rechteck- und Positionsangaben verweisen darauf. Die Auswahl steht im Kopf unter „Bilder im Paket“ und in `ai-package.json` unter `imageSelection`.
+
+**Das Paket enthält eine Auswahl, die Sitzung alles.** Welche Bilder beiliegen, hängt von Detailstufe, Schrittart und der Bildauswahl des Autors ab – nicht davon, welche Bilder die Aufnahme besitzt. Die Zeile „Bilder der Sitzung“ im Kopf beschreibt dagegen die Aufnahme. Darum kann dort „Vorher-Bild vor der Eingabe garantiert bei 7 von 7 Aktionsschritten“ stehen, obwohl das Paket für Tastaturschritte kein Vorher-Bild enthält: Das Bild existiert und belegt den Zustand vor der Eingabe; es liegt nur nicht bei, weil es dem Nachher-Bild des vorigen Schritts gleicht. `README_AI.md` erklärt den Unterschied (dort Abschnitt 3 und 9).
 
 Der Grundsatz G3 gilt für jede Stufe: **Keine Detailstufe lässt eine Lücke, eine Belegstufe oder einen Schritt stillschweigend weg.** Was eine Stufe zusammenfasst, weist sie mit Nummern und Zähler aus; Schrittnummern sind in allen Stufen dieselben.
 
@@ -2693,7 +2703,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | KI-009 | Der Vollständigkeitsbericht trennt Buchführung und Belegqualität. | Muss | Beispiel B: Buchführung „in Ordnung“ bei 3 unbekannten Aktionsschritten korrekt ausgewiesen |
 | KI-010 | Kommentare und Markierungen des Autors sind als solche gekennzeichnet und stehen als Text, nicht im Bild. | Muss | Sitzung mit Kommentar, Pin und Pfeil: alle drei im Text; Bild ohne Pfeil |
 | KI-011 | Text-Schnappschüsse neuer Fenster stehen inline in dem Schritt, dessen Wirkung sie sind. | Muss | Beispiel A, Schritt 5 |
-| KI-012 | Bildvarianten und Dateinamen folgen Abschnitt 8.1: `schritt<Nummer>-<Endung>.png` (englisch `step…`), nie mit der Schritt-Kennung verwechselbar. Welche Bilder beiliegen, hängt nur von Detailstufe und Schrittart ab; der Kopf trennt „Bilder im Paket“ von „Bilder der Sitzung“. | Muss | Namensmuster-Prüfung über ein Paket mit allen Varianten; kein Dateiname beginnt mit einer Schritt-Kennung; Zahl der Dateien in `images/` = Angabe „Bilder im Paket“ |
+| KI-012 | Bildvarianten und Dateinamen folgen Abschnitt 8.1: `schritt<Nummer>-<Endung>.png` (englisch `step…`), nie mit der Schritt-Kennung verwechselbar. Welche Bilder beiliegen, hängt nur von Detailstufe, Schrittart und der Bildauswahl des Autors ab (Abschnitt 9); eingesparte Vorher-Bilder sind im Schritt durch einen Verweis ersetzt; der Kopf trennt „Bilder im Paket“ von „Bilder der Sitzung“. | Muss | Namensmuster-Prüfung über ein Paket mit allen Varianten; kein Dateiname beginnt mit einer Schritt-Kennung; Zahl der Dateien in `images/` = Angabe „Bilder im Paket“ |
 | KI-013 | Pixelraum-Regel: Jede Koordinate nennt ihr Bild; Größe und Maßstab stehen bei jeder Bildnennung; der Ring liegt auf der Koordinate. | Muss | Testmuster-Sitzung: Ringmitte weicht höchstens 1 Pixel von der genannten Koordinate ab; Rückrechnung auf den Monitor stimmt |
 | KI-014 | Bildprofil `kompatibel` ist Standard und hält beide Grenzen ein; `hochauflösend` und `original` sind wählbar. | Muss (`kompatibel`), Soll (übrige) | Kein Bild im Standardprofil über 1568 Pixel Kantenlänge oder 1568 visuelle Tokens |
 | KI-015 | Die Detailstufen Kompakt, Standard, Vollständig liefern den Umfang aus Abschnitt 9. | Muss | Vergleich dreier Exporte derselben Sitzung gegen die Tabelle |
