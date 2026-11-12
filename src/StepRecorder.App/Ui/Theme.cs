@@ -9,16 +9,33 @@ using System.Windows.Shapes;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Gestaltung: neutrale Farbpalette (hell/dunkel nach Windows-Einstellung), Stile aus Theme.xaml,
+/// Gestaltung „Indigo“: Nachtblau und ein Indigo-Akzent, weiche runde Formen (hell/dunkel), Stile aus Theme.xaml,
 /// Fenster-Titelleiste in Hintergrundfarbe (Windows 11), Symbole aus Segoe Fluent Icons / MDL2.
+/// <para>
+/// Ein Maßsystem für alle Fenster: Schriftgrade <see cref="FsCaption"/> … <see cref="FsHero"/> (nichts unter 12 px),
+/// Eckenradien <see cref="RSmall"/> … <see cref="RCard"/>, Bedienelemente <see cref="ControlHeight"/> hoch.
+/// Dieselben Werte liegen als Ressourcen (z. B. <c>RControl</c>, <c>FsBody</c>) für Theme.xaml bereit.
+/// </para>
 /// </summary>
 static class Theme
 {
     public static bool Dark { get; private set; }
-    public static Brush Bg = null!, Surface = null!, Surface2 = null!, HoverBg = null!, Line = null!, LineStrong = null!,
+    public static Brush Bg = null!, Surface = null!, Surface2 = null!, Raised = null!, HoverBg = null!, Selected = null!, Line = null!, LineStrong = null!,
         Fg = null!, Fg2 = null!, Muted = null!, Accent = null!, AccentSoft = null!, AccentText = null!, OnAccent = null!,
-        Danger = null!, DangerSoft = null!, Warn = null!, WarnSoft = null!, Success = null!, SuccessSoft = null!, CanvasBg = null!, ScrollThumb = null!;
+        Danger = null!, DangerSoft = null!, OnDanger = null!, Warn = null!, WarnSoft = null!, Success = null!, SuccessSoft = null!, CanvasBg = null!, ScrollThumb = null!,
+        Field = null!, FieldLine = null!;
     public static Color AccentColor;
+
+    // ---------- Maßsystem ----------
+    /// <summary>Schriftgrade: Beschriftung, Hinweis, Text, Zwischentitel, Titel, Begrüßung.</summary>
+    public const double FsCaption = 12, FsHint = 13, FsBody = 14, FsSub = 16, FsTitle = 20, FsHero = 28;
+    /// <summary>Eckenradien: klein (Tastenkappen, Vorschaubilder), Bedienelemente, Einsätze/Menüs, Karten/Kacheln.</summary>
+    public const double RSmall = 6, RControl = 10, RInset = 12, RCard = 16;
+    /// <summary>Höhe von Schaltflächen, Eingabefeldern und Auswahllisten.</summary>
+    public const double ControlHeight = 34;
+    /// <summary>Zeilenhöhe für mehrzeiligen Text (Faktor zur Schriftgröße).</summary>
+    public const double LineFactor = 1.45;
+
     public static readonly FontFamily Icons = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     public static readonly FontFamily UiFont = new("Segoe UI Variable Text, Segoe UI");
     /// <summary>Überschriften: engere Display-Variante (Windows 11), sonst Segoe UI.</summary>
@@ -46,31 +63,62 @@ static class Theme
         Dark = mode switch { "light" => false, "system" => SystemUsesDark(), _ => true };
         var p = Dark ? DarkPalette : LightPalette;
         Brush B(string k) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p[k])); b.Freeze(); app.Resources[k] = b; return b; }
-        Bg = B("Bg"); Surface = B("Surface"); Surface2 = B("Surface2"); HoverBg = B("HoverBg"); Line = B("Line"); LineStrong = B("LineStrong");
+        Bg = B("Bg"); Surface = B("Surface"); Surface2 = B("Surface2"); Raised = B("Raised"); HoverBg = B("HoverBg"); Selected = B("Selected"); Line = B("Line"); LineStrong = B("LineStrong");
         Fg = B("Fg"); Fg2 = B("Fg2"); Muted = B("Muted"); Accent = B("Accent"); AccentSoft = B("AccentSoft"); AccentText = B("AccentText"); OnAccent = B("OnAccent");
-        Danger = B("Danger"); DangerSoft = B("DangerSoft"); Warn = B("Warn"); WarnSoft = B("WarnSoft"); Success = B("Success"); SuccessSoft = B("SuccessSoft");
-        CanvasBg = B("CanvasBg"); ScrollThumb = B("ScrollThumb"); B("AccentHover"); B("SegmentOn"); B("FieldLine");
+        Danger = B("Danger"); DangerSoft = B("DangerSoft"); OnDanger = B("OnDanger"); Warn = B("Warn"); WarnSoft = B("WarnSoft"); Success = B("Success"); SuccessSoft = B("SuccessSoft");
+        CanvasBg = B("CanvasBg"); ScrollThumb = B("ScrollThumb"); Field = B("Field"); FieldLine = B("FieldLine");
+        B("AccentHover"); B("DangerHover"); B("SegmentOn"); B("ControlBg"); B("ControlLine");
         AccentColor = ((SolidColorBrush)Accent).Color;
-        app.Resources["ShadowOpacity"] = Dark ? 0.45 : 0.10;
+        app.Resources["ShadowOpacity"] = Dark ? 0.5 : 0.12;
+        // Maße für Theme.xaml (dieselben Werte wie die Konstanten oben)
+        app.Resources["RSmall"] = new CornerRadius(RSmall); app.Resources["RControl"] = new CornerRadius(RControl);
+        app.Resources["RInner"] = new CornerRadius(RControl - 3); app.Resources["RInset"] = new CornerRadius(RInset); app.Resources["RCard"] = new CornerRadius(RCard);
+        app.Resources["RPill"] = new CornerRadius(999);
+        app.Resources["FsCaption"] = FsCaption; app.Resources["FsHint"] = FsHint; app.Resources["FsBody"] = FsBody; app.Resources["FsSub"] = FsSub; app.Resources["FsTitle"] = FsTitle;
+        app.Resources["ControlHeight"] = ControlHeight;
         app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/SebastiansStepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
     }
 
-    // Eigene Linie: warmes Graphit statt Blaugrau, Signal-Orange als einzige Markenfarbe, Haarlinien statt Schatten.
+    // „Indigo“: kühles Nachtblau, Indigo als einzige Markenfarbe; Rot, Gelb und Grün bleiben Statusfarben.
+    // Alle Textpaare erreichen mindestens 4,5 : 1 (WCAG AA), Feldränder und Bildlaufleisten mindestens 3 : 1.
     static readonly Dictionary<string, string> LightPalette = new()
     {
-        ["Bg"] = "#F5F4F0", ["Surface"] = "#FFFFFF", ["Surface2"] = "#EFEEE9", ["HoverBg"] = "#E9E7E1", ["Line"] = "#D5D2C8", ["LineStrong"] = "#C2BEB3",
-        ["Fg"] = "#171614", ["Fg2"] = "#46443E", ["Muted"] = "#625F57", ["Accent"] = "#F2541B", ["AccentHover"] = "#F56B35", ["AccentSoft"] = "#FCEBE3",
-        ["AccentText"] = "#A93708", ["OnAccent"] = "#171614", ["Danger"] = "#B51D3D", ["DangerSoft"] = "#FBE8EC", ["Warn"] = "#875000", ["WarnSoft"] = "#FBF1DC",
-        ["Success"] = "#246640", ["SuccessSoft"] = "#E5F2E8", ["CanvasBg"] = "#E7E5DF", ["ScrollThumb"] = "#C9C6BC", ["FieldLine"] = "#8C887E", ["SegmentOn"] = "#FFFFFF"
+        ["Bg"] = "#F4F5FA", ["Surface"] = "#FFFFFF", ["Surface2"] = "#ECEEF6", ["Raised"] = "#FFFFFF", ["HoverBg"] = "#E3E6F2", ["Selected"] = "#E2E5FB",
+        ["Line"] = "#DCDFEA", ["LineStrong"] = "#C3C8D9", ["Fg"] = "#12141C", ["Fg2"] = "#3D4253", ["Muted"] = "#5C6275",
+        ["Accent"] = "#4B55E0", ["AccentHover"] = "#3F49D1", ["AccentSoft"] = "#E7E9FD", ["AccentText"] = "#3B44C4", ["OnAccent"] = "#FFFFFF",
+        ["Danger"] = "#C01F45", ["DangerHover"] = "#A81A3C", ["DangerSoft"] = "#FCE8ED", ["OnDanger"] = "#FFFFFF", ["Warn"] = "#875000", ["WarnSoft"] = "#FBF1DC",
+        ["Success"] = "#1F6B45", ["SuccessSoft"] = "#E3F3EA", ["CanvasBg"] = "#E4E6EF", ["ScrollThumb"] = "#8389A0",
+        ["Field"] = "#FFFFFF", ["FieldLine"] = "#81879C", ["SegmentOn"] = "#FFFFFF", ["ControlBg"] = "#FFFFFF", ["ControlLine"] = "#C3C8D9"
     };
 
     static readonly Dictionary<string, string> DarkPalette = new()
     {
-        ["Bg"] = "#121211", ["Surface"] = "#191918", ["Surface2"] = "#20201E", ["HoverBg"] = "#282826", ["Line"] = "#383733", ["LineStrong"] = "#45443F",
-        ["Fg"] = "#EDECE8", ["Fg2"] = "#BAB8B1", ["Muted"] = "#A09E96", ["Accent"] = "#FF6A2B", ["AccentHover"] = "#FF7F47", ["AccentSoft"] = "#2E1C12",
-        ["AccentText"] = "#FF9461", ["OnAccent"] = "#141312", ["Danger"] = "#F0556E", ["DangerSoft"] = "#36181E", ["Warn"] = "#E9B14C", ["WarnSoft"] = "#30250F",
-        ["Success"] = "#62C28C", ["SuccessSoft"] = "#16291D", ["CanvasBg"] = "#0C0C0B", ["ScrollThumb"] = "#45443F", ["FieldLine"] = "#75736C", ["SegmentOn"] = "#2F2F2C"
+        ["Bg"] = "#0E1016", ["Surface"] = "#161923", ["Surface2"] = "#1E2230", ["Raised"] = "#1D2131", ["HoverBg"] = "#272C3D", ["Selected"] = "#252A42",
+        ["Line"] = "#2B3042", ["LineStrong"] = "#3A4058", ["Fg"] = "#F1F3F9", ["Fg2"] = "#C3C8D8", ["Muted"] = "#9BA2B8",
+        ["Accent"] = "#5B66F0", ["AccentHover"] = "#4E59E6", ["AccentSoft"] = "#1D2142", ["AccentText"] = "#A5ADFF", ["OnAccent"] = "#FFFFFF",
+        ["Danger"] = "#FF6B81", ["DangerHover"] = "#FF8193", ["DangerSoft"] = "#3A1A24", ["OnDanger"] = "#1A0A0F", ["Warn"] = "#F2B84B", ["WarnSoft"] = "#33280F",
+        ["Success"] = "#5CCB95", ["SuccessSoft"] = "#13291F", ["CanvasBg"] = "#0A0C11", ["ScrollThumb"] = "#606886",
+        ["Field"] = "#10131B", ["FieldLine"] = "#6B7391", ["SegmentOn"] = "#2C3247", ["ControlBg"] = "#222738", ["ControlLine"] = "#343A50"
     };
+
+    /// <summary>
+    /// Feste dunkle Farben für alles, was über fremden Programmen schwebt: Aufnahmeleiste, Countdown, Auswahl-Overlays,
+    /// Vollbild, Bildunterschrift und Symbol im Infobereich – unabhängig von hell/dunkel, damit es auf jedem Hintergrund trägt.
+    /// </summary>
+    public static class Night
+    {
+        public static readonly Color BgColor = C(0x12, 0x14, 0x1C), AccentColor = C(0x5B, 0x66, 0xF0), RecColor = C(0xFF, 0x54, 0x68), WarnColor = C(0xFF, 0xC5, 0x3D), FgColor = C(0xF1, 0xF3, 0xF9);
+        /// <summary>Fläche, Einsatz (z. B. Zähler), Linie.</summary>
+        public static readonly Brush Bg = F(BgColor), Chip = F(C(0x22, 0x27, 0x38)), Line = F(C(0x2E, 0x34, 0x47));
+        /// <summary>Halbtransparente Fläche für Hinweis-Pillen und Bildunterschriften.</summary>
+        public static readonly Brush Pill = F(Color.FromArgb(0xEE, 0x12, 0x14, 0x1C));
+        /// <summary>Text (16,6 : 1) und gedämpfter Text (7,9 : 1 auf <see cref="Bg"/>).</summary>
+        public static readonly Brush Fg = F(FgColor), Muted = F(C(0xA3, 0xAA, 0xC0));
+        /// <summary>Aufnahme (Punkt, Rahmen), Stopp-Fläche (weiße Schrift 5,3 : 1), Privatmodus, Akzent.</summary>
+        public static readonly Brush Rec = F(RecColor), StopBg = F(C(0xCC, 0x2A, 0x45)), Warn = F(WarnColor), PrivBg = F(C(0x45, 0x34, 0x0C)), Accent = F(AccentColor), AccentText = F(C(0xA5, 0xAD, 0xFF));
+        static Color C(byte r, byte g, byte b) => Color.FromRgb(r, g, b);
+        static Brush F(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+    }
 
     static string SettingTheme()
     {
@@ -95,7 +143,7 @@ static class Theme
         w.Background = caption ?? Bg;
         w.Foreground = Fg;
         w.FontFamily = UiFont;
-        w.FontSize = 13;
+        w.FontSize = FsBody;
         w.UseLayoutRounding = true;
         w.SnapsToDevicePixels = true;
         var cap = ((SolidColorBrush)(caption ?? Bg)).Color;
@@ -139,28 +187,38 @@ static class Theme
     }
 
     public static DropShadowEffect Shadow(double blur = 18, double depth = 2, double? opacity = null)
-        => new() { BlurRadius = blur, ShadowDepth = depth, Direction = 270, Color = Colors.Black, Opacity = opacity ?? (Dark ? 0.45 : 0.10) };
+        => new() { BlurRadius = blur, ShadowDepth = depth, Direction = 270, Color = Colors.Black, Opacity = opacity ?? (Dark ? 0.5 : 0.12) };
+
+    /// <summary>Indigo-Verlauf (leicht ins Violette) für hervorgehobene Flächen: Logo, Hauptkachel. Weiße Schrift darauf ≥ 4,5 : 1.</summary>
+    public static LinearGradientBrush AccentGradient(double violet = 1)
+    {
+        var a = Dark ? Color.FromRgb(0x5B, 0x66, 0xF0) : Color.FromRgb(0x4B, 0x55, 0xE0);
+        var v = Dark ? Color.FromRgb(0x6E, 0x5B, 0xEF) : Color.FromRgb(0x5E, 0x4B, 0xE0);
+        Color Mix(Color x, Color y, double t) => Color.FromRgb((byte)(x.R + (y.R - x.R) * t), (byte)(x.G + (y.G - x.G) * t), (byte)(x.B + (y.B - x.B) * t));
+        var g = new LinearGradientBrush(a, Mix(a, v, violet), new Point(0, 1), new Point(1, 0));
+        g.Freeze();
+        return g;
+    }
 
     /// <summary>
-    /// Logo: eine Treppenlinie (Schritte), die in einem Aufnahmepunkt endet – flach, ohne Verlauf.
-    /// Orange Fläche, Linie in Tinte; funktioniert hell und dunkel.
+    /// Logo: eine Treppenlinie (Schritte), die in einem Aufnahmepunkt endet. Indigo-Fläche, Linie und Punkt weiß;
+    /// funktioniert hell und dunkel. Dieselbe Geometrie wie das Programmsymbol (Assets/app.ico).
     /// </summary>
     public static FrameworkElement Logo(double size)
     {
-        var ink = new SolidColorBrush(Color.FromRgb(0x17, 0x16, 0x14));
+        var ink = Brushes.White;
         var c = new Canvas { Width = size, Height = size };
         double u = size / 24.0;
         var path = new Polyline
         {
             Points = new PointCollection { new(5 * u, 18 * u), new(9.5 * u, 18 * u), new(9.5 * u, 13.5 * u), new(14 * u, 13.5 * u), new(14 * u, 9 * u), new(16 * u, 9 * u) },
-            Stroke = ink, StrokeThickness = 2.3 * u, StrokeLineJoin = PenLineJoin.Miter, StrokeStartLineCap = PenLineCap.Flat, StrokeEndLineCap = PenLineCap.Flat
+            Stroke = ink, StrokeThickness = 2.3 * u, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Flat
         };
         c.Children.Add(path);
         double r = 2.6 * u;
         var dot = new Ellipse { Width = 2 * r, Height = 2 * r, Fill = ink };
         Canvas.SetLeft(dot, 18.2 * u - r); Canvas.SetTop(dot, 9 * u - r); c.Children.Add(dot);
-        var bg = new SolidColorBrush(Color.FromRgb(0xFF, 0x6A, 0x2B));
-        return new Border { Width = size, Height = size, CornerRadius = new CornerRadius(size * 0.2), Background = bg, Child = c };
+        return new Border { Width = size, Height = size, CornerRadius = new CornerRadius(size * 0.28), Background = AccentGradient(), Child = c };
     }
 
     /// <summary>Wortmarke: „Sebastians“ leicht, „Step Recorder“ kräftig.</summary>

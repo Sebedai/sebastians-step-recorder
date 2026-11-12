@@ -111,7 +111,7 @@ sealed class TrayIcon : IDisposable
         _icon?.Dispose();
     }
 
-    /// <summary>Symbol zeichnen: Aufnahme (roter Punkt), Pause (zwei Balken), Privat (gelber Punkt) auf dunklem Grund.</summary>
+    /// <summary>Symbol zeichnen: Aufnahme (roter Punkt), Pause (zwei Balken), Privat (gelber Punkt) auf dunklem Grund mit Indigo-Rand (Farben aus <see cref="Theme.Night"/>).</summary>
     public static System.Drawing.Icon Render(string state)
     {
         int s = Math.Max(16, GetSystemMetrics(49 /*SM_CXSMICON*/));
@@ -120,25 +120,25 @@ sealed class TrayIcon : IDisposable
         {
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.Clear(System.Drawing.Color.Transparent);
-            float r = s * 0.22f;
+            float r = s * 0.28f;
             using (var path = new System.Drawing.Drawing2D.GraphicsPath())
             {
                 path.AddArc(0, 0, 2 * r, 2 * r, 180, 90); path.AddArc(s - 2 * r - 1, 0, 2 * r, 2 * r, 270, 90);
                 path.AddArc(s - 2 * r - 1, s - 2 * r - 1, 2 * r, 2 * r, 0, 90); path.AddArc(0, s - 2 * r - 1, 2 * r, 2 * r, 90, 90); path.CloseFigure();
-                using var bg = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(0x17, 0x16, 0x14));
+                using var bg = new System.Drawing.SolidBrush(D(Theme.Night.BgColor));
                 g.FillPath(bg, path);
-                using var border = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0xFF, 0x6A, 0x2B), Math.Max(1, s / 16f));
+                using var border = new System.Drawing.Pen(D(Theme.Night.AccentColor), Math.Max(1, s / 16f));
                 g.DrawPath(border, path);
             }
             if (state == "paused")
             {
-                using var w = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(0xED, 0xEC, 0xE8));
+                using var w = new System.Drawing.SolidBrush(D(Theme.Night.FgColor));
                 float bw = s * 0.15f, bh = s * 0.46f, y = (s - bh) / 2;
                 g.FillRectangle(w, s * 0.31f, y, bw, bh); g.FillRectangle(w, s * 0.54f, y, bw, bh);
             }
             else
             {
-                var c = state == "private" ? System.Drawing.Color.FromArgb(0xFF, 0xC5, 0x3D) : System.Drawing.Color.FromArgb(0xF0, 0x3E, 0x4F);
+                var c = D(state == "private" ? Theme.Night.WarnColor : Theme.Night.RecColor);
                 using var dot = new System.Drawing.SolidBrush(c);
                 float d = s * 0.5f;
                 g.FillEllipse(dot, (s - d) / 2, (s - d) / 2, d, d);
@@ -146,6 +146,8 @@ sealed class TrayIcon : IDisposable
         }
         return System.Drawing.Icon.FromHandle(bmp.GetHicon());
     }
+
+    static System.Drawing.Color D(System.Windows.Media.Color c) => System.Drawing.Color.FromArgb(c.A, c.R, c.G, c.B);
 
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     struct NOTIFYICONDATA

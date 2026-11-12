@@ -162,10 +162,10 @@ sealed partial class ViewerWindow
         {
             ExportResult r = d.Format switch
             {
-                "ki" => KiPackage.Export(view, new KiOptions { Detail = d.Detail, ImageProfile = d.Profile, Language = d.Language, Zip = d.Zip, Readable = d.Readable }),
+                "ki" => KiPackage.Export(view, new KiOptions { Detail = d.Detail, ImageProfile = d.Profile, Language = d.Language, Zip = d.Zip, Readable = d.Readable, Before = d.Before, Crop = d.Crop, After = d.AfterImages }),
                 "ahk" when d.AhkKi => AhkKiPackage.Export(view, new AhkKiOptions { Readable = d.Readable }),
                 "ahk" => AhkExport.Export(view, new AhkOptions { RealTiming = d.RealTiming, Readable = d.Readable }),
-                _ => GuideExport.Export(view, new GuideOptions { Format = d.Format, Language = d.Language, Importance = d.Importance, View = d.View, Overview = d.Overview, GifSeconds = d.GifSeconds, MouseMarks = d.MarkMouse, KeyMarks = d.MarkKeys })
+                _ => GuideExport.Export(view, new GuideOptions { Format = d.Format, Language = d.Language, Importance = d.Importance, View = d.View, Overview = d.Overview, GifSeconds = d.GifSeconds, MouseMarks = d.MarkMouse, KeyMarks = d.MarkKeys, After = d.Format == "gif" ? "never" : d.GuideAfter })
             };
             _status.Text = "Exportiert: " + r.Path;
             var msg = "Export erstellt:\n" + r.Path + (r.Warnings.Count + r.Notices.Count > 0 ? "\n\n" + string.Join("\n", r.Warnings.Concat(r.Notices)) : "") + "\n\nIm Explorer zeigen?";
@@ -248,7 +248,7 @@ sealed partial class ViewerWindow
         var r = StepCompare.Compare(me, other);
         var w = new Window { Title = "Vergleich", Width = 960, Height = 720, Owner = this };
         Theme.Prepare(w, Theme.Surface);
-        w.Content = new TextBox { Text = StepCompare.Markdown(r, "de"), FontFamily = Theme.Mono, FontSize = 12.5, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(20, 16, 20, 16), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+        w.Content = new TextBox { Text = StepCompare.Markdown(r, "de"), FontFamily = Theme.Mono, FontSize = Theme.FsHint, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(28, 24, 28, 24), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
         w.Show();
     }
 }
@@ -256,10 +256,10 @@ sealed partial class ViewerWindow
 /// <summary>Einfacher Eingabedialog (Text, optional Titel und Kommentarart).</summary>
 sealed class InputDialog : Window
 {
-    readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 260, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
+    readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 100, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     readonly TextBox? _title;
     readonly RadioButton[]? _kinds;
-    readonly TextBlock _titleLabel = U.Text("Titel", 12.5, true, Theme.Fg2, new Thickness(0, 0, 0, 5));
+    readonly TextBlock _titleLabel = U.Text("Titel", Theme.FsHint, true, Theme.Fg2, new Thickness(0, 0, 0, 6));
     public string Value => _value.Text;
     public string TitleValue => _title?.Text ?? "";
     public string Kind => _kinds == null ? "note" : Array.FindIndex(_kinds, k => k.IsChecked == true) switch { 1 => "tip", 2 => "warning", 3 => "internal", _ => "note" };
@@ -267,7 +267,7 @@ sealed class InputDialog : Window
 
     public InputDialog(string prompt, string value, string? title = null, bool kinds = false)
     {
-        Title = AppInfo.DisplayName; Width = 560; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        Title = AppInfo.DisplayName; Width = 600; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
         var p = new StackPanel();
         if (kinds)
@@ -275,14 +275,15 @@ sealed class InputDialog : Window
             var (track, items) = U.Segmented("kind", 0, (Theme.IComment, "Hinweis"), (Theme.ICheck, "Tipp"), (Theme.IWarn, "Achtung"), (Theme.ILock, "Intern"));
             _kinds = items;
             items[3].ToolTip = "Erscheint in keiner Ausgabe";
-            track.Margin = new Thickness(0, 0, 0, 14);
+            track.Margin = new Thickness(0, 0, 0, 16);
             p.Children.Add(track);
         }
-        if (title != null) { _title = new TextBox { Text = title }; p.Children.Add(new StackPanel { Margin = new Thickness(0, 0, 0, 14), Children = { _titleLabel, _title } }); }
+        if (title != null) { _title = new TextBox { Text = title }; p.Children.Add(new StackPanel { Margin = new Thickness(0, 0, 0, 16), Children = { _titleLabel, _title } }); }
         _value.Text = value;
         p.Children.Add(title != null ? U.Field("Text", _value, margin: new Thickness(0)) : _value);
-        var hint = U.Row(U.Kbd("Strg+Eingabe"), U.Text("übernimmt", 12, fg: Theme.Muted, margin: new Thickness(4, 1, 0, 0)));
-        hint.Margin = new Thickness(0, 10, 0, 0);
+        var hint = U.Row(U.Kbd("Strg+Eingabe"), U.Text("übernimmt", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(4, 0, 0, 0)));
+        ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
+        hint.Margin = new Thickness(0, 12, 0, 0);
         p.Children.Add(hint);
         U.Dialog(this, prompt, p, U.Primary("Übernehmen", () => DialogResult = true), U.Btn("Abbrechen", () => DialogResult = false));
         PreviewKeyDown += (_, e) =>
@@ -301,13 +302,13 @@ sealed class ReviewWindow : Window
 
     public ReviewWindow(SessionView view)
     {
-        Title = "Durchsicht der Eingaben"; Width = 760; Height = 620; MinHeight = 400; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
+        Title = "Durchsicht der Eingaben"; Width = 800; Height = 660; MinHeight = 420; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Bg);
         var flagged = view.All.Where(s => s.Unreviewed).ToList();
         var others = view.All.Where(s => s.Kind == "type" && !s.Unreviewed && !s.Json.Obj("input")!.Bool("masked")).ToList();
-        var list = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
-        list.Children.Add(U.Text("Durchsicht der Eingaben", 18, true, margin: new Thickness(0, 0, 0, 4)));
-        list.Children.Add(U.Text(flagged.Count == 0 ? "Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen." : $"{flagged.Count} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", 13, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 16)));
+        var list = new StackPanel { Margin = new Thickness(28, 24, 28, 24) };
+        list.Children.Add(U.Heading("Durchsicht der Eingaben", Theme.FsTitle, new Thickness(0, 0, 0, 4)));
+        list.Children.Add(U.Text(flagged.Count == 0 ? "Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen." : $"{flagged.Count} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", Theme.FsBody, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 18)));
         var choices = new List<(ViewStep, RadioButton[])>();
         foreach (var s in flagged)
         {
@@ -316,26 +317,26 @@ sealed class ReviewWindow : Window
             choices.Add((s, items));
             var dock = new DockPanel();
             DockPanel.SetDock(track, Dock.Right); dock.Children.Add(track);
-            var badge = U.IconBadge(Theme.IWarn, 34, Theme.WarnSoft, Theme.Warn, 14); badge.Margin = new Thickness(0, 0, 14, 0); badge.VerticalAlignment = VerticalAlignment.Top;
+            var badge = U.IconBadge(Theme.IWarn, 36, Theme.WarnSoft, Theme.Warn, 16); badge.Margin = new Thickness(0, 0, 14, 0); badge.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(badge, Dock.Left); dock.Children.Add(badge);
             dock.Children.Add(U.Col(
-                U.Text($"Schritt {s.Number} · {s.Json.Obj("ctx")?.Str("title")}", 12, fg: Theme.Muted),
-                new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 12, 3) },
-                U.Text("Grund: " + s.FlagReason, 12, fg: Theme.Warn)));
-            list.Children.Add(U.Card(dock, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 10)));
+                U.Text($"Schritt {s.Number} · {s.Json.Obj("ctx")?.Str("title")}", Theme.FsHint, fg: Theme.Muted),
+                new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = Theme.FsBody, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 12, 4) },
+                U.Text("Grund: " + s.FlagReason, Theme.FsHint, fg: Theme.Warn)));
+            list.Children.Add(U.Card(dock, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 12)));
         }
         if (others.Count > 0)
         {
-            list.Children.Add(U.Overline($"Unauffällige Eingaben ({others.Count})", new Thickness(0, 14, 0, 8)));
+            list.Children.Add(U.SectionLabel($"Unauffällige Eingaben ({others.Count})", new Thickness(0, 16, 0, 10)));
             var box = new StackPanel();
             foreach (var s in others.Take(50))
             {
-                var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
-                var n = U.Text($"Schritt {s.Number}", 12, fg: Theme.Muted); n.Width = 76; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
-                row.Children.Add(new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 12.5, TextWrapping = TextWrapping.Wrap });
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+                var n = U.Text($"Schritt {s.Number}", Theme.FsHint, fg: Theme.Muted); n.Width = 88; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
+                row.Children.Add(new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap });
                 box.Children.Add(row);
             }
-            list.Children.Add(U.Card(box, new Thickness(16, 10, 16, 10)));
+            list.Children.Add(U.Card(box, new Thickness(18, 12, 18, 12)));
         }
         var ok = U.Primary("Fertig", () =>
         {
@@ -344,9 +345,7 @@ sealed class ReviewWindow : Window
             DialogResult = true;
         });
         var cancel = U.Btn("Abbrechen", () => DialogResult = false);
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } };
-        ok.Margin = new Thickness(8, 0, 0, 0); cancel.Margin = new Thickness(8, 0, 0, 0); cancel.MinWidth = 96;
-        var foot = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(20, 12, 20, 12), Child = footer };
+        var foot = U.Footer(ok, cancel);
         var root = new DockPanel();
         DockPanel.SetDock(foot, Dock.Bottom);
         root.Children.Add(foot);
@@ -364,8 +363,8 @@ sealed class ExportDialog : Window
     readonly ComboBox _view = new() { Items = { "Ganzer Bildschirm", "Anwendungsfenster", "Ausschnitt um die Aktion" }, SelectedIndex = 0 };
     readonly ComboBox _detail = new() { Items = { "Kompakt", "Standard", "Vollständig" }, SelectedIndex = 1 };
     readonly ComboBox _profile = new() { Items = { "Kompatibel (≤ 1568 px)", "Hochauflösend (≤ 2576 px)", "Original" }, SelectedIndex = 0 };
-    readonly CheckBox _zip = new() { Content = "Als ZIP-Datei verpacken", Margin = new Thickness(0, 2, 0, 0) };
-    readonly CheckBox _timing = new() { Content = "Auch die Denkpausen der Aufnahme übernehmen", IsChecked = false, Margin = new Thickness(0, 0, 0, 8) };
+    readonly CheckBox _zip = new() { Content = "Als ZIP-Datei verpacken" };
+    readonly CheckBox _timing = new() { Content = "Auch die Denkpausen der Aufnahme übernehmen", IsChecked = false, Margin = new Thickness(0, 0, 0, 10) };
     readonly CheckBox _ahkKi = new() { Content = "Als KI-Paket: Anleitung für KI, ablauf.json, Bildausschnitte, Texterkennung", IsChecked = false };
     public bool RealTiming => _timing.IsChecked == true;
     public bool AhkKi => _ahkKi.IsChecked == true;
@@ -374,7 +373,7 @@ sealed class ExportDialog : Window
     public bool Readable => _readable.IsChecked == true;
     int FormatIndex => Math.Max(0, Array.FindIndex(_formats, f => f.IsChecked == true));
     public string Format => FormatIndex switch { 1 => "md", 2 => "docx", 3 => "pdf", 4 => "gif", 5 => "ki", 6 => "ahk", _ => "html" };
-    readonly CheckBox _overview = new() { Content = "Kleine Übersicht des ganzen Bildschirms einblenden", IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
+    readonly CheckBox _overview = new() { Content = "Kleine Übersicht des ganzen Bildschirms einblenden", IsChecked = true, Margin = new Thickness(0, 8, 0, 0) };
     readonly ComboBox _gifSec = new() { Items = { "1,5 Sekunden je Schritt", "2,5 Sekunden je Schritt", "4 Sekunden je Schritt" }, SelectedIndex = 1 };
     public bool Overview => _overview.IsChecked == true;
     public double GifSeconds => _gifSec.SelectedIndex switch { 0 => 1.5, 2 => 4, _ => 2.5 };
@@ -384,59 +383,83 @@ sealed class ExportDialog : Window
     public string Detail => _detail.SelectedIndex switch { 0 => "compact", 2 => "full", _ => "standard" };
     public string Profile => _profile.SelectedIndex switch { 1 => "highres", 2 => "original", _ => "compatible" };
     public bool Zip => _zip.IsChecked == true;
-    readonly CheckBox _markMouse = new() { Content = "Mausaktionen: Klickpunkt, Zugweg, Zielrahmen, Scrollrichtung", IsChecked = true, Margin = new Thickness(0, 2, 0, 6) };
+    readonly CheckBox _markMouse = new() { Content = "Mausaktionen: Klickpunkt, Zugweg, Zielrahmen, Scrollrichtung", IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
     readonly CheckBox _markKeys = new() { Content = "Tastatur: gedrückte Tasten und getippten Text als Tasten", IsChecked = true };
     public bool MarkMouse => _markMouse.IsChecked == true;
     public bool MarkKeys => _markKeys.IsChecked == true;
 
-    readonly StackPanel _info = new();
-    readonly TextBlock _impHint = Hint(), _viewHint = Hint(), _detailHint = Hint(), _profileHint = Hint();
+    // Bildauswahl: KI-Paket (Vorher/Ausschnitt/Nachher) und Anleitungen (Nachher-Bild als „Ergebnis“)
+    readonly RadioButton[] _before, _guideAfter;
+    readonly CheckBox _crop = new() { Content = "Ausschnitt um die Aktion", IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
+    readonly CheckBox _afterImg = new() { Content = "Nachher-Bild", IsChecked = true };
+    /// <summary>KI-Paket: auto | always | never.</summary>
+    public string Before => Array.FindIndex(_before, r => r.IsChecked == true) switch { 1 => "always", 2 => "never", _ => "auto" };
+    public bool Crop => _crop.IsChecked == true;
+    public bool AfterImages => _afterImg.IsChecked == true;
+    /// <summary>Anleitungen: never | changed | always.</summary>
+    public string GuideAfter => Array.FindIndex(_guideAfter, r => r.IsChecked == true) switch { 1 => "changed", 2 => "always", _ => "never" };
 
-    static TextBlock Hint() => U.Text("", 11.5, fg: Theme.Muted, margin: new Thickness(0, 5, 0, 0));
+    readonly StackPanel _info = new();
+    readonly TextBlock _impHint = Hint(), _viewHint = Hint(), _detailHint = Hint(), _profileHint = Hint(), _beforeHint = Hint(), _guideAfterHint = Hint();
+
+    static TextBlock Hint() => U.Hint("", new Thickness(0, 6, 0, 0));
 
     public ExportDialog(string format, string lang, StepRecorder.Export.DocSettings? doc = null)
     {
-        Title = "Exportieren"; Width = 760; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        var wa = Theme.ActiveWorkArea();
+        Title = "Exportieren"; Width = Math.Min(1000, wa.Width - 24); SizeToContent = SizeToContent.Height; MaxHeight = wa.Height - 24;
+        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
         int sel = format switch { "md" => 1, "docx" => 2, "pdf" => 3, "gif" => 4, "ki" => 5, "ahk" => 6, _ => 0 };
-        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 7, Margin = new Thickness(-4, 0, -4, 12) };
+        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 7, Margin = new Thickness(-4, 0, -4, 16) };
         if (doc != null) { _view.SelectedIndex = doc.View switch { "window" => 1, "crop" => 2, _ => 0 }; _overview.IsChecked = doc.Overview; }
         var formats = new List<RadioButton>();
         foreach (var (glyph, name, sub, i) in new[] { (Theme.IGlobe, "HTML", "eine Datei", 0), (Theme.ICode, "Markdown", "Text + Bilder", 1), (Theme.IDoc, "Word", "bearbeitbar", 2), (Theme.IPdf, "PDF", "zum Drucken", 3), (Theme.IPlay, "GIF", "animiert", 4), (Theme.IRobot, "KI-Paket", "für KI", 5), (Theme.IScript, "AutoHotkey", "Skript", 6) })
         {
-            var content = U.Col(U.Icon(glyph, 22), new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0) },
-                new TextBlock { Text = sub, FontSize = 11, Opacity = 0.75, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 1, 0, 0) });
-            var rb = new RadioButton { GroupName = "fmt", Style = Theme.Style("Choice"), Content = content, IsChecked = i == sel };
+            var content = U.Col(U.Icon(glyph, 20), new TextBlock { Text = name, FontWeight = FontWeights.SemiBold, FontSize = Theme.FsHint, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis },
+                new TextBlock { Text = sub, FontSize = Theme.FsCaption, Opacity = 0.85, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis });
+            var rb = new RadioButton { GroupName = "fmt", Style = Theme.Style("Choice"), Content = content, IsChecked = i == sel, Padding = new Thickness(6, 12, 6, 12), ToolTip = Loc.T(name) + " – " + Loc.T(sub) };
             formats.Add(rb); grid.Children.Add(rb);
         }
         _formats = formats.ToArray();
         _lang.SelectedIndex = lang == "en" ? 1 : 0;
 
         // Was steckt drin?
-        var infoBox = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(16, 12, 16, 14), Margin = new Thickness(0, 0, 0, 16), Child = _info };
+        var infoBox = U.Inset(_info, new Thickness(18, 14, 18, 16));
+        infoBox.VerticalAlignment = VerticalAlignment.Top;
+
+        var (beforeTrack, before) = U.Segmented("before", 0, (null, "Automatisch"), (null, "Immer"), (null, "Nie"));
+        _before = before;
+        var (guideAfterTrack, guideAfter) = U.Segmented("gafter", 0, (null, "Nie"), (null, "Bei Änderung"), (null, "Immer"));
+        _guideAfter = guideAfter;
 
         var options = new Grid();
-        options.ColumnDefinitions.Add(new ColumnDefinition()); options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); options.ColumnDefinitions.Add(new ColumnDefinition());
-        options.RowDefinitions.Add(new RowDefinition()); options.RowDefinitions.Add(new RowDefinition());
-        void G(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); options.Children.Add(e); }
+        options.ColumnDefinitions.Add(new ColumnDefinition()); options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(20) }); options.ColumnDefinitions.Add(new ColumnDefinition());
+        for (int r = 0; r < 4; r++) options.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        void G(UIElement e, int r, int c, int span = 1) { Grid.SetRow(e, r); Grid.SetColumn(e, c); Grid.SetColumnSpan(e, span); options.Children.Add(e); }
         var fImp = U.Field("Umfang", U.Col(_imp, _impHint)); var fView = U.Field("Darstellung", U.Col(_view, _viewHint, _overview));
         var fDetail = U.Field("Detailstufe", U.Col(_detail, _detailHint)); var fProfile = U.Field("Bildgröße", U.Col(_profile, _profileHint));
-        G(U.Field("Sprache", _lang), 0, 0); G(fImp, 0, 2); G(fView, 1, 0); G(fDetail, 0, 2); G(fProfile, 1, 0); G(new StackPanel { Children = { _zip }, Margin = new Thickness(0, 24, 0, 0) }, 1, 2);
-        var zipHost = (FrameworkElement)_zip.Parent;
+        var fBefore = U.Field("Vorher-Bild", U.Col(beforeTrack, _beforeHint));
+        var fGuideAfter = U.Field("Nachher-Bild", U.Col(guideAfterTrack, _guideAfterHint));
+        var fMore = U.Field("Weitere Bilder", U.Col(_crop, _afterImg));
+        var zipHost = new StackPanel { Children = { _zip }, Margin = new Thickness(0, 28, 0, 0) };
+        // links die Einstellungen (zwei Spalten), rechts „Enthält“ – so bleibt der Dialog auch auf Laptops in voller Größe
+        G(U.Field("Sprache", _lang), 0, 0); G(fImp, 0, 2); G(fDetail, 0, 2);
+        G(fView, 1, 0); G(fProfile, 1, 0); G(zipHost, 1, 2);
+        G(fGuideAfter, 2, 0, 3); G(fBefore, 2, 0, 3);
+        G(fMore, 3, 0, 3);
         var gifOpts = U.Field("Ablauf", _gifSec, "Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.");
-        gifOpts.Margin = new Thickness(0, 0, 0, 12);
         var ahkOpts = U.Col(_timing, _ahkKi);
+        ahkOpts.Margin = new Thickness(0, 0, 0, 16);
         var readableOpts = U.Col(_readable, _readableHint);
-        readableOpts.Margin = new Thickness(0, 12, 0, 12);
-        ahkOpts.Margin = new Thickness(0, 0, 0, 12);
+        readableOpts.Margin = new Thickness(0, 0, 0, 8);
         var marksOpts = U.Field("Im Bild markieren", U.Col(_markMouse, _markKeys), "Wie im Editor unter „Markierungen“; dort lässt sich das auch je Schritt ein- und ausschalten.");
-        marksOpts.Margin = new Thickness(0, 0, 0, 12);
         void Upd()
         {
-            bool ki = Format == "ki", ahk = Format == "ahk";
+            bool ki = Format == "ki", ahk = Format == "ahk", gif = Format == "gif";
             options.Visibility = ahk ? Visibility.Collapsed : Visibility.Visible;
             ahkOpts.Visibility = ahk ? Visibility.Visible : Visibility.Collapsed;
-            gifOpts.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
+            gifOpts.Visibility = gif ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             marksOpts.Visibility = ki || ahk ? Visibility.Collapsed : Visibility.Visible;
             readableOpts.Visibility = ki || ahk ? Visibility.Visible : Visibility.Collapsed;
@@ -446,7 +469,8 @@ sealed class ExportDialog : Window
                 : (Readable ? "Das Skript erklärt seinen Aufbau, die Begriffe (WinTitle, ClassNN …) und bei jedem Schritt in Worten, was passiert."
                             : "Aus: nur die technischen Kommentare. Einschalten, wenn jemand das Skript verstehen oder anpassen soll.");
             fImp.Visibility = fView.Visibility = ki ? Visibility.Collapsed : Visibility.Visible;
-            fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = fBefore.Visibility = fMore.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            fGuideAfter.Visibility = !ki && !gif ? Visibility.Visible : Visibility.Collapsed;
             _impHint.Text = _imp.SelectedIndex switch
             {
                 1 => "Zusätzlich Nebenschritte wie Scrollen, Navigationstasten und Fensterwechsel.",
@@ -471,13 +495,35 @@ sealed class ExportDialog : Window
                 2 => "Unverkleinert – größte Dateien.",
                 _ => "Passt für alle gängigen KI-Assistenten."
             };
+            _beforeHint.Text = Before switch
+            {
+                "always" => "Jeder Mausschritt bekommt eine eigene Übersicht vor der Aktion – auch wenn sie dem Nachher-Bild des vorigen Schritts gleicht.",
+                "never" => "Keine Übersichten vor der Aktion. Klickpunkt und Zielrahmen zeigt weiterhin der Ausschnitt.",
+                _ => "Nur wenn der Bildschirm davor nicht schon im Paket zu sehen ist – sonst verweist das Protokoll auf das frühere Bild."
+            };
+            _guideAfterHint.Text = GuideAfter switch
+            {
+                "changed" => "Zusätzlich das Bild nach dem Schritt („Ergebnis“), wenn sich mindestens 2 % des Bildschirms geändert haben oder ein Fenster auf- oder zuging.",
+                "always" => "Zusätzlich das Bild nach jedem Schritt („Ergebnis“), sofern eines vorliegt.",
+                _ => "Ein Bild je Schritt – wie im Editor."
+            };
             FillInfo();
         }
         foreach (var f in _formats) f.Checked += (_, _) => Upd();
+        foreach (var r in _before.Concat(_guideAfter)) r.Checked += (_, _) => Upd();
         foreach (var cb in new[] { _imp, _view, _detail, _profile, _gifSec }) cb.SelectionChanged += (_, _) => Upd();
-        foreach (var chk in new[] { _zip, _ahkKi, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
+        foreach (var chk in new[] { _zip, _ahkKi, _readable, _crop, _afterImg }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
-        U.Dialog(this, "Exportieren", U.Col(grid, infoBox, options, gifOpts, marksOpts, ahkOpts, readableOpts),U.Primary("Exportieren", () => DialogResult = true, Theme.IExport), U.Btn("Abbrechen", () => DialogResult = false));
+        var columns = new Grid();
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var left = U.Col(options, gifOpts, marksOpts, ahkOpts, readableOpts);
+        Grid.SetColumn(infoBox, 2);
+        columns.Children.Add(left); columns.Children.Add(infoBox);
+        U.Dialog(this, "Exportieren", U.Col(grid, columns), U.Primary("Exportieren", () => DialogResult = true, Theme.IExport), U.Btn("Abbrechen", () => DialogResult = false));
+        // passt immer ganz auf den Bildschirm: bei wenig Höhe gleichmäßig verkleinern statt abschneiden
+        U.FitDialog(this);
     }
 
     /// <summary>Beschreibt das gewählte Format: wofür, welche Dateien mit welchem Inhalt, wo gespeichert.</summary>
@@ -486,10 +532,11 @@ sealed class ExportDialog : Window
         _info.Children.Clear();
         string imp = _imp.SelectedIndex switch { 1 => "Haupt- und Nebenschritte", 2 => "alle Schritte", _ => "alle Hauptschritte" };
         string guideContent = $"Titel, Einleitung, Voraussetzungen, Kapitel und {imp} – jeweils mit Überschrift, Anleitungstext, Bild und Hinweiskästen; Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe stellen Sie im Editor im Reiter „Dokument“ ein";
+        string mdImages = GuideAfter == "never" ? "ein PNG je Schritt (schritt-001.png …), in der .md-Datei verlinkt." : "ein PNG je Schritt (schritt-001.png …), dazu das Ergebnis (schritt-001-nachher.png), in der .md-Datei verlinkt.";
         (string title, string use, (string file, string what)[] files, string where) = Format switch
         {
             "md" => ("Markdown – Text und ein Bilderordner", "Für Wikis, Git-Repositories, Confluence oder Notiz-Apps wie Obsidian.",
-                new[] { ("<Titel>.md", guideContent + " (als Markdown-Text)."), ("bilder\\", "ein PNG je Schritt (schritt-001.png …), in der .md-Datei verlinkt.") }, "export\\markdown"),
+                new[] { ("<Titel>.md", guideContent + " (als Markdown-Text)."), ("bilder\\", mdImages) }, "export\\markdown"),
             "docx" => ("Word – zum Weiterbearbeiten", "Öffnet in Word oder LibreOffice; Texte, Layout und Bilder lassen sich dort noch anpassen.",
                 new[] { ("<Titel>.docx", guideContent + ". Die Bilder sind eingebettet.") }, "export\\docx"),
             "pdf" => ("PDF – fertig zum Drucken und Weitergeben", "Sieht überall gleich aus und lässt sich nicht versehentlich ändern.",
@@ -505,27 +552,36 @@ sealed class ExportDialog : Window
             _ => ("HTML – eine einzige Datei für den Browser", "Zum Verschicken per E-Mail, für das Intranet oder zum Ansehen ohne weitere Programme.",
                 new[] { ("<Titel>.html", guideContent + ". Die Bilder stecken in der Datei – es gibt nur diese eine Datei.") }, "export\\html")
         };
-        _info.Children.Add(U.Text(title, 14, true, margin: new Thickness(0, 0, 0, 2)));
-        _info.Children.Add(U.Text(use, 12.5, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)));
-        _info.Children.Add(U.Overline("Enthält", new Thickness(0, 0, 0, 4)));
+        _info.Children.Add(U.Text(title, Theme.FsSub, true, margin: new Thickness(0, 0, 0, 4)));
+        _info.Children.Add(U.Para(use, Theme.FsBody, Theme.Fg2, new Thickness(0, 0, 0, 12)));
+        _info.Children.Add(U.SectionLabel("Enthält", new Thickness(0, 0, 0, 6)));
         foreach (var (file, what) in files)
         {
-            var g = new Grid { Margin = new Thickness(0, 3, 0, 0) };
-            g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
-            g.ColumnDefinitions.Add(new ColumnDefinition());
-            var icon = U.Icon(file.EndsWith('\\') ? Theme.IFolder : Theme.IDoc, 12, Theme.AccentText); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 7, 0);
-            var name = new TextBlock { Text = file, FontFamily = Theme.Mono, FontSize = 12, Foreground = Theme.Fg, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = file, Margin = new Thickness(0, 1, 8, 0) };
-            var left = new DockPanel(); DockPanel.SetDock(icon, Dock.Left); left.Children.Add(icon); left.Children.Add(name);
-            var desc = U.Text(what, 12.5, fg: Theme.Fg2); Grid.SetColumn(desc, 1);
-            g.Children.Add(left); g.Children.Add(desc);
+            // Dateiname über der Beschreibung – passt auch in die schmale rechte Spalte
+            var g = new DockPanel { Margin = new Thickness(0, 6, 0, 2) };
+            var icon = U.Icon(file.EndsWith('\\') ? Theme.IFolder : Theme.IDoc, 14, Theme.AccentText); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 10, 0);
+            var name = new TextBlock { Text = file, FontFamily = Theme.Mono, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = file, Margin = new Thickness(0, 2, 0, 2) };
+            var desc = U.Para(what, Theme.FsHint, Theme.Fg2);
+            DockPanel.SetDock(icon, Dock.Left); g.Children.Add(icon); g.Children.Add(U.Col(name, desc));
             _info.Children.Add(g);
         }
-        _info.Children.Add(U.Row(U.Icon(Theme.IFolder, 12, Theme.Muted), U.Text($"Gespeichert im Aufnahmeordner unter {where}", 12, fg: Theme.Muted, margin: new Thickness(8, 0, 0, 0))));
-        ((FrameworkElement)_info.Children[^1]).Margin = new Thickness(0, 12, 0, 0);
+        var saved = new DockPanel { Margin = new Thickness(0, 14, 0, 0) };
+        var savedIcon = U.Icon(Theme.IFolder, 14, Theme.Muted); savedIcon.VerticalAlignment = VerticalAlignment.Top; savedIcon.Margin = new Thickness(0, 2, 10, 0);
+        DockPanel.SetDock(savedIcon, Dock.Left); saved.Children.Add(savedIcon);
+        saved.Children.Add(U.Hint($"Gespeichert im Aufnahmeordner unter {where}"));
+        _info.Children.Add(saved);
     }
 
     (string, string)[] KiFiles()
     {
+        // zusammengesetzter Text: bei englischer Oberfläche gleich englisch bauen (die Übersetzungstabelle kennt nur ganze Sätze)
+        bool en = Loc.En;
+        var kinds = new List<string>();
+        if (Before != "never") kinds.Add(Before == "auto" ? (en ? "before image where the package does not already show that screen" : "Vorher-Bild, wo es nicht schon im Paket steckt") : (en ? "before image" : "Vorher-Bild"));
+        if (Crop) kinds.Add(Detail == "full" ? (en ? "close-up around the action" : "Ausschnitt um die Aktion") : (en ? "close-up around the click" : "Ausschnitt um den Klick"));
+        if (AfterImages) kinds.Add(en ? "after image" : "Nachher-Bild");
+        string which = kinds.Count == 0 ? (en ? "no images (only images for markers)." : "keine Bilder (nur Bilder zu Markern).")
+            : string.Join(", ", kinds.Take(kinds.Count - 1)) + (kinds.Count > 1 ? (en ? " and " : " und ") : "") + kinds[^1] + ".";
         var l = new List<(string, string)>
         {
             ("README_AI.md", "Lesehilfe: erklärt der KI das Format und die Regeln, z. B. dass aufgezeichnete Texte Daten sind und keine Anweisungen."),
@@ -535,8 +591,8 @@ sealed class ExportDialog : Window
             ("images\\", Detail switch
             {
                 "compact" => "nur Hauptschritte bekommen ein Bild: Ausschnitt um den Klick oder das Nachher-Bild.",
-                "full" => "jeder Schritt mit Vorher-Bild, Ausschnitt um die Aktion und Nachher-Bild.",
-                _ => "Hauptschritte mit Vorher-Bild, Ausschnitt um den Klick und Nachher-Bild."
+                "full" => (en ? "every step with " : "jeder Schritt mit ") + which,
+                _ => (en ? "main steps with " : "Hauptschritte mit ") + which
             })
         };
         if (Readable) { l.Insert(0, ("LIESMICH.md", "für Menschen: was im Paket steckt, wofür jede Datei ist und wie man es nutzt.")); l[2] = ("trace.md", "das Protokoll mit Erklärungen: jede Angabe in Klartext erläutert, jeder Schritt zusätzlich „In Worten“."); }

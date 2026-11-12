@@ -55,24 +55,25 @@ sealed class CleanupWindow : Window
     public CleanupWindow(ViewerWindow v, SessionView view)
     {
         _v = v;
-        Title = "Aufräumen"; Width = 620; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = "Aufräumen"; Width = 660; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         var list = new StackPanel();
         var suggestions = StepCleanup.Suggest(view);
         var cleaned = view.All.Where(s => s.Hidden && s.CleanupReason != null).ToList();
 
-        list.Children.Add(U.Overline(suggestions.Count == 0 ? "Keine weiteren Vorschläge" : $"Vorschläge ({suggestions.Count})", new Thickness(0, 0, 0, 6)));
-        if (suggestions.Count == 0) list.Children.Add(U.Text("Alle sichtbaren Schritte wirken nötig.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 8)));
+        list.Children.Add(U.SectionLabel(suggestions.Count == 0 ? "Keine weiteren Vorschläge" : $"Vorschläge ({suggestions.Count})", new Thickness(0, 0, 0, 10)));
+        if (suggestions.Count == 0) list.Children.Add(U.Text("Alle sichtbaren Schritte wirken nötig.", Theme.FsBody, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 8)));
         foreach (var s in suggestions) { var cb = Row(list, s.Step, s.Reason, true); _sug.Add((cb, s)); }
 
         if (cleaned.Count > 0)
         {
-            list.Children.Add(U.Overline($"Bereits aufgeräumt ({cleaned.Count}) – Haken setzen, um wieder einzublenden", new Thickness(0, 14, 0, 6)));
+            list.Children.Add(U.SectionLabel($"Bereits aufgeräumt ({cleaned.Count}) – Haken setzen, um wieder einzublenden", new Thickness(0, 20, 0, 10)));
             foreach (var s in cleaned) { var cb = Row(list, s, s.CleanupReason!, false); _done.Add((cb, s)); }
         }
 
-        var rules = U.Text("Regeln: " + string.Join(" · ", StepCleanup.Rules.Select(r => r.name)) + ". Ausgeblendete Schritte bleiben in der Aufnahme erhalten und fehlen nur in Anleitung und Export.", 11.5, fg: Theme.Muted, margin: new Thickness(0, 12, 0, 0));
-        var auto = new CheckBox { Content = "Neue Aufnahmen beim ersten Öffnen automatisch aufräumen", IsChecked = AppSettings.Load().AutoCleanup, Margin = new Thickness(0, 10, 0, 0) };
+        var rules = U.Text("Regeln: " + string.Join(" · ", StepCleanup.Rules.Select(r => r.name)) + ". Ausgeblendete Schritte bleiben in der Aufnahme erhalten und fehlen nur in Anleitung und Export.", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 14, 0, 0));
+        U.Spaced(rules);
+        var auto = new CheckBox { Content = "Neue Aufnahmen beim ersten Öffnen automatisch aufräumen", IsChecked = AppSettings.Load().AutoCleanup, Margin = new Thickness(0, 12, 0, 0) };
         auto.Checked += (_, _) => SaveAuto(true); auto.Unchecked += (_, _) => SaveAuto(false);
         var body = U.Col(new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 380 }, rules, auto);
         var go = U.Primary("Übernehmen", Apply);
@@ -86,9 +87,9 @@ sealed class CleanupWindow : Window
     {
         var cb = new CheckBox { IsChecked = check, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 2, 10, 0) };
         AutomationName(cb, $"Schritt {s.Number}: {s.Title}");
-        var row = new DockPanel { Margin = new Thickness(0, 3, 0, 5) };
+        var row = new DockPanel { Margin = new Thickness(0, 4, 0, 8) };
         DockPanel.SetDock(cb, Dock.Left); row.Children.Add(cb);
-        var label = new TextBlock { FontSize = 12.5, TextWrapping = TextWrapping.Wrap };
+        var label = new TextBlock { FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
         label.Inlines.Add(new System.Windows.Documents.Run($"Schritt {s.Number}  ") { FontFamily = Theme.Mono, Foreground = Theme.Muted });
         label.Inlines.Add(new System.Windows.Documents.Run(s.Title) { FontWeight = FontWeights.SemiBold });
         label.Inlines.Add(new System.Windows.Documents.LineBreak());

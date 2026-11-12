@@ -72,7 +72,7 @@ sealed partial class ViewerWindow
         string GS(string key) => DocSettings.GuideText(guide, key, lang) ?? "";
         bool en = lang != "de";
 
-        var intro = U.Text("Alles, was aus den Schritten eine fertige Bedienungsanleitung macht. Gilt für HTML, Word, PDF, Markdown und GIF.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 10));
+        var intro = U.Hint("Alles, was aus den Schritten eine fertige Bedienungsanleitung macht. Gilt für HTML, Word, PDF, Markdown und GIF.", new Thickness(0, 0, 0, 12));
         _details.Children.Add(intro);
         if (en) _details.Children.Add(Callout(Theme.IGlobe, Theme.AccentSoft, Theme.AccentText, "Englische Fassung", "Titel, Untertitel, Zielgruppe, Texte, Voraussetzungen und Fußzeile gelten hier nur für Englisch. Leer gelassene Felder übernehmen die deutsche Fassung."));
         var actions = new WrapPanel { Margin = new Thickness(-3, 0, 0, 6) };
@@ -81,7 +81,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(actions);
 
         // Vorlagen
-        _details.Children.Add(U.Overline("Vorlage", new Thickness(0, 14, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Vorlage"));
         var st = StepRecorder.Settings.AppSettings.Load();
         var tpl = new ComboBox { MinWidth = 180, IsEnabled = !_view.Session.ReadOnly };
         tpl.Items.Add(st.DocTemplates.Count == 0 ? "Noch keine Vorlage" : "Vorlage anwenden …");
@@ -99,7 +99,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Firmenlook übernehmen", tplRow, st.DefaultTemplate.Length > 0 ? $"Neue Aufnahmen erhalten automatisch die Vorlage „{st.DefaultTemplate}“." : "Eine Vorlage kann als Standard für neue Aufnahmen gelten."));
 
         // Titelseite
-        _details.Children.Add(U.Overline("Titelseite", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Titelseite", new Thickness(0, 12, 0, 10)));
         _details.Children.Add(U.Field("Titel", CommitBox(GS("title") is { Length: > 0 } tt ? tt : _view.Title, v => { if (v.Length == 0) return; QuietChange(e => SetGuideText(e, "title", v)); _titleBlock.Text = _view.Title; }, "Titel der Anleitung")));
         _details.Children.Add(U.Field("Untertitel", CommitBox(d.Subtitle, v => LocDocChange("subtitle", v), "z. B. Kurzanleitung für neue Mitarbeitende")));
         var two = new Grid();
@@ -116,7 +116,7 @@ sealed partial class ViewerWindow
             try
             {
                 var bi = new System.Windows.Media.Imaging.BitmapImage(); bi.BeginInit(); bi.StreamSource = new MemoryStream(lb); bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; bi.EndInit(); bi.Freeze();
-                logoRow.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(4), Padding = new Thickness(6), Margin = new Thickness(0, 3, 8, 3), BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = new Image { Source = bi, MaxHeight = 40, MaxWidth = 140 } });
+                logoRow.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(Theme.RSmall), Padding = new Thickness(6), Margin = new Thickness(0, 3, 8, 3), BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = new Image { Source = bi, MaxHeight = 40, MaxWidth = 140 } });
             }
             catch { }
         }
@@ -125,7 +125,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Logo", logoRow));
 
         // Texte
-        _details.Children.Add(U.Overline("Texte", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Texte", new Thickness(0, 12, 0, 10)));
         _details.Children.Add(U.Field("Über diese Anleitung", CommitBox(GS("intro"), v => QuietChange(e => SetGuideText(e, "intro", v)), "Wozu dient die Anleitung, was ist das Ergebnis?", true),
             "Ziel und erwartetes Ergebnis der Aufnahme werden automatisch ergänzt."));
         _details.Children.Add(U.Field("Voraussetzungen", CommitBox(d.Prerequisites, v => LocDocChange("prerequisites", v), "Eine pro Zeile, z. B. Zugang zum Portal", true),
@@ -133,7 +133,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Abschluss", CommitBox(GS("outro"), v => QuietChange(e => SetGuideText(e, "outro", v)), "z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", true)));
 
         // Aufbau
-        _details.Children.Add(U.Overline("Aufbau", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Aufbau", new Thickness(0, 12, 0, 10)));
         CheckBox Check(string text, bool value, Action<bool> set, string tip)
         {
             var c = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 0, 0, 8), ToolTip = tip, IsEnabled = !_view.Session.ReadOnly };
@@ -149,7 +149,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Nummerierung der Schritte", numTrack, "„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt fest (Reiter „Schritt“ › Kapitel)."));
 
         // Bilder
-        _details.Children.Add(U.Overline("Bilder", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Bilder", new Thickness(0, 12, 0, 10)));
         var viewBox = new ComboBox { MinWidth = 220, HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = !_view.Session.ReadOnly };
         foreach (var (_, name) in DocSettings.Views) viewBox.Items.Add(name);
         viewBox.SelectedIndex = Math.Max(0, Array.FindIndex(DocSettings.Views, x => x.id == d.View));
@@ -166,14 +166,14 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Anordnung", layTrack, "„Neben dem Text“ ergibt kompakte Anleitungen: Text links, Bild rechts."));
 
         // Gestaltung
-        _details.Children.Add(U.Overline("Gestaltung", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Gestaltung", new Thickness(0, 12, 0, 10)));
         var swatches = new WrapPanel();
         foreach (var (hex, name) in DocSettings.Accents)
         {
             bool on = string.Equals(hex, d.Accent, StringComparison.OrdinalIgnoreCase);
             var dot = new Border
             {
-                Width = 26, Height = 26, CornerRadius = new CornerRadius(13), Margin = new Thickness(0, 0, 8, 0), Cursor = Cursors.Hand, ToolTip = name,
+                Width = 28, Height = 28, CornerRadius = new CornerRadius(14), Margin = new Thickness(0, 0, 10, 0), Cursor = Cursors.Hand, ToolTip = name,
                 Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), BorderBrush = on ? Theme.Fg : Theme.Line, BorderThickness = new Thickness(on ? 2.5 : 1)
             };
             string h = hex;
@@ -188,9 +188,9 @@ sealed partial class ViewerWindow
         _details.Children.Add(U.Field("Fußzeile", CommitBox(d.Footer, v => LocDocChange("footer", v), "z. B. Firma · intern"), "Links in der Fußzeile; rechts steht die Seitenzahl (Word, PDF)."));
 
         // Weitere Aufnahmen
-        _details.Children.Add(U.Overline("Weitere Aufnahmen", new Thickness(0, 10, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Weitere Aufnahmen", new Thickness(0, 12, 0, 10)));
         var appended = (guide?.Arr("append") ?? new JsonArray()).OfType<JsonObject>().ToList();
-        _details.Children.Add(U.Text(appended.Count == 0 ? "Längere Handbücher aus mehreren Aufnahmen: angehängte Aufnahmen erscheinen im Export als eigene Kapitel hinter dieser." : "Erscheinen im Export als eigene Kapitel hinter dieser Aufnahme:", 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        _details.Children.Add(U.Text(appended.Count == 0 ? "Längere Handbücher aus mehreren Aufnahmen: angehängte Aufnahmen erscheinen im Export als eigene Kapitel hinter dieser." : "Erscheinen im Export als eigene Kapitel hinter dieser Aufnahme:", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
         for (int i = 0; i < appended.Count; i++)
         {
             var a = appended[i]; int idx = i;
@@ -198,9 +198,10 @@ sealed partial class ViewerWindow
             string title = Session.LooksLikeSession(p) ? (Json.ReadObject(Path.Combine(p, "manifest.json"))?.Str("title") is { Length: > 0 } mt ? mt : Path.GetFileName(p)) : "nicht gefunden: " + Path.GetFileName(p);
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
             var del = U.Ghost(Theme.IDelete, null, () => Change(e => { if (GuideOf(e)["append"] is JsonArray arr && idx < arr.Count) arr.RemoveAt(idx); }, refill: false), "Nicht mehr anhängen (die Aufnahme selbst bleibt erhalten)");
-            del.MinHeight = 26; del.Padding = new Thickness(6, 3, 6, 3); del.Margin = new Thickness(0);
+            del.MinHeight = 30; del.Padding = new Thickness(7, 4, 7, 4); del.Margin = new Thickness(0);
             DockPanel.SetDock(del, Dock.Right); row.Children.Add(del);
-            row.Children.Add(U.Row(U.Text($"{idx + 1}.", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 8, 0)), U.Text(title, 12.5, true)));
+            var rowText = U.Row(U.Text($"{idx + 1}.", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 8, 0)), U.Text(title, Theme.FsHint, true)); rowText.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(rowText);
             row.ToolTip = p;
             _details.Children.Add(row);
         }
@@ -362,7 +363,7 @@ sealed partial class ViewerWindow
         long anchor = s.Anchor;
 
         // Kapitel
-        _details.Children.Add(U.Overline("Kapitel", new Thickness(0, 18, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Kapitel"));
         var chap = new CheckBox { Content = "Hier beginnt ein neues Kapitel", IsChecked = s.ChapterTitle != null, IsEnabled = !ro, ToolTip = "Gliedert die Anleitung: Kapitelüberschrift mit Einleitung vor diesem Schritt, Eintrag im Inhaltsverzeichnis" };
         chap.Checked += (_, _) => ToggleChapter(anchor, true);
         chap.Unchecked += (_, _) => ToggleChapter(anchor, false);
@@ -377,7 +378,7 @@ sealed partial class ViewerWindow
         }
 
         // Bild im Dokument
-        _details.Children.Add(U.Overline("Im Dokument", new Thickness(0, 18, 0, 8)));
+        _details.Children.Add(U.SectionLabel("Im Dokument"));
         var row = new DockPanel();
         var show = new CheckBox { Content = "Bild zeigen", IsChecked = s.ShowImage != false, IsEnabled = !ro, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 14, 0), ToolTip = "Für reine Textschritte ausschalten" };
         show.Checked += (_, _) => Change(e => StepEdit(e, anchor).Remove("showImage"), refill: false);
@@ -403,7 +404,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(imgActs);
 
         // Hinweiskästen
-        _details.Children.Add(U.Overline(s.Comments.Count > 0 ? $"Hinweiskästen ({s.Comments.Count})" : "Hinweiskästen", new Thickness(0, 18, 0, 8)));
+        _details.Children.Add(U.SectionLabel(s.Comments.Count > 0 ? $"Hinweiskästen ({s.Comments.Count})" : "Hinweiskästen"));
         TextBox? focus = null;
         foreach (var c in s.Comments)
         {
@@ -411,22 +412,22 @@ sealed partial class ViewerWindow
             string kind = c.Str("kind") ?? "note";
             var (_, bar, _) = GuideExport.NoteStyle(kind, "de");
             var barBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + bar));
-            var kinds = new ComboBox { MinWidth = 120, IsEnabled = !ro, Margin = new Thickness(0, 0, 6, 0) };
+            var kinds = new ComboBox { MinWidth = 130, IsEnabled = !ro, Margin = new Thickness(0, 0, 6, 0) };
             foreach (var (_, name) in NoteKinds) kinds.Items.Add(name);
             kinds.SelectedIndex = Math.Max(0, Array.FindIndex(NoteKinds, k => k.kind == kind));
             kinds.SelectionChanged += (_, _) => { string k = NoteKinds[Math.Max(0, kinds.SelectedIndex)].kind; Change(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["kind"] = k; }, refill: false); };
             var del = U.Ghost(Theme.IDelete, null, () => RemoveComment(cid), "Hinweiskasten löschen");
-            del.MinHeight = 28; del.Padding = new Thickness(7, 4, 7, 4); del.Margin = new Thickness(0);
-            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 6) };
+            del.MinHeight = 32; del.Padding = new Thickness(8, 5, 8, 5); del.Margin = new Thickness(0);
+            var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             DockPanel.SetDock(del, Dock.Right); head.Children.Add(del); head.Children.Add(kinds);
             kinds.HorizontalAlignment = HorizontalAlignment.Left;
             var text = CommitBox(c.Str("text") ?? "", v => QuietChange(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["text"] = v; }), "Text des Hinweises", true, 44);
             if (cid != null && cid == _focusCommentId) focus = text;
-            var box = new Border
-            {
-                BorderBrush = barBrush, BorderThickness = new Thickness(3, 0, 0, 0), Background = Theme.Surface2, CornerRadius = new CornerRadius(3),
-                Padding = new Thickness(10, 8, 8, 8), Margin = new Thickness(0, 0, 0, 8), Child = U.Col(head, text)
-            };
+            // Karte mit farbigem Streifen links (Farbe der Hinweisart wie im Export)
+            var stripe = new Border { Width = 4, CornerRadius = new CornerRadius(2), Background = barBrush, Margin = new Thickness(0, 2, 12, 2) };
+            var inner = new DockPanel();
+            DockPanel.SetDock(stripe, Dock.Left); inner.Children.Add(stripe); inner.Children.Add(U.Col(head, text));
+            var box = U.Inset(inner, new Thickness(12, 10, 10, 12), new Thickness(0, 0, 0, 10));
             _details.Children.Add(box);
         }
         if (!ro)
@@ -435,7 +436,7 @@ sealed partial class ViewerWindow
             foreach (var (k, name) in NoteKinds)
             {
                 var b = U.Btn(Theme.IAdd, name, () => AddNoteBox(anchor, k), $"Hinweiskasten „{name}“ zu diesem Schritt hinzufügen", "Ghost");
-                b.Padding = new Thickness(8, 4, 8, 4); b.Margin = new Thickness(1, 0, 1, 0);
+                b.Padding = new Thickness(8, 5, 8, 5); b.Margin = new Thickness(1, 0, 1, 2);
                 add.Children.Add(b);
             }
             _details.Children.Add(add);

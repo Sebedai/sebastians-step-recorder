@@ -28,17 +28,17 @@ sealed partial class ViewerWindow : Window
     readonly Canvas _overlay = new() { Background = Brushes.Transparent };
     readonly Grid _imgHost = new();
     readonly StackPanel _details = new() { Margin = new Thickness(22, 20, 22, 24) };
-    readonly TextBlock _status = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _status = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     readonly TextBox _search = new() { Tag = "Schritte durchsuchen", Padding = new Thickness(32, 7, 8, 7), ToolTip = "Suche (Strg+F)" };
     ToggleButton _allToggle = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
-    readonly TextBlock _titleBlock = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBlock _metaBlock = new() { FontSize = 12, Margin = new Thickness(0, 1, 0, 0) };
-    readonly TextBlock _listCount = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock _imgCaption = new() { FontSize = 12, Foreground = Brushes.White };
+    readonly TextBlock _titleBlock = new() { FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock _metaBlock = new() { FontSize = Theme.FsCaption, Margin = new Thickness(0, 2, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock _listCount = new() { FontSize = Theme.FsCaption, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _imgCaption = new() { FontSize = Theme.FsCaption, Foreground = Theme.Night.Fg };
     readonly Border _imgCaptionPill;
-    readonly TextBlock _noImage = new() { Text = "Für diesen Schritt gibt es kein Bild.", FontSize = 13, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
-    readonly TextBlock _reviewCount = new() { FontSize = 11, FontWeight = FontWeights.SemiBold };
+    readonly TextBlock _noImage = new() { Text = "Für diesen Schritt gibt es kein Bild.", FontSize = Theme.FsBody, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center, Visibility = Visibility.Collapsed };
+    readonly TextBlock _reviewCount = new() { FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold };
     Border _reviewBadge = null!;
     readonly TextBlock _playIcon = new();
     readonly List<string> _undo = new(), _redo = new();
@@ -64,7 +64,7 @@ sealed partial class ViewerWindow : Window
         SizeChanged += (_, _) => Adapt();
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         _status.Foreground = Theme.Muted; _metaBlock.Foreground = Theme.Muted; _listCount.Foreground = Theme.Muted; _noImage.Foreground = Theme.Muted; _reviewCount.Foreground = Theme.Warn;
-        _imgCaptionPill = new Border { Background = new SolidColorBrush(Color.FromArgb(0xE0, 0x17, 0x16, 0x14)), CornerRadius = new CornerRadius(4), Padding = new Thickness(12, 5, 12, 6), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
+        _imgCaptionPill = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(999), Padding = new Thickness(14, 5, 14, 6), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
         Load();
         BuildLayout();
         Fill();
@@ -87,8 +87,7 @@ sealed partial class ViewerWindow : Window
 
     Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
     {
-        var content = (StackPanel)U.IconText(glyph, text);
-        content.Children.Add(new TextBlock { Text = Theme.IDown, FontFamily = Theme.Icons, FontSize = 9, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 });
+        var content = U.MenuContent(glyph, text);
         var b = new Button { Content = content, ToolTip = tip, Margin = new Thickness(2, 0, 2, 0), Style = Theme.Style(style ?? "Ghost") };
         b.Click += (_, _) => ShowMenu(b, items());
         return b;
@@ -201,7 +200,7 @@ sealed partial class ViewerWindow : Window
 
     IEnumerable<JsonObject> AnnotationsFor(string frameId) => (_view.Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().Where(a => a.Str("frame") == frameId);
 
-    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = 13, FontFamily? font = null) => new()
+    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = Theme.FsBody, FontFamily? font = null) => new()
     {
         Text = t, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent, Padding = new Thickness(0), Margin = new Thickness(-2, 0, 0, 0), TextWrapping = TextWrapping.Wrap,
         Foreground = fg ?? Theme.Fg, FontSize = size, FontFamily = font ?? Theme.UiFont, VerticalContentAlignment = VerticalAlignment.Top
@@ -210,25 +209,25 @@ sealed partial class ViewerWindow : Window
     /// <summary>Win32-Kontext für AutoHotkey: WinTitle, ClassNN, Koordinaten, Pixel, Fenstertexte, Code zum Kopieren.</summary>
     void Win32Section(ViewStep s, JsonObject w32, Action<string, UIElement> info)
     {
-        var head = new DockPanel { Margin = new Thickness(0, 22, 0, 2) };
+        var head = new DockPanel { Margin = new Thickness(0, 24, 0, 4) };
         var code = AhkExport.Snippet(s);
         if (code.Length > 0)
         {
             var copy = U.Btn(Theme.ICopy, "Code kopieren", () => { var d = new DataObject(); d.SetText(code); SetClipboard(d, "AutoHotkey-Code kopiert"); }, "AutoHotkey-v2-Code für diesen Schritt kopieren", "Link");
             DockPanel.SetDock(copy, Dock.Right); head.Children.Add(copy);
         }
-        var ov = U.Overline("AutoHotkey", new Thickness(0, 8, 0, 0)); head.Children.Add(ov);
+        var ov = U.SectionLabel("AutoHotkey", new Thickness(0)); ov.VerticalAlignment = VerticalAlignment.Center; head.Children.Add(ov);
         _details.Children.Add(head);
-        TextBox Mono(string t) => ReadOnlyText(t, Theme.Fg, 12, Theme.Mono);
+        TextBox Mono(string t) => ReadOnlyText(t, Theme.Fg, Theme.FsCaption, Theme.Mono);
         var win = w32.Obj("window");
         if (w32.Obj("ahk")?.Str("winTitle") is { } wt)
-            info("WinTitle", U.Col(Mono(wt), ReadOnlyText((win?.Str("title") is { } t ? $"„{t}“ · " : "") + (win?.Str("state") ?? "") + (win?.LongN("dpi") is long dpi ? $" · {dpi} dpi" : ""), Theme.Muted, 12)));
+            info("WinTitle", U.Col(Mono(wt), ReadOnlyText((win?.Str("title") is { } t ? $"„{t}“ · " : "") + (win?.Str("state") ?? "") + (win?.LongN("dpi") is long dpi ? $" · {dpi} dpi" : ""), Theme.Muted, Theme.FsHint)));
         if (w32.Obj("control") is { } ctl)
         {
             var v = U.Col(Mono((ctl.Str("classNN") ?? ctl.Str("class") ?? "") + (ctl.LongN("id") is long id ? $"  · ID {id}" : "")));
-            if (ctl.Str("text") is { } ct) v.Children.Add(ReadOnlyText($"Text: „{ct}“", Theme.Fg2, 12));
-            else if (ctl.Str("textWithheld") is { } tw) v.Children.Add(ReadOnlyText(tw switch { "password" => "Passwortfeld – Inhalt nicht gelesen", "editable" => "Eingabefeld – Inhalt nur über UIA", _ => "Text im Privatmodus nicht gelesen" }, Theme.Muted, 12));
-            if (ctl.Obj("rect") is { } r) v.Children.Add(ReadOnlyText($"Client ({r.Int("x")}, {r.Int("y")}) · {r.Int("w")} × {r.Int("h")}", Theme.Muted, 12));
+            if (ctl.Str("text") is { } ct) v.Children.Add(ReadOnlyText($"Text: „{ct}“", Theme.Fg2, Theme.FsHint));
+            else if (ctl.Str("textWithheld") is { } tw) v.Children.Add(ReadOnlyText(tw switch { "password" => "Passwortfeld – Inhalt nicht gelesen", "editable" => "Eingabefeld – Inhalt nur über UIA", _ => "Text im Privatmodus nicht gelesen" }, Theme.Muted, Theme.FsHint));
+            if (ctl.Obj("rect") is { } r) v.Children.Add(ReadOnlyText($"Client ({r.Int("x")}, {r.Int("y")}) · {r.Int("w")} × {r.Int("h")}", Theme.Muted, Theme.FsHint));
             info("Control", v);
         }
         if (w32.Obj("point") is { } pt)
@@ -240,7 +239,7 @@ sealed partial class ViewerWindow : Window
         }
         if (w32.Str("pixel") is { } px)
         {
-            var swatch = new Border { Width = 14, Height = 14, CornerRadius = new CornerRadius(3), BorderBrush = Theme.LineStrong, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+            var swatch = new Border { Width = 16, Height = 16, CornerRadius = new CornerRadius(4), BorderBrush = Theme.LineStrong, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
             try { swatch.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + px[2..])); } catch { }
             info("Pixel", U.Row(swatch, Mono(px)));
         }
@@ -258,7 +257,7 @@ sealed partial class ViewerWindow : Window
                 "keyboard" => x.Str("accelerator") ?? x.Str("accessKey") ?? "",
                 _ => x["value"]?.ToString() ?? ""
             }));
-            info("Wege", ReadOnlyText(string.Join("\n", lines), Theme.Fg, 12));
+            info("Wege", ReadOnlyText(string.Join("\n", lines), Theme.Fg, Theme.FsHint));
         }
         if (j.Obj("sync") is { } sy)
         {
@@ -268,7 +267,7 @@ sealed partial class ViewerWindow : Window
             if (sy.LongN("settleMs") is long st) parts.Add($"Bild ruhig nach {st} ms");
             if (sy.LongN("readyMs") is long rd) parts.Add($"bereit nach {rd} ms");
             if (sy.LongN("thinkMs") is long th) parts.Add($"Denkpause {th} ms");
-            if (parts.Count > 0) info("Warten", ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
+            if (parts.Count > 0) info("Warten", ReadOnlyText(string.Join("\n", parts), Theme.Fg, Theme.FsHint));
         }
         if (j.Obj("verify") is { } vf)
         {
@@ -277,12 +276,12 @@ sealed partial class ViewerWindow : Window
             foreach (var ch in vf.Arr("changes")?.OfType<JsonObject>().Take(5) ?? Enumerable.Empty<JsonObject>())
                 parts.Add(ch.Str("checked") is { } ck ? $"{ch.Str("c")}: {ck}" : ch.Str("to") is { } to ? $"{ch.Str("c")}: „{to}“" : ch.Str("appeared") is { } ap ? $"{ch.Str("c")} neu: „{ap}“" : ch.Str("disappeared") is { } dp ? $"{ch.Str("c")} weg" : $"{ch.Str("c")} geändert");
             if (vf.Str("focus") is { } ff) parts.Add($"Fokus danach {ff}");
-            if (parts.Count > 0) info("Prüfung", ReadOnlyText(string.Join("\n", parts), Theme.Fg, 12));
+            if (parts.Count > 0) info("Prüfung", ReadOnlyText(string.Join("\n", parts), Theme.Fg, Theme.FsHint));
         }
-        if (j.Obj("menuPath")?.Arr("items") is { Count: > 0 } mi) info("Menü", ReadOnlyText(string.Join(" › ", mi.Select(x => x?.GetValue<string>())), Theme.Fg, 12));
-        if (j.Obj("choose")?.Str("item") is { } chItem) info("Auswahl", ReadOnlyText($"„{chItem}“" + (j.Obj("choose")!.LongN("index") is long ci ? $" (Nr. {ci} von {j.Obj("choose")!.LongN("of")})" : ""), Theme.Fg, 12));
+        if (j.Obj("menuPath")?.Arr("items") is { Count: > 0 } mi) info("Menü", ReadOnlyText(string.Join(" › ", mi.Select(x => x?.GetValue<string>())), Theme.Fg, Theme.FsHint));
+        if (j.Obj("choose")?.Str("item") is { } chItem) info("Auswahl", ReadOnlyText($"„{chItem}“" + (j.Obj("choose")!.LongN("index") is long ci ? $" (Nr. {ci} von {j.Obj("choose")!.LongN("of")})" : ""), Theme.Fg, Theme.FsHint));
         if (w32.Obj("window")?.Obj("app") is { } app)
-            info("Programm", ReadOnlyText(string.Join("\n", new[] { app.Str("product") is { } pr ? pr + (app.Str("version") is { } ver ? " " + ver : "") : null, app["elevated"]?.GetValue<bool>() == true ? "läuft als Administrator" : null, app.Str("commandLine") }.Where(t => t != null)), Theme.Muted, 12));
+            info("Programm", ReadOnlyText(string.Join("\n", new[] { app.Str("product") is { } pr ? pr + (app.Str("version") is { } ver ? " " + ver : "") : null, app["elevated"]?.GetValue<bool>() == true ? "läuft als Administrator" : null, app.Str("commandLine") }.Where(t => t != null)), Theme.Muted, Theme.FsHint));
         if (w32.Arr("texts") is { Count: > 0 } texts)
         {
             var sb = new StringBuilder();
@@ -290,7 +289,7 @@ sealed partial class ViewerWindow : Window
             _details.Children.Add(new Expander
             {
                 Header = $"Fenstertexte ({texts.Count})", Margin = new Thickness(0, 10, 0, 0),
-                Content = new Border { Background = Theme.Surface2, CornerRadius = new CornerRadius(5), Padding = new Thickness(12, 10, 12, 10), Child = ReadOnlyText(sb.ToString().TrimEnd(), Theme.Fg2, 11.5, Theme.Mono) }
+                Content = U.Inset(ReadOnlyText(sb.ToString().TrimEnd(), Theme.Fg2, Theme.FsCaption, Theme.Mono), new Thickness(14, 12, 14, 12))
             });
         }
     }
@@ -298,10 +297,10 @@ sealed partial class ViewerWindow : Window
     static Border Callout(string glyph, Brush bg, Brush fg, string title, string text)
     {
         var dock = new DockPanel();
-        var icon = U.Icon(glyph, 14, fg); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 10, 0);
+        var icon = U.Icon(glyph, 16, fg); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 1, 12, 0);
         DockPanel.SetDock(icon, Dock.Left); dock.Children.Add(icon);
-        dock.Children.Add(U.Col(U.Text(title, 12, true, fg), ReadOnlyText(text, Theme.Fg, 13)));
-        return new Border { Background = bg, CornerRadius = new CornerRadius(6), Padding = new Thickness(12, 10, 10, 10), Margin = new Thickness(0, 12, 0, 0), Child = dock };
+        dock.Children.Add(U.Col(U.Text(title, Theme.FsHint, true, fg, new Thickness(0, 0, 0, 2)), ReadOnlyText(text, Theme.Fg, Theme.FsHint)));
+        return new Border { Background = bg, CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 12, 0, 4), Child = dock };
     }
 
     /// <summary>Für Entwickler-Schnappschüsse: Schritt in der Liste wählen.</summary>
@@ -318,12 +317,13 @@ sealed partial class ViewerWindow : Window
     void Adapt()
     {
         double w = ActualWidth;
-        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1420) || (lvl == 2 && w < 1200) ? Visibility.Collapsed : Visibility.Visible;
-        bool narrow = w < 1180;
+        // Schwellen passend zur Kopfzeile in 14 px: erst „Abspielen“/„Vorschau“, dann die übrigen Beschriftungen ausblenden
+        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1400) || (lvl == 2 && w < 1220) || (lvl == 3 && w < 1500) ? Visibility.Collapsed : Visibility.Visible;
+        bool narrow = w < 1240;
         if (_leftCol == null || narrow == _narrow) return;
         _narrow = narrow;
-        _leftCol.Width = new GridLength(narrow ? 250 : 310);
-        _rightCol.Width = new GridLength(narrow ? 290 : 360);
+        _leftCol.Width = new GridLength(narrow ? LeftNarrow : LeftWide);
+        _rightCol.Width = new GridLength(narrow ? RightNarrow : RightWide);
     }
 
     static string MouseSummary(string kind, JsonObject mi)
@@ -353,10 +353,10 @@ sealed partial class ViewerWindow : Window
         var s = Sel;
         var all = _view.MarksFor(null);
         var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
-        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T(t).ToUpperInvariant(), FontSize = 11, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false });
+        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T(t), FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false, Padding = new Thickness(10, 8, 10, 4) });
         void Item(string label, bool on, Action a, string gesture = "")
         {
-            var mi = new MenuItem { Header = label, InputGestureText = gesture, Icon = on ? U.Icon(Theme.ICheck, 12, Theme.AccentText) : null };
+            var mi = new MenuItem { Header = label, InputGestureText = gesture, Icon = on ? U.Icon(Theme.ICheck, 14, Theme.AccentText) : null };
             mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
             m.Items.Add(mi);
         }

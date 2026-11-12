@@ -1039,6 +1039,21 @@ static class UiTextEn
         ["ENTHÄLT"] = "CONTAINS",
         ["ALLE SCHRITTE"] = "ALL STEPS",
         ["KEINE WEITEREN VORSCHLÄGE"] = "NO FURTHER SUGGESTIONS",
+
+        // ---------------- Exportdialog: Bildauswahl ----------------
+        ["Automatisch"] = "Automatic",
+        ["Immer"] = "Always",
+        ["Nie"] = "Never",
+        ["Bei Änderung"] = "When changed",
+        ["Weitere Bilder"] = "More images",
+        ["Noch keine Aufnahmen"] = "No recordings yet",
+        ["Jeder Mausschritt bekommt eine eigene Übersicht vor der Aktion – auch wenn sie dem Nachher-Bild des vorigen Schritts gleicht."] = "Every mouse step gets its own overview before the action – even if it matches the after image of the previous step.",
+        ["Keine Übersichten vor der Aktion. Klickpunkt und Zielrahmen zeigt weiterhin der Ausschnitt."] = "No overviews before the action. The close-up still shows the click point and the target frame.",
+        ["Nur wenn der Bildschirm davor nicht schon im Paket zu sehen ist – sonst verweist das Protokoll auf das frühere Bild."] = "Only if the screen before is not already shown in the package – otherwise the trace refers to the earlier image.",
+        ["Zusätzlich das Bild nach dem Schritt („Ergebnis“), wenn sich mindestens 2 % des Bildschirms geändert haben oder ein Fenster auf- oder zuging."] = "Also the image after the step (\"Result\") if at least 2 % of the screen changed or a window opened or closed.",
+        ["Zusätzlich das Bild nach jedem Schritt („Ergebnis“), sofern eines vorliegt."] = "Also the image after every step (\"Result\"), if there is one.",
+        ["Ein Bild je Schritt – wie im Editor."] = "One image per step – as in the editor.",
+        ["ein PNG je Schritt (schritt-001.png …), dazu das Ergebnis (schritt-001-nachher.png), in der .md-Datei verlinkt."] = "one PNG per step (schritt-001.png …) plus the result (schritt-001-nachher.png), linked in the .md file.",
     };
 
     /// <summary>Texte, die auch als Teilstück einer mit „ · “ zusammengesetzten Zeile vorkommen (Statuszeile, Bildunterschrift, Technik-Zeile).</summary>

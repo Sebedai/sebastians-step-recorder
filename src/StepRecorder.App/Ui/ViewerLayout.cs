@@ -41,7 +41,7 @@ sealed partial class ViewerWindow
     Rect _selBase;
     Rectangle? _selRect;
     Button _undoBtn = null!, _redoBtn = null!;
-    readonly TextBlock _stepPos = new() { FontSize = 12.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0), MinWidth = 54, TextAlignment = TextAlignment.Center };
+    readonly TextBlock _stepPos = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(4, 0, 4, 0), MinWidth = 54, TextAlignment = TextAlignment.Center };
     int _detailTab;
     bool _closed;
 
@@ -65,18 +65,18 @@ sealed partial class ViewerWindow
         // ---------------- Kopfzeile ----------------
         _titleBlock.Text = _view.Title;
         _titleBlock.MouseLeftButtonUp += (_, _) => Rename();
-        var logo = Theme.Logo(28); logo.Margin = new Thickness(0, 0, 12, 0);
-        _titleBlock.FontFamily = Theme.Display; _metaBlock.FontFamily = Theme.Mono; _metaBlock.FontSize = 11; _stepPos.FontFamily = Theme.Mono; _listCount.FontFamily = Theme.Mono; _listCount.FontSize = 11; logo.VerticalAlignment = VerticalAlignment.Center;
+        var logo = Theme.Logo(30); logo.Margin = new Thickness(0, 0, 12, 0);
+        _titleBlock.FontFamily = Theme.Display; _stepPos.FontFamily = Theme.Mono; logo.VerticalAlignment = VerticalAlignment.Center;
         var titleCol = U.Col(_titleBlock, _metaBlock); titleCol.VerticalAlignment = VerticalAlignment.Center;
         var brand = new DockPanel { Margin = new Thickness(0, 0, 16, 0) };
         DockPanel.SetDock(logo, Dock.Left); brand.Children.Add(logo); brand.Children.Add(titleCol);
 
         var cmds = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        Border Sep() => new() { Width = 1, Height = 22, Background = Theme.Line, Margin = new Thickness(8, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        Border Sep() => U.VSep();
         _undoBtn = U.Ghost(Theme.IUndo, null, Undo, "Rückgängig (Strg+Z)");
         _redoBtn = U.Ghost(Theme.IRedo, null, Redo, "Wiederholen (Strg+Y)");
         _undoBtn.Margin = _redoBtn.Margin = new Thickness(1, 0, 1, 0);
-        _playIcon.Text = Theme.IPlay; _playIcon.FontFamily = Theme.Icons; _playIcon.FontSize = 14; _playIcon.VerticalAlignment = VerticalAlignment.Center;
+        _playIcon.Text = Theme.IPlay; _playIcon.FontFamily = Theme.Icons; _playIcon.FontSize = 16; _playIcon.VerticalAlignment = VerticalAlignment.Center;
         var play = new Button { Style = Theme.Style("Ghost"), Content = U.Row(_playIcon, new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }), ToolTip = "Schritte nacheinander zeigen (F5)", Margin = new Thickness(2, 0, 2, 0) };
         play.Click += (_, _) => TogglePlay();
         var copy = MenuButton(Theme.ICopy, "Kopieren", "Bild oder Text dieses Schritts in die Zwischenablage", null, () => new (string, Action)[]
@@ -85,7 +85,8 @@ sealed partial class ViewerWindow
             { ("Persönliche Daten in Bildern suchen …", ScanImagesForPersonalData), ("Bereich im Bild schwärzen – Werkzeug X", () => SelectTool("redact")), ("Diesen Schritt schwärzen (Umschalt+Entf)", RedactStep), ("Text überall schwärzen …", RedactText), ("Werte verallgemeinern … (Strg+Umschalt+G)", Generalize), ("-", () => { }), ("Endgültig schwärzen …", FinalRedact) });
         var review = new Button { Style = Theme.Style("Ghost"), ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", Margin = new Thickness(2, 0, 2, 0) };
         var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, "Durchsicht");
-        _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(3), Padding = new Thickness(6, 0, 6, 1), Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
+        _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(999), Padding = new Thickness(7, 1, 7, 2), MinWidth = 22, Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
+        _reviewCount.HorizontalAlignment = HorizontalAlignment.Center;
         reviewContent.Children.Add(_reviewBadge);
         review.Content = reviewContent;
         review.Click += (_, _) => { try { ShowReview(); } catch (Exception ex) { UiApp.ShowError(ex); } };
@@ -102,19 +103,19 @@ sealed partial class ViewerWindow
         Lbl(play, 1); Lbl(preview, 1); Lbl(copy, 2); Lbl(privacy, 2); Lbl(review, 2);
         var bar = new DockPanel();
         DockPanel.SetDock(cmds, Dock.Right); bar.Children.Add(cmds); bar.Children.Add(brand);
-        var top = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 10, 14, 10), Child = bar };
+        var top = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 10, 16, 10), Child = bar };
 
         // ---------------- Schrittliste ----------------
-        var searchHost = new Grid { Margin = new Thickness(14, 14, 14, 10) };
+        var searchHost = new Grid { Margin = new Thickness(16, 16, 16, 12) };
         searchHost.Children.Add(_search);
-        var searchIcon = U.Icon(Theme.ISearch, 13, Theme.Muted); searchIcon.HorizontalAlignment = HorizontalAlignment.Left; searchIcon.Margin = new Thickness(12, 0, 0, 0); searchIcon.IsHitTestVisible = false;
+        var searchIcon = U.Icon(Theme.ISearch, 14, Theme.Muted); searchIcon.HorizontalAlignment = HorizontalAlignment.Left; searchIcon.Margin = new Thickness(13, 0, 0, 0); searchIcon.IsHitTestVisible = false;
         searchHost.Children.Add(searchIcon);
         _search.TextChanged += (_, _) => Fill();
         var (impTrack, imp) = U.Segmented("imp", 0, (null, "Hauptschritte"), (null, "Alle"));
         impTrack.ToolTip = "Hauptschritte: Nebenschritte und Hauptschritte. Alle: zusätzlich die Spur (Mausbewegungen, Fensterwechsel …).";
         _allToggle = imp[1];
         foreach (var rb in imp) rb.Checked += (_, _) => { if (IsLoaded) Fill(); };
-        var filterRow = new DockPanel { Margin = new Thickness(14, 0, 14, 8) };
+        var filterRow = new DockPanel { Margin = new Thickness(16, 0, 16, 8) };
         DockPanel.SetDock(_listCount, Dock.Right); filterRow.Children.Add(_listCount); filterRow.Children.Add(impTrack);
         _list.SelectionMode = SelectionMode.Extended;
         _list.SelectionChanged += (_, _) => { _selAnn = null; _variantOverride = null; ShowStep(); };
@@ -141,10 +142,10 @@ sealed partial class ViewerWindow
             if (e.Data.GetData(typeof(ViewStep)) is ViewStep src && ItemAt(e.OriginalSource)?.Tag is ViewStep dst && src.Anchor != dst.Anchor) MoveTo(src, dst);
             e.Handled = true;
         };
-        var hintText = U.Text("Ziehen: umsortieren · Strg+Klick: mehrere", 11.5, fg: Theme.Muted); hintText.VerticalAlignment = VerticalAlignment.Center;
+        var hintText = U.Text("Ziehen: umsortieren · Strg+Klick: mehrere", Theme.FsCaption, fg: Theme.Muted); hintText.VerticalAlignment = VerticalAlignment.Center;
         var insertBtn = U.Btn(Theme.IAdd, "Einfügen", () => { }, "Text- oder Bildschritt nach dem ausgewählten Schritt einfügen (Umschalt+Einfg)", "Ghost");
         insertBtn.Click += (_, _) => InsertMenu(insertBtn); insertBtn.Margin = new Thickness(6, 0, 0, 0);
-        var listHint = new DockPanel { Margin = new Thickness(16, 4, 8, 8) };
+        var listHint = new DockPanel { Margin = new Thickness(18, 6, 10, 10) };
         DockPanel.SetDock(insertBtn, Dock.Right); listHint.Children.Add(insertBtn); listHint.Children.Add(hintText);
         var left = new DockPanel { Background = Theme.Surface };
         DockPanel.SetDock(searchHost, Dock.Top); DockPanel.SetDock(filterRow, Dock.Top); DockPanel.SetDock(listHint, Dock.Bottom);
@@ -157,11 +158,10 @@ sealed partial class ViewerWindow
         baTrack.ToolTip = "Bild vor oder nach der Aktion (W)";
         var disp = new ComboBox { Items = { "Ganzer Bildschirm", "Anwendungsfenster", "Ausschnitt" }, SelectedIndex = 0, MinWidth = 170, ToolTip = "Bildausschnitt" };
         disp.SelectionChanged += (_, _) => { _display = disp.SelectedIndex switch { 1 => "window", 2 => "crop", _ => "screen" }; ShowStep(); };
-        var marksContent = (StackPanel)U.IconText(Theme.IMouse, "Markierungen");
-        marksContent.Children.Add(new TextBlock { Text = Theme.IDown, FontFamily = Theme.Icons, FontSize = 9, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center, Opacity = 0.7 });
+        var marksContent = U.MenuContent(Theme.IMouse, "Markierungen");
         var marksBtn = new Button { Style = Theme.Style("Ghost"), Content = marksContent, ToolTip = "Klickpunkt, Zugweg, Zielrahmen, Hinweise sowie gedrückte Tasten und getippten Text im Bild ein-/ausblenden (H: nur dieser Schritt)" };
         marksBtn.Click += (_, _) => ShowMarksMenu(marksBtn);
-        if (marksContent.Children[1] is TextBlock ml) _labels.Add((ml, 2));
+        if (marksContent.Children[1] is TextBlock ml) _labels.Add((ml, 3));
         var (langTrack, langs) = U.Segmented("tlang", _view.Language == "en" ? 1 : 0, (null, "DE"), (null, "EN"));
         langTrack.ToolTip = "Sprache der Texte: Überschriften, Anleitungstexte, Kapitel und Dokumenttexte gibt es je Sprache – so entstehen aus einer Aufnahme eine deutsche und eine englische Anleitung.";
         langs[0].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("de"); }; langs[1].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("en"); };
@@ -171,7 +171,7 @@ sealed partial class ViewerWindow
         var nav = U.Row(prev, _stepPos, next);
         var viewLeft = new StackPanel { Orientation = Orientation.Horizontal };
         foreach (var c in new FrameworkElement[] { baTrack, disp, marksBtn, langTrack }) { c.VerticalAlignment = VerticalAlignment.Center; c.Margin = new Thickness(viewLeft.Children.Count == 0 ? 0 : 10, 0, 0, 0); viewLeft.Children.Add(c); }
-        var viewRow = new DockPanel { Margin = new Thickness(16, 9, 12, 9) };
+        var viewRow = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
         DockPanel.SetDock(nav, Dock.Right); viewRow.Children.Add(nav); viewRow.Children.Add(viewLeft);
 
         // ---------------- Werkzeugpalette (links am Bild, zweispaltig) ----------------
@@ -180,7 +180,7 @@ sealed partial class ViewerWindow
         pal.Children.Add(toolGrid);
         void Tool(string id, UIElement content, string tip)
         {
-            var b = new RadioButton { Content = content, GroupName = "tool", IsChecked = id == "select", ToolTip = tip, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 34 };
+            var b = new RadioButton { Content = content, GroupName = "tool", IsChecked = id == "select", ToolTip = tip, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 36 };
             b.Checked += (_, _) =>
             {
                 bool cropChanged = (_tool == "crop") != (id == "crop");
@@ -192,10 +192,10 @@ sealed partial class ViewerWindow
             };
             _toolBtns[id] = b; toolGrid.Children.Add(b);
         }
-        TextBlock G(string glyph) => U.Icon(glyph, 15);
+        TextBlock G(string glyph) => U.Icon(glyph, 16);
         FrameworkElement Bound(FrameworkElement e, DependencyProperty p) { e.SetBinding(p, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) }); return e; }
-        var badgeIcon = Bound(new Border { Width = 17, Height = 17, CornerRadius = new CornerRadius(8.5), BorderThickness = new Thickness(1.5), Child = new TextBlock { Text = "1", FontSize = 10, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } }, Border.BorderBrushProperty);
-        var ellipseIcon = Bound(new Ellipse { Width = 17, Height = 12, StrokeThickness = 1.6 }, Shape.StrokeProperty);
+        var badgeIcon = Bound(new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1.5), Child = new TextBlock { Text = "1", FontSize = 11, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } }, Border.BorderBrushProperty);
+        var ellipseIcon = Bound(new Ellipse { Width = 18, Height = 13, StrokeThickness = 1.6 }, Shape.StrokeProperty);
         Tool("select", G(Theme.IPointer), "Auswählen (V) – Markierung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text");
         Tool("arrow", G(Theme.IArrow), "Pfeil (A)");
         Tool("rect", G(Theme.IRect), "Rahmen (R)");
@@ -206,13 +206,13 @@ sealed partial class ViewerWindow
         Tool("redact", G(Theme.IRedact), "Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket");
         Tool("pixelate", G(Theme.IPixelate), "Verpixeln (P) – wie Schwärzen, aber unauffälliger; gilt ab diesem Bild für alle folgenden");
         Tool("crop", G(Theme.ICrop), "Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export");
-        Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 5, 6, 5) };
+        Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 6, 6, 6) };
         pal.Children.Add(PalSep());
         var colorGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         foreach (var (hex, name) in Palette)
         {
-            var dot = new Ellipse { Width = 14, Height = 14, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), Stroke = Theme.LineStrong, StrokeThickness = 1 };
-            var rb = new RadioButton { Content = dot, GroupName = "color", IsChecked = hex == _color, ToolTip = "Farbe: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 26, MinWidth = 0, Padding = new Thickness(3), Tag = hex };
+            var dot = new Ellipse { Width = 16, Height = 16, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), Stroke = Theme.LineStrong, StrokeThickness = 1 };
+            var rb = new RadioButton { Content = dot, GroupName = "color", IsChecked = hex == _color, ToolTip = "Farbe: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = hex };
             rb.Checked += (_, _) => { _color = hex; if (!_syncingColor) RecolorSelected(hex); };
             _colorBtns.Add(rb); colorGrid.Children.Add(rb);
         }
@@ -221,21 +221,21 @@ sealed partial class ViewerWindow
         var widthGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         foreach (var (w, fs, name) in StrokeSizes)
         {
-            var line = new Rectangle { Width = 14, Height = Math.Max(1.5, w / 1.6), RadiusX = 1, RadiusY = 1 };
+            var line = new Rectangle { Width = 16, Height = Math.Max(1.5, w / 1.6), RadiusX = 1, RadiusY = 1 };
             line.SetBinding(Shape.FillProperty, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) });
-            var rb = new RadioButton { Content = line, GroupName = "stroke", IsChecked = w == _stroke, ToolTip = "Strichstärke und Textgröße: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 26, MinWidth = 0, Padding = new Thickness(3), Tag = w };
+            var rb = new RadioButton { Content = line, GroupName = "stroke", IsChecked = w == _stroke, ToolTip = "Strichstärke und Textgröße: " + name, Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = w };
             rb.Checked += (_, _) => { _stroke = w; _fontSize = fs; if (!_syncingColor) RestrokeSelected(w, fs); };
             _strokeBtns.Add(rb); widthGrid.Children.Add(rb);
         }
         pal.Children.Add(widthGrid);
         pal.Children.Add(PalSep());
         var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, "Ausgewählte Markierung löschen (Entf) – ohne Auswahl: alle Markierungen dieses Bildes");
-        del.Margin = new Thickness(0); del.MinWidth = 34; del.HorizontalAlignment = HorizontalAlignment.Stretch;
+        del.Margin = new Thickness(0); del.MinWidth = 36; del.HorizontalAlignment = HorizontalAlignment.Stretch;
         pal.Children.Add(del);
         var palette = new Border
         {
-            Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(4), Child = pal, Width = 86,
-            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 8, 0, 8), Effect = Theme.Shadow(12, 1)
+            Background = Theme.Raised, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(5), Child = pal, Width = PaletteWidth,
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(PaletteGap, 8, 0, 8), Effect = Theme.Shadow(18, 3)
         };
 
         // ---------------- Bildbereich mit Zoom ----------------
@@ -248,7 +248,8 @@ sealed partial class ViewerWindow
         var stage = new Grid();
         stage.Children.Add(new Border { Background = Theme.Surface, Effect = Theme.Shadow(36, 6, Theme.Dark ? 0.6 : 0.2) });
         stage.Children.Add(_imgHost);
-        _zoom = new ZoomPanel(stage, () => new Size(_imgHost.Width is double w && !double.IsNaN(w) ? w : 0, _imgHost.Height is double h && !double.IsNaN(h) ? h : 0), new Thickness(112, 48, 28, 58));
+        // Rand um das Bild: links Platz für die Werkzeugpalette, oben für die Bildunterschrift, unten für die Zoomleiste
+        _zoom = new ZoomPanel(stage, () => new Size(_imgHost.Width is double w && !double.IsNaN(w) ? w : 0, _imgHost.Height is double h && !double.IsNaN(h) ? h : 0), new Thickness(PaletteGap + PaletteWidth + 16, 52, 28, 64));
         _zoom.ZoomChanged += () => { if (_selAnn != null) DrawSelection(); };
         var imgArea = new Grid { Background = Theme.CanvasBg, ClipToBounds = true };
         imgArea.Children.Add(_zoom);
@@ -257,13 +258,13 @@ sealed partial class ViewerWindow
         imgArea.Children.Add(palette);
         // Zoomleiste und Großansicht (unten rechts)
         _cropOff = U.Btn(Theme.ICrop, "Zuschnitt entfernen", () => { if (Sel is { } cs) RemoveCrop(cs); }, "Ganzes Bild wieder zeigen", "Ghost");
-        _cropOff.Margin = new Thickness(0, 0, 6, 0); _cropOff.Visibility = Visibility.Collapsed;
-        var full = U.Ghost(Theme.IFullScreen, null, OpenLightbox, "Großansicht (F11 oder Doppelklick aufs Bild)"); full.Margin = new Thickness(4, 0, 0, 0);
+        _cropOff.Margin = new Thickness(0, 0, 4, 0); _cropOff.Visibility = Visibility.Collapsed;
+        var full = U.Ghost(Theme.IFullScreen, null, OpenLightbox, "Großansicht (F11 oder Doppelklick aufs Bild)"); full.Margin = new Thickness(0);
         var zoomBar = new Border
         {
-            Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7), Padding = new Thickness(4, 2, 4, 2), Effect = Theme.Shadow(12, 1),
-            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 14, 10),
-            Child = U.Row(_cropOff, _zoom.Toolbar(), full)
+            Background = Theme.Raised, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(4, 3, 4, 3), Effect = Theme.Shadow(18, 3),
+            HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 16, 12),
+            Child = U.Row(_cropOff, _zoom.Toolbar(), U.VSep(20), full)
         };
         imgArea.Children.Add(zoomBar);
         var center = new DockPanel { Background = Theme.Bg };
@@ -276,15 +277,15 @@ sealed partial class ViewerWindow
         _tabBtns = tabs;
         for (int i = 0; i < tabs.Length; i++) { int ti = i; tabs[i].Checked += (_, _) => { _detailTab = ti; if (ti == 2) DocDetails(); else if (Sel is { } s) ShowDetails(s); }; }
         tabs[2].ToolTip = "Bedienungsanleitung einrichten: Titelseite, Einleitung, Voraussetzungen, Inhaltsverzeichnis, Bilder, Farbe, Fußzeile";
-        tabTrack.Margin = new Thickness(22, 14, 22, 0);
+        tabTrack.Margin = new Thickness(24, 16, 24, 4);
         tabs[1].ToolTip = "Fenster, Ziel, Belege, AutoHotkey-Angaben und das Protokoll für KI";
         var detPanel = new DockPanel { Background = Theme.Surface };
         DockPanel.SetDock(tabTrack, Dock.Top); detPanel.Children.Add(tabTrack);
         detPanel.Children.Add(new ScrollViewer { Content = _details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = Theme.Surface });
 
         var grid = new Grid();
-        _leftCol = new ColumnDefinition { Width = new GridLength(320), MinWidth = 230 };
-        _rightCol = new ColumnDefinition { Width = new GridLength(370), MinWidth = 260 };
+        _leftCol = new ColumnDefinition { Width = new GridLength(LeftWide), MinWidth = 250 };
+        _rightCol = new ColumnDefinition { Width = new GridLength(RightWide), MinWidth = 280 };
         grid.ColumnDefinitions.Add(_leftCol);
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 300 });
@@ -301,7 +302,7 @@ sealed partial class ViewerWindow
         }
 
         // ---------------- Statuszeile ----------------
-        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 6, 16, 7), Child = _status };
+        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 7, 16, 8), Child = _status };
 
         var root = new DockPanel();
         Anim.Appear(top, 0, -6, 360); Anim.Appear(left, 60, 10); Anim.Appear(center, 130, 10); Anim.Appear(detPanel, 200, 10);
@@ -314,11 +315,15 @@ sealed partial class ViewerWindow
         UpdateUndo();
     }
 
+    /// <summary>Breite der Werkzeugpalette und ihr Abstand zum Rand (bestimmen den linken Rand um das Bild).</summary>
+    const double PaletteWidth = 96, PaletteGap = 12;
+    /// <summary>Spaltenbreiten der Schrittliste und der Details – breit und bei schmalen Fenstern.</summary>
+    const double LeftWide = 340, LeftNarrow = 270, RightWide = 380, RightNarrow = 300;
+
     void UpdateUndo()
     {
         if (_undoBtn == null) return;
-        _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0;
-        _undoBtn.Opacity = _undoBtn.IsEnabled ? 1 : 0.45; _redoBtn.Opacity = _redoBtn.IsEnabled ? 1 : 0.45;
+        _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0;   // gedimmt über den Stil
     }
 
     void SelectTool(string id) { if (_toolBtns.TryGetValue(id, out var b)) b.IsChecked = true; }
@@ -377,16 +382,16 @@ sealed partial class ViewerWindow
             FrameworkElement lead;
             var numBadge = new TextBlock
             {
-                Text = s.Manual ? " +" : s.Number.ToString("00"), FontFamily = Theme.Mono, FontSize = 11, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
-                Foreground = primary ? Theme.AccentText : Theme.Muted, Width = 22, Margin = new Thickness(0, 1, 6, 0), VerticalAlignment = VerticalAlignment.Top
+                Text = s.Manual ? "+" : s.Number.ToString("00"), FontFamily = Theme.Mono, FontSize = Theme.FsCaption, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = primary ? Theme.AccentText : Theme.Muted, MinWidth = 26, Margin = new Thickness(0, 2, 6, 0), VerticalAlignment = VerticalAlignment.Top
             };
-            if (gap) lead = U.Row(numBadge, U.IconBadge(Theme.IWarn, 30, Theme.WarnSoft, Theme.Warn, 13));
+            if (gap) lead = U.Row(numBadge, new Border { Width = ThumbW + 2, Child = U.IconBadge(Theme.IWarn, 40, Theme.WarnSoft, Theme.Warn, 16) });
             else
             {
-                var thumbImg = new Image { Stretch = Stretch.UniformToFill, Width = 76, Height = 48, Clip = new RectangleGeometry(new Rect(0, 0, 76, 48), 2, 2) };
+                var thumbImg = new Image { Stretch = Stretch.UniformToFill, Width = ThumbW, Height = ThumbH, Clip = new RectangleGeometry(new Rect(0, 0, ThumbW, ThumbH), Theme.RSmall - 1, Theme.RSmall - 1) };
                 RenderOptions.SetBitmapScalingMode(thumbImg, BitmapScalingMode.HighQuality);
-                var thumbBox = new Border { Width = 78, Height = 50, CornerRadius = new CornerRadius(3), Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = thumbImg };
-                var placeholder = U.Icon(KindIcon(s), 15, Theme.Muted); placeholder.IsHitTestVisible = false;
+                var thumbBox = new Border { Width = ThumbW + 2, Height = ThumbH + 2, CornerRadius = new CornerRadius(Theme.RSmall), Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), Child = thumbImg };
+                var placeholder = U.Icon(KindIcon(s), 16, Theme.Muted); placeholder.IsHitTestVisible = false;
                 var tg = new Grid();
                 tg.Children.Add(thumbBox); tg.Children.Add(placeholder);
                 var lg = U.Row(numBadge, tg);
@@ -399,10 +404,12 @@ sealed partial class ViewerWindow
             }
             lead.VerticalAlignment = VerticalAlignment.Top; lead.Margin = new Thickness(lead.Margin.Left, lead.Margin.Top, 12, 0);
             g.Children.Add(lead);
-            var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal, Foreground = dim ? Theme.Muted : s.Importance == "trace" ? Theme.Fg2 : Theme.Fg, FontStyle = gap ? FontStyles.Italic : FontStyles.Normal, MaxHeight = 40, TextTrimming = TextTrimming.CharacterEllipsis };
+            var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal, Foreground = dim ? Theme.Muted : s.Importance == "trace" ? Theme.Fg2 : Theme.Fg, FontStyle = gap ? FontStyles.Italic : FontStyles.Normal, MaxHeight = 2 * 19 + 2, LineHeight = 19, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, TextTrimming = TextTrimming.CharacterEllipsis };
             head.Inlines.Add(new System.Windows.Documents.Run(s.AuthorTitle ?? s.Title));
             var meta = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            meta.Children.Add(U.Row(U.Icon(KindIcon(s), 11, Theme.Muted), U.Text(KindLabel(s.Kind), 11.5, fg: Theme.Muted, margin: new Thickness(5, 0, 6, 2)), new TextBlock { Text = ShortTime(Fmt.Time(s.TFrom, "de")), FontFamily = Theme.Mono, FontSize = 10.5, Foreground = Theme.Muted, Margin = new Thickness(0, 1, 8, 2), VerticalAlignment = VerticalAlignment.Top }));
+            var kindRow = U.Row(U.Icon(KindIcon(s), 12, Theme.Muted), U.Meta(KindLabel(s.Kind), new Thickness(5, 0, 8, 0)), U.Mono(ShortTime(Fmt.Time(s.TFrom, "de")), Theme.FsCaption, Theme.Muted, new Thickness(0, 0, 8, 0)));
+            kindRow.Margin = new Thickness(0, 1, 0, 3);
+            meta.Children.Add(kindRow);
             if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
             if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
@@ -412,7 +419,7 @@ sealed partial class ViewerWindow
             var col = U.Col(head, meta); col.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(col, 1); g.Children.Add(col);
             if (s.ChapterTitle != null)
             {
-                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontFamily = Theme.Mono, FontSize = 10.5, Foreground = Theme.AccentText, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 3), ToolTip = "Kapitelbeginn" };
+                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.AccentText, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = s.ChapterTitle };
                 col.Children.Insert(0, chap);
             }
             _list.Items.Add(new ListBoxItem { Content = g, Tag = s, ToolTip = s.AuthorTitle ?? s.Title });
@@ -511,7 +518,7 @@ sealed partial class ViewerWindow
         using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen") ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original") : null);
         if (img == null) return null;
         using (var g = System.Drawing.Graphics.FromImage(img.Bitmap)) StepImages.DrawAuthorAnnotations(g, AnnotationsFor(img.FrameId), img.SourceRect, img.Scale);
-        int w = 160, h = Math.Max(1, (int)Math.Round(img.Bitmap.Height * 160.0 / Math.Max(1, img.Bitmap.Width)));
+        int w = ThumbRender, h = Math.Max(1, (int)Math.Round(img.Bitmap.Height * (double)ThumbRender / Math.Max(1, img.Bitmap.Width)));
         using var small = new System.Drawing.Bitmap(w, h);
         using (var g = System.Drawing.Graphics.FromImage(small))
         {
@@ -542,6 +549,12 @@ sealed partial class ViewerWindow
     // Detailbereich
     // =====================================================================================
 
+    /// <summary>Vorschaubild in der Schrittliste (Anzeige) und Renderbreite (für hohe Bildschirmauflösung doppelt).</summary>
+    const double ThumbW = 88, ThumbH = 55;
+    const int ThumbRender = 192;
+    /// <summary>Breite der Beschriftungsspalte in den Info-Zeilen (Fenster, Ziel, Eingabe …).</summary>
+    const double InfoLabelWidth = 108;
+
     void ShowDetails(ViewStep s)
     {
         s = _view.All.FirstOrDefault(x => x.Id == s.Id) ?? s;   // nach dem Speichern sind die Listeneinträge veraltet
@@ -551,7 +564,7 @@ sealed partial class ViewerWindow
         if (_detailTab == 2) { DocDetails(); return; }
         if (_list.SelectedItems.Count > 1) { ShowBulk(); return; }
 
-        var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 14) };
+        var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 16) };
         if (s.Manual) chips.Children.Add(U.Chip("Eigener Schritt – nicht aus der Aufnahme", Theme.AccentSoft, Theme.AccentText, KindIcon(s)));
         else
         {
@@ -573,8 +586,9 @@ sealed partial class ViewerWindow
         bool ro = _view.Session.ReadOnly;
         _editAnchor = s.Anchor;
         _editOrigTitle = s.AuthorTitle ?? s.Title; _editOrigBody = s.AuthorBody ?? s.Guide;
-        _editTitle = new TextBox { Text = _editOrigTitle, FontSize = 16, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsReadOnly = ro, MaxLength = 300 };
-        _editBody = new TextBox { Text = _editOrigBody, FontSize = 13.5, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MinHeight = 84, VerticalContentAlignment = VerticalAlignment.Top, IsReadOnly = ro, MaxLength = 8000 };
+        _editTitle = new TextBox { Text = _editOrigTitle, FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsReadOnly = ro, MaxLength = 300 };
+        _editBody = new TextBox { Text = _editOrigBody, FontSize = Theme.FsBody, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MinHeight = 96, VerticalContentAlignment = VerticalAlignment.Top, IsReadOnly = ro, MaxLength = 8000 };
+        TextBlock.SetLineHeight(_editBody, 21);
         var editTitle = _editTitle; var editBody = _editBody;
         Spell(editTitle); Spell(editBody);
         editTitle.KeyDown += (_, e) => { if (e.Key == Key.Enter) { editBody.Focus(); editBody.CaretIndex = editBody.Text.Length; e.Handled = true; } };
@@ -589,38 +603,38 @@ sealed partial class ViewerWindow
         }
         bool edited = s.AuthorTitle != null || s.AuthorBody != null;
         _details.Children.Add(U.Field("Überschrift", editTitle));
-        var bodyField = U.Field("Anleitungstext", editBody, margin: new Thickness(0, 0, 0, 6));
+        var bodyField = U.Field("Anleitungstext", editBody, margin: new Thickness(0, 0, 0, 8));
         _details.Children.Add(bodyField);
         var editInfo = new DockPanel { Margin = new Thickness(0, 0, 0, 4) };
         if (edited && !ro)
         {
             var reset = U.Btn(Theme.IUndo, "Original", () => ResetText(s), "Automatisch erzeugten Text wiederherstellen", "Link");
-            reset.Margin = new Thickness(0); reset.Padding = new Thickness(4, 0, 0, 0);
+            reset.Margin = new Thickness(8, -2, -6, 0); reset.Padding = new Thickness(6, 2, 6, 2); reset.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(reset, Dock.Right); editInfo.Children.Add(reset);
         }
-        editInfo.Children.Add(U.Text(ro ? "Schreibgeschützt – zum Bearbeiten bitte entpacken." : s.Manual ? "Eigener Text · wird automatisch gespeichert" : edited ? "Von Ihnen geändert · wird automatisch gespeichert" : "Automatisch erzeugt – einfach überschreiben, wird automatisch gespeichert", 11.5, fg: Theme.Muted));
+        editInfo.Children.Add(U.Text(ro ? "Schreibgeschützt – zum Bearbeiten bitte entpacken." : s.Manual ? "Eigener Text · wird automatisch gespeichert" : edited ? "Von Ihnen geändert · wird automatisch gespeichert" : "Automatisch erzeugt – einfach überschreiben, wird automatisch gespeichert", Theme.FsCaption, fg: Theme.Muted));
         _details.Children.Add(editInfo);
 
         // Wichtigkeit
         int impIdx = Math.Max(0, Array.IndexOf(ImportanceOrder, s.Importance));
         var (impTrack, imps) = U.Segmented("dimp", impIdx, (null, "Hauptschritt"), (null, "Nebenschritt"), (null, "Spur"));
-        var impHint = U.Text(ImportanceHint(s.Importance), 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0));
+        var impHint = U.Hint(ImportanceHint(s.Importance), new Thickness(0, 8, 0, 0));
         for (int i = 0; i < imps.Length; i++) { string target = ImportanceOrder[i]; imps[i].Checked += (_, _) => { if (target != s.Importance) Change(e => StepEdit(e, s.Anchor)["importance"] = target); }; imps[i].IsEnabled = !ro; }
         if (!s.Manual)
         {
-            _details.Children.Add(U.Overline("Wichtigkeit", new Thickness(0, 18, 0, 8)));
+            _details.Children.Add(U.SectionLabel("Wichtigkeit"));
             _details.Children.Add(impTrack);
             _details.Children.Add(impHint);
         }
 
         // Aktionen
-        _details.Children.Add(U.Overline("Aktionen", new Thickness(0, 18, 0, 6)));
-        var actions = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
+        _details.Children.Add(U.SectionLabel("Aktionen"));
+        var actions = new WrapPanel { Margin = new Thickness(-3, -3, 0, 0) };
         actions.Children.Add(U.Btn(Theme.IComment, "Hinweis", () => AddNoteBox(s.Anchor, "note"), "Hinweiskasten zum Schritt (K öffnet den Dialog)"));
         actions.Children.Add(U.Btn(Theme.IEye, s.Hidden ? "Einblenden" : "Ausblenden", ToggleHidden, "Schritt in Anleitung und Export aus- oder einblenden (Entf)"));
         foreach (var (glyph, dir, tip) in new[] { (Theme.IArrowUp, -1, "Nach oben (Alt+↑)"), (Theme.IArrowDown, +1, "Nach unten (Alt+↓)") })
         {
-            var mv = U.Ghost(glyph, null, () => Move(dir), tip); mv.Margin = new Thickness(1, 3, 1, 3); mv.MinWidth = 32; mv.Padding = new Thickness(7, 5, 7, 5);
+            var mv = U.Ghost(glyph, null, () => Move(dir), tip); mv.Margin = new Thickness(1, 3, 1, 3); mv.MinWidth = 36; mv.Padding = new Thickness(8, 6, 8, 6);
             actions.Children.Add(mv);
         }
         _details.Children.Add(actions);
@@ -629,11 +643,11 @@ sealed partial class ViewerWindow
         StepDocSection(s);
 
         // Kurzinfo
-        _details.Children.Add(U.Divider(new Thickness(0, 20, 0, 4)));
-        if (s.Json.Obj("ctx") is { } ctx) InfoRow("Fenster", ReadOnlyText($"„{ctx.Str("title")}“ · {ctx.Str("process")}", Theme.Fg2, 12.5));
-        if (s.Json.Obj("target") is not null) InfoRow("Ziel", ReadOnlyText(Steps.TextTemplates.TargetLabel(s.Json, "de", false), Theme.Fg2, 12.5));
+        _details.Children.Add(U.Divider(new Thickness(0, 24, 0, 4)));
+        if (s.Json.Obj("ctx") is { } ctx) InfoRow("Fenster", ReadOnlyText($"„{ctx.Str("title")}“ · {ctx.Str("process")}", Theme.Fg2, Theme.FsHint));
+        if (s.Json.Obj("target") is not null) InfoRow("Ziel", ReadOnlyText(Steps.TextTemplates.TargetLabel(s.Json, "de", false), Theme.Fg2, Theme.FsHint));
         var more = U.Btn(Theme.ICode, "Technische Angaben", () => _tabBtns[1].IsChecked = true, "Zum Reiter „Technik“", "Link");
-        more.HorizontalAlignment = HorizontalAlignment.Left; more.Margin = new Thickness(-4, 8, 0, 0);
+        more.HorizontalAlignment = HorizontalAlignment.Left; more.Margin = new Thickness(-8, 10, 0, 0);
         _details.Children.Add(more);
     }
 
@@ -646,10 +660,11 @@ sealed partial class ViewerWindow
 
     void InfoRow(string label, UIElement value)
     {
-        var g = new Grid { Margin = new Thickness(0, 8, 0, 0) };
-        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(92) });
+        var g = new Grid { Margin = new Thickness(0, 10, 0, 0) };
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(InfoLabelWidth) });
         g.ColumnDefinitions.Add(new ColumnDefinition());
-        g.Children.Add(U.Text(label, 12.5, fg: Theme.Muted, margin: new Thickness(0, 1, 8, 0)));
+        var l = U.Text(label, Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 1, 10, 0)); l.TextTrimming = TextTrimming.CharacterEllipsis; l.TextWrapping = TextWrapping.NoWrap; l.ToolTip = label;
+        g.Children.Add(l);
         Grid.SetColumn(value, 1); g.Children.Add(value);
         _details.Children.Add(g);
     }
@@ -657,8 +672,8 @@ sealed partial class ViewerWindow
     void TechDetails(ViewStep s)
     {
         var j = s.Json;
-        _details.Children.Add(U.Text(s.AuthorTitle ?? s.Title, 15, true, margin: new Thickness(0, 0, 0, 4)));
-        _details.Children.Add(U.Text($"Schritt {s.Number} · {KindLabel(s.Kind)} · {ImportanceLabel(s.Importance)} · {Fmt.Time(s.TFrom, "de")}", 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        _details.Children.Add(U.Heading(s.AuthorTitle ?? s.Title, Theme.FsSub, new Thickness(0, 0, 0, 4)));
+        _details.Children.Add(U.Text($"Schritt {s.Number} · {KindLabel(s.Kind)} · {ImportanceLabel(s.Importance)} · {Fmt.Time(s.TFrom, "de")}", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
         if (j.Obj("ctx") is { } ctx) InfoRow("Fenster", ReadOnlyText($"„{ctx.Str("title")}“\n{ctx.Str("process")}"));
         if (j.Obj("target") is { } t)
         {
@@ -668,8 +683,8 @@ sealed partial class ViewerWindow
         }
         if (s.Kind == "type" && j.Obj("input") is { } inp)
         {
-            var v = U.Col(ReadOnlyText(s.Unreviewed ? "(ungeprüft)" : Steps.TextTemplates.TokensNotation(inp), font: Theme.Mono, size: 12.5));
-            if (inp.Str("valueAfter") is { } va && !s.Unreviewed) v.Children.Add(ReadOnlyText("Feldinhalt danach: " + va, Theme.Muted, 12));
+            var v = U.Col(ReadOnlyText(s.Unreviewed ? "(ungeprüft)" : Steps.TextTemplates.TokensNotation(inp), font: Theme.Mono, size: Theme.FsHint));
+            if (inp.Str("valueAfter") is { } va && !s.Unreviewed) v.Children.Add(ReadOnlyText("Feldinhalt danach: " + va, Theme.Muted, Theme.FsHint));
             InfoRow("Eingabe", v);
         }
         if (s.Kind is "click" or "doubleClick" or "tripleClick" or "rightClick" or "drag" && j.Obj("input") is { } mi) InfoRow("Maus", ReadOnlyText(MouseSummary(s.Kind, mi)));
@@ -677,17 +692,17 @@ sealed partial class ViewerWindow
         var (evText, evBg, evFg) = s.EvidenceLevel switch { "confirmed" => ("belegt", Theme.SuccessSoft, Theme.Success), "inputOnly" => ("nur Eingabe", Theme.WarnSoft, Theme.Warn), _ => ("unbekannt", Theme.Surface2, Theme.Muted) };
         var evChip = U.Chip(evText, evBg, evFg, s.EvidenceLevel == "confirmed" ? Theme.ICheck : null); evChip.HorizontalAlignment = HorizontalAlignment.Left;
         var reasons = string.Join(", ", j.Obj("evidence")?.StrList("reasons") ?? new());
-        InfoRow("Beleg", reasons.Length > 0 ? U.Col(evChip, ReadOnlyText(reasons, Theme.Muted, 12)) : evChip);
+        InfoRow("Beleg", reasons.Length > 0 ? U.Col(evChip, ReadOnlyText(reasons, Theme.Muted, Theme.FsHint)) : evChip);
 
         if (j.Obj("target")?.Obj("win32") is { } w32) Win32Section(s, w32, InfoRow);
         AppContextSection(j);
 
-        _details.Children.Add(U.Overline("Protokoll für KI", new Thickness(0, 22, 0, 8)));
-        _details.Children.Add(new Border { Background = Theme.Surface2, CornerRadius = new CornerRadius(5), Padding = new Thickness(12, 10, 12, 10), Child = ReadOnlyText(s.Protocol, Theme.Fg2, 12, Theme.Mono) });
+        _details.Children.Add(U.SectionLabel("Protokoll für KI"));
+        _details.Children.Add(U.Inset(ReadOnlyText(s.Protocol, Theme.Fg2, Theme.FsCaption, Theme.Mono), new Thickness(14, 12, 14, 12)));
         _details.Children.Add(new Expander
         {
-            Header = "Rohdaten (JSON)", Margin = new Thickness(0, 16, 0, 0),
-            Content = new Border { Background = Theme.Surface2, CornerRadius = new CornerRadius(5), Padding = new Thickness(12, 10, 12, 10), Child = new ScrollViewer { MaxHeight = 420, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = ReadOnlyText(Json.Pretty(j), Theme.Fg2, 11.5, Theme.Mono) } }
+            Header = "Rohdaten (JSON)", Margin = new Thickness(0, 20, 0, 0),
+            Content = U.Inset(new ScrollViewer { MaxHeight = 420, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Content = ReadOnlyText(Json.Pretty(j), Theme.Fg2, Theme.FsCaption, Theme.Mono) }, new Thickness(14, 12, 14, 12))
         });
     }
 
@@ -715,8 +730,8 @@ sealed partial class ViewerWindow
         if (j.Obj("target")?.Obj("win32")?.Obj("msaa") is { } ms)
             rows.Add(("MSAA", $"{ms.Str("roleText") ?? ms.Str("role")}" + (ms.Str("defaultAction") is { } da ? $" · Standardaktion {Q(da)}" : "")));
         if (rows.Count == 0) return;
-        _details.Children.Add(U.Overline("Programmkontext", new Thickness(0, 22, 0, 2)));
-        foreach (var (label, value) in rows) InfoRow(label, ReadOnlyText(value.Trim(), Theme.Fg, 12));
+        _details.Children.Add(U.SectionLabel("Programmkontext", new Thickness(0, 24, 0, 2)));
+        foreach (var (label, value) in rows) InfoRow(label, ReadOnlyText(value.Trim(), Theme.Fg, Theme.FsHint));
     }
 
     // ---------------- Direktbearbeitung ----------------
