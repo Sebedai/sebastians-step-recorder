@@ -60,7 +60,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 **Offen bleiben:**
 
-- **.NET 10.** Gebaut wird mit .NET 8; das .NET-10-SDK fehlt auf dem Entwicklungsrechner (Abschnitt [9](#9-offene-entscheidungen), O-08).
+- **.NET-11-Einzeldatei.** Die Entpack-Umgehung für dotnet/wpf#11842 wieder entfernen, sobald ein .NET-11-Update den Fehler behebt (Abschnitt [9](#9-offene-entscheidungen), O-08).
 - **Regel T1.** Die Erkennung von Kennwortabfragen im Terminal (DS-022, DS-023) ist nicht umgesetzt. Es gilt: Getipptes in Terminal, Remote-Desktop und VM ist prüfpflichtig, „Streng“ maskiert dort alles (O-09).
 - **Code-Signierung.** Nicht umgesetzt; die Lizenzfrage ist offen (O-10).
 - **Zurückgestellt:** Abschnitt neu aufnehmen und ersetzen (damit Aufnahmeabschnitte, Ersetzungen und Nahtstellen aus [05, Abschnitt 16](05-schritterkennung.md)), visueller Vergleich zweier Aufnahmen, Befehlspalette, Lesezeichen und Textbausteine, Seitenformat (Letter, quer) und eigene Word-Vorlage, weitere Sprachen der automatischen Texte, Video-Export, ARM64, Bedienhilfen der Oberfläche (Namen für Sprachausgabe), Terminal-Regeln T2 und T3 (O-11).
@@ -234,7 +234,7 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 | O-05 | Texterkennung (OCR) als Rückfall | Windows-OCR braucht Paketidentität; später mit mitgelieferter Engine prüfen | nach 1.0 |
 | O-06 | Schwellenwerte (Beruhigungszeit, Verweilzeit, Rückhaltefenster) | Startwerte aus [03](03-aufzeichnungskern.md)/[05](05-schritterkennung.md), feinjustiert nach M6-Tests | M6 |
 | O-07 | Quellcode-Hosting und Mitwirkung | GitHub (Releases, Issues, SignPath-Anbindung). *Stand: GitHub, Workflow `build.yml` baut, testet und veröffentlicht bei Tag `v*`; Anbindung der Signierung offen* | M0 |
-| O-08 | .NET 10 statt .NET 8 | Das .NET-10-SDK installieren (`winget install Microsoft.DotNet.SDK.10`), `global.json` und die Zielplattform beider Projekte anheben, `PublishReadyToRun` neu bewerten, alle Tests wiederholen. Bis dahin läuft alles auf .NET 8 (SDK 8.0.4xx) | offen – wartet auf das SDK |
+| O-08 | Laufzeit nach dem Ende von .NET 8 | Entschieden 2026-11-12: .NET 11 (SDK 11.0.100, Testpakete aktualisiert, alle Tests und der Desktop-Integrationstest grün). Offen bleibt nur die Umgehung `IncludeAllContentForSelfExtract` für dotnet/wpf#11842: nach dem Fix entfernen, die Einzeldatei erneut starten und `PublishReadyToRun` neu bewerten | entschieden – Umgehung aktiv |
 | O-09 | Regel T1: Kennwortabfragen im Terminal erkennen (DS-022, DS-023) | Vorversuch, ob Windows Terminal und die klassische Konsole die Cursorzeile über UI Automation liefern (`Read-Host`, `runas`, `sudo` in WSL, `ssh`; p95 unter 100 ms). Bei Erfolg Umsetzung mit maskierter Zeile bis zur Eingabetaste, sonst bleibt es bei Durchsichtspflicht und „Streng“ | offen |
 | O-10 | Code-Signierung und Lizenz | Die SignPath Foundation verlangt nach bisherigem Kenntnisstand eine OSI-anerkannte Lizenz; CC BY-ND 4.0 ist keine. Zu klären: Lizenzwechsel, ein anderer Signierdienst oder ein eigenes Zertifikat. Bis dahin sind Releases unsigniert (Prüfsumme in `SHA256SUMS.txt`) | offen, vor M8 |
 | O-11 | Zurückgestellte Funktionen | Abschnitt neu aufnehmen und ersetzen; visueller Vergleich zweier Aufnahmen; Befehlspalette, Lesezeichen, Textbausteine; Seitenformat (Letter, quer) und eigene Word-Vorlage; weitere Sprachen der automatischen Texte; Video-Export; ARM64; Bedienhilfen (Namen für Sprachausgabe); Terminal-Regeln T2 und T3. Jede ist später einzeln planbar | nach 1.0 |

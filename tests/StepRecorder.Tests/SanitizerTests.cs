@@ -71,7 +71,7 @@ public class SanitizerTests : IDisposable
         var target = Path.Combine(_root, "kopie");
         Assert.Throws<SanitizeException>(() => SessionSanitizer.CreateCopy(a, target));
         Assert.False(Directory.Exists(target));
-        Assert.Empty(Directory.EnumerateDirectories(_root).Where(d => Path.GetFileName(d).StartsWith("kopie")));
+        Assert.DoesNotContain(Directory.EnumerateDirectories(_root), d => Path.GetFileName(d).StartsWith("kopie"));
     }
 
     [Fact]

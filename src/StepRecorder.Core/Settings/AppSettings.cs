@@ -12,7 +12,15 @@ public static class AppPaths
     public static string? OverrideDataDir { get; set; }
     public static bool Portable { get; private set; }
 
-    public static string ExeDir => AppContext.BaseDirectory;
+    /// <summary>
+    /// Ordner der EXE. Bewusst nicht <c>AppContext.BaseDirectory</c>: Eine Einzeldatei-EXE, die ihren Inhalt in den
+    /// Temp-Ordner entpackt (IncludeAllContentForSelfExtract), meldet dort den Entpack-Ordner – der Portabel-Modus muss
+    /// aber neben der echten EXE bleiben.
+    /// </summary>
+    public static string ExeDir => Environment.ProcessPath is { } p && Path.GetDirectoryName(p) is { Length: > 0 } d && !IsDotnetHost(p) ? d + Path.DirectorySeparatorChar : AppContext.BaseDirectory;
+
+    /// <summary>Unter <c>dotnet test</c> o. ä. läuft der Code im dotnet-Host – dann zählt der Ordner der Assemblies.</summary>
+    static bool IsDotnetHost(string processPath) => Path.GetFileNameWithoutExtension(processPath) is "dotnet" or "testhost";
 
     public static string DataDir
     {

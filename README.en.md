@@ -200,7 +200,8 @@ All exports are created without additional software. The program sends nothing �
 
 ## System requirements and notes
 
-- **Windows 10 (version 2004 or later) or Windows 11, 64-bit.** No installation, no .NET needed – everything is inside the EXE (approx. 73 MB).
+- **Windows 10 (version 2004 or later) or Windows 11, 64-bit.** No installation, no .NET needed – everything is inside the EXE (approx. 76 MB, with .NET 11). The processor must support the x86-64-v2 instruction set (roughly 2009 or later) – every computer officially supported by Windows 10 or 11 does.
+- **First start of a new version:** The EXE unpacks its components once into the temp folder (`%TEMP%\.net\SebastiansStepRecorder`, about 170 MB) and then starts faster from there. This is a temporary workaround for a bug in .NET 11; your settings and recordings stay where they are.
 - **Windows Server and older Windows 10 versions** (e.g. Windows Server 2019) cannot exclude their own windows from screenshots. The program detects this and offers to record **with the display hidden:** bar and frame stay invisible, and operation works via shortcuts and the notification-area icon.
 - **Text recognition** (for the search for personal data) uses the OCR built into Windows. If the language pack is missing, you can install it under *Settings → Time & language → Language*.
 - **Where is the data?** If the EXE's folder is writable, settings and recordings are stored next to it (folder `Sessions`) – ideal for a USB stick. Otherwise they are under `%APPDATA%\StepRecorder` and `%LOCALAPPDATA%\StepRecorder`. The recordings folder can be changed in the settings.
