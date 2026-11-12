@@ -223,13 +223,22 @@ public sealed class SessionView : IDisposable
         {
             string ph = "{" + (sb.Str("placeholder") ?? "Wert") + "}";
             var m = sb.Obj("match");
+            var opts = sb.Bool("caseSensitive") ? RegexOptions.None : RegexOptions.IgnoreCase;
+            var timeout = TimeSpan.FromMilliseconds(200);
             try
             {
-                var opts = (sb.Bool("caseSensitive") ? RegexOptions.None : RegexOptions.IgnoreCase) | RegexOptions.NonBacktracking;
-                if (m.Str("literal") is { Length: >= 3 } lit) _subst.Add((new Regex(@"(?<![\p{L}\p{N}])" + Regex.Escape(lit) + @"(?![\p{L}\p{N}])", opts), ph));
-                else if (m.Str("pattern") is { Length: > 0 } pat) _subst.Add((new Regex(pat, opts, TimeSpan.FromMilliseconds(200)), ph));
+                // Wörtlicher Wert als ganzes Wort. Lookarounds kann die NonBacktracking-Engine nicht – ein maskierter
+                // Literalwert kann aber nicht ausufern, darum die normale Engine mit Zeitgrenze.
+                if (m.Str("literal") is { Length: >= 3 } lit) _subst.Add((new Regex(@"(?<![\p{L}\p{N}])" + Regex.Escape(lit) + @"(?![\p{L}\p{N}])", opts, timeout), ph));
+                else if (m.Str("pattern") is { Length: > 0 } pat)
+                {
+                    Regex rx;
+                    try { rx = new Regex(pat, opts | RegexOptions.NonBacktracking); }
+                    catch (NotSupportedException) { rx = new Regex(pat, opts, timeout); }
+                    _subst.Add((rx, ph));
+                }
             }
-            catch { }
+            catch (ArgumentException) { }   // ungültiges Muster: bleibt wirkungslos (der Editor prüft beim Anlegen)
         }
         _mergeOf = null;
         if (_redactedKeySeqs.Count > 0) ApplyKeyRedactions();
@@ -738,17 +747,26 @@ public sealed class SessionView : IDisposable
         long rev = Edits.Long("revision");
         var current = Session.LoadEdits();
         if ((current?.Long("revision") ?? 0) != rev) return false;
+        // Abgeleitetes (Suchindex, Vorschaubilder) zuerst löschen: stürzt das Programm zwischen den beiden Schritten ab,
+        // darf kein Zwischenspeicher übrig bleiben, der eine gerade geschwärzte Stelle noch enthält
+        ClearCache();
         bool ok = Session.SaveEdits(Edits, rev, savedBy);
         if (ok)
         {
             Edits = Session.LoadEdits() ?? Edits;
-            try { var cache = Path.Combine(Session.Path, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
+            ClearCache();
             Rebuild();
         }
         return ok;
     }
 
     public void ReloadEdits() { Edits = Session.LoadEdits() ?? new JsonObject(); Rebuild(); }
+
+    void ClearCache()
+    {
+        if (Session.ReadOnly) return;
+        try { var cache = Path.Combine(Session.Path, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
+    }
 
     /// <summary>Rohereignisse für Ausgaben (get_events): Schwärzungen, Durchsicht, ausgeblendete Kommentare.</summary>
     public JsonObject EventForOutput(JsonObject e)

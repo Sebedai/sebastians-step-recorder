@@ -475,7 +475,8 @@ public sealed class StepRecorderMcp
         string q = a.Str("query") ?? "";
         if (q.Length < 2 || q.Length > 200) throw new McpToolException("INVALID_ARGUMENT", "query must be 2–200 characters.");
         string scope = a.Str("scope") ?? (a.Str("sessionId") != null ? "session" : "all");
-        var terms = Regex.Matches(q, "\"([^\"]+)\"|(\\S+)").Select(m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value).ToList();
+        var query = SearchQuery.Parse(q);
+        if (query.IsEmpty) throw new McpToolException("INVALID_ARGUMENT", "query must contain at least one term.");
         bool matchAll = a.Str("match") != "any";
         var fields = a.StrList("fields");
         IEnumerable<string> ids;
@@ -490,29 +491,9 @@ public sealed class StepRecorderMcp
             SessionView v;
             try { v = View(id); } catch (McpToolException) when (scope == "all") { continue; }
             searched++;
-            foreach (var s in v.All)
-            {
-                if (s.Redacted) continue;
-                var cands = new List<(string field, string text)>();
-                void Add(string f, string? t) { if (!string.IsNullOrEmpty(t) && (fields.Count == 0 || fields.Contains(f))) cands.Add((f, t)); }
-                Add("stepText", s.Title + " " + s.Protocol + " " + s.AuthorTitle + " " + s.AuthorBody);
-                Add("elements", s.Json.Obj("target")?.Obj("el")?.Str("name"));
-                Add("windows", s.Json.Obj("ctx")?.Str("title"));
-                if (s.Kind == "type" && !s.Unreviewed) Add("typed", TextTemplates2.Typed(s));
-                foreach (var c in s.Comments) Add("comments", c.Str("text"));
-                if (s.Kind == "marker") Add("markers", s.Json.Obj("input")?.Str("label"));
-                foreach (var (field, text) in cands)
-                {
-                    bool ok = matchAll ? terms.All(t => text.Contains(t, StringComparison.OrdinalIgnoreCase)) : terms.Any(t => text.Contains(t, StringComparison.OrdinalIgnoreCase));
-                    if (!ok) continue;
-                    int idx = text.IndexOf(terms[0], StringComparison.OrdinalIgnoreCase);
-                    string snip = idx < 0 ? text[..Math.Min(80, text.Length)] : text.Substring(Math.Max(0, idx - 30), Math.Min(text.Length - Math.Max(0, idx - 30), 80 + terms[0].Length));
-                    if (idx >= 0) { int j = snip.IndexOf(terms[0], StringComparison.OrdinalIgnoreCase); snip = snip[..j] + "«" + snip.Substring(j, terms[0].Length) + "»" + snip[(j + terms[0].Length)..]; }
-                    hits.Add(new JsonObject { ["sessionId"] = id, ["sessionTitle"] = scope == "all" ? v.Title : null, ["step"] = s.Number, ["stepId"] = s.Id, ["t"] = Fmt.Time(s.TFrom, "en"), ["field"] = field, ["snippet"] = snip, ["markerKind"] = s.Kind == "marker" ? s.Json.Obj("input")?.Str("markerKind") : null }.Clean());
-                    break;
-                }
-            }
-            if (scope == "session") { }
+            // dieselbe Definition von „durchsuchbar“ wie die Bibliothek (nur Ausgabesicht)
+            foreach (var (e, snip) in SessionSearch.Search(SessionSearch.Entries(v), query, matchAll, fields))
+                hits.Add(new JsonObject { ["sessionId"] = id, ["sessionTitle"] = scope == "all" ? v.Title : null, ["step"] = e.Number, ["stepId"] = e.StepId, ["t"] = Fmt.Time(e.T, "en"), ["field"] = e.Field, ["snippet"] = snip, ["markerKind"] = e.MarkerKind }.Clean());
         }
         int start = FromCursor("search", scope == "session" ? ids.First() : "-", "-", a);
         var (items, page, est, tr) = Page(hits, start, a.Int("limit", 20), Budget(a), p => Cursor("search", scope == "session" ? ids.First() : "-", "-", p, a));
