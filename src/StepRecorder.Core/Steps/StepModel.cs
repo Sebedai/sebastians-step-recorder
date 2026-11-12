@@ -36,6 +36,9 @@ public sealed class StepDraft
 
 public static class StepParams
 {
-    /// <summary>1.6.0 = Zusammenführung: Terminal-Klartext und UAC-Schritt (1.4/1.5) mit Menüpfaden und Begriffsliste (1.3.1).</summary>
-    public const string BuilderVersion = "1.6.0";
+    /// <summary>
+    /// 1.7.0 = Programm-Kontext (12, Paket 10): Programmende, Hänger und Einträge der Ereignisanzeige als Systemschritte.
+    /// 1.6.0 = Zusammenführung: Terminal-Klartext und UAC-Schritt (1.4/1.5) mit Menüpfaden und Begriffsliste (1.3.1).
+    /// </summary>
+    public const string BuilderVersion = "1.7.0";
 }

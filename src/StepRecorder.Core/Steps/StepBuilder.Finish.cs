@@ -35,12 +35,20 @@ public sealed partial class StepBuilder
                 case "display.topology" when e.Int("epoch") >= 1: evName = "topologyChanged"; break;
                 case "scope.change" when e.Str("reason") != "initial": evName = "scopeChanged"; break;
                 case "ui.value" when e.Str("phase") == "change": evName = "valueChanged"; break;
+                // Programm-Kontext (12, Paket 10)
+                case "process.exit":
+                    evName = "appExit";
+                    importance = e.Str("class") switch { "crash" => "primary", "normal" => "trace", _ => "secondary" };
+                    break;
+                case "window.hang" when e.Str("phase") == "start": evName = "appHang"; importance = "primary"; break;
+                case "eventlog.entry" when !_ev.Any(x => x.Str("type") == "process.exit" && x.Str("proc") == e.Str("proc")):
+                    evName = "appEventLog"; importance = e.Long("eventId") == 1002 ? "secondary" : "primary"; break;
                 default: continue;
             }
             // Ereignisse im Rauschen der eigenen Startphase (t = 0) nicht als Schritt
             if (e.Long("t") == 0 && type == "window.foreground") continue;
             long t = e.Long("t");
-            if (last != null && t - lastT <= SystemMergeMs * 1000L && last.InputObj.Str("event") == evName)
+            if (last != null && t - lastT <= SystemMergeMs * 1000L && last.InputObj.Str("event") == evName && evName is not ("appExit" or "appHang" or "appEventLog"))
             {
                 last.Related.Add(e.Long("seq")); lastT = t; last.TTo = Math.Max(last.TTo, t);
                 continue;
@@ -58,10 +66,56 @@ public sealed partial class StepBuilder
             }
             if (type == "window.title" && e.Str("title") != null) { st.InputObj["title"] = e.Str("title"); st.Prov.Add(new JsonObject { ["path"] = "input.title", ["seq"] = e.Long("seq"), ["field"] = "title", ["copy"] = true }); }
             if (type == "ui.notification" && e.Str("text") != null) { st.InputObj["text"] = e.Str("text"); st.Prov.Add(new JsonObject { ["path"] = "input.text", ["seq"] = e.Long("seq"), ["field"] = "text", ["copy"] = true }); }
+            if (evName is "appExit" or "appHang" or "appEventLog") ProgramStep(st, e);
             bool unobserved = evName == "valueChanged" || _gapSpans.Any(g => InputChannels(g.channels) && t >= g.from && t <= g.to + AnomalyWindowMs * 1000L);
             st.Evidence["cause"] = unobserved ? "unobserved" : "none";
             last = st; lastT = t;
         }
+    }
+
+    /// <summary>Angaben eines Programm-Schritts: Programm, Exit-Code und Einstufung, Dauer eines Hängers, Fakten der Ereignisanzeige.</summary>
+    void ProgramStep(StepDraft st, JsonObject e)
+    {
+        string? proc = e.Str("proc");
+        st.InputObj["process"] = e.Str("process");
+        st.InputObj["proc"] = proc;
+        var info = _ev.FirstOrDefault(x => x.Str("type") == "process.info" && x.Str("proc") == proc);
+        if (info?.Str("product") is { } product) st.InputObj["product"] = product;
+        if (info?.Str("version") is { } version) st.InputObj["version"] = version;
+        if (info != null) st.Related.Add(info.Long("seq"));
+        switch (e.Str("type"))
+        {
+            case "process.exit":
+                if (e.LongN("exitCode") is long code) { st.InputObj["exitCode"] = code; st.InputObj["exitCodeHex"] = e.Str("exitCodeHex"); }
+                st.InputObj["class"] = e.Str("class");
+                st.InputObj["crash"] = e.Str("class") == "crash";
+                if (e.Bool("wasHung")) st.InputObj["wasHung"] = true;
+                break;
+            case "window.hang":
+                var end = _ev.FirstOrDefault(x => x.Str("type") == "window.hang" && x.Str("phase") == "end" && x.Str("win") == e.Str("win") && x.Long("seq") > e.Long("seq"));
+                if (end != null)
+                {
+                    st.TTo = Math.Max(st.TTo, end.Long("t"));
+                    st.InputObj["durationMs"] = end.Long("durationMs");
+                    if (end.Bool("untilStop")) st.InputObj["untilStop"] = true;
+                    st.Related.Add(end.Long("seq")); _consumed.Add(end.Long("seq"));
+                }
+                else st.InputObj["untilStop"] = true;
+                break;
+        }
+        // Fakten der Ereignisanzeige zu diesem Programm (ohne Freitext)
+        var logs = new JsonArray();
+        foreach (var le in _ev.Where(x => x.Str("type") == "eventlog.entry" && x.Str("proc") == proc && (e.Str("type") != "eventlog.entry" || x == e)))
+        {
+            if (e.Str("type") == "window.hang" && le.Long("eventId") != 1002) continue;
+            if (e.Str("type") == "process.exit" && le.Long("eventId") == 1002) continue;
+            var f = le.Obj("facts")?.DeepClone() as JsonObject ?? new JsonObject();
+            f["eventId"] = le.Long("eventId");
+            logs.Add(f);
+            st.Related.Add(le.Long("seq"));
+            if (le != e) _consumed.Add(le.Long("seq"));
+        }
+        if (logs.Count > 0) st.InputObj["eventLog"] = logs;
     }
 
     void BuildWaitSteps()

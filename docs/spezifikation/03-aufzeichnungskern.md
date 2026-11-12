@@ -1080,6 +1080,16 @@ Ohne Bestätigung bleibt die Aufnahme pausiert; ein selbsttätiges Fortsetzen gi
 
 Anzeigenachrichten (Auflösung, Anordnung, Skalierung, Arbeitsbereich, Geräte an/ab) führen zu einer neuen Topologie-Epoche ([4.13](#topologie)). Diese Nachrichten gehen nur an Fenster der obersten Ebene; der Systembeobachter besitzt dafür ein verborgenes Fenster, das nie angezeigt wird.
 
+### 8.5 Programm-Kontext
+
+*Paket 10 aus [12](12-entwickler-fahrplan.md); Felder in [04 §9.20](04-datenformat.md#ev-process).* Die Aufnahme hält fest, was die aufgenommenen Programme taten – nicht nur, was die Person tat.
+
+- **Welche Programme:** jedes Programm, von dem ein Fenster registriert wird (Fensterregister, 8.2) – außer eigenen, ausgeschlossenen, außerhalb des Aufnahmebereichs, Taskleiste und Tooltips; höchstens 64 Programme, je Programm 24 Fenster.
+- **Wie:** ein Handle mit `SYNCHRONIZE` und `PROCESS_QUERY_LIMITED_INFORMATION` (keine Adminrechte, keine Injektion, kein Prozessspeicher). Im 250-ms-Takt prüft der Kern ohne Warten, ob das Programm endete (`GetExitCodeProcess`, Endzeit aus `GetProcessTimes`), und ob eines seiner sichtbaren Fenster nicht reagiert (`IsHungAppWindow`). Während einer Pause wird nichts gemeldet; ein Ende in der Pause erscheint nach dem Fortsetzen.
+- **Build-Stand** (nur mit „Erweitertem Programmkontext“): Änderungszeit und Größe der Programmdatei, Zeitstempel und PDB-Kennung aus dem PE-Kopf (`PeInfo`), Git-Arbeitsstand aus `.git` (`GitInfo`, ohne `git.exe`). Diese Dateien liest ein eigener Arbeiter (`Process.Watch`), nie der Eingabe- oder Beobachter-Thread.
+- **Ereignisanzeige:** 2,5 s nach einem Absturz oder Ende mit Fehlercode und beim Stopp (vor `session.stop`, Frist 1,5 s) fragt der Arbeiter das Anwendungsprotokoll nach den Ereignissen 1000, 1002 und 1026 im Zeitraum der Aufnahme ab (`System.Diagnostics.Eventing.Reader`, Teil der Laufzeit) und übernimmt nur Einträge der beobachteten Programme (Abgleich über Programmname und Prozesskennung) – höchstens 20 je Abfrage, Fakten ohne Freitext. Ist das Protokoll nicht lesbar, fehlen die Fakten; das Programmende steht trotzdem in der Aufnahme.
+- **Grenzen, offen benannt:** Programme eines anderen Benutzers mit Adminrechten liefern keinen Handle (`handle: "denied"`); Abstürze vor dem ersten Fenster und Renderer-Prozesse ohne Fenster sind nicht sichtbar; UWP-Fenster gehören zum Rahmenprozess. Messungen dazu: VE-15, VE-16, VE-23 in [11](11-roadmap-tests-risiken.md#32-experimente-für-den-entwickler-fahrplan).
+
 ---
 
 <a id="zwischenablage"></a>

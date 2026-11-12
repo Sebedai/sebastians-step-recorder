@@ -59,9 +59,11 @@ public sealed partial class StepRecorderMcp
     static JsonArray AppsJson(SessionView v) => new(v.All.Where(x => !x.Redacted && x.Json.Obj("ctx").Str("process") != null).GroupBy(x => x.Json.Obj("ctx").Str("process")!).Select(gr =>
     {
         var app = gr.Select(x => x.Json.Obj("target")?.Obj("win32")?.Obj("window")?.Obj("app")).FirstOrDefault(x => x != null);
+        var build = DeveloperContext.Builds(v).OfType<JsonObject>().FirstOrDefault(b => string.Equals(b.Str("process"), gr.Key, StringComparison.OrdinalIgnoreCase));
         return (JsonNode)new JsonObject
         {
-            ["process"] = gr.Key, ["product"] = app?.Str("product"), ["version"] = app?.Str("version"),
+            ["process"] = gr.Key, ["product"] = app?.Str("product") ?? build?.Str("product"), ["version"] = app?.Str("version") ?? build?.Str("version"),
+            ["build"] = build?.Obj("build")?.DeepClone(), ["git"] = build?.Obj("git")?.DeepClone(),
             ["windows"] = new JsonArray(gr.Select(x => x.Json.Obj("ctx").Str("title")).Where(t => t != null).Distinct().Take(10).Select(t => (JsonNode)v.Clean(t!)).ToArray())
         }.Clean();
     }).ToArray());
@@ -71,6 +73,8 @@ public sealed partial class StepRecorderMcp
     // =====================================================================================
 
     static string? MarkerKind(ViewStep s) => s.Json.Obj("input")?.Str("markerKind");
+    static bool IsProgramStep(ViewStep s) => s.Kind == "system" && s.Json.Obj("input")?.Str("event") is "appExit" or "appHang" or "appEventLog";
+    static bool IsCrash(ViewStep s) => !s.Redacted && s.Kind == "system" && s.Json.Obj("input") is { } i && (i.Str("event") == "appExit" && i.Bool("crash") || i.Str("event") == "appEventLog");
 
     McpToolResult GetFailureContext(JsonObject a)
     {
@@ -82,7 +86,7 @@ public sealed partial class StepRecorderMcp
         ViewStep? focus; string reason;
         if (a["step"] != null) { focus = FindStep(v, a); reason = "requested"; }
         else if (core.FirstOrDefault(x => x.Kind == "marker" && !x.Redacted && MarkerKind(x) == "error") is { } err) { focus = err; reason = "firstErrorMarker"; }
-        else if (core.LastOrDefault(x => x.Kind == "appExit" && !x.Redacted && x.Json.Obj("input")?.Bool("crash") == true) is { } crash) { focus = crash; reason = "crash"; }
+        else if (core.FirstOrDefault(x => IsCrash(x)) is { } crash) { focus = crash; reason = "crash"; }
         else { focus = core.LastOrDefault(x => x.Kind is not ("marker" or "gap" or "idle")) ?? core[^1]; reason = "lastStep"; }
         int idx = core.FindIndex(x => x.Id == focus.Id);
         if (idx < 0) { core.Add(focus); core = core.OrderBy(x => x.TFrom).ToList(); idx = core.FindIndex(x => x.Id == focus.Id); }
@@ -120,8 +124,8 @@ public sealed partial class StepRecorderMcp
         if (a["image"]?.GetValue<bool>() != false && _o.MaxImages > 0)
         {
             // Bild: der Ausgangspunkt selbst (Marker/Absturz) oder die Aktion davor mit Klickmarkierung
-            var imgStep = focus.Kind is "marker" or "appExit" && focus.PreFrame != null ? focus : window.Take(window.FindIndex(x => x.Id == focus.Id) + 1).LastOrDefault(x => x.PreFrame != null && !x.Redacted);
-            if (imgStep != null && StepImages.Render(v, imgStep, imgStep.Kind is "marker" or "appExit" or "comment" or "snapshot" ? "before" : (imgStep.Json.Obj("position") != null ? "crop" : "before"), "compatible", annotate: true, viewMode: "screen", respectMarks: false) is { } img)
+            var imgStep = (focus.Kind is "marker" || IsProgramStep(focus)) && focus.PreFrame != null ? focus : window.Take(window.FindIndex(x => x.Id == focus.Id) + 1).LastOrDefault(x => x.PreFrame != null && !x.Redacted);
+            if (imgStep != null && StepImages.Render(v, imgStep, imgStep.Kind is "marker" or "comment" or "snapshot" or "system" ? "before" : (imgStep.Json.Obj("position") != null ? "crop" : "before"), "compatible", annotate: true, viewMode: "screen", respectMarks: false) is { } img)
             {
                 Clamp(img);
                 var data = StepImages.Png(img.Bitmap);

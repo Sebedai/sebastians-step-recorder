@@ -584,6 +584,10 @@ Zu den Beispielzeilen: Zeilen mit `seq` zwischen 1650 und 1750 stammen aus der B
 | `comment` | `comment` | Kommentar des Nutzers | [9.17](#ev-comment) |
 | `marker` | `marker` | Marker, Schnappschuss, „letzten Schritt verwerfen“ | [9.18](#ev-marker) |
 | `gap` | `gap` | Lücke | [9.19](#ev-gap) |
+| `process.*` | `process.info`, `process.exit` | Programme, mit deren Fenstern gearbeitet wurde: Start mit Build-Kennung, Ende mit Exit-Code | [9.20](#ev-process) |
+| `window.hang` | `window.hang` | Fenster reagiert nicht (Beginn, Ende) | [9.20](#ev-process) |
+| `eventlog.entry` | `eventlog.entry` | Eintrag der Windows-Ereignisanzeige zu einem aufgenommenen Programm | [9.20](#ev-process) |
+| `log.*` | `log.source`, `log.lines` | Mitgelesene Protokolldatei | [9.21](#ev-log) |
 
 ### 9.1 Gemeinsame Bausteine
 
@@ -1399,6 +1403,26 @@ Zurückgehaltene Tasten in Passwortfeldern erzeugen kein `gap`, sondern [`text.m
 ```json
 {"seq":4012,"t":131000000,"type":"gap","gapId":"g1","phase":"begin","cause":"secureDesktop","tFrom":131000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
 {"seq":4019,"t":139000000,"type":"gap","gapId":"g1","phase":"end","cause":"secureDesktop","tFrom":131000000,"tTo":139000000,"channels":["all"],"inputLost":"possible","detail":{"desktop":"Winlogon","kind":"uac"}}
+```
+
+<a id="ev-process"></a>
+### 9.20 `process.info`, `process.exit`, `window.hang`, `eventlog.entry`
+
+Programm-Kontext (Paket 10 aus [12](12-entwickler-fahrplan.md)); MINOR-Erweiterung im Sinn von 15.2. Quelle ist `ProcessWatch` im Aufzeichnungskern ([03 §8.5](03-aufzeichnungskern.md#85-programm-kontext)).
+
+| Typ | Felder | Bedeutung |
+|---|---|---|
+| `process.info` | `proc` (`p<n>`), `pid`, `process` (Dateiname), `win` (erstes Fenster), `startedBeforeSession`, `product`, `version`; mit „Erweitertem Programmkontext“ `build` (`fileTimeUtc`, `size`, `peTimestampUtc` bzw. `peTimestamp`, `pdbId`, `pdbFile`) und `git` (`branch`, `commit`, `detached`, `basis: "workingTree"`, `dirty: "notChecked"`); `handle: "denied"`, wenn das Ende nicht beobachtbar ist | Ein Programm, mit dessen Fenster gearbeitet wurde. Zeitpunkt: erstes Fenster. Nie Pfade, Befehlszeilen, Umgebung, Fernadressen, Autoren oder Commit-Texte |
+| `process.exit` | `proc`, `pid`, `process`, `win` (letztes Fenster), `exitCode`, `exitCodeHex`, `class` (`normal`, `error`, `crash`, `unknown`), `wasHung` | Programmende; `t` aus der Endzeit des Prozesses. `crash` nur bei eindeutigen Fehlercodes (`ExitCodes.Classify`) |
+| `window.hang` | `phase` (`start`, `end`), `win`, `proc`, `process`, `durationMs`, `untilStop` | Ein sichtbares Fenster des Programms reagiert nicht (`IsHungAppWindow`) |
+| `eventlog.entry` | `proc`, `process`, `win`, `eventId` (1000, 1002, 1026), `recordId`, `provider`, `facts` (`app`, `appVersion`, `module`, `moduleVersion`, `exceptionCode`, `offset`, `exceptionType`); `text` nur mit Paket 12 | Eintrag des Anwendungsprotokolls zu einem aufgenommenen Programm, im Zeitraum der Aufnahme |
+
+`process.*`, `window.hang` und `eventlog.entry` sind **nicht** strukturell (`Redactor.Structural`): Ein geschwärzter Zeitraum leert sie. `text` ist inhaltstragend und unterliegt der Durchsicht (Paket 12).
+
+```json
+{"seq":120,"t":100000,"type":"process.info","proc":"p1","pid":4242,"process":"MyApp.exe","win":"w3","startedBeforeSession":false,"product":"MyApp","version":"2.3.1+0123abc","build":{"peTimestamp":"0x9F3A12C4","pdbId":"0123456789ABCDEF0123456789ABCDEF1","pdbFile":"MyApp.pdb"},"git":{"basis":"workingTree","dirty":"notChecked","branch":"main","commit":"0123456789abcdef0123456789abcdef01234567"}}
+{"seq":980,"t":41250000,"tSrc":"sys","type":"process.exit","proc":"p1","pid":4242,"process":"MyApp.exe","win":"w3","exitCode":3221225477,"exitCodeHex":"0xC0000005","class":"crash"}
+{"seq":984,"t":41900000,"tSrc":"sys","type":"eventlog.entry","proc":"p1","process":"MyApp.exe","win":"w3","eventId":1000,"recordId":88231,"provider":"Application Error","facts":{"app":"MyApp.exe","appVersion":"2.3.1.0","module":"ntdll.dll","exceptionCode":"0xC0000005","offset":"0x00000000000a1b2c"}}
 ```
 
 ---

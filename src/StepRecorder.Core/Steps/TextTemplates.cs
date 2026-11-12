@@ -253,6 +253,9 @@ public static class TextTemplates
                 "notification" => de ? "Mitteilung" : "Notification",
                 "topologyChanged" => de ? "Monitor-Anordnung geändert" : "Monitor layout changed",
                 "scopeChanged" => de ? "Aufnahmebereich gewechselt" : "Capture area changed",
+                "appExit" => ProgramTitle(input, lang),
+                "appHang" => de ? $"{Prog(input, lang)} reagiert nicht" : $"{Prog(input, lang)} is not responding",
+                "appEventLog" => de ? $"Fehlermeldung von Windows zu {Prog(input, lang)}" : $"Windows error report for {Prog(input, lang)}",
                 _ => de ? "Systemereignis" : "System event"
             },
             "wait" => de ? "Warten" : "Wait",
@@ -444,9 +447,68 @@ public static class TextTemplates
             "valueChanged" => de ? "Inhalt änderte sich ohne beobachtete Eingabe" : "Content changed without observed input",
             "topologyChanged" => de ? "Monitor-Anordnung geändert" : "Monitor layout changed",
             "scopeChanged" => de ? "Aufnahmebereich gewechselt" : "Capture area changed",
+            "appExit" or "appHang" or "appEventLog" => ProgramText(input, lang),
             _ => ""
         };
     }
+
+    /// <summary>Programm eines Programm-Schritts: Produktname, sonst Programmdatei.</summary>
+    static string Prog(JsonObject input, string lang) => Q(input.Str("product") is { Length: > 0 } p ? p : input.Str("process") ?? "?", lang);
+
+    static string ProgramTitle(JsonObject input, string lang)
+    {
+        bool de = lang == "de";
+        string p = Prog(input, lang);
+        return input.Str("class") switch
+        {
+            "crash" => de ? $"{p} stürzt ab" : $"{p} crashes",
+            "error" when input.LongN("exitCode") is long c => de ? $"{p} endet mit Code {Capture.ExitCodes.Display((uint)c)}" : $"{p} exits with code {Capture.ExitCodes.Display((uint)c)}",
+            "normal" => de ? $"{p} wird beendet" : $"{p} closes",
+            _ => de ? $"{p} wurde beendet" : $"{p} ended"
+        };
+    }
+
+    /// <summary>Text eines Programm-Schritts (12, Paket 10): Einstufung, Exit-Code, Dauer, Fakten der Ereignisanzeige.</summary>
+    static string ProgramText(JsonObject input, string lang)
+    {
+        bool de = lang == "de";
+        string p = Prog(input, lang);
+        var sb = new System.Text.StringBuilder();
+        switch (input.Str("event"))
+        {
+            case "appExit":
+                uint code = (uint)(input.LongN("exitCode") ?? 0);
+                string? name = input.LongN("exitCode") != null ? Capture.ExitCodes.Name(code, lang) : null;
+                sb.Append(input.Str("class") switch
+                {
+                    "crash" => de ? $"Das Programm {p} wurde unerwartet beendet{(name != null ? ": " + name : "")} (Code {Capture.ExitCodes.Hex(code)})." : $"The program {p} ended unexpectedly{(name != null ? ": " + name : "")} (code {Capture.ExitCodes.Hex(code)}).",
+                    "error" => de ? $"Das Programm {p} wurde mit Code {Capture.ExitCodes.Display(code)} beendet." : $"The program {p} exited with code {Capture.ExitCodes.Display(code)}.",
+                    "normal" => de ? $"Das Programm {p} wurde beendet." : $"The program {p} closed.",
+                    _ => de ? $"Das Programm {p} wurde beendet; der Exit-Code ist nicht bekannt." : $"The program {p} ended; the exit code is unknown."
+                });
+                if (input.Bool("wasHung")) sb.Append(de ? " Es reagierte davor nicht mehr." : " It had stopped responding before.");
+                break;
+            case "appHang":
+                sb.Append(input.Bool("untilStop")
+                    ? (de ? $"Das Programm {p} reagierte bis zum Ende der Aufnahme nicht." : $"The program {p} did not respond until the end of the recording.")
+                    : (de ? $"Das Programm {p} reagierte {Dur(input.Long("durationMs"), de)} lang nicht." : $"The program {p} did not respond for {Dur(input.Long("durationMs"), de)}."));
+                break;
+            case "appEventLog":
+                sb.Append(de ? $"Die Ereignisanzeige von Windows meldet einen Fehler zu {p}." : $"The Windows event log reports an error for {p}.");
+                break;
+        }
+        foreach (var f in input.Arr("eventLog")?.OfType<JsonObject>() ?? Enumerable.Empty<JsonObject>())
+        {
+            var parts = new List<string>();
+            if (f.Str("exceptionType") is { } et) parts.Add((de ? "Ausnahme " : "exception ") + et);
+            if (f.Str("exceptionCode") is { } ec) parts.Add((de ? "Ausnahmecode " : "exception code ") + ec);
+            if (f.Str("module") is { } mod) parts.Add((de ? "fehlerhaftes Modul " : "faulting module ") + mod + (f.Str("moduleVersion") is { } mv ? " " + mv : "") + (f.Str("offset") is { } off ? (de ? ", Offset " : ", offset ") + off : ""));
+            if (parts.Count > 0) sb.Append(' ').Append(de ? "Ereignisanzeige: " : "Event log: ").Append(string.Join(" · ", parts)).Append('.');
+        }
+        return sb.ToString();
+    }
+
+    static string Dur(long ms, bool de) => ms < 1000 ? $"{ms} ms" : (ms / 1000.0).ToString(ms < 10_000 ? "0.0" : "0", de ? System.Globalization.CultureInfo.GetCultureInfo("de-DE") : System.Globalization.CultureInfo.InvariantCulture) + " s";
 
     static string MarkerText(JsonObject input, string lang, bool guide)
     {

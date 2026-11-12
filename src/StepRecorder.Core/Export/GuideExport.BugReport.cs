@@ -48,6 +48,15 @@ public static partial class GuideExport
             if (!apps.Contains(label, StringComparer.OrdinalIgnoreCase)) apps.Add(label);
         }
         if (apps.Count > 0) sb.Append("- ").Append(d.L("Programme", "Applications")).Append(": ").Append(string.Join(", ", apps.Select(a => "`" + a.Replace("`", "'") + "`"))).Append('\n');
+        // Build-Stand (12, Paket 10): Kennung der Programmdatei, Git-Arbeitsstand nur als ungeprüfte Zusatzangabe
+        foreach (var b in DeveloperContext.Builds(view).OfType<JsonObject>())
+        {
+            var bits = new List<string>();
+            if (b.Obj("build")?.Str("pdbId") is { } pdb) bits.Add("PDB " + pdb);
+            if (b.Obj("build")?.Str("peTimestampUtc") is { } pts) bits.Add(d.L("erstellt ", "linked ") + pts);
+            if (b.Obj("git") is { } git) bits.Add(d.L("Git-Arbeitsstand (ungeprüft): ", "Git working tree (unchecked): ") + (git.Str("branch") ?? d.L("losgelöst", "detached")) + (git.Str("commit") is { } cm ? " @ " + cm[..Math.Min(12, cm.Length)] : ""));
+            if (bits.Count > 0) sb.Append("- Build ").Append(m(view.Clean(b.Str("process") ?? ""))).Append(": ").Append(m(view.Clean(string.Join(" · ", bits)))).Append('\n');
+        }
         sb.Append("- ").Append(d.L("Aufgenommen", "Recorded")).Append(": ").Append(view.Session.StartUtc.ToLocalTime().ToString(d.Lang == "de" ? "dd.MM.yyyy HH:mm" : "yyyy-MM-dd HH:mm"))
           .Append(d.L(" mit ", " with ")).Append(AppInfo.DisplayName).Append(man.Obj("recorder")?.Str("version") is { Length: > 0 } rv ? " " + m(rv) : "").Append("\n\n");
 
@@ -81,6 +90,10 @@ public static partial class GuideExport
         sb.Append(expected.Length > 0 ? expected : Todo()).Append("\n\n");
         sb.Append("## ").Append(d.L("Tatsächliches Ergebnis", "Actual result")).Append("\n\n");
         string actual = Markers("error");
+        // beobachtetes Programmende, Hänger und Fehlermeldungen von Windows (12, Paket 10)
+        var observed = view.All.Where(s => !s.Redacted && s.Kind == "system" && s.Json.Obj("input")?.Str("event") is "appExit" or "appHang" or "appEventLog" && s.Json.Obj("input")?.Str("class") != "normal")
+            .Select(s => "- " + m(s.Protocol.Length > 0 ? s.Protocol : s.Title) + $" ({d.L("Schritt", "step")} {s.Number}, {d.L("beobachtet", "observed")})");
+        actual = string.Join("\n", new[] { actual }.Concat(observed).Where(x => x.Length > 0));
         sb.Append(actual.Length > 0 ? actual : Todo()).Append("\n\n");
 
         if (attachments.Count > 0)

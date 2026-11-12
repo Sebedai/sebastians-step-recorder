@@ -85,7 +85,7 @@ public sealed record MouseMarks(bool Click, bool Path, bool Target, bool Labels,
     public static readonly string[] Keys = { "clickMarker", "dragPath", "elementFrame", "labels", "approachPath", "keyCaps" };
 }
 
-public sealed class SessionView : IDisposable
+public sealed partial class SessionView : IDisposable
 {
     public Session Session { get; }
     public JsonObject Steps { get; private set; } = null!;
@@ -270,6 +270,7 @@ public sealed class SessionView : IDisposable
         if (_redactedKeySeqs.Count > 0) ApplyKeyRedactions();
         foreach (var c in (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>())
             if (c.Str("origin") == "recording" && (c.Bool("hidden") || c.Str("kind") == "internal") && c.LongN("sourceSeq") is long src) _hiddenComments.Add(src);
+        BuildReviewItems();
         BuildSteps();
     }
 
@@ -329,7 +330,7 @@ public sealed class SessionView : IDisposable
         if (string.IsNullOrEmpty(text)) return text ?? "";
         foreach (var r in _redactedStrings.OrderByDescending(s => s.Length)) text = text.Replace(r, RedactedText, StringComparison.Ordinal);
         foreach (var (rx, ph) in _subst) { try { text = rx.Replace(text, ph); } catch { } }
-        return text;
+        return MaskUnreviewed(text);
     }
 
     /// <summary>Wendet Clean rekursiv auf alle Zeichenketten eines JSON-Knotens an.</summary>
@@ -658,7 +659,8 @@ public sealed class SessionView : IDisposable
     public ViewStep? ByNumber(int n) => All.FirstOrDefault(s => s.Number == n);
     public ViewStep? ById(string id) => All.FirstOrDefault(s => s.Id == id);
 
-    public int UnreviewedCount => All.Count(s => s.Unreviewed);
+    /// <summary>Ungeprüfte auffällige Eingaben und pflichtige Prüfposten (Programmausgaben, auffällige Texte des Autors).</summary>
+    public int UnreviewedCount => All.Count(s => s.Unreviewed) + UnreviewedItems;
 
     public JsonObject? Goal()
     {
@@ -820,6 +822,7 @@ public sealed class SessionView : IDisposable
             return new JsonObject { ["seq"] = seq, ["t"] = e.Long("t"), ["type"] = e.Str("type"), ["redacted"] = new JsonArray("*") };
         var c = (JsonObject)CleanNode(e)!;
         if (c.Str("type") == "comment" && c.Str("text") is { } && IsHiddenComment(seq)) c["text"] = RedactedText;
+        ContentForOutput(c, seq);
         bool key = c.Str("type") is "key.down" or "key.up";
         if (key && _redactedKeySeqs.Contains(seq))
         {

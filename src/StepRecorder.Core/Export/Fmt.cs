@@ -58,6 +58,25 @@ public static class Fmt
         return fence + (pad ? " " : "") + text + (pad ? " " : "") + fence;
     }
 
+    /// <summary>
+    /// Eine Zeile aufgezeichneten Textes innerhalb eines Codeblocks (Stacktrace, Protokollzeile): Zaun aus Backticks und
+    /// unsichtbare Steuer- und Schreibrichtungszeichen entschärft, höchstens <paramref name="max"/> Zeichen.
+    /// </summary>
+    public static string CodeLine(string? s, int max = 400)
+    {
+        s = (s ?? "").TrimEnd('\r');
+        if (s.Length > max) s = s[..max] + "…";
+        var sb = new StringBuilder(s.Length);
+        foreach (var ch in s)
+            sb.Append(ch switch
+            {
+                '\t' => "    ",
+                _ when char.IsControl(ch) || ch is '​' or '‌' or '‍' or '‎' or '‏' or '‪' or '‫' or '‬' or '‭' or '‮' or '⁦' or '⁧' or '⁨' or '⁩' or '﻿' => $"\\u{{{(int)ch:X4}}}",
+                _ => ch.ToString()
+            });
+        return sb.ToString().Replace("```", "ˋˋˋ");
+    }
+
     /// <summary>Text in Anführungszeichen, Markdown-Sonderzeichen erzwingen eine Codespanne.</summary>
     public static string Quote(string? s, string lang, int max = 120)
     {

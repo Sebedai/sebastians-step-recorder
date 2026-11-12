@@ -32,8 +32,10 @@ public static class SyntheticSession
     public const string CommentCanary = "Kanarie-Kommentar-7Q2";
     /// <summary>Im Terminal getippter Befehl (withTerminal).</summary>
     public const string TerminalCanary = "echo kanarie42";
+    /// <summary>Freitext eines Eintrags der Ereignisanzeige (withEventText, Paket 12).</summary>
+    public const string EventLogCanary = "System.NullReferenceException: Kanarie-Stack-5T1";
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000)
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000, bool withCrash = false, bool withEventText = false)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -159,6 +161,22 @@ public static class SyntheticSession
             w.Append(new JsonObject { ["t"] = t + 3_000_000, ["type"] = "keystate.sync", ["reason"] = "secureDesktop", ["gapId"] = "gu", ["down"] = new JsonArray(), ["mouseDown"] = new JsonArray(), ["locks"] = new JsonArray() });
             Frame(t + 3_050_000, "f000099", "resume", null, Color.Gray);
             t += 3_000_000;
+        }
+        if (withCrash)
+        {
+            // Programm-Kontext (Paket 10): Start mit Build-Kennung, Hänger, Absturz, Fakten der Ereignisanzeige
+            w.Append(new JsonObject { ["t"] = 100_000, ["type"] = "process.info", ["proc"] = "p1", ["pid"] = 10, ["process"] = "notepad.exe", ["win"] = "w1", ["startedBeforeSession"] = false, ["product"] = "Editor", ["version"] = "11.2410.21.0",
+                ["build"] = new JsonObject { ["peTimestampUtc"] = "2026-10-01T08:00:00Z", ["pdbId"] = "0123456789ABCDEF0123456789ABCDEF1", ["pdbFile"] = "notepad.pdb" },
+                ["git"] = new JsonObject { ["basis"] = "workingTree", ["dirty"] = "notChecked", ["branch"] = "feature/save", ["commit"] = "0123456789abcdef0123456789abcdef01234567" } });
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "window.hang", ["phase"] = "start", ["win"] = "w1", ["proc"] = "p1", ["process"] = "notepad.exe" });
+            w.Append(new JsonObject { ["t"] = t + 6_000_000, ["type"] = "window.hang", ["phase"] = "end", ["win"] = "w1", ["proc"] = "p1", ["process"] = "notepad.exe", ["durationMs"] = 6000 });
+            t += 7_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "process.exit", ["proc"] = "p1", ["pid"] = 10, ["process"] = "notepad.exe", ["win"] = "w1", ["exitCode"] = 0xC0000005L, ["exitCodeHex"] = "0xC0000005", ["class"] = "crash" });
+            w.Append(new JsonObject { ["t"] = t + 500_000, ["type"] = "eventlog.entry", ["proc"] = "p1", ["process"] = "notepad.exe", ["win"] = "w1", ["eventId"] = 1000, ["recordId"] = 4711, ["provider"] = "Application Error",
+                ["facts"] = new JsonObject { ["app"] = "notepad.exe", ["appVersion"] = "11.2410.21.0", ["module"] = "ntdll.dll", ["moduleVersion"] = "10.0.26100.1", ["exceptionCode"] = "0xC0000005", ["offset"] = "0x00000000000a1b2c" },
+                ["text"] = withEventText ? EventLogCanary + "\n   at Notepad.Save()" : null }.Clean());
+            t += 1_000_000;
         }
         // Lücke (Pause)
         t += 1_000_000;

@@ -39,6 +39,8 @@ public sealed class WindowRegistry
     readonly int _ownPid = Environment.ProcessId;
     readonly HashSet<int> _ownPids;
     public Func<WinEntry, bool>? ScopeTest;
+    /// <summary>Nach dem Schreiben von <c>window.info</c> (Programm-Kontext, Paket 10); muss schnell sein.</summary>
+    public Action<WinEntry, long>? Registered;
 
     public WindowRegistry(RecordingOptions opt, Func<JsonObject, long> emit, Func<long> now, Func<Topology> topo, IEnumerable<int>? ownPids = null)
     {
@@ -78,7 +80,7 @@ public sealed class WindowRegistry
             }
             e = Build(hwnd);
             _byHwnd[hwnd] = e;
-            if (!e.Own) _emit(InfoEvent(e, t ?? _now()));
+            if (!e.Own) { long tt = t ?? _now(); _emit(InfoEvent(e, tt)); try { Registered?.Invoke(e, tt); } catch { } }
             return e;
         }
     }

@@ -28,7 +28,7 @@ public sealed partial class Recorder
                     FlushPendingKeys(force: false);
                     Idle();
                 }
-                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollDesktop(); PollReminder(); }
+                if (Environment.TickCount64 - lastTick >= 250) { lastTick = Environment.TickCount64; if (ticks++ < 3) T("tick " + _w.LastSeq); _w.Tick(Now()); Watch(); PollDesktop(); PollReminder(); _procs?.Poll(State == RecorderState.Recording); }
             }
             catch (Exception ex) { Warning?.Invoke("Eingabeverarbeitung: " + ex.Message); }
         }

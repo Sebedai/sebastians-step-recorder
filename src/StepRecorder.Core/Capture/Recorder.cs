@@ -42,6 +42,7 @@ public sealed partial class Recorder : IDisposable
     FrameEngine _frames = null!;
     UiaService _uia = null!;
     WindowRegistry _reg = null!;
+    ProcessWatch? _procs;
     Topology _topo = null!;
     readonly KeyTranslator _keys = new();
     long _qpc0; readonly double _usPerTick = 1_000_000.0 / Stopwatch.Frequency;
@@ -112,6 +113,9 @@ public sealed partial class Recorder : IDisposable
 
         _uia = new UiaService(Now, r => _topo.RectJson(r), Options.ValueMaxChars);
         _reg = new WindowRegistry(Options, Emit, Now, () => _topo, _ownPids) { ScopeTest = InScope };
+        // Programm-Kontext: Start, Ende, Hänger, Ereignisanzeige (12, Paket 10)
+        _procs = new ProcessWatch(Now, _startUtc, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, Options.AppContext);
+        _reg.Registered = (e, t) => _procs.Observe(e, t);
 
         // Hooks setzen → Bestätigung = t0
         if (!_host.Command(InputRing.TargetRun, 1500))
@@ -504,6 +508,7 @@ public sealed partial class Recorder : IDisposable
             FlushMasked(); FlushMove();
         }
         StopObservers();
+        try { _procs?.Final(); } catch { }
         long t = Now();
         if (State != RecorderState.Paused) _frames.Immediate("sessionStop", null);
         _frames.StopAndDrain();
@@ -539,6 +544,7 @@ public sealed partial class Recorder : IDisposable
         if (_pendingRedactions.Count > 0) ReadLayer.Redactor.ApplyLastInputRedactions(_w.Folder, _pendingRedactions);
         _uia.Dispose();
         _host.Dispose();
+        try { _procs?.Dispose(); } catch { }
         SetState(RecorderState.Stopped);
         return _w.Folder;
     }
