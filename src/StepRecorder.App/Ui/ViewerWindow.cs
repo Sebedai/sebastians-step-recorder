@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,7 +19,7 @@ namespace StepRecorder.App.Ui;
 /// Viewer und Editor in einem Fenster: Schrittliste, Bildbereich mit Werkzeugen, Detailbereich,
 /// Statusleiste. Alle Bearbeitungen landen im Overlay edits.json (automatisch gespeichert, rückgängig machbar).
 /// </summary>
-sealed partial class ViewerWindow : Window
+sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
 {
     readonly string _path;
     SessionView _view = null!;
@@ -29,7 +29,8 @@ sealed partial class ViewerWindow : Window
     readonly Grid _imgHost = new();
     readonly StackPanel _details = new() { Margin = new Thickness(22, 20, 22, 24) };
     readonly TextBlock _status = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBox _search = new() { Tag = "Schritte durchsuchen", Padding = new Thickness(32, 7, 8, 7), ToolTip = "Suche (Strg+F)" };
+    readonly Wpf.Ui.Controls.TextBox _search = new() { PlaceholderText = "Schritte durchsuchen", ToolTip = "Suche (Strg+F)", Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
+    Wpf.Ui.Controls.TitleBar? _titleBar;
     ToggleButton _allToggle = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
     readonly TextBlock _titleBlock = new() { FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Cursor = Cursors.Hand, ToolTip = "Klicken zum Umbenennen", TextTrimming = TextTrimming.CharacterEllipsis };
@@ -64,7 +65,8 @@ sealed partial class ViewerWindow : Window
         SizeChanged += (_, _) => Adapt();
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         _status.Foreground = Theme.Muted; _metaBlock.Foreground = Theme.Muted; _listCount.Foreground = Theme.Muted; _noImage.Foreground = Theme.Muted; _reviewCount.Foreground = Theme.Warn;
-        _imgCaptionPill = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(999), Padding = new Thickness(14, 5, 14, 6), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
+        _imgCaption.Foreground = Theme.Fg2;
+        _imgCaptionPill = new Border { Padding = new Thickness(0), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0), IsHitTestVisible = false };
         Load();
         BuildLayout();
         Fill();
@@ -88,22 +90,15 @@ sealed partial class ViewerWindow : Window
     Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
     {
         var content = U.MenuContent(glyph, text);
-        var b = new Button { Content = content, ToolTip = tip, Margin = new Thickness(2, 0, 2, 0), Style = Theme.Style(style ?? "Ghost") };
+        var b = U.Make(style ?? "Ghost"); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
         b.Click += (_, _) => ShowMenu(b, items());
         return b;
     }
 
     static void ShowMenu(FrameworkElement target, params (string label, Action action)[] items)
     {
-        var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
-        foreach (var (label, action) in items)
-        {
-            if (label == "-") { m.Items.Add(new Separator()); continue; }
-            var mt = System.Text.RegularExpressions.Regex.Match(label, @"^(.*?)\s*\((K|[^()]*(?:Strg|Alt|Umschalt|Entf|Einfg|F\d)[^()]*)\)$");
-            var mi = new MenuItem { Header = mt.Success ? mt.Groups[1].Value : label, InputGestureText = mt.Success ? mt.Groups[2].Value : "" };
-            mi.Click += (_, _) => { try { action(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-            m.Items.Add(mi);
-        }
+        var m = Menu(items);
+        m.PlacementTarget = target; m.Placement = PlacementMode.Bottom;
         m.IsOpen = true;
     }
 
@@ -200,11 +195,7 @@ sealed partial class ViewerWindow : Window
 
     IEnumerable<JsonObject> AnnotationsFor(string frameId) => (_view.Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().Where(a => a.Str("frame") == frameId);
 
-    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = Theme.FsBody, FontFamily? font = null) => new()
-    {
-        Text = t, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent, Padding = new Thickness(0), Margin = new Thickness(-2, 0, 0, 0), TextWrapping = TextWrapping.Wrap,
-        Foreground = fg ?? Theme.Fg, FontSize = size, FontFamily = font ?? Theme.UiFont, VerticalContentAlignment = VerticalAlignment.Top
-    };
+    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = Theme.FsBody, FontFamily? font = null) => U.PlainText(t, fg, size, font);
 
     /// <summary>Win32-Kontext für AutoHotkey: WinTitle, ClassNN, Koordinaten, Pixel, Fenstertexte, Code zum Kopieren.</summary>
     void Win32Section(ViewStep s, JsonObject w32, Action<string, UIElement> info)
@@ -294,14 +285,8 @@ sealed partial class ViewerWindow : Window
         }
     }
 
-    static Border Callout(string glyph, Brush bg, Brush fg, string title, string text)
-    {
-        var dock = new DockPanel();
-        var icon = U.Icon(glyph, 16, fg); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 1, 12, 0);
-        DockPanel.SetDock(icon, Dock.Left); dock.Children.Add(icon);
-        dock.Children.Add(U.Col(U.Text(title, Theme.FsHint, true, fg, new Thickness(0, 0, 0, 2)), ReadOnlyText(text, Theme.Fg, Theme.FsHint)));
-        return new Border { Background = bg, CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 12, 0, 4), Child = dock };
-    }
+    /// <summary>Hinweis im Detailbereich als Fluent-Hinweisleiste (Warnung oder Information).</summary>
+    static FrameworkElement Callout(bool warning, string title, string text) => U.InfoBar(title, text, warning);
 
     /// <summary>Für Entwickler-Schnappschüsse: Schritt in der Liste wählen.</summary>
     internal int StepCount => _list.Items.Count;
@@ -352,12 +337,12 @@ sealed partial class ViewerWindow : Window
     {
         var s = Sel;
         var all = _view.MarksFor(null);
-        var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
+        var m = U.MenuScope(new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom });
         void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = Loc.T(t), FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false, Padding = new Thickness(10, 8, 10, 4) });
         void Item(string label, bool on, Action a, string gesture = "")
         {
-            var mi = new MenuItem { Header = label, InputGestureText = gesture, Icon = on ? U.Icon(Theme.ICheck, 14, Theme.AccentText) : null };
-            mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
+            var mi = U.Mi(label, gesture, a);
+            mi.IsCheckable = true; mi.IsChecked = on; mi.StaysOpenOnClick = false;
             m.Items.Add(mi);
         }
         Head("Alle Schritte");

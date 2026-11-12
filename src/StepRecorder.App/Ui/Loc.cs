@@ -24,7 +24,7 @@ static class Loc
         if (!En) return;
         // „Loaded“ erreicht nur Elemente mit eigenem Handler; „SizeChanged“ bekommt jedes Element beim ersten Layout
         var h = new SizeChangedEventHandler((s, e) => { if (e.PreviousSize.Width == 0 && e.PreviousSize.Height == 0) Apply(s as FrameworkElement); });
-        foreach (var t in new[] { typeof(TextBlock), typeof(ContentControl), typeof(HeaderedItemsControl), typeof(TextBox), typeof(ComboBox) })
+        foreach (var t in new[] { typeof(TextBlock), typeof(ContentControl), typeof(HeaderedItemsControl), typeof(TextBox), typeof(ComboBox), typeof(Wpf.Ui.Controls.TitleBar) })
             EventManager.RegisterClassHandler(t, FrameworkElement.SizeChangedEvent, h, true);
         EventManager.RegisterClassHandler(typeof(Window), FrameworkElement.LoadedEvent, new RoutedEventHandler((s, _) => Apply(s as FrameworkElement)), true);
         EventManager.RegisterClassHandler(typeof(FrameworkElement), FrameworkElement.ToolTipOpeningEvent, new ToolTipEventHandler((s, _) => { if (s is FrameworkElement fe && fe.ToolTip is string tip) Set(tip, v => fe.ToolTip = v); }), true);
@@ -76,12 +76,15 @@ static class Loc
                     Set(w.Title, v => w.Title = v);
                     break;
                 case TextBlock tb:
+                    // Texte in WPF-UI-Vorlagen sind an Eigenschaften gebunden – die werden direkt übersetzt (unten), nicht der TextBlock
+                    if (tb.TemplatedParent is Wpf.Ui.Controls.TitleBar or Wpf.Ui.Controls.InfoBar or Wpf.Ui.Controls.TextBox) break;
                     if (tb.Inlines.Count > 1) { foreach (var run in tb.Inlines.OfType<Run>().ToList()) Set(run.Text, v => run.Text = v); }
                     else Set(tb.Text, v => tb.Text = v);
                     Track(tb, TextDesc, () => { if (tb.Inlines.Count <= 1) Set(tb.Text, v => tb.Text = v); });
                     break;
                 case TextBox box:
                     if (box.Tag is string ph) Set(ph, v => box.Tag = v);
+                    if (box is Wpf.Ui.Controls.TextBox ub && ub.PlaceholderText is { Length: > 0 } pt) Set(pt, v => ub.PlaceholderText = v);
                     if (box.IsReadOnly) { Set(box.Text, v => box.Text = v); Track(box, TbDesc, () => Set(box.Text, v => box.Text = v)); }
                     break;
                 // Listeneinträge und Auswahlfelder nie verändern (würde Auswahl-Ereignisse auslösen) – angezeigt werden sie
@@ -91,6 +94,13 @@ static class Loc
                 case HeaderedItemsControl hi:
                     if (hi.Header is string h) Set(h, v => hi.Header = v);
                     if (hi is MenuItem mi && mi.InputGestureText is { Length: > 0 } g) Set(g, v => mi.InputGestureText = v);
+                    break;
+                case Wpf.Ui.Controls.InfoBar ib:
+                    Set(ib.Title, v => ib.Title = v);
+                    Set(ib.Message, v => ib.Message = v);
+                    break;
+                case Wpf.Ui.Controls.TitleBar bar:
+                    Set(bar.Title, v => bar.Title = v);
                     break;
                 case HeaderedContentControl hc:
                     if (hc.Header is string hh) Set(hh, v => hc.Header = v);

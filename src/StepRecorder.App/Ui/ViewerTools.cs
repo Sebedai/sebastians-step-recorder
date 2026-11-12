@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -27,6 +27,9 @@ sealed partial class ViewerWindow
     {
         t.Language = System.Windows.Markup.XmlLanguage.GetLanguage(_view.Language == "en" ? "en-US" : "de-DE");
         SpellCheck.SetIsEnabled(t, true);
+        // WPF zeigt Korrekturvorschläge nur ohne eigenes Kontextmenü – das von WPF-UI (nur Kopieren/Einfügen) abschalten
+        t.ContextMenu = null;
+        if (t is Wpf.Ui.Controls.TextBox ut) ut.ClearButtonEnabled = false;
     }
 
     // =====================================================================================
@@ -359,7 +362,7 @@ sealed class CountdownWindow : Window
         col.Children.Add(new TextBlock { Text = caption, Foreground = Theme.Night.Muted, FontSize = Theme.FsBody, HorizontalAlignment = HorizontalAlignment.Center });
         col.Children.Add(_num);
         if (hint != null) col.Children.Add(new TextBlock { Text = hint, Foreground = Theme.Night.Muted, FontSize = Theme.FsHint, LineHeight = 19, TextAlignment = TextAlignment.Center, MaxWidth = 360, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center });
-        Content = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(Theme.RCard), BorderBrush = Theme.Night.Accent, BorderThickness = new Thickness(2), Child = col };
+        Content = new Border { Background = Theme.Night.Bg, CornerRadius = new CornerRadius(Theme.RCard), BorderBrush = Theme.Night.Line, BorderThickness = new Thickness(1), Child = col, Effect = Theme.Shadow(24, 4, 0.45), Margin = new Thickness(16) };
         _num.Text = _left.ToString();
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         t.Tick += (_, _) =>
@@ -367,10 +370,9 @@ sealed class CountdownWindow : Window
             _left--;
             if (_left <= 0) { t.Stop(); Close(); Finished?.Invoke(); return; }
             _num.Text = _left.ToString();
-            Anim.Pop(_num, 0.55, 360);
             Tones.Tick();
         };
-        Loaded += (_, _) => { Tones.Tick(); t.Start(); if (Content is UIElement ce) Anim.Pop(ce, 0.85, 300); Anim.Pop(_num, 0.55, 360); };
+        Loaded += (_, _) => { Tones.Tick(); t.Start(); if (Content is UIElement ce) Anim.Appear(ce, 0, 0, 160); };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) { t.Stop(); Close(); } };
     }
 }
@@ -378,7 +380,7 @@ sealed class CountdownWindow : Window
 /// <summary>Suchen und Ersetzen über alle Schritte, Hinweise, Kapitel und Dokumenttexte.</summary>
 sealed class SearchReplaceWindow : Window
 {
-    readonly TextBox _find = new() { Tag = "Suchen nach …" }, _repl = new() { Tag = "Ersetzen durch …" };
+    readonly Wpf.Ui.Controls.TextBox _find = new() { PlaceholderText = "Suchen nach …" }, _repl = new() { PlaceholderText = "Ersetzen durch …" };
     readonly CheckBox _case = new() { Content = "Groß-/Kleinschreibung beachten", Margin = new Thickness(0, 0, 20, 8) }, _word = new() { Content = "Nur ganze Wörter", Margin = new Thickness(0, 0, 20, 8) };
     readonly CheckBox _steps = new() { Content = "Überschriften und Texte", IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _notes = new() { Content = "Hinweiskästen", IsChecked = true, Margin = new Thickness(0, 0, 20, 8) },
         _chapters = new() { Content = "Kapitel", IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _doc = new() { Content = "Titel und Dokumenttexte", IsChecked = true, Margin = new Thickness(0, 0, 20, 8) };

@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -96,13 +96,14 @@ sealed class ZoomPanel : Grid
     /// <summary>Zoomleiste: − · Prozent · + · Einpassen · 100 %.</summary>
     public FrameworkElement Toolbar(Brush? fg = null)
     {
-        var pct = new TextBlock { MinWidth = 52, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = Theme.FsHint, FontFamily = Theme.Mono };
+        var pct = new TextBlock { MinWidth = 52, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = Theme.FsHint };
         if (fg != null) pct.Foreground = fg; else pct.Foreground = Theme.Fg2;
         void Upd() => pct.Text = $"{Math.Round(Zoom * 100)} %";
         ZoomChanged += Upd; Upd();
         Button B(string glyph, string? text, Action a, string tip)
         {
-            var b = U.Ghost(glyph, text, a, tip); b.Margin = new Thickness(1, 0, 1, 0); b.Padding = new Thickness(8, 6, 8, 6);
+            // auf der dunklen Großansicht eigene helle Schaltflächen, sonst Fluent-Textschaltflächen
+            var b = fg != null ? U.Btn(glyph, text, a, tip, "BarButton") : U.Ghost(glyph, text, a, tip); b.Margin = new Thickness(1, 0, 1, 0); b.Padding = new Thickness(8, 6, 8, 6);
             if (fg != null) b.Foreground = fg;
             return b;
         }
@@ -150,10 +151,10 @@ sealed class ImageLightbox : Window
         var light = Theme.Night.Fg;
         Button Nav(string glyph, int dir, string tip)
         {
-            var b = U.Ghost(glyph, null, () => Go(_index + dir), tip); b.Foreground = light; b.Padding = new Thickness(10, 8, 10, 8);
+            var b = U.Btn(glyph, null, () => Go(_index + dir), tip, "BarButton"); b.Foreground = light; b.Padding = new Thickness(10, 8, 10, 8);
             return b;
         }
-        var close = U.Ghost(Theme.IClose, "Schließen", Close, "Schließen (Esc)"); close.Foreground = light;
+        var close = U.Btn(Theme.IClose, "Schließen", Close, "Schließen (Esc)", "BarButton"); close.Foreground = light; close.Padding = new Thickness(10, 6, 12, 6);
         var bar = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
         var right = U.Row(_zoom.Toolbar(light), U.VSep(22, Theme.Night.Line), Nav(Theme.IPrev, -1, "Vorheriges Bild (←)"), Nav(Theme.INext, +1, "Nächstes Bild (→)"), close);
         right.VerticalAlignment = VerticalAlignment.Center;

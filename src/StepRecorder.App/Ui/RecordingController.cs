@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -182,11 +182,10 @@ sealed class RecordingController
         string K(string n, string d) => De(h.GetValueOrDefault(n, d));
         var elapsed = (_pausedAt ?? DateTime.Now) - _started - _pausedTotal;
         bool paused = _rec.State == RecorderState.Paused;
-        var m = new ContextMenu();
+        var m = U.MenuScope(new ContextMenu());
         void Add(string head, string gesture, Action a, bool enabled = true)
         {
-            var mi = new MenuItem { Header = head, InputGestureText = gesture, IsEnabled = enabled };
-            mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
+            var mi = U.Mi(head, gesture, a); mi.IsEnabled = enabled;
             m.Items.Add(mi);
         }
         m.Items.Add(new MenuItem { Header = $"Aufnahme {(paused ? "pausiert" : "läuft")} · {elapsed:mm\\:ss} · {_rec.ActionCount} Schritte", IsEnabled = false });
@@ -348,8 +347,8 @@ sealed class RecordingBar : Window
     static readonly Brush BarBg = Theme.Night.Bg, BarLine = Theme.Night.Line, BarFg = Theme.Night.Fg, BarMuted = Theme.Night.Muted,
         RecRed = Theme.Night.Rec, WarnFg = Theme.Night.Warn, PrivBg = Theme.Night.PrivBg, StopBg = Theme.Night.StopBg, ChipBg = Theme.Night.Chip;
     readonly RecordingController _c;
-    readonly TextBlock _time = new() { FontSize = 15, FontFamily = Theme.Mono, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 46 };
-    readonly TextBlock _state = new() { FontSize = Theme.FsCaption, FontFamily = Theme.Mono, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
+    readonly TextBlock _time = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 46 };
+    readonly TextBlock _state = new() { FontSize = Theme.FsCaption, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
     readonly TextBlock _count = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center };
     readonly Ellipse _dot = new() { Width = 10, Height = 10, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _msg = new() { FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
@@ -392,7 +391,7 @@ sealed class RecordingBar : Window
         var grip = new TextBlock { Text = Theme.IGrip, FontFamily = Theme.Icons, FontSize = 14, Foreground = BarMuted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0), Cursor = Cursors.SizeAll, ToolTip = "Leiste verschieben" };
         grip.MouseLeftButtonDown += (_, _) => { _dragged = true; DragMove(); };
         var status = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _dot, _state, _time } };
-        var countChip = new Border { Background = ChipBg, CornerRadius = new CornerRadius(999), Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
+        var countChip = new Border { Margin = new Thickness(12, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
 
         var pause = B(Theme.IPause, "Pause / Fortsetzen (Strg+Umschalt+F9)", c.TogglePause, _pauseIcon);
         var stop = B(Theme.IStop, "Aufnahme beenden (Strg+Umschalt+F10)", c.Stop, text: "Stopp");
@@ -400,17 +399,17 @@ sealed class RecordingBar : Window
         var comment = B(Theme.IComment, "Kommentar (Strg+Umschalt+F12)", c.Comment);
         _dictBtn = B("\uE720", "Diktat: Gesprochenes wird offline zu Kommentaren (Strg+Umschalt+F5)", c.ToggleDictation, _dictIcon);
         var marker = B(Theme.IFlag, "Marker setzen (Strg+Umschalt+F7) – Rechtsklick: Art wählen", () => c.Marker("note"));
-        var mm = new ContextMenu();
+        var mm = U.MenuScope(new ContextMenu());
         foreach (var (k, n, g) in new[] { ("note", "Notiz", "Strg+Umschalt+F7"), ("error", "Fehler", "Strg+Umschalt+F1"), ("expected", "Erwartet", "Strg+Umschalt+F2"), ("important", "Wichtig", "") })
-        { var mi = new MenuItem { Header = n, InputGestureText = g }; mi.Click += (_, _) => c.Marker(k); mm.Items.Add(mi); }
+            mm.Items.Add(U.Mi(n, g, () => c.Marker(k)));
         marker.ContextMenu = mm;
         var photo = B(Theme.ICamera, "Schnappschuss (Strg+Umschalt+F11)", () => c.Marker("snapshot"));
         _privacy = B(Theme.IUnlock, "Privattaste: Eingaben nicht speichern (Strg+Umschalt+F8)", c.TogglePrivacy, _privacyIcon);
         var discard = B(Theme.IUndo, "Letzten Schritt verwerfen (Strg+Umschalt+F6)", c.DiscardPrevious);
         var more = B(Theme.IMore, "Weitere Funktionen", () => { });
         var minimize = B("\uE921", "In den Infobereich minimieren (Strg+Umschalt+F4) – Symbol unten rechts in der Taskleiste", c.MinimizeToTray);
-        var menu = new ContextMenu();
-        void Add(string h, string g, Action a) { var mi = new MenuItem { Header = h, InputGestureText = g }; mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } }; menu.Items.Add(mi); }
+        var menu = U.MenuScope(new ContextMenu());
+        void Add(string h, string g, Action a) => menu.Items.Add(U.Mi(h, g, a));
         Add("Letzte Eingabe schwärzen", "", c.RedactLastInput);
         Add("Marker mit Text …", "", () => { var d = new CommentWindow("Marker-Text"); if (d.ShowDialog() == true) c.Marker("important", d.Text); });
         Add("In den Infobereich minimieren", "Strg+Umschalt+F4", c.MinimizeToTray);
@@ -425,7 +424,7 @@ sealed class RecordingBar : Window
         _msg.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = row });
         Content = new Border
         {
-            Margin = new Thickness(14), CornerRadius = new CornerRadius(Theme.RInset + 2), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
+            Margin = new Thickness(14), CornerRadius = new CornerRadius(Theme.RCard), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
             Effect = Theme.Shadow(24, 4, 0.45), Child = new StackPanel { Children = { row, _msgRow } }
         };
         _msgTimer.Tick += (_, _) => { _msg.Text = ""; _msgRow.Visibility = Visibility.Collapsed; _msgTimer.Stop(); };
@@ -436,7 +435,7 @@ sealed class RecordingBar : Window
             SetWindowLongPtr(h, Win32.GWL_EXSTYLE, (nint)(ex | 0x08000000 /*NOACTIVATE*/ | Win32.WS_EX_TOOLWINDOW));
             Invisibility.Apply(this);
         };
-        Loaded += (_, _) => { Center(); SetPulse(true); if (Content is UIElement ce) Anim.Appear(ce, 0, -14, 380); };
+        Loaded += (_, _) => { Center(); SetPulse(true); if (Content is UIElement ce) Anim.Appear(ce, 0, -6, 200); };
         SizeChanged += (_, _) => { if (!_dragged) Center(); };
         SetTime(TimeSpan.Zero, 0, RecorderState.Recording, false);
     }
@@ -525,7 +524,7 @@ sealed class FrameWindow : Window
 /// <summary>Kommentarfeld (Eingabe speichert, Umschalt+Eingabe neue Zeile, Esc verwirft).</summary>
 sealed class CommentWindow : Window
 {
-    readonly TextBox _box = new() { AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = 4000, FontSize = 14, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, Tag = "Was passiert hier? Was ist wichtig?" };
+    readonly Wpf.Ui.Controls.TextBox _box = new() { ClearButtonEnabled = false, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = 4000, FontSize = 14, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, PlaceholderText = "Was passiert hier? Was ist wichtig?" };
     public string Text => _box.Text;
     public CommentWindow(string title = "Kommentar")
     {

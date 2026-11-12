@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
@@ -45,7 +45,7 @@ sealed partial class ViewerWindow
     /// <summary>Textfeld, das beim Verlassen speichert (nur wenn sich etwas geändert hat).</summary>
     TextBox CommitBox(string value, Action<string> save, string? placeholder = null, bool multi = false, double minH = 0)
     {
-        var t = new TextBox { Text = value, Tag = placeholder, IsReadOnly = _view.Session.ReadOnly, TextWrapping = TextWrapping.Wrap, MaxLength = 4000 };
+        var t = new Wpf.Ui.Controls.TextBox { Text = value, PlaceholderText = placeholder ?? "", PlaceholderEnabled = placeholder != null, ClearButtonEnabled = false, IsReadOnly = _view.Session.ReadOnly, TextWrapping = TextWrapping.Wrap, MaxLength = 4000 };
         Spell(t);
         if (multi) { t.AcceptsReturn = true; t.MinHeight = minH > 0 ? minH : 64; t.VerticalContentAlignment = VerticalAlignment.Top; }
         string orig = value;
@@ -74,7 +74,7 @@ sealed partial class ViewerWindow
 
         var intro = U.Hint("Alles, was aus den Schritten eine fertige Bedienungsanleitung macht. Gilt für HTML, Word, PDF, Markdown und GIF.", new Thickness(0, 0, 0, 12));
         _details.Children.Add(intro);
-        if (en) _details.Children.Add(Callout(Theme.IGlobe, Theme.AccentSoft, Theme.AccentText, "Englische Fassung", "Titel, Untertitel, Zielgruppe, Texte, Voraussetzungen und Fußzeile gelten hier nur für Englisch. Leer gelassene Felder übernehmen die deutsche Fassung."));
+        if (en) _details.Children.Add(Callout(false, "Englische Fassung", "Titel, Untertitel, Zielgruppe, Texte, Voraussetzungen und Fußzeile gelten hier nur für Englisch. Leer gelassene Felder übernehmen die deutsche Fassung."));
         var actions = new WrapPanel { Margin = new Thickness(-3, 0, 0, 6) };
         actions.Children.Add(U.Btn(Theme.IEye, "Vorschau im Browser", PreviewDocument, "Anleitung als HTML erzeugen und im Standardbrowser öffnen", "Primary"));
         actions.Children.Add(U.Btn(Theme.IExport, "Exportieren …", () => ShowExportDialog("pdf"), "Als PDF, Word, HTML, Markdown oder GIF speichern (Strg+E)"));

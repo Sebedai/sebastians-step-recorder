@@ -43,6 +43,8 @@
 
   <ItemGroup>
     <PackageReference Include="System.Speech" Version="8.0.0" />
+    <!-- Fluent-Steuerelemente (Windows 11), MIT-Lizenz – siehe THIRD-PARTY-NOTICES.md -->
+    <PackageReference Include="WPF-UI" Version="4.3.0" />
   </ItemGroup>
 
 </Project>

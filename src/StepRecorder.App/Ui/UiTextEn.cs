@@ -226,6 +226,15 @@ static class UiTextEn
         ["Aufnahme öffnen (Strg+O) – oder einen Aufnahmeordner hierher ziehen"] = "Open recording (Ctrl+O) – or drag a recording folder here",
         ["Einstellungen"] = "Settings",
         ["Hilfe"] = "Help",
+        // Startfenster (0.12)
+        ["Zweck"] = "Purpose",
+        ["Alles auf dem Monitor, auf dem gerade gearbeitet wird"] = "Everything on the monitor you are working on",
+        ["Danach ein Fenster anklicken – nur dieses Programm wird aufgenommen"] = "Then click a window – only this program is recorded",
+        ["Danach ein Rechteck aufziehen – ein fester Ausschnitt"] = "Then drag a rectangle – a fixed area",
+        ["startet"] = "starts",
+        ["Minimieren"] = "Minimize",
+        ["Maximieren"] = "Maximize",
+        ["Ganzer Bildschirm – Eingabetaste startet"] = "Full screen – Enter starts",
         ["Was möchten Sie festhalten?"] = "What would you like to capture?",
         ["Anpassen …"] = "Customize …",
         ["Einstellen …"] = "Configure …",
@@ -1078,10 +1087,6 @@ static class UiTextEn
 
         // Reihenfolge: zuerst Muster für ganze Texte, dann Teilstücke („ · “), zuletzt Tastennamen.
 
-        // ---------------- Begrüßung (StartWindow.Greeting, Run mit Leerzeichen am Ende) ----------------
-        P(@"^Guten Morgen(, [\p{L}-]+)?\.( ?)$", "Good morning$1.$2");
-        P(@"^Guten Tag(, [\p{L}-]+)?\.( ?)$", "Good afternoon$1.$2");
-        P(@"^Guten Abend(, [\p{L}-]+)?\.( ?)$", "Good evening$1.$2");
         P(@"^Version (\S+) · offline · kostenlos$", "Version $1 · offline · free");
         P(@"^Version (\S+) verfügbar$", "Version $1 available");
 

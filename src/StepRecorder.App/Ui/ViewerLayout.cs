@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -65,11 +65,10 @@ sealed partial class ViewerWindow
         // ---------------- Kopfzeile ----------------
         _titleBlock.Text = _view.Title;
         _titleBlock.MouseLeftButtonUp += (_, _) => Rename();
-        var logo = Theme.Logo(30); logo.Margin = new Thickness(0, 0, 12, 0);
-        _titleBlock.FontFamily = Theme.Display; _stepPos.FontFamily = Theme.Mono; logo.VerticalAlignment = VerticalAlignment.Center;
+        _titleBlock.FontFamily = Theme.Display;
         var titleCol = U.Col(_titleBlock, _metaBlock); titleCol.VerticalAlignment = VerticalAlignment.Center;
-        var brand = new DockPanel { Margin = new Thickness(0, 0, 16, 0) };
-        DockPanel.SetDock(logo, Dock.Left); brand.Children.Add(logo); brand.Children.Add(titleCol);
+        var brand = new DockPanel { Margin = new Thickness(4, 0, 16, 0) };
+        brand.Children.Add(titleCol);
 
         var cmds = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
         Border Sep() => U.VSep();
@@ -77,20 +76,20 @@ sealed partial class ViewerWindow
         _redoBtn = U.Ghost(Theme.IRedo, null, Redo, "Wiederholen (Strg+Y)");
         _undoBtn.Margin = _redoBtn.Margin = new Thickness(1, 0, 1, 0);
         _playIcon.Text = Theme.IPlay; _playIcon.FontFamily = Theme.Icons; _playIcon.FontSize = 16; _playIcon.VerticalAlignment = VerticalAlignment.Center;
-        var play = new Button { Style = Theme.Style("Ghost"), Content = U.Row(_playIcon, new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }), ToolTip = "Schritte nacheinander zeigen (F5)", Margin = new Thickness(2, 0, 2, 0) };
+        var play = U.Make("Ghost").Set(b => { b.Content = U.Row(_playIcon, new TextBlock { Text = "Abspielen", Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center }); b.ToolTip = "Schritte nacheinander zeigen (F5)"; b.Margin = new Thickness(2, 0, 2, 0); });
         play.Click += (_, _) => TogglePlay();
         var copy = MenuButton(Theme.ICopy, "Kopieren", "Bild oder Text dieses Schritts in die Zwischenablage", null, () => new (string, Action)[]
             { ("Bild (Strg+C)", CopyImage), ("Bild mit Text (Strg+Umschalt+C)", CopyImageWithText), ("Nur Text (Strg+Umschalt+T)", CopyText), ("Als Markdown (Strg+M)", CopyMarkdown), ("Originalbild (Strg+Umschalt+O)", CopyOriginal), ("-", () => { }), ("Ganze Anleitung", CopyWholeGuide), ("Bild speichern … (Strg+Umschalt+S)", SaveImage), ("Kurzen Clip speichern (GIF) …", SaveClip) });
         var privacy = MenuButton(Theme.IShield, "Schwärzen", "Persönliche Daten aus Bildern und Texten entfernen", null, () => new (string, Action)[]
             { ("Persönliche Daten in Bildern suchen …", ScanImagesForPersonalData), ("Bereich im Bild schwärzen – Werkzeug X", () => SelectTool("redact")), ("Diesen Schritt schwärzen (Umschalt+Entf)", RedactStep), ("Text überall schwärzen …", RedactText), ("Werte verallgemeinern … (Strg+Umschalt+G)", Generalize), ("-", () => { }), ("Endgültig schwärzen …", FinalRedact) });
-        var review = new Button { Style = Theme.Style("Ghost"), ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", Margin = new Thickness(2, 0, 2, 0) };
+        var review = U.Make("Ghost").Set(b => { b.ToolTip = "Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)"; b.Margin = new Thickness(2, 0, 2, 0); });
         var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, "Durchsicht");
         _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(999), Padding = new Thickness(7, 1, 7, 2), MinWidth = 22, Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
         _reviewCount.HorizontalAlignment = HorizontalAlignment.Center;
         reviewContent.Children.Add(_reviewBadge);
         review.Content = reviewContent;
         review.Click += (_, _) => { try { ShowReview(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-        var preview = new Button { Style = Theme.Style("Ghost"), Content = U.IconText(Theme.IEye, "Vorschau"), ToolTip = "Anleitung als HTML im Browser ansehen", Margin = new Thickness(2, 0, 2, 0) };
+        var preview = U.Make("Ghost").Set(b => { b.Content = U.IconText(Theme.IEye, "Vorschau"); b.ToolTip = "Anleitung als HTML im Browser ansehen"; b.Margin = new Thickness(2, 0, 2, 0); });
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
             { ("Neue Aufnahme (Strg+N)", () => UiApp.Instance.ShowStart()), ("-", () => { }), ("Suchen und Ersetzen … (Strg+H)", ShowSearchReplace), ("Aufräumen …", ShowCleanup), ("Übersicht und Vollständigkeit", ShowOverview), ("Mit anderer Aufnahme vergleichen (F7)", Compare), ("-", () => { }), ("Alle Tastenkürzel", ShowShortcuts) });
@@ -103,13 +102,11 @@ sealed partial class ViewerWindow
         Lbl(play, 1); Lbl(preview, 1); Lbl(copy, 2); Lbl(privacy, 2); Lbl(review, 2);
         var bar = new DockPanel();
         DockPanel.SetDock(cmds, Dock.Right); bar.Children.Add(cmds); bar.Children.Add(brand);
-        var top = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 10, 16, 10), Child = bar };
+        var top = new Border { Padding = new Thickness(16, 4, 16, 10), Child = bar };
 
         // ---------------- Schrittliste ----------------
         var searchHost = new Grid { Margin = new Thickness(16, 16, 16, 12) };
         searchHost.Children.Add(_search);
-        var searchIcon = U.Icon(Theme.ISearch, 14, Theme.Muted); searchIcon.HorizontalAlignment = HorizontalAlignment.Left; searchIcon.Margin = new Thickness(13, 0, 0, 0); searchIcon.IsHitTestVisible = false;
-        searchHost.Children.Add(searchIcon);
         _search.TextChanged += (_, _) => Fill();
         var (impTrack, imp) = U.Segmented("imp", 0, (null, "Hauptschritte"), (null, "Alle"));
         impTrack.ToolTip = "Hauptschritte: Nebenschritte und Hauptschritte. Alle: zusätzlich die Spur (Mausbewegungen, Fensterwechsel …).";
@@ -118,6 +115,8 @@ sealed partial class ViewerWindow
         var filterRow = new DockPanel { Margin = new Thickness(16, 0, 16, 8) };
         DockPanel.SetDock(_listCount, Dock.Right); filterRow.Children.Add(_listCount); filterRow.Children.Add(impTrack);
         _list.SelectionMode = SelectionMode.Extended;
+        _list.ItemContainerStyle = Theme.Style("StepItem");
+        ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
         _list.SelectionChanged += (_, _) => { _selAnn = null; _variantOverride = null; ShowStep(); };
         _list.MouseDoubleClick += (_, e) =>
         {
@@ -159,7 +158,7 @@ sealed partial class ViewerWindow
         var disp = new ComboBox { Items = { "Ganzer Bildschirm", "Anwendungsfenster", "Ausschnitt" }, SelectedIndex = 0, MinWidth = 170, ToolTip = "Bildausschnitt" };
         disp.SelectionChanged += (_, _) => { _display = disp.SelectedIndex switch { 1 => "window", 2 => "crop", _ => "screen" }; ShowStep(); };
         var marksContent = U.MenuContent(Theme.IMouse, "Markierungen");
-        var marksBtn = new Button { Style = Theme.Style("Ghost"), Content = marksContent, ToolTip = "Klickpunkt, Zugweg, Zielrahmen, Hinweise sowie gedrückte Tasten und getippten Text im Bild ein-/ausblenden (H: nur dieser Schritt)" };
+        var marksBtn = U.Make("Ghost").Set(b => { b.Content = marksContent; b.ToolTip = "Klickpunkt, Zugweg, Zielrahmen, Hinweise sowie gedrückte Tasten und getippten Text im Bild ein-/ausblenden (H: nur dieser Schritt)"; });
         marksBtn.Click += (_, _) => ShowMarksMenu(marksBtn);
         if (marksContent.Children[1] is TextBlock ml) _labels.Add((ml, 3));
         var (langTrack, langs) = U.Segmented("tlang", _view.Language == "en" ? 1 : 0, (null, "DE"), (null, "EN"));
@@ -302,10 +301,13 @@ sealed partial class ViewerWindow
         }
 
         // ---------------- Statuszeile ----------------
-        var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 7, 16, 8), Child = _status };
+        var statusBar = new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 7, 16, 8), Child = _status };
 
         var root = new DockPanel();
-        Anim.Appear(top, 0, -6, 360); Anim.Appear(left, 60, 10); Anim.Appear(center, 130, 10); Anim.Appear(detPanel, 200, 10);
+        // Titelleiste mit Programmname; der Aufnahmetitel steht darunter groß (klickbar zum Umbenennen)
+        _titleBar = new Wpf.Ui.Controls.TitleBar { Title = AppInfo.DisplayName, Icon = new Wpf.Ui.Controls.ImageIcon { Source = Theme.LogoImage(32), Width = 16, Height = 16 } };
+        DockPanel.SetDock(_titleBar, Dock.Top); root.Children.Add(_titleBar);
+        Anim.Appear(grid, 0, 4, 200);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
@@ -330,14 +332,12 @@ sealed partial class ViewerWindow
 
     static ContextMenu Menu(IEnumerable<(string label, Action action)> items)
     {
-        var m = new ContextMenu();
+        var m = U.MenuScope(new ContextMenu());
         foreach (var (label, action) in items)
         {
             if (label == "-") { m.Items.Add(new Separator()); continue; }
             var mt = System.Text.RegularExpressions.Regex.Match(label, @"^(.*?)\s*\((K|[^()]*(?:Strg|Alt|Umschalt|Entf|Einfg|F\d)[^()]*)\)$");
-            var mi = new MenuItem { Header = mt.Success ? mt.Groups[1].Value : label, InputGestureText = mt.Success ? mt.Groups[2].Value : "" };
-            mi.Click += (_, _) => { try { action(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-            m.Items.Add(mi);
+            m.Items.Add(U.Mi(mt.Success ? mt.Groups[1].Value : label, mt.Success ? mt.Groups[2].Value : null, action));
         }
         return m;
     }
@@ -382,8 +382,8 @@ sealed partial class ViewerWindow
             FrameworkElement lead;
             var numBadge = new TextBlock
             {
-                Text = s.Manual ? "+" : s.Number.ToString("00"), FontFamily = Theme.Mono, FontSize = Theme.FsCaption, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
-                Foreground = primary ? Theme.AccentText : Theme.Muted, MinWidth = 26, Margin = new Thickness(0, 2, 6, 0), VerticalAlignment = VerticalAlignment.Top
+                Text = s.Manual ? "+" : s.Number.ToString(), FontSize = Theme.FsCaption, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = primary ? Theme.Fg2 : Theme.Muted, MinWidth = 22, Margin = new Thickness(0, 2, 6, 0), VerticalAlignment = VerticalAlignment.Top
             };
             if (gap) lead = U.Row(numBadge, new Border { Width = ThumbW + 2, Child = U.IconBadge(Theme.IWarn, 40, Theme.WarnSoft, Theme.Warn, 16) });
             else
@@ -407,19 +407,19 @@ sealed partial class ViewerWindow
             var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal, Foreground = dim ? Theme.Muted : s.Importance == "trace" ? Theme.Fg2 : Theme.Fg, FontStyle = gap ? FontStyles.Italic : FontStyles.Normal, MaxHeight = 2 * 19 + 2, LineHeight = 19, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, TextTrimming = TextTrimming.CharacterEllipsis };
             head.Inlines.Add(new System.Windows.Documents.Run(s.AuthorTitle ?? s.Title));
             var meta = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
-            var kindRow = U.Row(U.Icon(KindIcon(s), 12, Theme.Muted), U.Meta(KindLabel(s.Kind), new Thickness(5, 0, 8, 0)), U.Mono(ShortTime(Fmt.Time(s.TFrom, "de")), Theme.FsCaption, Theme.Muted, new Thickness(0, 0, 8, 0)));
+            var kindRow = U.Row(U.Icon(KindIcon(s), 12, Theme.Muted), U.Meta(KindLabel(s.Kind), new Thickness(5, 0, 8, 0)), U.Meta(ShortTime(Fmt.Time(s.TFrom, "de")), new Thickness(0, 0, 8, 0)));
             kindRow.Margin = new Thickness(0, 1, 0, 3);
             meta.Children.Add(kindRow);
             if (s.Unreviewed) meta.Children.Add(U.Chip("ungeprüft", Theme.WarnSoft, Theme.Warn, Theme.IWarn));
             if (s.EvidenceLevel == "inputOnly" && s.Kind is not ("gap" or "system")) meta.Children.Add(U.Chip("nur Eingabe", Theme.Surface2, Theme.Muted));
             if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? "aufgeräumt" : "ausgeblendet", Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
             if (s.Discarded) meta.Children.Add(U.Chip("verworfen", Theme.DangerSoft, Theme.Danger));
-            if (s.Comments.Count > 0) meta.Children.Add(U.Chip(s.Comments.Count.ToString(), Theme.AccentSoft, Theme.AccentText, Theme.IComment));
+            if (s.Comments.Count > 0) meta.Children.Add(U.Chip(s.Comments.Count.ToString(), Theme.Surface2, Theme.Muted, Theme.IComment));
             if (s.AuthorTitle != null || s.AuthorBody != null) meta.Children.Add(U.Chip("bearbeitet", Theme.Surface2, Theme.Muted, Theme.IEdit));
             var col = U.Col(head, meta); col.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(col, 1); g.Children.Add(col);
             if (s.ChapterTitle != null)
             {
-                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.AccentText, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = s.ChapterTitle };
+                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg2, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = s.ChapterTitle };
                 col.Children.Insert(0, chap);
             }
             _list.Items.Add(new ListBoxItem { Content = g, Tag = s, ToolTip = s.AuthorTitle ?? s.Title });
@@ -580,7 +580,7 @@ sealed partial class ViewerWindow
         _details.Children.Add(chips);
 
         if (s.Unreviewed)
-            _details.Children.Add(Callout(Theme.IWarn, Theme.WarnSoft, Theme.Warn, "Auffällige Eingabe", $"{s.FlagReason} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben."));
+            _details.Children.Add(Callout(true, "Auffällige Eingabe", $"{s.FlagReason} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben."));
 
         // Überschrift und Text direkt bearbeiten
         bool ro = _view.Session.ReadOnly;

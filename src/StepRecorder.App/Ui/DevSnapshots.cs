@@ -53,6 +53,11 @@ static class DevSnapshots
             var root = (FrameworkElement)VisualTreeHelper.GetChild(w, 0);
             double scale = PresentationSource.FromVisual(w)?.CompositionTarget.TransformToDevice.M11 ?? 1;
             var rtb = new RenderTargetBitmap((int)(root.ActualWidth * scale), (int)(root.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            // Mica ist im Bild durchsichtig – für das PNG die Grundfläche des Themas unterlegen
+            var under = new DrawingVisual();
+            using (var dc = under.RenderOpen())
+                dc.DrawRectangle(w is Wpf.Ui.Controls.FluentWindow || w.Background is not SolidColorBrush { Color.A: 255 } ? Theme.Bg : w.Background, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            if (!w.AllowsTransparency) rtb.Render(under);   // Leiste und Overlays bleiben freigestellt
             rtb.Render(root);
             var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
             using var fs = File.Create(Path.Combine(_dir!, $"{++_n:00}-{w.GetType().Name}{(w.GetType() == typeof(Window) ? "-" + Sanitize(w.Title) : "")}.png"));
