@@ -145,7 +145,7 @@ sealed partial class ViewerWindow
     {
         Item("undo", enabled: _undo.Count > 0), Item("redo", enabled: _redo.Count > 0), Item("history"), Sep(),
         Item("copyImage", enabled: _current != null), Item("copyImageText", enabled: Sel != null), Item("copyText", enabled: Sel != null), Item("copyMarkdown", enabled: Sel != null),
-        Item("copyOriginal", enabled: Sel != null), Item("copyGuide"), Item("copyBugReport"), Sep(),
+        Item("copyOriginal", enabled: Sel != null), Item("copyGuide"), Item("copyAllMarkdown"), Item("copyBugReport"), Sep(),
         Item("find"), Item("replace"),
     };
 

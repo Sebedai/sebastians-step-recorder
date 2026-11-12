@@ -100,7 +100,7 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | 15 | Befehlspalette und Sofort-Bildschirmfoto | V-43 | M | Editor | – | nein | erledigt |
 | 16 | UI-Tests I: Automationsmodell, FlaUI, Testbarkeits-Bericht | V-42 | L | Export | – | nein | erledigt |
 | 17 | UI-Tests II: pywinauto, Playwright, Test-KI-Paket | V-42 | M–L | Export, MCP | 16 | nein | erledigt |
-| 18 | Doku im Repository | V-44 | M | Export, Editor | – | nein | geplant |
+| 18 | Doku im Repository | V-44 | M | Export, Editor | – | nein | erledigt |
 | 19 | Visueller Vergleich | V-44 | M–L | Vergleich, Editor | 9 | nein | geplant |
 
 **Empfohlene Reihenfolge:** V → 8 → 9 → 10 → 11 → 14 → 16 → 12 → 13 → 15 → 18 → 17 → 19.

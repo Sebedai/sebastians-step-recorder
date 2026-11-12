@@ -736,7 +736,8 @@ Eine Anleitung soll für andere gelten: nicht der eigene Benutzername, sondern `
 | Bild kopieren | `Strg+C` | Das Bild des Schritts, wie angezeigt | Bitmap, PNG |
 | Bild mit Text kopieren | `Strg+Umschalt+C` | Nummer, Schritttext, Kommentare und Bild | HTML, RTF, Text |
 | Nur Text kopieren | `Strg+Umschalt+T` | Schritttext und Kommentare | Text |
-| Als Markdown kopieren | `Strg+M` | Schritt als Markdown, Bild als Verweis auf den Dateinamen | Text |
+| Als Markdown kopieren | `Strg+M` | Schritt als Markdown-Listenpunkt, ohne Bildverweis ([09 §6](09-anleitungs-export.md#6-markdown)) | Text |
+| Alle Schritte als Markdown kopieren | `Strg+Umschalt+M` | Ganze Anleitung als Markdown ohne Bilder, Dialekt wie zuletzt beim Markdown-Export (Standard GitHub) | Text |
 | Originalbild kopieren | `Strg+Umschalt+O` | Das ganze gespeicherte Bild ohne Markierungen und Zuschnitt; Schwärzungen bleiben | Bitmap, PNG |
 | Ausschnitt kopieren | `Alt+Ziehen` im Bild | Den aufgezogenen Bildteil, wie angezeigt | Bitmap, PNG |
 | Als Datei kopieren | `Strg+Umschalt+D` | Das Bild als Datei | Datei |
@@ -1256,6 +1257,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Strg+Umschalt+C` | Bild mit Text kopieren; bei Mehrfachauswahl Mini-Anleitung |
 | `Strg+Umschalt+T` | Nur Text kopieren |
 | `Strg+M` | Als Markdown kopieren |
+| `Strg+Umschalt+M` | Alle Schritte als Markdown kopieren |
 | `Strg+Umschalt+O` | Originalbild kopieren |
 | `Strg+Umschalt+D` | Als Datei kopieren |
 | `Alt+Ziehen` im Bild | Ausschnitt kopieren |

@@ -95,6 +95,27 @@ public static class Fmt
         return sb.ToString();
     }
 
+    /// <summary>
+    /// Nur ASCII-Buchstaben, Ziffern und Bindestriche (Umlaute umschrieben, Akzente entfernt) – für Markdown-Dateien und
+    /// Bilderordner in Versionsverwaltung und Wikis (09 §6.1, EXP-043).
+    /// </summary>
+    public static string AsciiSlug(string? s, string fallback = "anleitung", int max = 60)
+    {
+        s ??= "";
+        var map = new Dictionary<char, string> { ['ä'] = "ae", ['ö'] = "oe", ['ü'] = "ue", ['Ä'] = "Ae", ['Ö'] = "Oe", ['Ü'] = "Ue", ['ß'] = "ss", ['æ'] = "ae", ['ø'] = "oe", ['å'] = "aa", ['Æ'] = "Ae", ['Ø'] = "Oe", ['Å'] = "Aa", ['œ'] = "oe", ['Œ'] = "Oe" };
+        var sb = new StringBuilder();
+        foreach (var c in s) sb.Append(map.TryGetValue(c, out var r) ? r : c.ToString());
+        var plain = new StringBuilder();
+        foreach (var c in sb.ToString().Normalize(NormalizationForm.FormD))
+        {
+            if (System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.NonSpacingMark) continue;
+            plain.Append(c < 128 && char.IsLetterOrDigit(c) ? c : '-');
+        }
+        var t = System.Text.RegularExpressions.Regex.Replace(plain.ToString(), "-{2,}", "-").Trim('-');
+        if (t.Length > max) t = t[..max].TrimEnd('-');
+        return t.Length == 0 ? fallback : t;
+    }
+
     public static string FileSafe(string s, int max = 40)
     {
         var invalid = Path.GetInvalidFileNameChars();

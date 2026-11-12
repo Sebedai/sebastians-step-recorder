@@ -129,7 +129,7 @@ sealed partial class ViewerWindow
     {
         if (folder == null && AppState.Load().Export.Formats.TryGetValue(Exporter.Normalize(r.Format), out var o)) folder = o.Str("folder");
         if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) folder = null;
-        return Exporter.DefaultTarget(_view, r.Format, folder, r.Template, r.Language);
+        return Exporter.DefaultTarget(_view, r.Format, folder, r.Template, r.Language, r.MdLegacy);
     }
 
     void Remember(ExportRequest req, string? folderChoice)

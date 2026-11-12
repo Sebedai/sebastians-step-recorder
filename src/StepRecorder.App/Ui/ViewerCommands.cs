@@ -128,6 +128,7 @@ sealed partial class ViewerWindow
             new("settings", "general", Loc.L("Einstellungen …", "Settings …"), Key.None, N, () => UiApp.Instance.ShowStart("settings"), Listed: false),
             new("history", "general", Loc.L("Bearbeitungsstände …", "Edit history …"), Key.None, N, ShowHistory, Listed: false),
             new("copyGuide", "copy", Loc.L("Ganze Anleitung kopieren", "Copy whole guide"), Key.None, N, CopyWholeGuide, Listed: false),
+            new("copyAllMarkdown", "copy", Loc.L("Alle Schritte als Markdown kopieren", "Copy all steps as Markdown"), Key.M, CS, CopyAllMarkdown),
             new("copyBugReport", "copy", Loc.L("Als Fehlerbericht kopieren (Markdown)", "Copy as bug report (Markdown)"), Key.None, N, CopyBugReport, Listed: false),
             new("saveClip", "copy", Loc.L("Kurzen Clip speichern (GIF) …", "Save short clip (GIF) …"), Key.None, N, SaveClip, Listed: false),
             new("insertFile", "steps", Loc.L("Bild aus Datei …", "Image from file …"), Key.None, N, () => { if (PickImageFile() is { } b) using (b) InsertManual(b); }, Listed: false),

@@ -152,13 +152,13 @@ public class FoundationTests : IDisposable
         var folder = SyntheticSession.Create(Path.Combine(_root, "s2"));
         using var v = SessionView.Open(folder, headless: true);
         var outDir = Path.Combine(_root, "md");
-        Directory.CreateDirectory(Path.Combine(outDir, "bilder"));
-        File.WriteAllText(Path.Combine(outDir, "bilder", "fremd.png"), "x");
+        Directory.CreateDirectory(Path.Combine(outDir, "a-bilder"));
+        File.WriteAllText(Path.Combine(outDir, "a-bilder", "fremd.png"), "x");
         var r = Exporter.Run(v, new ExportRequest { Format = "md", Target = Path.Combine(outDir, "a.md") });
         Assert.Equal(Path.Combine(outDir, "a.md"), r.Path);
         Assert.True(File.Exists(r.Path));
-        Assert.True(Directory.GetFiles(Path.Combine(outDir, "bilder"), "schritt-*.png").Length > 0);
-        Assert.True(File.Exists(Path.Combine(outDir, "bilder", "fremd.png")));
+        Assert.True(Directory.GetFiles(Path.Combine(outDir, "a-bilder"), "schritt-*.png").Length > 0);
+        Assert.True(File.Exists(Path.Combine(outDir, "a-bilder", "fremd.png")));
     }
 
     [Fact]
@@ -191,7 +191,8 @@ public class FoundationTests : IDisposable
         var folder = SyntheticSession.Create(Path.Combine(_root, "s4"));
         using var v = SessionView.Open(folder);
         Assert.Equal(Path.Combine(folder, "export", "pdf", "Datei im Editor speichern.pdf"), Exporter.DefaultTarget(v, "pdf", null));
-        Assert.Equal(Path.Combine(@"D:\Ziel", "Datei im Editor speichern", "Datei im Editor speichern.md"), Exporter.DefaultTarget(v, "md", @"D:\Ziel"));
+        Assert.Equal(Path.Combine(@"D:\Ziel", "Datei-im-Editor-speichern", "Datei-im-Editor-speichern.md"), Exporter.DefaultTarget(v, "md", @"D:\Ziel"));
+        Assert.Equal(Path.Combine(@"D:\Ziel", "Datei im Editor speichern", "Datei im Editor speichern.md"), Exporter.DefaultTarget(v, "md", @"D:\Ziel", mdLegacy: true));
         Assert.EndsWith(" – Checkliste.pdf", Exporter.DefaultTarget(v, "pdf", @"D:\Ziel", "checkliste"));
     }
 

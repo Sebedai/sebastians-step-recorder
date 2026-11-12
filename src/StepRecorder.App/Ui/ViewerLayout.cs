@@ -82,7 +82,7 @@ sealed partial class ViewerWindow
         review.Click += (_, _) => Run("review");
         if (reviewContent.Children[1] is TextBlock rt) _labels.Add((rt, 2));
         var copy = MenuCmdButton(Theme.ICopy, Loc.L("Kopieren", "Copy"), Loc.L("Bild oder Text dieses Schritts in die Zwischenablage", "Copy the image or text of this step to the clipboard"), 2,
-            () => new() { Item("copyImage", enabled: _current != null), Item("copyImageText", enabled: Sel != null), Item("copyText", enabled: Sel != null), Item("copyMarkdown", enabled: Sel != null), Item("copyOriginal", enabled: Sel != null), Sep(), Item("copyGuide"), Item("copyBugReport") });
+            () => new() { Item("copyImage", enabled: _current != null), Item("copyImageText", enabled: Sel != null), Item("copyText", enabled: Sel != null), Item("copyMarkdown", enabled: Sel != null), Item("copyOriginal", enabled: Sel != null), Sep(), Item("copyGuide"), Item("copyAllMarkdown"), Item("copyBugReport") });
         var export = CmdButton("export", Loc.L("Exportieren …", "Export …"), 0, "Primary");
         export.Margin = new Thickness(10, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, U.VSep(), play, preview, review, U.VSep(), copy, export }) cmds.Children.Add(e);

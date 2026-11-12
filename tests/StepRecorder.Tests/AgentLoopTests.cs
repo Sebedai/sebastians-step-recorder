@@ -167,9 +167,10 @@ public class AgentLoopTests : IDisposable
         Assert.True(total >= 3);
         var res = Exporter.Run(v, new ExportRequest { Format = "md", Importance = "all", FromStep = 1, ToStep = 1, Target = Path.Combine(_root, "md") + "\\" });
         string md = File.ReadAllText(res.Path!);
-        var headings = md.Split('\n').Where(l => System.Text.RegularExpressions.Regex.IsMatch(l, @"^#{2,3} \d+\\?\.")).ToList();
-        Assert.Single(headings);
-        Assert.StartsWith("## 1", headings[0]);
+        // Schritte sind eine nummerierte Liste (09 §6.2)
+        var items = md.Split('\n').Where(l => System.Text.RegularExpressions.Regex.IsMatch(l, @"^\d+\. \*\*")).ToList();
+        Assert.Single(items);
+        Assert.StartsWith("1. ", items[0]);
         Assert.Null(v.Range);                                                    // nach dem Export wieder alle Schritte
         var ki = Exporter.Run(v, new ExportRequest { Format = "ki", FromStep = 2, ToStep = 3, Target = Path.Combine(_root, "ki") });
         var steps = Json.ReadObject(Path.Combine(ki.Path!, "steps.json"))!.Arr("steps")!;

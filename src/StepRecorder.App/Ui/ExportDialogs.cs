@@ -53,6 +53,13 @@ sealed class ExportDialog : Window
     readonly ComboBox _detail = new() { Items = { Loc.L("Kompakt", "Compact"), Loc.L("Standard", "Standard"), Loc.L("Vollständig", "Complete") }, SelectedIndex = 1 };
     readonly ComboBox _profile = new() { Items = { Loc.L("Kompatibel (≤ 1568 px)", "Compatible (≤ 1568 px)"), Loc.L("Hochauflösend (≤ 2576 px)", "High resolution (≤ 2576 px)"), Loc.L("Original", "Original") }, SelectedIndex = 0 };
     readonly ComboBox _gifSec = new() { Items = { Loc.L("1,5 Sekunden je Schritt", "1.5 seconds per step"), Loc.L("2,5 Sekunden je Schritt", "2.5 seconds per step"), Loc.L("4 Sekunden je Schritt", "4 seconds per step") }, SelectedIndex = 1 };
+    // Markdown (09 §6) und GIF-Größenziel (Paket 18)
+    readonly ComboBox _mdDialect = new() { Items = { Loc.L("Allgemein (> **Hinweis:**)", "General (> **Note:**)"), "GitHub / GitLab (> [!NOTE])", "Obsidian (> [!note])" }, SelectedIndex = 0 };
+    readonly CheckBox _mdFront = new() { Content = Loc.L("Kopfdaten (YAML) für Docusaurus, MkDocs, Jekyll", "Front matter (YAML) for Docusaurus, MkDocs, Jekyll"), Margin = new Thickness(0, 6, 0, 0) };
+    readonly CheckBox _mdLegacy = new() { Content = Loc.L("Frühere Form (Ordner „bilder“, Überschrift je Schritt)", "Previous form (folder \"bilder\", heading per step)"), Margin = new Thickness(0, 4, 0, 0) };
+    readonly ComboBox _gifSize = new() { Items = { Loc.L("Ohne Größenziel", "No size target"), "5 MB", Loc.L("10 MB (Pull Requests)", "10 MB (pull requests)"), "25 MB" }, SelectedIndex = 0 };
+    static readonly string[] MdDialects = { "plain", "github", "obsidian" };
+    static readonly double[] GifSizes = { 0, 5, 10, 25 };
     readonly CheckBox _zip = new() { Content = Loc.L("Zusätzlich als ZIP-Datei verpacken", "Also pack as ZIP file"), Margin = new Thickness(0, 2, 0, 0) };
     readonly CheckBox _timing = new() { Content = Loc.L("Auch die Denkpausen der Aufnahme übernehmen", "Also keep the pauses of the recording"), Margin = new Thickness(0, 0, 0, 8) };
     readonly CheckBox _ahkKi = new() { Content = Loc.L("Als KI-Paket: Anleitung für KI, ablauf.json, Bildausschnitte, Texterkennung", "As AI package: AI instructions, ablauf.json, image details, text recognition") };
@@ -145,6 +152,8 @@ sealed class ExportDialog : Window
         GuideAfter = HasGuideAfter ? GuideAfter : "never",
         Before = Before, Crop = _crop.IsChecked == true, After = _afterImg.IsChecked == true,
         Readable = (Format is "ki" or "ahk" or "ahk-ki") && _readable.IsChecked == true,
+        MdDialect = MdDialects[Math.Max(0, _mdDialect.SelectedIndex)], MdFrontMatter = _mdFront.IsChecked == true, MdLegacy = _mdLegacy.IsChecked == true,
+        GifMaxMb = GifSizes[Math.Max(0, _gifSize.SelectedIndex)],
     };
 
     /// <param name="initial">Vorbelegung (gemerkte Optionen).</param>
@@ -190,6 +199,9 @@ sealed class ExportDialog : Window
         _ahkKi.IsChecked = Exporter.Normalize(initial.Format) == "ahk-ki" || initial.AhkKi;
         _crop.IsChecked = initial.Crop; _afterImg.IsChecked = initial.After;
         _readable.IsChecked = initial.Readable || AppSettings.Load().ExportReadable;
+        _mdDialect.SelectedIndex = Math.Max(0, Array.IndexOf(MdDialects, initial.MdDialect));
+        _mdFront.IsChecked = initial.MdFrontMatter; _mdLegacy.IsChecked = initial.MdLegacy;
+        _gifSize.SelectedIndex = Math.Max(0, Array.FindIndex(GifSizes, g => Math.Abs(g - initial.GifMaxMb) < 0.01));
 
         // Speichern unter
         var browse = U.Btn(Theme.IFolder, Loc.L("Durchsuchen …", "Browse …"), Browse, null, "Ghost");
@@ -225,7 +237,9 @@ sealed class ExportDialog : Window
         Closed += (_, _) => _estimateCts?.Cancel();
         G(fLang, 0, 0); G(fPreset, 0, 2); G(fImp, 1, 0); G(fView, 1, 2); G(fMissing, 2, 0);
         G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
-        var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), _gifSec, Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.", "The GIF shows a title image, then every step with number and heading."));
+        var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), U.Col(_gifSec, _gifSize), Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift. Mit Größenziel werden erst die Breite, dann die Zahl der Schritte verringert.", "The GIF shows a title image, then every step with number and heading. With a size target, first the width and then the number of steps is reduced."));
+        _gifSize.Margin = new Thickness(0, 8, 0, 0);
+        var mdOpts = U.Field(Loc.L("Markdown", "Markdown"), U.Col(_mdDialect, _mdFront, _mdLegacy), Loc.L("Hinweiskästen im gewählten Dialekt; Dateinamen nur ASCII, Bilder im Ordner „<name>-bilder“, gleiche Aufnahme ergibt dieselbe Datei.", "Note boxes in the chosen dialect; ASCII-only file names, images in the folder \"<name>-bilder\", the same recording gives the same file."));
         var ahkOpts = U.Col(_timing, _ahkKi); ahkOpts.Margin = new Thickness(0, 0, 0, 12);
         var testOpts = U.Field(Loc.L("Testgerüst", "Test framework"), _testTarget, Loc.L("Ein Entwurf zum Prüfen und Anpassen – das Programm spielt nichts selbst ab. Selektoren nach Stabilität, Warten auf Signale statt fester Pausen, Marker „Erwartet“ und „Fehler“ als Prüfungen.", "A draft to review and adapt – the program does not replay anything itself. Selectors by stability, waiting for signals instead of fixed pauses, markers \"Expected\" and \"Error\" as assertions."));
         var fBefore = U.Field(Loc.L("Vorher-Bild", "Before image"), U.Col(_beforeTrack, _beforeHint));
@@ -245,6 +259,7 @@ sealed class ExportDialog : Window
             testOpts.Visibility = uitest ? Visibility.Visible : Visibility.Collapsed;
             ahkOpts.Visibility = ahk ? Visibility.Visible : Visibility.Collapsed;
             gifOpts.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
+            mdOpts.Visibility = Format == "md" ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             marksOpts.Visibility = guide && Format != "bugreport" ? Visibility.Visible : Visibility.Collapsed;
             fPreset.Visibility = HasPreset ? Visibility.Visible : Visibility.Hidden;
@@ -322,12 +337,13 @@ sealed class ExportDialog : Window
         foreach (var cb in new[] { _imp, _view, _detail, _profile, _gifSec, _missing }) cb.SelectionChanged += (_, _) => Upd();
         _ahkKi.Checked += (_, _) => Renamed(); _ahkKi.Unchecked += (_, _) => Renamed();
         _testTarget.SelectionChanged += (_, _) => Renamed();
+        _mdLegacy.Checked += (_, _) => Renamed(); _mdLegacy.Unchecked += (_, _) => Renamed();
         _zip.Checked += (_, _) => Upd(); _zip.Unchecked += (_, _) => Upd();
         foreach (var r in _before.Concat(_guideAfter)) r.Checked += (_, _) => Upd();
         foreach (var chk in new[] { _crop, _afterImg, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, marksOpts, ahkOpts, testOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, mdOpts, marksOpts, ahkOpts, testOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 
@@ -396,7 +412,9 @@ sealed class ExportDialog : Window
         (string title, string use, (string file, string what)[] files) = Format switch
         {
             "md" => (Loc.L("Markdown – Text und ein Bilderordner", "Markdown – text and an image folder"), Loc.L("Für Wikis, Git-Repositories, Confluence oder Notiz-Apps wie Obsidian.", "For wikis, Git repositories, Confluence or note apps like Obsidian."),
-                new[] { (Loc.L("<Titel>.md", "<title>.md"), guideContent + Loc.L(" (als Markdown-Text).", " (as Markdown text).")), (Loc.L("bilder\\", "bilder\\"), Loc.L("ein PNG je Schritt, in der .md-Datei verlinkt.", "one PNG per step, linked from the .md file.")) }),
+                _mdLegacy.IsChecked == true
+                    ? new[] { (Loc.L("<Titel>.md", "<title>.md"), guideContent + Loc.L(" (als Markdown-Text).", " (as Markdown text).")), (Loc.L("bilder\\", "bilder\\"), Loc.L("ein PNG je Schritt, in der .md-Datei verlinkt.", "one PNG per step, linked from the .md file.")) }
+                    : new[] { (Loc.L("<name>.md", "<name>.md"), guideContent + Loc.L(" – Schritte als nummerierte Liste, Tastenkürzel und getippter Text als Code, Terminal-Befehle als Codeblock.", " – steps as a numbered list, shortcuts and typed text as code, terminal commands as code blocks.")), (Loc.L("<name>-bilder\\", "<name>-bilder\\"), Loc.L("schritt-001.png … – feste Namen, damit ein erneuter Export nur echte Änderungen zeigt.", "schritt-001.png … – fixed names, so a new export only shows real changes.")) }),
             "docx" => (Loc.L("Word – zum Weiterbearbeiten", "Word – for further editing"), Loc.L("Öffnet in Word oder LibreOffice; Texte, Layout und Bilder lassen sich dort noch anpassen.", "Opens in Word or LibreOffice; texts, layout and images can still be adjusted there."),
                 new[] { (Loc.L("<Titel>.docx", "<title>.docx"), guideContent + Loc.L(". Die Bilder sind eingebettet.", ". Images are embedded.")) }),
             "pdf" => (Loc.L("PDF – fertig zum Drucken und Weitergeben", "PDF – ready to print and share"), Loc.L("Sieht überall gleich aus und lässt sich nicht versehentlich ändern.", "Looks the same everywhere and cannot be changed by accident."),

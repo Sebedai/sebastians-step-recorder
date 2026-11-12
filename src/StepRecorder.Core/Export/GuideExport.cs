@@ -48,6 +48,14 @@ public sealed class GuideOptions
     public bool PptxNotes { get; set; } = true;
     public bool Compact { get; set; }
     public bool Checkboxes { get; set; }
+    /// <summary>Markdown: Dialekt der Hinweiskästen plain | github | obsidian (09 §6.2).</summary>
+    public string MdDialect { get; set; } = "plain";
+    /// <summary>Markdown: Kopfdaten als YAML-Block (Docusaurus, MkDocs, Jekyll).</summary>
+    public bool MdFrontMatter { get; set; }
+    /// <summary>Markdown in der früheren Form (Ordner „bilder“, Überschrift je Schritt) – für eine Übergangszeit.</summary>
+    public bool MdLegacy { get; set; }
+    /// <summary>GIF: Größenziel in Bytes (0 = ohne); darüber werden Breite und dann Bildzahl verringert.</summary>
+    public long GifMaxBytes { get; set; }
 }
 
 /// <summary>
@@ -63,7 +71,7 @@ public static partial class GuideExport
     /// <summary>Alles, was ein Dokument braucht – einmal gesammelt, für alle Formate gleich.</summary>
     sealed class Doc
     {
-        public string Lang = "de", Title = "", Subtitle = "", Intro = "", Outro = "";
+        public string Lang = "de", Title = "", Subtitle = "", Intro = "", Outro = "", Date = "";
         public byte[]? Logo;
         public List<string> Prereq = new();
         public List<(string label, string value)> Meta = new();
@@ -102,16 +110,17 @@ public static partial class GuideExport
         if (fmt == "tour") o.MouseMarks = false;   // die Klickfläche zeigt die Stelle – keine eingezeichneten Mausmarken
         string ext = fmt switch { "md" or "bugreport" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", _ => "html" };
         string sub = fmt switch { "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", _ => ext };
-        string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", sub, Fmt.FileSafe(title.Length > 0 ? title : "Anleitung") + "." + ext);
-        if (Directory.Exists(outPath) || outPath.EndsWith('\\') || outPath.EndsWith('/')) outPath = Path.Combine(outPath, Fmt.FileSafe(title) + "." + ext);
+        string name = fmt == "md" && !o.MdLegacy ? Fmt.AsciiSlug(title, lang == "de" ? "anleitung" : "guide") : Fmt.FileSafe(title.Length > 0 ? title : "Anleitung");
+        string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", sub, name + "." + ext);
+        if (Directory.Exists(outPath) || outPath.EndsWith('\\') || outPath.EndsWith('/')) outPath = Path.Combine(outPath, name + "." + ext);
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         if (File.Exists(outPath) && !o.Overwrite) throw new IOException("Ziel existiert bereits: " + outPath);
         switch (fmt)
         {
-            case "md": Markdown(doc, outPath); break;
+            case "md": Markdown(doc, outPath, o); break;
             case "docx": Docx(doc, outPath); break;
             case "pdf": Pdf(doc, outPath, res); break;
-            case "gif": Gif(doc, outPath, o); break;
+            case "gif": Gif(doc, outPath, o, res); break;
             case "bugreport": res.Text = BugReport(view, doc, outPath); break;
             case "tour":
                 File.WriteAllText(outPath, Tour(doc, o), new UTF8Encoding(false));
@@ -211,6 +220,7 @@ public static partial class GuideExport
         }
 
         string date = view.Session.StartUtc.ToLocalTime().ToString(lang == "de" ? "dd.MM.yyyy" : "yyyy-MM-dd");
+        d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
         if (s.ShowDate) d.Meta.Add((d.L("Stand", "Date"), date));
         if (s.Author.Length > 0) d.Meta.Add((d.L("Autor", "Author"), view.Clean(s.Author)));
@@ -386,7 +396,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     // Markdown
     // =====================================================================================
 
-    static void Markdown(Doc d, string outPath)
+    /// <summary>Frühere Markdown-Form (Ordner „bilder“, Überschrift je Schritt, alles maskiert) – Exportoption für eine Übergangszeit.</summary>
+    static void MarkdownLegacy(Doc d, string outPath)
     {
         string dir = Path.GetDirectoryName(outPath)!;
         string imgDir = Path.Combine(dir, "bilder");
@@ -710,14 +721,33 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     // Animiertes GIF: Titelbild, dann je Schritt Bild mit Bildunterschrift (Nummer + Überschrift)
     // =====================================================================================
 
-    static void Gif(Doc d, string outPath, GuideOptions o)
+    static void Gif(Doc d, string outPath, GuideOptions o, ExportResult res)
     {
-        var items = d.Blocks.OfType<Item>().Where(i => i.Png != null).ToList();
+        // Größenziel (z. B. für Pull Requests): erst die Breite verringern, dann jeden zweiten, dritten … Schritt zeigen
+        int width = 1200, stride = 1;
+        byte[] data;
+        for (int attempt = 0; ; attempt++)
+        {
+            data = GifBytes(d, o, width, stride);
+            if (o.GifMaxBytes <= 0 || data.LongLength <= o.GifMaxBytes || attempt >= 10) break;
+            if (width > 480) width = Math.Max(480, (int)(width * 0.8)); else stride++;
+        }
+        File.WriteAllBytes(outPath, data);
+        if (width < 1200 || stride > 1)
+            res.Notices.Add(d.L($"GIF verkleinert, um das Größenziel einzuhalten: höchstens {width} Pixel breit" + (stride > 1 ? $", jeder {stride}. Schritt" : "") + $" ({data.LongLength / 1024.0 / 1024.0:0.0} MB).",
+                                $"GIF reduced to meet the size target: at most {width} pixels wide" + (stride > 1 ? $", every {stride}th step" : "") + $" ({data.LongLength / 1024.0 / 1024.0:0.0} MB)."));
+        if (o.GifMaxBytes > 0 && data.LongLength > o.GifMaxBytes)
+            res.Warnings.Add(d.L("Das GIF bleibt über dem Größenziel.", "The GIF stays above the size target."));
+    }
+
+    static byte[] GifBytes(Doc d, GuideOptions o, int maxWidth, int stride)
+    {
+        var items = d.Blocks.OfType<Item>().Where(i => i.Png != null).Where((_, i) => i % stride == 0).ToList();
         var imgs = items.Select(i => { using var ms = new MemoryStream(i.Png!); return new Bitmap(ms); }).ToList();
         try
         {
             int maxW = imgs.Count > 0 ? imgs.Max(b => b.Width) : 1000;
-            int W = Math.Clamp(maxW, 640, 1200);
+            int W = Math.Min(Math.Clamp(maxW, 640, 1200), maxWidth);
             double maxAspect = imgs.Count > 0 ? imgs.Max(b => (double)b.Height / b.Width) : 0.6;
             int imgH = (int)Math.Round(W * Math.Min(maxAspect, 0.8));
             const int bar = 64;
@@ -772,9 +802,10 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 }
                 frames.Add(f); delays.Add(ms1);
             }
-            using var fs = File.Create(outPath);
+            using var fs = new MemoryStream();
             GifWriter.Write(fs, frames, delays);
             foreach (var f in frames) f.Dispose();
+            return fs.ToArray();
         }
         finally { foreach (var b in imgs) b.Dispose(); }
     }

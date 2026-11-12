@@ -69,14 +69,14 @@ public class ExportImageSelectionTests : IDisposable
     {
         using var v = SessionView.Open(_folder, headless: true);
         var plain = GuideExport.Export(v, new GuideOptions { Format = "md", OutPath = Path.Combine(_root, "md1", "a.md") });
-        Assert.Empty(Directory.GetFiles(Path.Combine(_root, "md1", "bilder"), "*-nachher.png"));
+        Assert.Empty(Directory.GetFiles(Path.Combine(_root, "md1", "a-bilder"), "*-nachher.png"));
 
         var withAfter = GuideExport.Export(v, new GuideOptions { Format = "md", OutPath = Path.Combine(_root, "md2", "a.md"), After = "always" });
-        var after = Directory.GetFiles(Path.Combine(_root, "md2", "bilder"), "*-nachher.png");
+        var after = Directory.GetFiles(Path.Combine(_root, "md2", "a-bilder"), "*-nachher.png");
         Assert.NotEmpty(after);
         var md = File.ReadAllText(withAfter.Path);
         Assert.Contains("*Ergebnis:*", md);
-        Assert.Contains("](bilder/" + Path.GetFileName(after[0]) + ")", md);
+        Assert.Contains("](a-bilder/" + Path.GetFileName(after[0]) + ")", md);
 
         // HTML und PDF vertragen das zweite Bild ebenfalls
         var html = File.ReadAllText(GuideExport.Export(v, new GuideOptions { Format = "html", OutPath = Path.Combine(_root, "h.html"), After = "always" }).Path);

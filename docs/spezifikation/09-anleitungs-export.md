@@ -338,7 +338,9 @@ Vier Angaben des Autors verändern, was die Anleitung zeigt (alle Soll). Sie sta
 - Bilder heißen `schritt-001.png`, ein zusätzliches Nachher-Bild `schritt-001-nachher.png`. Die Nummer ist die der Anleitung, dreistellig mit führenden Nullen.
 - Bildverweise sind relativ und verwenden `/`.
 - Datei- und Ordnername enthalten für Markdown standardmäßig nur ASCII-Zeichen, Ziffern und Bindestriche (Umlaute umschrieben), damit sie in Versionsverwaltung und Wikis keine Schwierigkeiten machen.
-- **Kann:** Ausgabe als ein ZIP-Archiv; Kopfdaten als YAML-Block am Dateianfang.
+- **Kann:** Ausgabe als ein ZIP-Archiv; Kopfdaten als YAML-Block am Dateianfang (`--front-matter`, Exportdialog „Kopfdaten (YAML)“): `title`, bei Untertitel `description`, `date` (Tag der Aufnahme, `JJJJ-MM-TT`), `lang`.
+- **Stabile Ausgabe (12, Paket 18):** Dieselbe Aufnahme ergibt bytegleiches Markdown und bytegleiche Bilder mit festen Namen – ohne Zeitstempel und Programmversion –, damit ein erneuter Export im Repository nur echte Änderungen zeigt.
+- **Frühere Form** (Übergangszeit, `--md-legacy`, Exportdialog „Frühere Form“): Ordner `bilder/`, Dateiname wie der Titel, Überschrift je Schritt, jedes Sonderzeichen maskiert.
 
 ### 6.2 Aufbau
 
@@ -347,22 +349,25 @@ Vier Angaben des Autors verändern, was die Anleitung zeigt (alle Soll). Sie sta
 | Titel | `# Titel` |
 | Kapitel | `## Kapitel` |
 | Schritte | Nummerierte Liste; das Bild als eingerückter Absatz im Listenpunkt |
-| Elementnamen | `**„Name“**` |
+| Elementnamen | `**„Name“**` (im fett gesetzten Schritttitel nur die Anführungszeichen) |
 | Tasten und getippter Text | Code-Spanne |
+| Im Terminal getippter Befehl | Codeblock ```` ```console ```` im Listenpunkt – nur nach der Durchsicht; ungeprüft steht der Platzhalter im Text |
 | Kommentar | Zitatblock mit fett gesetzter Kennzeichnung |
 | Bild | `![Alternativtext](Titel-bilder/schritt-001.png)` |
 
-- Grundlage ist **CommonMark**. Die Ausgabe enthält kein rohes HTML.
+- Grundlage ist **CommonMark**. Die Ausgabe enthält kein rohes HTML. **Maskiert wird nur, was Bedeutung hätte:** `` \ ` * _ [ ] < ~ `` überall, `&` vor einer Entität, `![`, am Zeilenanfang `#`, `>`, `+`, `-`, `=`, `|` und „1.“/„1)“. Punkte, Klammern und Bindestriche mitten im Text bleiben unverändert.
+- Mehrzeilige Texte: Leerzeile trennt Absätze, sonst harter Zeilenumbruch mit `\` am Zeilenende.
 - **Dialekte** (Soll) für Kommentare:
 
 | Dialekt | Kommentar erscheint als |
 |---|---|
-| Allgemein (Standard) | `> **Hinweis:** Text` |
-| GitHub | `> [!NOTE]` und Text in der Folgezeile; entsprechend `[!TIP]`, `[!WARNING]` |
-| Obsidian | `> [!note] Hinweis` und Text in der Folgezeile |
+| Allgemein (Standard, `--md-dialect plain`) | `> **Hinweis:** Text` |
+| GitHub/GitLab (`--md-dialect github`) | `> [!NOTE]` und Text in der Folgezeile; entsprechend `[!TIP]`, `[!WARNING]`, `[!IMPORTANT]`; „Ergebnis“ als `[!NOTE]` mit Kennzeichnung im Text |
+| Obsidian (`--md-dialect obsidian`) | `> [!note] Hinweis` und Text in der Folgezeile; „Ergebnis“ als `[!success]` |
 
 - Die Liste beginnt mit der richtigen Nummer, auch wenn Kapitelüberschriften sie unterbrechen.
-- Erzeugt wird Markdown durch einen eigenen Schreiber. Markdig dient dazu, die einfache Auszeichnung in Kommentaren zu lesen, und in den Tests als Gegenprobe: Die erzeugte Datei muss sich ohne Abweichung einlesen lassen und darf weder HTML-Knoten noch unerwartete Verweise enthalten.
+- Erzeugt wird Markdown durch einen eigenen Schreiber (`GuideExport.Markdown.cs`). Die Gegenprobe der Tests prüft heute ohne Markdig: kein rohes HTML, keine Verweise außer den eigenen Bildverweisen, jeder Bildverweis löst auf, bytegleiche Wiederholung. Eine Gegenprobe mit Markdig (Abhängigkeit nur im Testprojekt) bleibt Kann.
+- **Kopieren im Editor** (08 §10): „Als Markdown kopieren“ legt einen Schritt als Listenpunkt ohne Bildverweis ab (das Bild käme nicht mit; „Bild kopieren“ legt es zusätzlich ab); „Alle Schritte als Markdown kopieren“ (`Strg+Umschalt+M`) die ganze Anleitung ohne Bilder im zuletzt gewählten Dialekt (Standard GitHub) – für Pull Requests und Issues.
 
 ## 7 DOCX
 
@@ -479,6 +484,7 @@ Format `gif`: ein animiertes Bild, das die Schritte nacheinander zeigt – für 
 
 - Ein Titelbild, dann je Schritt ein Bild mit Nummer und Überschrift; ohne Anleitungstexte. Die Animation läuft in einer Schleife.
 - Die Dauer je Schritt wählt der Dialog: 1,5, 2,5 (Standard) oder 4 Sekunden.
+- **Größenziel** (12, Paket 18; Dialog: ohne, 5, 10 oder 25 MB; Kommandozeile `--gif-max-mb <n>`): Liegt das GIF darüber, wird erst die Breite schrittweise bis 480 Pixel verringert, dann nur jeder zweite, dritte … Schritt gezeigt. Das Ergebnis meldet die Verkleinerung als Hinweis, ein verfehltes Ziel als Warnung.
 - Umfang, Darstellung und Markierungen gelten wie bei den Anleitungsformaten.
 
 ## 9 Vorlagen und Branding

@@ -32,6 +32,7 @@ Aufruf:
       [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
+      Markdown:    [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
       KI-Paket:    [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original] [--zip] [--no-events]
                    Bilder: [--before auto|immer|nie] [--no-crop] [--no-after]
       AutoHotkey:  [--real-timing] [--no-images]      AHK für KI: [--with <Aufnahme>]… [--no-ocr]
@@ -74,6 +75,7 @@ Usage:
       [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
+      Markdown:   [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
       AI package: [--detail compact|standard|full] [--image-profile compatible|highres|original] [--zip] [--no-events]
                   images: [--before auto|always|never] [--no-crop] [--no-after]
       AutoHotkey: [--real-timing] [--no-images]      AHK for AI: [--with <recording>]… [--no-ocr]
@@ -172,8 +174,8 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps" },
-            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after" }, "--with");
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb" },
+            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after", "--front-matter", "--md-legacy" }, "--with");
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
         // Bilder im KI-Paket (Vorher-Bild) und in Anleitungen (Nachher-Bild als „Ergebnis“) – deutsche und englische Werte
@@ -187,8 +189,11 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
             Importance = c["--importance"] ?? "primary", View = c["--view"], Template = c["--template"], GuideAfter = guideAfter,
             Detail = c["--detail"], ImageProfile = c["--image-profile"], Zip = c.Has("--zip"), IncludeEvents = !c.Has("--no-events"),
             Before = before, Crop = !c.Has("--no-crop"), After = !c.Has("--no-after"), Readable = c.Has("--readable"),
-            RealTiming = c.Has("--real-timing"), Images = !c.Has("--no-images"), Ocr = !c.Has("--no-ocr"), With = c.All("--with")
+            RealTiming = c.Has("--real-timing"), Images = !c.Has("--no-images"), Ocr = !c.Has("--no-ocr"), With = c.All("--with"),
+            MdDialect = c["--md-dialect"] ?? "plain", MdFrontMatter = c.Has("--front-matter"), MdLegacy = c.Has("--md-legacy")
         };
+        if (req.MdDialect is not ("plain" or "github" or "obsidian")) return Usage("--md-dialect: plain | github | obsidian");
+        if (c["--gif-max-mb"] is { } gm) { if (!double.TryParse(gm, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mb) || mb < 0.5 || mb > 1000) return Usage("--gif-max-mb: 0.5–1000"); req.GifMaxMb = mb; }
         if (!Exporter.IsKnownFormat(req.Format)) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", req.Format));
         // Schrittbereich: --from/--to oder --steps a-b (Nummern der Schrittliste)
         if (c["--steps"] is { } range)

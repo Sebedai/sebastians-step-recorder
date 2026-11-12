@@ -46,6 +46,12 @@ public sealed class ExportRequest
     /// <summary>Schrittbereich (Nummern der Schrittliste, inklusive); null = von Anfang bzw. bis Ende. Wird nicht gemerkt.</summary>
     public int? FromStep { get; set; }
     public int? ToStep { get; set; }
+    // Markdown (09 §6) und GIF
+    public string MdDialect { get; set; } = "plain";
+    public bool MdFrontMatter { get; set; }
+    public bool MdLegacy { get; set; }
+    /// <summary>GIF: Größenziel in MB (0 = ohne).</summary>
+    public double GifMaxMb { get; set; }
 
     public JsonObject ToJson() => new JsonObject
     {
@@ -54,6 +60,7 @@ public sealed class ExportRequest
         ["tourHints"] = TourHints, ["pptxNotes"] = PptxNotes, ["detail"] = Detail, ["imageProfile"] = ImageProfile, ["zip"] = Zip, ["includeEvents"] = IncludeEvents,
         ["realTiming"] = RealTiming, ["images"] = Images, ["ahkKi"] = AhkKi, ["ocr"] = Ocr,
         ["guideAfter"] = GuideAfter, ["before"] = Before, ["crop"] = Crop, ["after"] = After, ["readable"] = Readable,
+        ["mdDialect"] = MdDialect, ["mdFrontMatter"] = MdFrontMatter, ["mdLegacy"] = MdLegacy, ["gifMaxMb"] = GifMaxMb,
     }.Clean();
 
     public static ExportRequest FromJson(JsonObject? o)
@@ -69,6 +76,8 @@ public sealed class ExportRequest
         r.GuideAfter = o.Str("guideAfter") is "changed" or "always" ? o.Str("guideAfter")! : "never";
         r.Before = o.Str("before") is "always" or "never" ? o.Str("before")! : "auto";
         if (o["crop"] != null) r.Crop = o.Bool("crop"); if (o["after"] != null) r.After = o.Bool("after"); r.Readable = o.Bool("readable");
+        r.MdDialect = o.Str("mdDialect") is "github" or "obsidian" ? o.Str("mdDialect")! : "plain";
+        r.MdFrontMatter = o.Bool("mdFrontMatter"); r.MdLegacy = o.Bool("mdLegacy"); r.GifMaxMb = Math.Clamp(o.Dbl("gifMaxMb", 0), 0, 1000);
         return r;
     }
 
@@ -116,10 +125,13 @@ public static class Exporter
     /// Vollständiges Ziel. <paramref name="lastFolder"/>: zuletzt gewählter Ordner für dieses Format (null = Standardort in der Aufnahme).
     /// Markdown und AutoHotkey bekommen in fremden Ordnern einen eigenen Unterordner, damit „bilder“ nicht mit anderem vermischt wird.
     /// </summary>
-    public static string DefaultTarget(SessionView view, string format, string? lastFolder, string? template = null, string? lang = null)
+    public static string DefaultTarget(SessionView view, string format, string? lastFolder, string? template = null, string? lang = null, bool mdLegacy = false)
     {
         string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" or "test-ki" || IsTestFormat(f) ? Loc.For(lang ?? view.Language, "Ablauf", "Workflow") : null, lang);
+        // Markdown: ASCII-Namen für Repository und Wiki (09 §6.1)
+        if (f == "md" && !mdLegacy) title = Fmt.AsciiSlug(view.Title, Loc.For(lang ?? view.Language, "anleitung", "guide"));
         string suffix = f is "html" or "md" or "docx" or "pdf" ? GuidePresets.FileSuffix(template, lang ?? view.Language) : "";
+        if (f == "md" && !mdLegacy && suffix.Length > 0) suffix = "-" + Fmt.AsciiSlug(suffix, "");
         if (lastFolder != null)
         {
             return f switch
@@ -147,10 +159,10 @@ public static class Exporter
     public static string ResolveTarget(SessionView view, ExportRequest r)
     {
         string f = Normalize(r.Format);
-        if (string.IsNullOrWhiteSpace(r.Target)) return DefaultTarget(view, f, null, r.Template, r.Language);
+        if (string.IsNullOrWhiteSpace(r.Target)) return DefaultTarget(view, f, null, r.Template, r.Language, r.MdLegacy);
         string t = Path.GetFullPath(r.Target);
         if (!IsFolderOutput(f) && (Directory.Exists(t) || r.Target.EndsWith('\\') || r.Target.EndsWith('/')))
-            t = Path.Combine(t, IsTestFormat(f) ? TestCodeGen.FileName(Title(view, Loc.For(r.Language ?? view.Language, "Ablauf", "Workflow"), r.Language), f) : Title(view, null, r.Language) + "." + Extension(f));
+            t = Path.Combine(t, f == "md" && !r.MdLegacy ? Fmt.AsciiSlug(view.Title, Loc.For(r.Language ?? view.Language, "anleitung", "guide")) + ".md" : IsTestFormat(f) ? TestCodeGen.FileName(Title(view, Loc.For(r.Language ?? view.Language, "Ablauf", "Workflow"), r.Language), f) : Title(view, null, r.Language) + "." + Extension(f));
         return t;
     }
 
@@ -205,7 +217,8 @@ public static class Exporter
                 {
                     Format = f, OutPath = work, Language = r.Language, Importance = r.Importance, View = r.View, Overview = r.Overview,
                     GifSeconds = r.GifSeconds, MouseMarks = r.MouseMarks, KeyMarks = r.KeyMarks, Preset = r.Template, MissingTranslation = r.MissingTranslation,
-                    TourHints = r.TourHints, PptxNotes = r.PptxNotes, After = r.GuideAfter
+                    TourHints = r.TourHints, PptxNotes = r.PptxNotes, After = r.GuideAfter,
+                    MdDialect = r.MdDialect, MdFrontMatter = r.MdFrontMatter, MdLegacy = r.MdLegacy, GifMaxBytes = (long)(r.GifMaxMb * 1024 * 1024)
                 });
         }
     }

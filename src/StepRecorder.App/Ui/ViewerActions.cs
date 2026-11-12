@@ -90,11 +90,25 @@ sealed partial class ViewerWindow
     void CopyMarkdown()
     {
         var s = Sel; if (s == null || !ConfirmUnreviewed()) return;
+        // ohne Bildverweis: das Bild käme beim Kopieren nicht mit (Paket 18)
         var d = new DataObject();
-        string stepWord = Loc.For(_view.Language, "Schritt", "Step");
-        d.SetText($"### {s.Number}. {s.AuthorTitle ?? s.Title}\n\n{s.AuthorBody ?? s.Guide}\n\n![{stepWord} {s.Number}]({stepWord}-{s.Number:00}.png)\n");
-        SetClipboard(d, Loc.L("Als Markdown kopiert", "Copied as Markdown"));
+        d.SetText(GuideExport.StepMarkdown(_view, s, MdDialect()));
+        SetClipboard(d, Loc.L("Als Markdown kopiert (ohne Bild – „Bild kopieren“ legt es zusätzlich in die Zwischenablage)", "Copied as Markdown (without image – \"Copy image\" puts it on the clipboard as well)"));
     }
+
+    /// <summary>Alle Schritte als Markdown-Text (Paket 18) – für Pull Requests, Issues und Wikis; Bilder über den Markdown-Export.</summary>
+    void CopyAllMarkdown()
+    {
+        if (!ConfirmUnreviewed()) return;
+        using var v = SessionView.Open(_path, headless: true, lang: _view.Language);
+        var d = new DataObject();
+        d.SetText(GuideExport.MarkdownForClipboard(v, _view.Language, MdDialect()));
+        SetClipboard(d, Loc.L("Alle Schritte als Markdown kopiert", "All steps copied as Markdown"));
+    }
+
+    /// <summary>Dialekt aus den gemerkten Markdown-Exportoptionen (Standard: GitHub).</summary>
+    static string MdDialect()
+        => AppState.Load().Export.Formats.TryGetValue("md", out var o) && o.Str("mdDialect") is "plain" or "github" or "obsidian" ? o.Str("mdDialect")! : "github";
 
     void CopyWholeGuide()
     {
