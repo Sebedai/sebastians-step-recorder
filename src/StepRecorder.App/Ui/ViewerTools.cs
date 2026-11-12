@@ -297,7 +297,7 @@ sealed partial class ViewerWindow
             }
         }
         if (dryRun) Do((JsonObject)_view.Edits.DeepClone());
-        else if (true) { Change(Do); _titleBlock.Text = _view.Title; }
+        else { _view.SnapshotBefore = "replaceAll"; Change(Do); _titleBlock.Text = _view.Title; }
         return hits;
     }
 

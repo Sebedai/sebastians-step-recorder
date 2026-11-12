@@ -256,6 +256,7 @@ sealed partial class ViewerWindow
 
     void ApplyTemplate(JsonObject t)
     {
+        _view.SnapshotBefore = "template";
         Change(e =>
         {
             var g = GuideOf(e);

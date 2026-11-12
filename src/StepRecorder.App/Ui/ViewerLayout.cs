@@ -92,7 +92,7 @@ sealed partial class ViewerWindow
         var preview = new Button { Style = Theme.Style("Ghost"), Content = U.IconText(Theme.IEye, "Vorschau"), ToolTip = "Anleitung als HTML im Browser ansehen", Margin = new Thickness(2, 0, 2, 0) };
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
-            { M("newRecording"), M("library"), (Loc.L("Als .steprec packen …", "Pack as .steprec …"), () => { if (_view.Session.ReadOnly) Msg.Show(Loc.L("Das ist bereits ein .steprec-Archiv.", "This already is a .steprec archive.")); else PackDialog.Show(this, _path); }), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
+            { M("newRecording"), M("library"), (Loc.L("Als .steprec packen …", "Pack as .steprec …"), () => { if (_view.Session.ReadOnly) Msg.Show(Loc.L("Das ist bereits ein .steprec-Archiv.", "This already is a .steprec archive.")); else PackDialog.Show(this, _path); }), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("quality"), (Loc.L("Bearbeitungsstände …", "Edit history …"), ShowHistory), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
         var export = MenuButton(Theme.IExport, Loc.L("Exportieren", "Export"), Loc.F("Als Anleitung, KI-Paket oder Skript speichern ({0}) · letzten Export wiederholen ({1})", "Save as guide, AI package or script ({0}) · repeat last export ({1})", Cmd("export").Gesture, Cmd("repeatExport").Gesture), "Primary", ExportMenuItems);
         export.Margin = new Thickness(8, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, Sep(), play, preview, copy, privacy, review, Sep(), more, export }) cmds.Children.Add(e);
@@ -1105,6 +1105,7 @@ sealed partial class ViewerWindow
         var s = Sel; if (s == null || _view.CropFor(s) is not { } c) return;
         var m = s.Monitor ?? s.Json.Obj("position")?.Str("m");
         var targets = _view.All.Where(x => x.PreFrame != null && (m == null || (x.Monitor ?? x.Json.Obj("position")?.Str("m")) == m || x.Monitor == null)).ToList();
+        _view.SnapshotBefore = "cropAll";
         Change(e => { foreach (var t in targets) StepEdit(e, t.Anchor)["crop"] = new JsonArray(c.X, c.Y, c.Width, c.Height); });
         _status.Text = $"Zuschnitt auf {targets.Count} Schritte übertragen – rückgängig mit Strg+Z.";
     }

@@ -105,6 +105,8 @@ public static class Redactor
             .Where(r => r.Str("kind") == "range" && (r["images"]?.GetValue<bool>() ?? true))
             .SelectMany(r => r.Arr("seqRanges") ?? new JsonArray()).Select(a => (a![0]!.GetValue<long>(), a[1]!.GetValue<long>())).ToList();
         int frames = PurgeRangeFrames(folder, imageRanges);
+        // alte Bearbeitungsstände könnten Geschwärztes noch beschreiben (z. B. Regelwerte, Texte)
+        EditHistory.Purge(folder);
         AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n, ["frames"] = frames });
         try { var cache = Path.Combine(folder, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
         return n + frames;

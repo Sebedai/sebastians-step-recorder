@@ -747,6 +747,14 @@ public sealed class SessionView : IDisposable
         long rev = Edits.Long("revision");
         var current = Session.LoadEdits();
         if ((current?.Long("revision") ?? 0) != rev) return false;
+        // Bearbeitungsstand sichern: erstes Speichern nach dem Öffnen, sonst höchstens alle 10 Minuten, vor großen Änderungen immer
+        if (!Session.ReadOnly)
+        {
+            try { EditHistory.MaybeSnapshot(Session.Path, current, SnapshotBefore ?? (_historySaved ? "auto" : "open"), force: SnapshotBefore != null || !_historySaved); }
+            catch (Exception ex) { Settings.AppLog.Write("Bearbeitungsstand nicht gesichert: " + ex.Message); }
+            _historySaved = true;
+        }
+        SnapshotBefore = null;
         // Abgeleitetes (Suchindex, Vorschaubilder) zuerst löschen: stürzt das Programm zwischen den beiden Schritten ab,
         // darf kein Zwischenspeicher übrig bleiben, der eine gerade geschwärzte Stelle noch enthält
         ClearCache();
@@ -761,6 +769,10 @@ public sealed class SessionView : IDisposable
     }
 
     public void ReloadEdits() { Edits = Session.LoadEdits() ?? new JsonObject(); Rebuild(); }
+
+    bool _historySaved;
+    /// <summary>Vor einer großen Änderung setzen (z. B. „replaceAll“): der nächste Speichervorgang sichert den bisherigen Stand.</summary>
+    public string? SnapshotBefore { get; set; }
 
     void ClearCache()
     {
