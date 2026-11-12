@@ -627,7 +627,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 | Laufzeit | **.NET 10 (LTS)**, Support bis 2028-11-14 | MIT | .NET 8 und 9 sind seit 2026-11-10 ohne Support. .NET 11 (STS, erschienen 2026-11-10) endet am selben Tag wie .NET 10 und bringt daher keinen Vorteil gegenüber der seit einem Jahr gepflegten LTS-Version |
 | Sprache | C# (aktuelle Version des .NET-10-SDK), `Nullable` aktiv | – | – |
 | Oberfläche | **WPF** | MIT | Ausgereift für Windows-Oberflächen mit eigener Zeichenfläche (Viewer, Annotationen); Teil der Laufzeit |
-| Oberflächenstil | eigene Stile; das eingebaute Fluent-Thema (`ThemeMode`) ist weiterhin als experimentell gekennzeichnet und wird nicht vorausgesetzt | – | Keine Abhängigkeit von einer Schnittstelle, die „in künftigen Versionen entfernt werden kann" |
+| Oberflächenstil | **WPF UI** (Fluent-Steuerelemente, Hell/Dunkel/Hochkontrast, Windows-Akzentfarbe, Mica und eigene Titelleiste für Start und Editor); eigene Stile nur noch für Aufnahmeleiste, Overlays, Werkzeugpalette und Auswahlkarten. Das eingebaute Fluent-Thema von WPF (`ThemeMode`) ist weiterhin als experimentell gekennzeichnet und wird nicht verwendet | MIT | Windows-11-typisches Aussehen mit einer gepflegten Bibliothek statt selbst gezeichneter Steuerelemente; Kontrastmodus (BED-112) über die mitgelieferten Hochkontrast-Themen |
 | Bindungslogik | CommunityToolkit.Mvvm 8.4.x | MIT | Quellgeneratoren statt Laufzeitreflexion |
 | Zielplattform der Windows-Projekte | `net10.0-windows10.0.22621.0`, Mindest-Betriebssystem `10.0.19045.0` | – | Zugriff auf neuere Schnittstellen (z. B. rahmenlose Aufnahme), die zur Laufzeit auf Vorhandensein geprüft werden |
 
@@ -639,6 +639,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 
 | Bereich | Wahl | Version (11/2026) | Lizenz | Begründung |
 |---|---|---|---|---|
+| Oberfläche (Fluent) | **WPF-UI** (lepoco/wpfui) mit WPF-UI.Abstractions | 4.3.0 | MIT | Fluent-Steuerelemente und -Farben, `FluentWindow` mit Mica, `TitleBar`, `CardAction`, `InfoBar`; ohne Netzwerkzugriff. Enthält die Schrift „Fluent System Icons“ (MIT, Microsoft) |
 | Windows-Aufrufe | **Microsoft.Windows.CsWin32** | 0.3.371 | MIT | Erzeugt typsichere Aufrufe und COM-Schnittstellen zur Build-Zeit; keine Laufzeitabhängigkeit. Noch Versionslinie 0.x, daher fest gepinnt |
 | UI Automation | **COM-Schnittstelle direkt** (`IUIAutomation2` und neuer), über CsWin32 erzeugt | Systembestandteil | – | Voller Zugriff auf CacheRequest und Zeitlimits ohne Zwischenschicht |
 | Direct3D / DXGI | **Vortice.Windows** (Vortice.DXGI, Vortice.Direct3D11) | 3.8.3 | MIT | Dünne, gepflegte Bindungen für .NET 8–10; keine nativen Beigaben |

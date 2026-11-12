@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿﻿using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
@@ -19,7 +19,7 @@ namespace StepRecorder.App.Ui;
 /// Viewer und Editor in einem Fenster: Schrittliste, Bildbereich mit Werkzeugen, Detailbereich,
 /// Statusleiste. Alle Bearbeitungen landen im Overlay edits.json (automatisch gespeichert, rückgängig machbar).
 /// </summary>
-sealed partial class ViewerWindow : Window
+sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
 {
     readonly string _path;
     SessionView _view = null!;
@@ -29,7 +29,8 @@ sealed partial class ViewerWindow : Window
     readonly Grid _imgHost = new();
     readonly StackPanel _details = new() { Margin = new Thickness(22, 20, 22, 24) };
     readonly TextBlock _status = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly TextBox _search = new() { Tag = Loc.L("Schritte durchsuchen", "Search steps"), Padding = new Thickness(32, 7, 8, 7), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)") };
+    readonly Wpf.Ui.Controls.TextBox _search = new() { PlaceholderText = Loc.L("Schritte durchsuchen", "Search steps"), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)"), Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
+    Wpf.Ui.Controls.TitleBar? _titleBar;
     ToggleButton _allToggle = null!;
     ComboBox _dispBox = null!;
     RadioButton _beforeBtn = null!, _afterBtn = null!;
@@ -66,7 +67,8 @@ sealed partial class ViewerWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         WindowPlacer.Attach(this, "viewer");
         _status.Foreground = Theme.Muted; _metaBlock.Foreground = Theme.Muted; _listCount.Foreground = Theme.Muted; _noImage.Foreground = Theme.Muted; _reviewCount.Foreground = Theme.Warn;
-        _imgCaptionPill = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(999), Padding = new Thickness(14, 5, 14, 6), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 10, 0, 0), IsHitTestVisible = false };
+        _imgCaption.Foreground = Theme.Fg2;
+        _imgCaptionPill = new Border { Padding = new Thickness(0), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0), IsHitTestVisible = false };
         Load();
         BuildLayout();
         RestoreLayoutState();
@@ -79,6 +81,13 @@ sealed partial class ViewerWindow : Window
         Drop += (_, e) => { if (e.Data.GetData(DataFormats.FileDrop) is string[] f && f.Length > 0 && Session.LooksLikeSession(f[0])) UiApp.Instance.OpenViewer(f[0]); };
     }
 
+    /// <summary>Fenstertitel und Titelleiste: „Aufnahmetitel – Programmname“.</summary>
+    void UpdateTitle()
+    {
+        Title = _view.Title + " – " + AppInfo.DisplayName;
+        if (_titleBar != null) _titleBar.Title = Title;
+    }
+
     void Load()
     {
         _view?.Dispose();
@@ -87,29 +96,22 @@ sealed partial class ViewerWindow : Window
         if (_view.Edits.Obj("guide")?["address"] == null && AppSettings.Load().Address == "informal")
         { var g = _view.Edits.Obj("guide") ?? new JsonObject(); g["address"] = "informal"; _view.Edits["guide"] = g; _view.Rebuild(); }
         ApplyDefaultTemplate();
-        Title = _view.Title + " – " + AppInfo.DisplayName;
+        UpdateTitle();
         if (!_view.Session.ReadOnly) Exporter.CleanStaleJobs(_view.Session.Path);
     }
 
     Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
     {
         var content = U.MenuContent(glyph, text);
-        var b = new Button { Content = content, ToolTip = tip, Margin = new Thickness(2, 0, 2, 0), Style = Theme.Style(style ?? "Ghost") };
+        var b = U.Make(style ?? "Ghost"); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
         b.Click += (_, _) => ShowMenu(b, items());
         return b;
     }
 
     static void ShowMenu(FrameworkElement target, params (string label, Action action)[] items)
     {
-        var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
-        foreach (var (label, action) in items)
-        {
-            if (label == "-") { m.Items.Add(new Separator()); continue; }
-            var (header, gesture) = SplitLabel(label);
-            var mi = new MenuItem { Header = header, InputGestureText = gesture };
-            mi.Click += (_, _) => { try { action(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-            m.Items.Add(mi);
-        }
+        var m = Menu(items);
+        m.PlacementTarget = target; m.Placement = PlacementMode.Bottom;
         m.IsOpen = true;
     }
 
@@ -168,6 +170,7 @@ sealed partial class ViewerWindow : Window
         _overlay.Children.Clear();
         _currentMeta?.Dispose(); _currentMeta = null;
         _img.Source = null; _current = null;
+        if (s == null && _cover) { ApplyCoverMode(); return; }
         if (s == null) { _details.Children.Clear(); _cropOff.Visibility = Visibility.Collapsed; _imgCaptionPill.Visibility = Visibility.Collapsed; _noImage.Visibility = Visibility.Visible; _imgHost.Visibility = Visibility.Collapsed; return; }
         string variant = _display == "crop" && !s.Manual && !s.ImageReplaced ? "crop" : (_variantOverride ?? DefaultVariant(s));
         var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop", authorAnnotations: true);
@@ -210,11 +213,7 @@ sealed partial class ViewerWindow : Window
 
     IEnumerable<JsonObject> AnnotationsFor(string frameId) => (_view.Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().Where(a => a.Str("frame") == frameId);
 
-    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = Theme.FsBody, FontFamily? font = null) => new()
-    {
-        Text = t, IsReadOnly = true, BorderThickness = new Thickness(0), Background = Brushes.Transparent, Padding = new Thickness(0), Margin = new Thickness(-2, 0, 0, 0), TextWrapping = TextWrapping.Wrap,
-        Foreground = fg ?? Theme.Fg, FontSize = size, FontFamily = font ?? Theme.UiFont, VerticalContentAlignment = VerticalAlignment.Top
-    };
+    static TextBox ReadOnlyText(string t, Brush? fg = null, double size = Theme.FsBody, FontFamily? font = null) => U.PlainText(t, fg, size, font);
 
     /// <summary>Win32-Kontext für AutoHotkey: WinTitle, ClassNN, Koordinaten, Pixel, Fenstertexte, Code zum Kopieren.</summary>
     void Win32Section(ViewStep s, JsonObject w32, Action<string, UIElement> info)
@@ -305,14 +304,8 @@ sealed partial class ViewerWindow : Window
         }
     }
 
-    static Border Callout(string glyph, Brush bg, Brush fg, string title, string text)
-    {
-        var dock = new DockPanel();
-        var icon = U.Icon(glyph, 16, fg); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 1, 12, 0);
-        DockPanel.SetDock(icon, Dock.Left); dock.Children.Add(icon);
-        dock.Children.Add(U.Col(U.Text(title, Theme.FsHint, true, fg, new Thickness(0, 0, 0, 2)), ReadOnlyText(text, Theme.Fg, Theme.FsHint)));
-        return new Border { Background = bg, CornerRadius = new CornerRadius(Theme.RInset), Padding = new Thickness(14, 12, 14, 12), Margin = new Thickness(0, 12, 0, 4), Child = dock };
-    }
+    /// <summary>Hinweis im Detailbereich als Fluent-Hinweisleiste (Warnung oder Information).</summary>
+    static FrameworkElement Callout(string glyph, Brush bg, Brush fg, string title, string text) => U.InfoBar(title, text, bg == Theme.WarnSoft || bg == Theme.DangerSoft);
 
     /// <summary>Für Entwickler-Schnappschüsse: Schritt in der Liste wählen.</summary>
     internal int StepCount => _list.Items.Count;
@@ -329,7 +322,7 @@ sealed partial class ViewerWindow : Window
     {
         double w = ActualWidth;
         // Schwellen passend zur Kopfzeile in 14 px: erst „Abspielen“/„Vorschau“, dann die übrigen Beschriftungen ausblenden
-        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1400) || (lvl == 2 && w < 1220) || (lvl == 3 && w < 1500) ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var (t, lvl) in _labels) t.Visibility = (lvl == 1 && w < 1180) || (lvl == 2 && w < 1040) || (lvl == 3 && w < 1400) ? Visibility.Collapsed : Visibility.Visible;
         bool narrow = w < 1240;
         if (_leftCol == null || narrow == _narrow) return;
         _narrow = narrow;
@@ -359,31 +352,6 @@ sealed partial class ViewerWindow : Window
     static (string key, string label)[] MarkKeys => new[] { ("clickMarker", Loc.L("Klickpunkt", "Click point")), ("dragPath", Loc.L("Zug- und Haltepfad", "Drag and hold path")), ("elementFrame", Loc.L("Zielrahmen", "Target frame")), ("labels", Loc.L("Hinweise (Haltedauer, Scrollrichtung)", "Notes (hold time, scroll direction)")), ("approachPath", Loc.L("Mausweg davor", "Mouse path before")), ("keyCaps", Loc.L("Tasten und Texteingaben", "Keys and typed text")) };
 
     static bool MarkOf(MouseMarks m, string key) => key switch { "clickMarker" => m.Click, "dragPath" => m.Path, "elementFrame" => m.Target, "labels" => m.Labels, "keyCaps" => m.KeyCaps, _ => m.Approach };
-
-    void ShowMarksMenu(FrameworkElement target)
-    {
-        var s = Sel;
-        var all = _view.MarksFor(null);
-        var m = new ContextMenu { PlacementTarget = target, Placement = PlacementMode.Bottom };
-        void Head(string t) => m.Items.Add(new MenuItem { Header = new TextBlock { Text = t, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Muted }, IsHitTestVisible = false, Focusable = false, Padding = new Thickness(10, 8, 10, 4) });
-        void Item(string label, bool on, Action a, string gesture = "")
-        {
-            var mi = new MenuItem { Header = label, InputGestureText = gesture, Icon = on ? U.Icon(Theme.ICheck, 14, Theme.AccentText) : null };
-            mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-            m.Items.Add(mi);
-        }
-        Head(Loc.L("Alle Schritte", "All steps"));
-        foreach (var (key, label) in MarkKeys) { bool on = MarkOf(all, key); Item(label, on, () => SetMark(null, key, !on)); }
-        if (s != null)
-        {
-            m.Items.Add(new Separator());
-            Head(Loc.F("Nur Schritt {0}", "Step {0} only", s.Number));
-            var cur = _view.MarksFor(s);
-            Item(cur.Any ? Loc.L("Alle Markierungen ausblenden", "Hide all markers") : Loc.L("Markierungen einblenden", "Show markers"), false, ToggleStepMarks, "H");
-            if (StepMarksEdit(s) != null) Item(Loc.L("Wie alle Schritte", "Same as all steps"), false, () => Change(e => StepEdit(e, s.Anchor).Remove("auto"), refill: false));
-        }
-        m.IsOpen = true;
-    }
 
     JsonObject? StepMarksEdit(ViewStep s) => (_view.Edits.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Long("anchor") == s.Anchor)?.Obj("auto");
 
@@ -478,7 +446,7 @@ sealed partial class ViewerWindow : Window
         var d = new InputDialog(Loc.L("Titel der Anleitung", "Guide title"), _view.Title) { Owner = this };
         if (d.ShowDialog() != true) return;
         Change(e => { var g = e.Obj("guide") ?? new JsonObject(); g["title"] = d.Value; e["guide"] = g; });
-        _titleBlock.Text = _view.Title;
+        UpdateTitle();
     }
 
     void EditText()
@@ -498,28 +466,11 @@ sealed partial class ViewerWindow : Window
 
     void MarkUnreviewedComment(JsonObject e) { }
 
-    void AddComment()
-    {
-        var s = Sel; if (s == null) return;
-        var d = new InputDialog(Loc.L("Kommentar", "Comment"), "", null, kinds: true) { Owner = this };
-        if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
-        Change(e =>
-        {
-            var arr = e["comments"] as JsonArray ?? new JsonArray();
-            arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
-            e["comments"] = arr;
-        });
-    }
+    void AddComment() => AddNote();
 
     void RemoveComment(string? id) => Change(e => { if (e["comments"] is JsonArray arr) foreach (var c in arr.Where(c => c.Str("id") == id).ToList()) arr.Remove(c); });
 
-    void InsertNote()
-    {
-        var s = Sel; if (s == null) return;
-        var d = new InputDialog(Loc.L("Hinweis einfügen (als Kommentar am Schritt)", "Insert note (as a comment on the step)"),"", null, kinds: true) { Owner = this };
-        if (d.ShowDialog() != true) return;
-        Change(e => { var arr = e["comments"] as JsonArray ?? new JsonArray(); arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value, ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" }); e["comments"] = arr; });
-    }
+    void InsertNote() => AddNote();
 
     void ToggleHidden()
     {

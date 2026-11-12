@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Text;
 using System.Text.Json.Nodes;
 using System.Windows;
@@ -238,7 +238,7 @@ sealed class InputDialog : Window
     readonly TextBlock _titleLabel = U.Text(Loc.L("Titel", "Title"), Theme.FsHint, true, Theme.Fg2, new Thickness(0, 0, 0, 6));
     public string Value => _value.Text;
     public string TitleValue => _title?.Text ?? "";
-    public string Kind => _kinds == null ? "note" : Array.FindIndex(_kinds, k => k.IsChecked == true) switch { 1 => "tip", 2 => "warning", 3 => "internal", _ => "note" };
+    public string Kind => _kinds == null ? "note" : ViewerWindow.NoteKindsUi[Math.Max(0, Array.FindIndex(_kinds, k => k.IsChecked == true))].kind;
     public string TitleLabel { set => _titleLabel.Text = value; }
 
     public InputDialog(string prompt, string value, string? title = null, bool kinds = false)
@@ -248,9 +248,9 @@ sealed class InputDialog : Window
         var p = new StackPanel();
         if (kinds)
         {
-            var (track, items) = U.Segmented("kind", 0, (Theme.IComment, Loc.L("Hinweis", "Note")), (Theme.ICheck, Loc.L("Tipp", "Tip")), (Theme.IWarn, Loc.L("Achtung", "Warning")), (Theme.ILock, Loc.L("Intern", "Internal")));
+            var (track, items) = U.Segmented("kind", 0, ViewerWindow.NoteKindsUi.Select(k => ((string?)k.glyph, k.name)).ToArray());
             _kinds = items;
-            items[3].ToolTip = Loc.L("Erscheint in keiner Ausgabe", "Does not appear in any output");
+            items[^1].ToolTip = Loc.L("Erscheint in keiner Ausgabe", "Does not appear in any output");
             track.Margin = new Thickness(0, 0, 0, 16);
             p.Children.Add(track);
         }

@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -200,31 +200,43 @@ sealed class RecordingController
     {
         var elapsed = (_pausedAt ?? DateTime.Now) - _started - _pausedTotal;
         bool paused = _rec.State == RecorderState.Paused;
-        var m = new ContextMenu();
-        void Add(string head, string id, Action a, bool enabled = true)
-        {
-            var mi = new MenuItem { Header = head, InputGestureText = id.Length > 0 ? Key(id) : "", IsEnabled = enabled };
-            mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } };
-            m.Items.Add(mi);
-        }
+        // dieselben Gruppen wie das Menü „⋯“ der Leiste – und vollständig, damit alles auch ohne Leiste erreichbar ist
+        var m = U.MenuScope(new ContextMenu());
+        void Add(string head, string id, Action a, string? glyph = null) => m.Items.Add(U.Mi(head, id.Length > 0 ? Key(id) : null, a, glyph));
         m.Items.Add(new MenuItem { Header = Loc.F("Aufnahme {0} · {1} · {2}", "Recording {0} · {1} · {2}", paused ? Loc.L("pausiert", "paused") : Loc.L("läuft", "running"), elapsed.ToString("mm\\:ss"), Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")), IsEnabled = false });
         m.Items.Add(new Separator());
-        Add(paused ? Loc.L("Fortsetzen", "Resume") : Loc.L("Pause", "Pause"), "instantPause", TogglePause);
-        Add(Loc.L("Beenden und speichern", "Stop and save"), "stop", Stop);
+        Add(paused ? Loc.L("Fortsetzen", "Resume") : Loc.L("Pause", "Pause"), "instantPause", TogglePause, paused ? Theme.IPlay : Theme.IPause);
+        Add(Loc.L("Aufnahme beenden", "Stop recording"), "stop", Stop, Theme.IStop);
         m.Items.Add(new Separator());
-        Add(Loc.L("Fehlerstelle markieren", "Mark error"), "markerError", () => Marker("error"));
-        Add(Loc.L("Marker „Erwartet“", "Marker \"expected\""), "markerExpected", () => Marker("expected"));
-        Add(Loc.L("Marker setzen", "Set marker"), "marker", () => Marker("note"));
-        Add(Loc.L("Kommentar …", "Comment …"), "comment", Comment);
-        Add(_dict.Active ? Loc.L("Diktat beenden", "Stop dictation") : Loc.L("Diktat starten (Mikrofon)", "Start dictation (microphone)"), "dictation", ToggleDictation);
-        Add(Loc.L("Schnappschuss", "Snapshot"), "snapshot", () => Marker("snapshot"));
-        Add(_rec.PrivacyMode ? Loc.L("Privattaste aus", "Privacy key off") : Loc.L("Privattaste ein", "Privacy key on"), "privacy", TogglePrivacy);
-        Add(Loc.L("Letzten Schritt verwerfen", "Discard last step"), "discard", DiscardPrevious);
+        Add(Loc.L("Kommentar …", "Comment …"), "comment", Comment, Theme.IComment);
+        Add(_dict.Active ? Loc.L("Diktat beenden", "Stop dictation") : Loc.L("Diktat starten (Mikrofon)", "Start dictation (microphone)"), "dictation", ToggleDictation, "\uE720");
+        m.Items.Add(MarkerMenu());
+        Add(Loc.L("Schnappschuss", "Snapshot"), "snapshot", () => Marker("snapshot"), Theme.ICamera);
+        m.Items.Add(new Separator());
+        Add(_rec.PrivacyMode ? Loc.L("Privattaste aus", "Privacy key off") : Loc.L("Privattaste ein", "Privacy key on"), "privacy", TogglePrivacy, Theme.IUnlock);
+        Add(Loc.L("Letzten Schritt zurücknehmen", "Undo last step"), "discard", DiscardPrevious, Theme.IUndo);
+        Add(Loc.L("Letzte Eingabe schwärzen", "Redact last input"), "", RedactLastInput, Theme.IShield);
         m.Items.Add(new Separator());
         Add(_bar?.IsVisible == true ? Loc.L("Leiste ausblenden", "Hide bar") : Loc.L("Leiste anzeigen", "Show bar"), "bar", ToggleBar);
-        Add(Loc.L("Aufnahme verwerfen …", "Discard recording …"), "", Discard);
+        Add(Loc.L("Tastenkürzel …", "Shortcuts …"), "", ShowShortcuts, Theme.IKeyboard);
+        m.Items.Add(new Separator());
+        Add(Loc.L("Aufnahme verwerfen …", "Discard recording …"), "", Discard, Theme.IDelete);
         m.Placement = PlacementMode.MousePoint;
         m.IsOpen = true;
+    }
+
+    /// <summary>Untermenü „Marker setzen“: Notiz, Fehler, Erwartet, Wichtig und Marker mit eigenem Text.</summary>
+    internal MenuItem MarkerMenu()
+    {
+        string? G(string id) => Key(id) is { Length: > 0 } k ? k : null;
+        var sub = U.Mi(Loc.L("Marker setzen", "Set marker"), null, null, Theme.IFlag);
+        sub.Items.Add(U.Mi(Loc.L("Notiz", "Note"), G("marker"), () => Marker("note")));
+        sub.Items.Add(U.Mi(Loc.L("Fehler", "Error"), G("markerError"), () => Marker("error"), Theme.IError));
+        sub.Items.Add(U.Mi(Loc.L("Erwartet", "Expected"), G("markerExpected"), () => Marker("expected"), Theme.ICheck));
+        sub.Items.Add(U.Mi(Loc.L("Wichtig", "Important"), null, () => Marker("important"), Theme.IImportant));
+        sub.Items.Add(new Separator());
+        sub.Items.Add(U.Mi(Loc.L("Marker mit Text …", "Marker with text …"), null, () => { var d = new CommentWindow(Loc.L("Marker-Text", "Marker text")); if (d.ShowDialog() == true) Marker("important", d.Text); }));
+        return sub;
     }
 
     /// <summary>Leiste in den Infobereich minimieren.</summary>
@@ -319,11 +331,8 @@ sealed class RecordingController
     /// <summary>Fataler Programmfehler: Aufnahme so weit wie möglich abschließen (Recorder.Dispose stoppt mit Grund „error“).</summary>
     public void EmergencyStop() { try { _dict.Stop(); } catch { } try { _rec?.Dispose(); } catch { } }
 
-    public void ShowShortcuts() => Msg.Show(
-        Loc.L("Tastenkürzel während der Aufnahme\n\n", "Shortcuts during recording\n\n") +
-        string.Join("\n", HotkeyActions.All.Where(a => Key(a.Id).Length > 0).Select(a => $"{Key(a.Id)}  {HotkeyActions.Label(a)}")) +
-        Loc.L("\n\nAlle Befehle gibt es auch per Rechtsklick auf das Symbol unten rechts im Infobereich der Taskleiste. Ändern: Einstellungen → Tastenkürzel.", "\n\nAll commands are also available by right-clicking the icon in the notification area. Change: Settings → Shortcuts."),
-        Loc.L("Tastenkürzel", "Shortcuts"));
+    /// <summary>Tastenkürzel während der Aufnahme (dieselbe Liste wie auf der Startseite „Hilfe“).</summary>
+    public void ShowShortcuts() => Shortcuts.ShowWindow(null, Shortcuts.Recording(), Loc.L("Tastenkürzel während der Aufnahme", "Shortcuts while recording"));
 
     public void Discard()
     {
@@ -393,8 +402,8 @@ sealed class RecordingBar : Window
     static readonly Brush BarBg = Theme.Night.Bg, BarLine = Theme.Night.Line, BarFg = Theme.Night.Fg, BarMuted = Theme.Night.Muted,
         RecRed = Theme.Night.Rec, WarnFg = Theme.Night.Warn, PrivBg = Theme.Night.PrivBg, StopBg = Theme.Night.StopBg, ChipBg = Theme.Night.Chip;
     readonly RecordingController _c;
-    readonly TextBlock _time = new() { FontSize = 15, FontFamily = Theme.Mono, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 46 };
-    readonly TextBlock _state = new() { FontSize = Theme.FsCaption, FontFamily = Theme.Mono, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
+    readonly TextBlock _time = new() { FontSize = 15, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 46 };
+    readonly TextBlock _state = new() { FontSize = Theme.FsCaption, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
     readonly TextBlock _count = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center };
     readonly Ellipse _dot = new() { Width = 10, Height = 10, VerticalAlignment = VerticalAlignment.Center };
     readonly TextBlock _msg = new() { FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
@@ -440,7 +449,7 @@ sealed class RecordingBar : Window
         var grip = new TextBlock { Text = Theme.IGrip, FontFamily = Theme.Icons, FontSize = 14, Foreground = BarMuted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0), Cursor = Cursors.SizeAll, ToolTip = Loc.L("Leiste verschieben", "Move bar") };
         grip.MouseLeftButtonDown += (_, _) => { _dragged = true; DragMove(); };
         var status = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _dot, _state, _time } };
-        var countChip = new Border { Background = ChipBg, CornerRadius = new CornerRadius(999), Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
+        var countChip = new Border { Margin = new Thickness(12, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
 
         var pause = B(Theme.IPause, K(Loc.L("Pause / Fortsetzen", "Pause / resume"), "instantPause"), c.TogglePause, _pauseIcon);
         var stop = B(Theme.IStop, K(Loc.L("Aufnahme beenden", "Stop recording"), "stop"), c.Stop, text: Loc.L("Stopp", "Stop"));
@@ -448,23 +457,22 @@ sealed class RecordingBar : Window
         var comment = B(Theme.IComment, K(Loc.L("Kommentar", "Comment"), "comment"), c.Comment);
         _dictBtn = B("\uE720", K(Loc.L("Diktat: Gesprochenes wird offline zu Kommentaren", "Dictation: speech is turned into comments offline"), "dictation"), c.ToggleDictation, _dictIcon);
         var marker = B(Theme.IFlag, K(Loc.L("Marker setzen", "Set marker"), "marker") + Loc.L(" – Rechtsklick: Art wählen", " – right-click: choose type"), () => c.Marker("note"));
-        var mm = new ContextMenu();
-        foreach (var (k, n, id) in new[] { ("note", Loc.L("Notiz", "Note"), "marker"), ("error", Loc.L("Fehler", "Error"), "markerError"), ("expected", Loc.L("Erwartet", "Expected"), "markerExpected"), ("important", Loc.L("Wichtig", "Important"), "") })
-        { var mi = new MenuItem { Header = n, InputGestureText = id.Length > 0 ? RecordingController.Key(id) : "" }; mi.Click += (_, _) => c.Marker(k); mm.Items.Add(mi); }
+        var mm = U.MenuScope(new ContextMenu());
+        foreach (var it in c.MarkerMenu().Items.Cast<object>().ToList()) { if (it is FrameworkElement fe) (LogicalTreeHelper.GetParent(fe) as ItemsControl)?.Items.Remove(fe); mm.Items.Add(it); }
         marker.ContextMenu = mm;
         var photo = B(Theme.ICamera, K(Loc.L("Schnappschuss", "Snapshot"), "snapshot"), () => c.Marker("snapshot"));
         _privacy = B(Theme.IUnlock, K(Loc.L("Privattaste: Eingaben nicht speichern", "Privacy key: do not store input"), "privacy"), c.TogglePrivacy, _privacyIcon);
-        var discard = B(Theme.IUndo, K(Loc.L("Letzten Schritt verwerfen", "Discard last step"), "discard"), c.DiscardPrevious);
+        var discard = B(Theme.IUndo, K(Loc.L("Letzten Schritt zurücknehmen", "Undo last step"), "discard"), c.DiscardPrevious);
         var more = B(Theme.IMore, Loc.L("Weitere Funktionen", "More functions"), () => { });
-        var minimize = B("", K(Loc.L("In den Infobereich minimieren", "Minimise to notification area"), "bar") + Loc.L(" – Symbol unten rechts in der Taskleiste", " – icon at the bottom right of the taskbar"), c.MinimizeToTray);
-        var menu = new ContextMenu();
-        void Add(string h, string id, Action a) { var mi = new MenuItem { Header = h, InputGestureText = id.Length > 0 ? RecordingController.Key(id) : "" }; mi.Click += (_, _) => { try { a(); } catch (Exception ex) { UiApp.ShowError(ex); } }; menu.Items.Add(mi); }
-        Add(Loc.L("Letzte Eingabe schwärzen", "Redact last input"), "", c.RedactLastInput);
-        Add(Loc.L("Marker mit Text …", "Marker with text …"), "", () => { var d = new CommentWindow(Loc.L("Marker-Text", "Marker text")); if (d.ShowDialog() == true) c.Marker("important", d.Text); });
-        Add(Loc.L("In den Infobereich minimieren", "Minimise to notification area"), "bar", c.MinimizeToTray);
-        Add(Loc.L("Tastenkürzel …", "Shortcuts …"), "", c.ShowShortcuts);
+        var minimize = B("\uE921", K(Loc.L("In den Infobereich minimieren", "Minimise to notification area"), "bar") + Loc.L(" – Symbol unten rechts in der Taskleiste", " – icon at the bottom right of the taskbar"), c.MinimizeToTray);
+        var menu = U.MenuScope(new ContextMenu());
+        void Add(string h, Action a, string? glyph = null) => menu.Items.Add(U.Mi(h, null, a, glyph));
+        menu.Items.Add(c.MarkerMenu());
+        Add(Loc.L("Letzte Eingabe schwärzen", "Redact last input"), c.RedactLastInput, Theme.IShield);
         menu.Items.Add(new Separator());
-        Add(Loc.L("Aufnahme verwerfen …", "Discard recording …"), "", c.Discard);
+        Add(Loc.L("Tastenkürzel …", "Shortcuts …"), c.ShowShortcuts, Theme.IKeyboard);
+        menu.Items.Add(new Separator());
+        Add(Loc.L("Aufnahme verwerfen …", "Discard recording …"), c.Discard, Theme.IDelete);
         more.Click += (_, _) => { menu.PlacementTarget = more; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
@@ -473,7 +481,7 @@ sealed class RecordingBar : Window
         _msg.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = row });
         Content = new Border
         {
-            Margin = new Thickness(14), CornerRadius = new CornerRadius(Theme.RInset + 2), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
+            Margin = new Thickness(14), CornerRadius = new CornerRadius(Theme.RCard), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
             Effect = Theme.Shadow(24, 4, 0.45), Child = new StackPanel { Children = { row, _msgRow } }
         };
         _msgTimer.Tick += (_, _) => { if (_sticky) return; _msg.Text = ""; _msgRow.Visibility = Visibility.Collapsed; _msgTimer.Stop(); };
@@ -484,7 +492,7 @@ sealed class RecordingBar : Window
             SetWindowLongPtr(h, Win32.GWL_EXSTYLE, (nint)(ex | 0x08000000 /*NOACTIVATE*/ | Win32.WS_EX_TOOLWINDOW));
             Invisibility.Apply(this);
         };
-        Loaded += (_, _) => { Center(); SetPulse(true); if (Content is UIElement ce) Anim.Appear(ce, 0, -14, 380); };
+        Loaded += (_, _) => { Center(); SetPulse(true); if (Content is UIElement ce) Anim.Appear(ce, 0, -6, 200); };
         SizeChanged += (_, _) => { if (!_dragged) Center(); };
         SetTime(TimeSpan.Zero, 0, RecorderState.Recording, false);
     }
@@ -587,12 +595,12 @@ sealed class FrameWindow : Window
 /// <summary>Kommentarfeld (Eingabe speichert, Umschalt+Eingabe neue Zeile, Esc verwirft).</summary>
 sealed class CommentWindow : Window
 {
-    readonly TextBox _box = new() { AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = 4000, FontSize = 14, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
+    readonly Wpf.Ui.Controls.TextBox _box = new() { ClearButtonEnabled = false, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = 4000, FontSize = 14, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     public string Text => _box.Text;
     public CommentWindow(string? title = null)
     {
         title ??= Loc.L("Kommentar", "Comment");
-        _box.Tag = Loc.L("Was passiert hier? Was ist wichtig?", "What is happening here? What matters?");
+        _box.PlaceholderText = Loc.L("Was passiert hier? Was ist wichtig?", "What is happening here? What matters?");
         Title = title; Width = 540; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterScreen; Topmost = true; ShowInTaskbar = false; ResizeMode = ResizeMode.NoResize;
         Theme.Prepare(this, Theme.Surface);
         _box.PreviewKeyDown += (_, e) =>

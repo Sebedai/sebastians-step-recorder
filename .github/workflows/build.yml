@@ -18,7 +18,8 @@ jobs:
         with:
           global-json-file: global.json
       - name: Restore
-        run: dotnet restore StepRecorder.sln
+        # Release ist eigenständig (SelfContained) und braucht dafür das Laufzeitpaket win-x64
+        run: dotnet restore StepRecorder.sln -p:Configuration=Release
       - name: Build
         run: dotnet build StepRecorder.sln -c Release --no-restore -p:ContinuousIntegrationBuild=true
       - name: Test
@@ -42,7 +43,9 @@ jobs:
           $version = "${{ github.ref_name }}".TrimStart('v')
           # Directory.Build.props leitet die Ausgabe um – deshalb ausdrücklich -o
           dotnet publish src/StepRecorder.App/StepRecorder.csproj -c Release -p:Version=$version -p:ContinuousIntegrationBuild=true -o "$env:RUNNER_TEMP\publish"
-          $files = Get-ChildItem "$env:RUNNER_TEMP\publish" -File
+          # Symboldateien (.pdb) gehören nicht ins Release
+          Get-ChildItem "$env:RUNNER_TEMP\publish" -File -Filter *.pdb | Remove-Item
+          $files = @(Get-ChildItem "$env:RUNNER_TEMP\publish" -File)
           if ($files.Count -ne 1 -or $files[0].Name -ne 'SebastiansStepRecorder.exe') { throw "Unerwarteter Inhalt: $($files.Name -join ', ')" }
           $hash = (Get-FileHash $files[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  SebastiansStepRecorder.exe" | Out-File -Encoding ascii "$env:RUNNER_TEMP\publish\SHA256SUMS.txt"

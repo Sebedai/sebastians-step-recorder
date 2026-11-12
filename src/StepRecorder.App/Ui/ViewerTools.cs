@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -28,6 +28,9 @@ sealed partial class ViewerWindow
     {
         t.Language = System.Windows.Markup.XmlLanguage.GetLanguage(_view.Language == "en" ? "en-US" : "de-DE");
         SpellCheck.SetIsEnabled(t, true);
+        // WPF zeigt Korrekturvorschläge nur ohne eigenes Kontextmenü – das von WPF-UI (nur Kopieren/Einfügen) abschalten
+        t.ContextMenu = null;
+        if (t is Wpf.Ui.Controls.TextBox ut) ut.ClearButtonEnabled = false;
     }
 
     // =====================================================================================
@@ -40,30 +43,34 @@ sealed partial class ViewerWindow
         _details.Children.Clear();
         _editTitle = _editBody = null; _editAnchor = null;
         bool ro = _view.Session.ReadOnly;
-        _details.Children.Add(U.Heading(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), Theme.FsTitle, new Thickness(0, 0, 0, 4)));
-        _details.Children.Add(U.Hint(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click selects a range. Everything here applies to all selected steps.")));
-
-        WrapPanel Row() { var w = new WrapPanel { Margin = new Thickness(-3, -3, 0, 0) }; _details.Children.Add(w); return w; }
+        _details.Children.Add(U.Heading(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), Theme.FsTitle, new Thickness(0, 4, 0, 4)));
+        _details.Children.Add(U.Hint(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click a range. Everything here applies to all selected steps.")));
         Button B(string? glyph, string text, Action a, string? tip = null) { var b = U.Btn(glyph, text, a, tip); b.IsEnabled = !ro; return b; }
+        WrapPanel Row(Panel target) { var w = new WrapPanel { Margin = new Thickness(-3, -3, 0, 12) }; target.Children.Add(w); return w; }
 
-        _details.Children.Add(U.SectionLabel(Loc.L("Sichtbarkeit", "Visibility"), new Thickness(0, 20, 0, 10)));
-        var r1 = Row();
-        r1.Children.Add(B(Theme.IEye, Loc.L("Ausblenden", "Hide"), () => BulkEdit(steps, se => se["hidden"] = true)));
-        r1.Children.Add(B(Theme.IEye, Loc.L("Einblenden", "Show"), () => BulkEdit(steps, se => se["hidden"] = false)));
+        // gleiche Reihenfolge wie bei einem Schritt: Hinweise, Einordnung, Bild in der Anleitung
+        var notes = Section(Loc.L("Hinweise", "Notes"));
+        Row(notes).Children.Add(B(Theme.IComment, Loc.F("Hinweis zu {0} Schritten hinzufügen …", "Add note to {0} steps …", steps.Count), () => AddNoteToMany(steps)));
 
-        _details.Children.Add(U.SectionLabel(Loc.L("Wichtigkeit", "Importance"), new Thickness(0, 20, 0, 10)));
-        var r2 = Row();
+        var place = Section(Loc.L("Einordnung", "Placement"));
+        place.Children.Add(U.Text(Loc.L("Wichtigkeit", "Importance"), Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6)));
+        var r2 = Row(place);
         foreach (var (imp, name) in new[] { ("primary", Loc.L("Hauptschritt", "Main step")), ("secondary", Loc.L("Nebenschritt", "Secondary step")), ("trace", Loc.L("Spur", "Trace")) })
             r2.Children.Add(B(null, name, () => BulkEdit(steps.Where(s => !s.Manual), se => se["importance"] = imp)));
+        place.Children.Add(U.Text(Loc.L("Kapitel, Zusammenfassen und Sichtbarkeit", "Chapter, merging and visibility"), Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6)));
+        var r1 = Row(place);
+        r1.Children.Add(B(Theme.IDoc, Loc.L("Kapitel vor dem ersten beginnen", "Start chapter before the first"), () => ToggleChapter(steps[0].Anchor, true), Loc.L("Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel", "A new chapter starts before the first selected step")));
+        r1.Children.Add(B(Theme.ICompare, Cmd("merge").Label, MergeSelected, TipOf("merge")));
+        r1.Children.Add(B(Theme.IEye, Loc.L("Ausblenden", "Hide"), () => BulkEdit(steps, se => se["hidden"] = true)));
+        r1.Children.Add(B(Theme.IEye, Loc.L("Einblenden", "Show"), () => BulkEdit(steps, se => se.Remove("hidden"))));
 
-        _details.Children.Add(U.SectionLabel(Loc.L("Im Dokument", "In the document"), new Thickness(0, 20, 0, 10)));
-        var r3 = Row();
-        r3.Children.Add(B(Theme.IDoc, Loc.L("Kapitel davor beginnen", "Start chapter before"), () => ToggleChapter(steps[0].Anchor, true), Loc.L("Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel", "A new chapter starts before the first selected step")));
+        var img = Section(Loc.L("Bild in der Anleitung", "Image in the guide"));
+        var r3 = Row(img);
         r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder zeigen", "Show images"), () => BulkEdit(steps, se => se.Remove("showImage"))));
         r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder weglassen", "Omit images"), () => BulkEdit(steps, se => se["showImage"] = false)));
-        var size = new ComboBox { MinWidth = 220, IsEnabled = !ro, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var size = new ComboBox { MinWidth = 220, IsEnabled = !ro, Margin = new Thickness(0, 0, 0, 12), HorizontalAlignment = HorizontalAlignment.Left };
         size.Items.Add(Loc.L("Bildgröße für alle …", "Image size for all …"));
-        size.Items.Add(Loc.L("wie im Dokument", "as in the document"));
+        size.Items.Add(Loc.L("wie im Dokument", "as in document"));
         foreach (var (_, name) in DocSettings.Sizes) size.Items.Add(name);
         size.SelectedIndex = 0;
         size.SelectionChanged += (_, _) =>
@@ -71,27 +78,13 @@ sealed partial class ViewerWindow
             int i = size.SelectedIndex; if (i <= 0) return;
             BulkEdit(steps, se => { if (i == 1) se.Remove("imageSize"); else se["imageSize"] = DocSettings.Sizes[i - 2].id; });
         };
-        _details.Children.Add(size);
+        img.Children.Add(size);
 
-        _details.Children.Add(U.SectionLabel(Loc.L("Hinweiskasten", "Note"), new Thickness(0, 20, 0, 10)));
-        var r4 = Row();
-        foreach (var (k, name) in NoteKinds)
-            r4.Children.Add(B(Theme.IAdd, name, () =>
-            {
-                var d = new InputDialog(Loc.F("{0} zu {1} Schritten hinzufügen", "Add {0} to {1} steps", name, steps.Count), "") { Owner = this };
-                if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
-                Change(e =>
-                {
-                    var arr = e["comments"] as JsonArray ?? new JsonArray();
-                    foreach (var s in steps) arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = k, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
-                    e["comments"] = arr;
-                });
-            }));
         var manual = steps.Where(s => s.Manual).ToList();
         if (manual.Count > 0)
         {
-            _details.Children.Add(U.SectionLabel(Loc.L("Eingefügte Schritte", "Inserted steps"), new Thickness(0, 20, 0, 10)));
-            Row().Children.Add(B(Theme.IDelete, Loc.N(manual.Count, "{0} eingefügte löschen", "{0} eingefügte löschen", "Delete {0} inserted step", "Delete {0} inserted steps"), () => DeleteManual(manual)));
+            var ins = Section(Loc.L("Eingefügte Schritte", "Inserted steps"));
+            Row(ins).Children.Add(B(Theme.IDelete, Loc.N(manual.Count, "1 eingefügten löschen", "{0} eingefügte löschen", "Delete 1 inserted", "Delete {0} inserted"), () => DeleteManual(manual)));
         }
     }
 
@@ -297,7 +290,7 @@ sealed partial class ViewerWindow
             }
         }
         if (dryRun) Do((JsonObject)_view.Edits.DeepClone());
-        else { _view.SnapshotBefore = "replaceAll"; Change(Do); _titleBlock.Text = _view.Title; }
+        else { _view.SnapshotBefore = "replaceAll"; Change(Do); UpdateTitle(); }
         return hits;
     }
 
@@ -342,7 +335,7 @@ sealed partial class ViewerWindow
         _view.Language = lang; _view.Rebuild();
         _thumbs.Clear();
         Fill(keep);
-        if (_detailTab == 2) DocDetails();
+        if (_cover) ApplyCoverMode();
         _status.Text = lang == "en"
             ? Loc.L("Texte auf Englisch – die deutschen Texte bleiben getrennt erhalten.", "Texts in English – the German texts are kept separately.")
             : Loc.L("Texte auf Deutsch – die englischen Texte bleiben getrennt erhalten.", "Texts in German – the English texts are kept separately.");
@@ -366,7 +359,7 @@ sealed class CountdownWindow : Window
         col.Children.Add(new TextBlock { Text = caption, Foreground = Theme.Night.Muted, FontSize = Theme.FsBody, HorizontalAlignment = HorizontalAlignment.Center });
         col.Children.Add(_num);
         if (hint != null) col.Children.Add(new TextBlock { Text = hint, Foreground = Theme.Night.Muted, FontSize = Theme.FsHint, LineHeight = 19, TextAlignment = TextAlignment.Center, MaxWidth = 360, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center });
-        Content = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(Theme.RCard), BorderBrush = Theme.Night.Accent, BorderThickness = new Thickness(2), Child = col };
+        Content = new Border { Background = Theme.Night.Bg, CornerRadius = new CornerRadius(Theme.RCard), BorderBrush = Theme.Night.Line, BorderThickness = new Thickness(1), Child = col, Effect = Theme.Shadow(24, 4, 0.45), Margin = new Thickness(16) };
         _num.Text = _left.ToString();
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         t.Tick += (_, _) =>
@@ -374,10 +367,9 @@ sealed class CountdownWindow : Window
             _left--;
             if (_left <= 0) { t.Stop(); Close(); Finished?.Invoke(); return; }
             _num.Text = _left.ToString();
-            Anim.Pop(_num, 0.55, 360);
             Tones.Tick();
         };
-        Loaded += (_, _) => { Tones.Tick(); t.Start(); if (Content is UIElement ce) Anim.Pop(ce, 0.85, 300); Anim.Pop(_num, 0.55, 360); };
+        Loaded += (_, _) => { Tones.Tick(); t.Start(); if (Content is UIElement ce) Anim.Appear(ce, 0, 0, 160); };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) { t.Stop(); Close(); } };
     }
 }
@@ -385,7 +377,7 @@ sealed class CountdownWindow : Window
 /// <summary>Suchen und Ersetzen über alle Schritte, Hinweise, Kapitel und Dokumenttexte.</summary>
 sealed class SearchReplaceWindow : Window
 {
-    readonly TextBox _find = new() { Tag = Loc.L("Suchen nach …", "Find …") }, _repl = new() { Tag = Loc.L("Ersetzen durch …", "Replace with …") };
+    readonly Wpf.Ui.Controls.TextBox _find = new() { PlaceholderText = Loc.L("Suchen nach …", "Find …") }, _repl = new() { PlaceholderText = Loc.L("Ersetzen durch …", "Replace with …") };
     readonly CheckBox _case = new() { Content = Loc.L("Groß-/Kleinschreibung beachten", "Match case"), Margin = new Thickness(0, 0, 20, 8) }, _word = new() { Content = Loc.L("Nur ganze Wörter", "Whole words only"), Margin = new Thickness(0, 0, 20, 8) };
     readonly CheckBox _steps = new() { Content = Loc.L("Überschriften und Texte", "Headings and texts"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _notes = new() { Content = Loc.L("Hinweiskästen", "Notes"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) },
         _chapters = new() { Content = Loc.L("Kapitel", "Chapters"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _doc = new() { Content = Loc.L("Titel und Dokumenttexte", "Title and document texts"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) };

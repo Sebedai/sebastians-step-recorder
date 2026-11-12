@@ -39,7 +39,8 @@ static class DevSnapshots
                 t.Stop();
                 Save(w);
                 if (w is ViewerWindow v) Demo(v);
-                else if (w is not StartWindow) { if (IsModal(w)) w.DialogResult = false; else w.Close(); }
+                else if (w is StartWindow sw) sw.DevPages(() => Save(sw));
+                else { if (IsModal(w)) w.DialogResult = false; else w.Close(); }
             };
             t.Start();
         }));
@@ -54,12 +55,41 @@ static class DevSnapshots
             var root = (FrameworkElement)VisualTreeHelper.GetChild(w, 0);
             double scale = PresentationSource.FromVisual(w)?.CompositionTarget.TransformToDevice.M11 ?? 1;
             var rtb = new RenderTargetBitmap((int)(root.ActualWidth * scale), (int)(root.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+            // Mica ist im Bild durchsichtig – für das PNG die Grundfläche des Themas unterlegen
+            var under = new DrawingVisual();
+            using (var dc = under.RenderOpen())
+                dc.DrawRectangle(w is Wpf.Ui.Controls.FluentWindow || w.Background is not SolidColorBrush { Color.A: 255 } ? Theme.Bg : w.Background, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+            if (!w.AllowsTransparency) rtb.Render(under);   // Leiste und Overlays bleiben freigestellt
             rtb.Render(root);
             var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
             using var fs = File.Create(Path.Combine(_dir!, $"{++_n:00}-{w.GetType().Name}{(w.GetType() == typeof(Window) ? "-" + Sanitize(w.Title) : "")}.png"));
             enc.Save(fs);
         }
         catch (Exception ex) { UiApp.Log("snapshot: " + ex); }
+    }
+
+    /// <summary>Offene Menüs (eigene Popup-Fenster) abbilden: alle sichtbaren Popups des Programms rendern.</summary>
+    public static void SaveOpenPopups(string name)
+    {
+        if (_dir == null) return;
+        int k = 0;
+        foreach (var src in PresentationSource.CurrentSources.OfType<System.Windows.Interop.HwndSource>().ToList())
+        {
+            if (src.RootVisual is not FrameworkElement root || root is Window || root.ActualWidth < 8 || !root.IsVisible) continue;
+            if (root.GetType().Name != "PopupRoot") continue;
+            try
+            {
+                double scale = src.CompositionTarget.TransformToDevice.M11;
+                var rtb = new RenderTargetBitmap((int)(root.ActualWidth * scale), (int)(root.ActualHeight * scale), 96 * scale, 96 * scale, PixelFormats.Pbgra32);
+                var under = new DrawingVisual();
+                using (var dc = under.RenderOpen()) dc.DrawRectangle(Theme.Bg, null, new Rect(0, 0, root.ActualWidth, root.ActualHeight));
+                rtb.Render(under); rtb.Render(root);
+                var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
+                using var fs = File.Create(Path.Combine(_dir, $"{++_n:00}-Menu-{Sanitize(name)}{(k++ > 0 ? "-" + k : "")}.png"));
+                enc.Save(fs);
+            }
+            catch (Exception ex) { UiApp.Log("snapshot popup: " + ex); }
+        }
     }
 
     static string Sanitize(string s) => new(s.Where(char.IsLetterOrDigit).Take(20).ToArray());
@@ -75,6 +105,7 @@ static class DevSnapshots
                 Save(v);
             }
             v.DevDemo(() => Save(v));
+            v.DevMenus();
             v.DevShowShortcuts();
             v.DevShowQuality();
             static string Target(StepRecorder.Export.ExportRequest r, string? f) => @"C:\Recordings\Example\export\" + r.Format + @"\Guide." + StepRecorder.Export.Exporter.Extension(r.Format);
@@ -94,7 +125,6 @@ static class DevSnapshots
             UiApp.Instance.ShowLibrary();
             new InputDialog(Loc.L("Kommentar", "Comment"), "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog(Loc.L("Text des Schritts", "Step text"), Loc.L("Klicken Sie auf „Speichern“.", "Click \"Save\"."), Loc.L("Datei speichern", "Save file")) { Owner = v }.ShowDialog();
-            for (int tab = 0; tab < 5; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();
             new CommentWindow().ShowDialog();
             Msg.Show(Loc.L("Aufnahme verwerfen?\n\nDer Sitzungsordner wird gelöscht. Das lässt sich nicht rückgängig machen.", "Discard recording?\n\nThe recording folder is deleted. This cannot be undone."), Loc.L("Aufnahme verwerfen", "Discard recording"), MessageBoxButton.YesNo, MessageBoxImage.Warning);
             var bar = new RecordingBar(new RecordingController(new RecordingOptions()));
