@@ -131,6 +131,17 @@ Jede Vorgabe des Auftraggebers ist mindestens einer Anforderung mit Abnahmekrite
 
 Datenformat, Schrittlogik, KI-Paket und Datenschutzregeln dieser Funktionen stehen in DAT-064–073, SCH-052–060, KI-034–041, MCP-032–036 und DS-056–067.
 
+**Entwickler-Fahrplan** (vom Auftraggeber am 2026-11-12 gewählt; geplant, nicht umgesetzt – Pakete, Reihenfolge und Schutzregeln in [12](12-entwickler-fahrplan.md)). Anforderungen mit Kennung entstehen bei der Feinplanung des jeweiligen Pakets; bis dahin verweist die Spalte auf die Pakete.
+
+| Nr. | Vorgabe | Anforderungen (Auswahl, maßgeblich) | Abnahme |
+|---|---|---|---|
+| V-40 | **KI-Agent-Schleife:** der ganze Fehlerkontext für Agenten in einem Aufruf, MCP-Prompts, Notizen des Agenten, Prüfaufnahme; Kommandozeile mit `list`, `latest` und JSON | noch keine – Paket 8 | wie in [12, Paket 8](12-entwickler-fahrplan.md#paket-8--agenten-schleife-m) |
+| V-41 | **Entwickler-Kontext:** festhalten, was die Anwendung tat – Programmende und Absturz, Hänger, Build-Stand, Fehlertext, Einträge der Ereignisanzeige, Protokolldateien | noch keine – Pakete 10–13 | Kanarien-Abnahme über alle Ausgabewege (Paket 12) |
+| V-42 | **UI-Tests aus Aufnahmen:** Testentwürfe für FlaUI, pywinauto und Playwright; Testbarkeits-Bericht | noch keine – Pakete 16, 17 | erzeugter Test läuft gegen die Test-Zielanwendung (VE-21) |
+| V-43 | **Tempo im Alltag:** Bereitschaft im Infobereich, Modus „Fehler nachstellen“, Befehlspalette, Sofort-Bildschirmfoto | noch keine – Pakete 14, 15 | Tastaturdurchgang, Startzeit aus der Bereitschaft |
+| V-44 | **Doku und Reviews im Repository:** Markdown nach 09 §6, GIF für Pull Requests, visueller Vorher/Nachher-Vergleich | noch keine – Pakete 18, 19 | bytegleiche Exporte, T-14 mit Bildunterschieden |
+| V-45 | **Reaktionszeiten sichtbar machen** | noch keine – Paket 9 | Zahlen in Editor, `trace.md`, MCP und Vergleich stimmen überein |
+
 ## 5. Rückverfolgung der Review-Befunde
 
 Das unabhängige Architektur-Review zum Planentwurf ergab 14 Befunde und 5 fehlende Themen. Die Fachkapitel führen eigene Zuordnungstabellen ([02 §15](02-architektur.md), [03 §13](03-aufzeichnungskern.md)); hier die Gesamtsicht.
