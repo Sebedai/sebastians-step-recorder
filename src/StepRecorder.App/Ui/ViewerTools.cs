@@ -432,7 +432,7 @@ sealed class SearchReplaceWindow : Window
     {
         var rx = Rx(); if (rx == null) return;
         int n = _v.ReplaceAll(rx, _repl.Text, _steps.IsChecked == true, _notes.IsChecked == true, _chapters.IsChecked == true, _doc.IsChecked == true, dryRun: false);
-        _count.Text = Loc.N(n, "{0} Stellen ersetzt – rückgängig mit Strg+Z im Editor.", "{0} Stellen ersetzt – rückgängig mit Strg+Z im Editor.", "1 replacement made – undo with Ctrl+Z in the editor.", "{0} replacements made – undo with Ctrl+Z in the editor.");
+        _count.Text = Loc.N(n, "1 Stelle ersetzt – rückgängig mit Strg+Z im Editor.", "{0} Stellen ersetzt – rückgängig mit Strg+Z im Editor.", "1 replacement made – undo with Ctrl+Z in the editor.", "{0} replacements made – undo with Ctrl+Z in the editor.");
         _count.Foreground = Theme.Success;
     }
 }

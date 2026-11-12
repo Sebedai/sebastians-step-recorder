@@ -207,7 +207,11 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         else
         {
             foreach (var q in list) Console.WriteLine(q.Line(view.Language));
-            Console.WriteLine(Loc.F("{0} Warnungen · {1} Hinweise", "{0} warnings · {1} hints", list.Count(q => q.Severity == "warning" && !q.Ignored), list.Count(q => q.Severity == "hint" && !q.Ignored)));
+            int warn = list.Count(q => q.Severity == "warning" && !q.Ignored), hint = list.Count(q => q.Severity == "hint" && !q.Ignored);
+            // Befunde stehen in der Sprache von --lang (bzw. der Aufnahme) – die Summenzeile auch
+            string lang = view.Language;
+            Console.WriteLine((warn == 1 ? Loc.For(lang, "1 Warnung", "1 warning") : Loc.For(lang, $"{warn} Warnungen", $"{warn} warnings"))
+                + " · " + (hint == 1 ? Loc.For(lang, "1 Hinweis", "1 hint") : Loc.For(lang, $"{hint} Hinweise", $"{hint} hints")));
         }
         return c.Has("--strict") && list.Any(q => q.Severity == "warning" && !q.Ignored) ? 9 : 0;
     }

@@ -45,7 +45,7 @@ Lies zuerst den Kopf von `trace.md` (Abschnitt 3), dann den Ablauf.
 
 | Zeile | Bedeutung |
 |---|---|
-| Ziel der Aufnahme (Angabe des Autors) | Was die Aufnahme nach den Worten des Autors zeigen soll. Nicht zu verwechseln mit dem Feld „Ziel“ eines Schritts – das ist das getroffene Bedienelement. |
+| Ziel der Aufnahme (Angabe des Autors) | Was die Aufnahme nach den Worten des Autors zeigen soll. Nicht zu verwechseln mit dem Feld „Ziel“ eines Schritts – das ist das getroffene Bedienelement. Steht dort „vom KI-Agenten formuliert, vom Menschen bestätigt“, hat ein KI-Agent um die Vorführung gebeten und das Ziel formuliert; der Mensch hat nur zugestimmt, die Aufnahme zu starten – ob er dem Ziel gefolgt ist, zeigen allein die Schritte. |
 | Erwartetes Ergebnis (Angabe des Autors) | Was nach den Worten des Autors am Ende zu sehen sein soll |
 | Bezug (Angabe des Autors) | Ein freier Verweis des Autors, etwa eine Ticketnummer |
 | Marker des Autors | Die Stellen, die der Autor während der Aufnahme markiert hat, mit Typ und Schrittnummer (Abschnitt 13) |
@@ -96,7 +96,7 @@ Felder, die nicht zutreffen, fehlen.
 | Aktion | Was getan wurde, als Satz. Zusätze in Klammern sind Einordnungen. „(üblich: Speichern)“ nennt die allgemein übliche Bedeutung einer Tastenkombination. Der Zusatz steht nur bei Kombinationen aus einer festen Liste (Speichern, Kopieren, Einfügen, Rückgängig, Fenster schließen und ähnliche) und ist Allgemeinwissen, keine Beobachtung; fehlt er, steht die Kombination nur nicht in der Liste. Was sie hier wirklich tat, sagt allein „Wirkung“. „(Ziel nicht bestätigt)“ und „(Ziel uneindeutig; …)“ beschreiben, wie sicher das Ziel ist; „(automatisch erzeugte Eingabe)“ heißt, ein Programm hat getippt oder geklickt; „(vom Autor verworfen)“ markiert eine Fehlbedienung – sie ist trotzdem geschehen. |
 | Kanonisch | Dieselbe Aktion in einem festen Vokabular (Abschnitt 11) |
 | Kennung | Dauerhafte Kennung des Schritts, bei Lücken zusätzlich die der Lücke (`g1`) |
-| Anleitung | Nummer dieses Schritts in der Anleitung für Menschen, falls abweichend |
+| Anleitung | Nummer dieses Schritts in der Anleitung für Menschen, falls abweichend; oder „in der Anleitung zusammengefasst mit Schritt a–b“: Dort erscheinen diese Schritte als einer, hier stehen sie einzeln und unverändert. |
 | Kapitel | Kapitel, dem die aufzeichnende Person den Schritt in ihrer Anleitung zugeordnet hat |
 | Marker-Typ, Marker-Text | Nur bei Schritten der Art „Marker“: der Typ (Notiz, Fehler, Erwartet, Wichtig) und die Bezeichnung, die der Autor dem Marker gegeben hat (Abschnitt 13) |
 | Fenster | Titel, Programm und Monitor des Fensters, das die Eingabe erhielt |

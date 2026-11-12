@@ -98,7 +98,7 @@ Fields that do not apply are omitted.
 | Action | What was done, as a sentence. Additions in parentheses are classifications. “(usually: save)” gives the generally usual meaning of a shortcut. The addition appears only for shortcuts from a fixed list (save, copy, paste, undo, close window and similar) and is general knowledge, not observation; if it is missing, the shortcut is just not in the list. What it actually did here is stated only by “Effect”. “(target not confirmed)” and “(target ambiguous)” describe how certain the target is; “(synthetic input)” means a program typed or clicked; “(discarded by author)” marks a mis-operation – it happened nevertheless; “(incompletely recorded)” means the input is incomplete. |
 | Canonical | The same action in a fixed vocabulary (section 11) |
 | Id | Permanent id of the step; for gaps additionally that of the gap (`gap g1`) |
-| Guide | Number of this step in the guide for humans, if different |
+| Guide | Number of this step in the guide for humans, if different; or “combined in the guide with steps a–b”: there these steps appear as one, here they are listed individually and unchanged. |
 | Chapter | Chapter to which the recording person assigned the step in their guide |
 | Marker type, Marker text | Only for steps of kind “Marker”: the type (note, error, expected, important) and the label the author gave the marker (section 13) |
 | Window | Title, program and monitor of the window that received the input |
