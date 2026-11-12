@@ -73,7 +73,7 @@ public sealed partial class Recorder : IDisposable
 
         // Capture-Host vorbereiten (noch ohne Hooks)
         _host = new HostClient { HostExe = hostExe };
-        _host.Start(allowProcess: hostExe != null || Environment.ProcessPath?.EndsWith("StepRecorder.exe", StringComparison.OrdinalIgnoreCase) == true);
+        _host.Start(allowProcess: hostExe != null || (Environment.ProcessPath is { } pp && pp.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && Path.GetFileName(pp).Contains("StepRecorder", StringComparison.OrdinalIgnoreCase)));
         if (!_host.InProcess && _host.Ring.HostPid != 0) _ownPids.Add(_host.Ring.HostPid);
 
         // Sitzungsordner

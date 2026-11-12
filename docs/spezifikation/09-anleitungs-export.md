@@ -614,7 +614,7 @@ Der Befehl `export` erzeugt eine Anleitung ohne Oberfläche, etwa in Skripten. R
 **Ein Name, eine Bedeutung:** `--profile` gibt es bei `export` nicht. Der Name ist dem Aufnahmeprofil vorbehalten (`record --profile`, `support --profile`, [07](07-aufnahme-bedienung.md#31-aufnahme-über-die-kommandozeile)); das Bildprofil des KI-Pakets heißt auf der Kommandozeile `--image-profile`. Optionen, die nur für Anleitungen gelten – etwa `--template`, `--address`, `--after`, `--steps` –, sind zusammen mit `--format ki` ein Aufruffehler, ebenso die Optionen des KI-Pakets zusammen mit einem Anleitungsformat.
 
 ```
-StepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|ki> [Optionen]
+SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|ki> [Optionen]
 ```
 
 | Option | Bedeutung | Standard |
@@ -672,7 +672,7 @@ Ein Support-Paket erzeugt `export` nicht ([3.5](#35-support-paket)).
 Beispiel:
 
 ```
-StepRecorder.exe export "C:\Aufnahmen\2026-11-11 14.30 – Editor – notiz.txt" ^
+SebastiansStepRecorder.exe export "C:\Aufnahmen\2026-11-11 14.30 – Editor – notiz.txt" ^
     --format pdf --template Schulung --lang de --out "D:\Doku\Datei-speichern.pdf"
 ```
 

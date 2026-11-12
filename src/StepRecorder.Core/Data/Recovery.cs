@@ -60,6 +60,8 @@ public static class AppInfo
 {
     /// <summary>Technischer Name (Datenformat, Manifest, Prozess) – nicht ändern.</summary>
     public const string Name = "StepRecorder";
+    /// <summary>Dateiname des Programms.</summary>
+    public const string ExeName = "SebastiansStepRecorder.exe";
     /// <summary>Name in der Oberfläche.</summary>
     public const string DisplayName = "Sebastians Step Recorder";
     public static string Version => typeof(AppInfo).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.1.0";

@@ -78,7 +78,7 @@ sealed class RecordingController
         try
         {
             string exe = Environment.ProcessPath ?? "";
-            _rec.Start(exe.EndsWith("StepRecorder.exe", StringComparison.OrdinalIgnoreCase) ? exe : null);
+            _rec.Start(exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) && System.IO.Path.GetFileName(exe).Contains("StepRecorder", StringComparison.OrdinalIgnoreCase) ? exe : null);
         }
         catch (Exception ex)
         {

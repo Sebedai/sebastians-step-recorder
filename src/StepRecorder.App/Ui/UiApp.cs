@@ -128,7 +128,7 @@ sealed class UiApp : Application
 
     /// <summary>
     /// Modus anwenden: Anleitung, Support-Fall und KI-Spur bringen einen festen Detailgrad mit;
-    /// „Eigene“ nimmt Eingabearten, Zwischenbilder, Programmkontext und „nach dem Stopp“ aus den Einstellungen.
+    /// „Eigene“ nimmt Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ aus den Einstellungen.
     /// </summary>
     public static void ApplyProfile(RecordingOptions o, string profile)
     {

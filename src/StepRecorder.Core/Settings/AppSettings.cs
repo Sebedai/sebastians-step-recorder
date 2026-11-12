@@ -103,6 +103,8 @@ public sealed class AppSettings
     public string DefaultTemplate { get; set; } = "";
     /// <summary>Töne bei Start, Stopp, Pause, Marker: hidden (nur bei ausgeblendeter Anzeige) | always | never.</summary>
     public string SoundCues { get; set; } = "hidden";
+    /// <summary>Farbschema der Oberfläche: dark (Standard) | light | system (wie Windows).</summary>
+    public string Theme { get; set; } = "dark";
     public Dictionary<string, string> Hotkeys { get; set; } = new()
     {
         ["instantPause"] = "Ctrl+Shift+F9", ["stop"] = "Ctrl+Shift+F10", ["snapshot"] = "Ctrl+Shift+F11", ["comment"] = "Ctrl+Shift+F12",

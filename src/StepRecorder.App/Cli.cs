@@ -10,22 +10,22 @@ namespace StepRecorder.App;
 static class Cli
 {
     const string Help = """
-StepRecorder – portabler Schrittrekorder
+Sebastians Step Recorder – portabler Schrittrekorder
 
 Aufruf:
-  StepRecorder.exe                         Startfenster
-  StepRecorder.exe <Sitzung>               Sitzung im Viewer öffnen
-  StepRecorder.exe record [Optionen]       sofort aufnehmen (--scope screen|app|region, --monitor active|all|M1,
+  SebastiansStepRecorder.exe                         Startfenster
+  SebastiansStepRecorder.exe <Sitzung>               Sitzung im Viewer öffnen
+  SebastiansStepRecorder.exe record [Optionen]       sofort aufnehmen (--scope screen|app|region, --monitor active|all|M1,
                                            --app <prozess.exe>, --region x,y,b,h, --title, --goal, --expected,
                                            --reference, --protection balanced|strict, --out <Ordner>, --profile <Name>)
-  StepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Sitzungspfad aus)
-  StepRecorder.exe export <Sitzung> --format html|md|docx|pdf|gif|ki|ahk|ahk-ki [--out <Pfad>] [--with <Sitzung>] [--lang de|en]
+  SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Sitzungspfad aus)
+  SebastiansStepRecorder.exe export <Sitzung> --format html|md|docx|pdf|gif|ki|ahk|ahk-ki [--out <Pfad>] [--with <Sitzung>] [--lang de|en]
                                            [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original]
                                            [--zip] [--strict] [--json]
-  StepRecorder.exe validate <Sitzung> [--json]
-  StepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
-  StepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
-  StepRecorder.exe --version
+  SebastiansStepRecorder.exe validate <Sitzung> [--json]
+  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
+  SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
+  SebastiansStepRecorder.exe --version
 
 Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfung fehlgeschlagen · 5 abgebrochen
             6 Aufnahme läuft bereits · 7 Voraussetzung fehlt · 8 Ziel nicht beschreibbar · 9 --strict-Abbruch
@@ -37,7 +37,7 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
         {
             switch (args[0].ToLowerInvariant())
             {
-                case "--version": Console.WriteLine($"{AppInfo.Name} {AppInfo.Version}"); return 0;
+                case "--version": Console.WriteLine($"{AppInfo.DisplayName} {AppInfo.Version}"); return 0;
                 case "--help" or "-h" or "/?": Console.WriteLine(Help); return 0;
                 case "export": return Export(args);
                 case "validate": return ValidateCmd(args);

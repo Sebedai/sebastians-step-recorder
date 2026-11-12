@@ -133,8 +133,8 @@ public sealed class FrameEngine : IDisposable
         }
     }
 
-    double ChangeThreshold => _opt.ChangeFrames switch { "few" => 0.02, "many" => 0.0001, _ => 0.001 };
-    int ChangeMinGapMs => _opt.ChangeFrames switch { "few" => 2000, "many" => 250, _ => 500 };
+    double ChangeThreshold => DetailPresets.ChangeRule(_opt.ChangeFrames).ratio;
+    int ChangeMinGapMs => DetailPresets.ChangeRule(_opt.ChangeFrames).gapMs;
 
     void CheckSettleAndChange()
     {

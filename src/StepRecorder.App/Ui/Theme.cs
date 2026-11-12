@@ -40,8 +40,10 @@ static class Theme
 
     public static void Init(Application app)
     {
+        // Standard: dunkel. Einstellung „Darstellung“ (dark | light | system); STEPRECORDER_THEME überschreibt.
         var env = Environment.GetEnvironmentVariable("STEPRECORDER_THEME");
-        Dark = env == "dark" || (env != "light" && SystemUsesDark());
+        string mode = env is "dark" or "light" or "system" ? env : SettingTheme();
+        Dark = mode switch { "light" => false, "system" => SystemUsesDark(), _ => true };
         var p = Dark ? DarkPalette : LightPalette;
         Brush B(string k) { var b = new SolidColorBrush((Color)ColorConverter.ConvertFromString(p[k])); b.Freeze(); app.Resources[k] = b; return b; }
         Bg = B("Bg"); Surface = B("Surface"); Surface2 = B("Surface2"); HoverBg = B("HoverBg"); Line = B("Line"); LineStrong = B("LineStrong");
@@ -50,7 +52,7 @@ static class Theme
         CanvasBg = B("CanvasBg"); ScrollThumb = B("ScrollThumb"); B("AccentHover"); B("SegmentOn");
         AccentColor = ((SolidColorBrush)Accent).Color;
         app.Resources["ShadowOpacity"] = Dark ? 0.45 : 0.10;
-        app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/StepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
+        app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/SebastiansStepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
     }
 
     // Eigene Linie: warmes Graphit statt Blaugrau, Signal-Orange als einzige Markenfarbe, Haarlinien statt Schatten.
@@ -69,6 +71,11 @@ static class Theme
         ["AccentText"] = "#FF9461", ["OnAccent"] = "#141312", ["Danger"] = "#F0556E", ["DangerSoft"] = "#36181E", ["Warn"] = "#E9B14C", ["WarnSoft"] = "#30250F",
         ["Success"] = "#62C28C", ["SuccessSoft"] = "#16291D", ["CanvasBg"] = "#0C0C0B", ["ScrollThumb"] = "#45443F", ["SegmentOn"] = "#2F2F2C"
     };
+
+    static string SettingTheme()
+    {
+        try { return StepRecorder.Settings.AppSettings.Load().Theme; } catch { return "dark"; }
+    }
 
     static bool SystemUsesDark()
     {

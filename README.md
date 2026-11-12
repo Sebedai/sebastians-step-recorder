@@ -1,58 +1,219 @@
-# StepRecorder
+# Sebastians Step Recorder
 
-> Arbeitstitel · Status: **Version 0.9 (erste lauffähige Umsetzung)** · Spezifikation Entwurf 0.1 (2026-11-11) · siehe [Umsetzung](#umsetzung)
+**Arbeitsschritte einmal vorführen – daraus entsteht eine fertige Anleitung mit Bildern.**
 
-Ein portabler Schrittrekorder für Windows: ein besserer Nachfolger der abgekündigten Windows-Schrittaufzeichnung (PSR). Er läuft **ohne Installation** und zeichnet **alle** Klicks, Mausbewegungen, Tasteneingaben und Tastenkombinationen samt Screenshots und Bedienelement-Kontext auf. Daraus entstehen
+Sebastians Step Recorder zeichnet auf, was Sie am Windows-PC tun: jeden Klick, jede Eingabe, jede Tastenkombination – samt Bildschirmfoto und dem Namen des angeklickten Bedienelements. Daraus entstehen Bedienungsanleitungen als PDF, Word, HTML, Markdown oder animiertes GIF, ein Paket für KI-Assistenten oder ein AutoHotkey-Skript, das den Ablauf wiederholt.
 
-- **Anleitungen für Menschen** – im eigenen Viewer ansehen, Bilder bearbeiten, kommentieren, mit einem Tastendruck kopieren, als HTML, Markdown, DOCX oder PDF exportieren;
-- **ein lückenloses Protokoll für KI** – als KI-Paket zum Hochladen oder direkt abfragbar über einen lokalen MCP-Server.
+Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das Programm ist in seinen eigenen Bildschirmfotos nie zu sehen.
 
-Das Programm ist in seinen eigenen Screenshots nie zu sehen, arbeitet vollständig offline und maskiert Eingaben in Passwortfeldern.
+**[⬇ Download: SebastiansStepRecorder.exe](https://github.com/Sebedai/sebastians-step-recorder/releases/latest)**
 
-## Kernmerkmale
+---
 
-| | |
+## Inhalt
+
+- [Schnellstart](#schnellstart)
+- [Die vier Aufnahmemodi](#die-vier-aufnahmemodi)
+- [Während der Aufnahme](#während-der-aufnahme)
+- [Der Editor](#der-editor)
+- [Bedienungsanleitungen gestalten](#bedienungsanleitungen-gestalten)
+- [Exportformate](#exportformate)
+- [Datenschutz](#datenschutz)
+- [Für KI und Automatisierung](#für-ki-und-automatisierung)
+- [Systemvoraussetzungen und Hinweise](#systemvoraussetzungen-und-hinweise)
+- [Häufige Fragen](#häufige-fragen)
+
+---
+
+## Schnellstart
+
+1. **`SebastiansStepRecorder.exe` herunterladen** und an einen beliebigen Ort legen, z. B. `C:\Tools\` oder einen USB-Stick. Doppelklick startet das Programm.
+2. **Modus wählen:** Wofür ist die Aufnahme? Im Zweifel „Anleitung“.
+3. **Bereich anklicken:** ganzer Bildschirm (oder einfach die Eingabetaste), eine einzelne Anwendung oder ein selbst aufgezogener Ausschnitt. Die Aufnahme startet sofort.
+4. **Vorführen:** ganz normal arbeiten. Zum Beenden **Strg+Umschalt+F10** drücken oder in der Aufnahmeleiste auf „Stopp“ klicken.
+5. **Nachbearbeiten und exportieren:** Der Editor öffnet sich mit allen Schritten. Texte anpassen, Bilder markieren, dann **Exportieren** – fertig.
+
+Beim ersten Start warnt Windows SmartScreen eventuell, weil die Datei nicht signiert ist: „Weitere Informationen“ → „Trotzdem ausführen“.
+
+---
+
+## Die vier Aufnahmemodi
+
+Der Modus legt fest, wie genau aufgezeichnet wird. Mehr Detail heißt genauere KI- und Skript-Ausgaben, aber auch größere Aufnahmen.
+
+| Modus | Gedacht für | Detailgrad | Nach dem Stopp |
+|---|---|---|---|
+| **Anleitung** | Schritt-für-Schritt-Anleitungen für Menschen | **Schlank:** Klicks, Eingaben und Tasten; keine Mauswege; Zusatzbilder nur bei großen Änderungen | Editor öffnet sich |
+| **Support-Fall** | Fehler für den Helpdesk nachvollziehbar machen | **Ausführlich:** alle Eingaben inklusive Mauswegen; Zusatzbilder auch bei kleinen Änderungen; erweiterter Programmkontext | Eingaben prüfen, dann entsteht ein ZIP-Paket |
+| **KI-Spur** | Abläufe für KI-Assistenten oder AutoHotkey | **Vollständig:** alles; Zusatzbilder bei jeder sichtbaren Änderung; erweiterter Programmkontext | KI-Export öffnet sich |
+| **Eigene** | Wenn Sie es genau selbst bestimmen wollen | **Frei wählbar:** Eingabearten, Zusatzbilder, Programmkontext, Aktion nach dem Stopp | wählbar |
+
+„Anpassen …“ übernimmt den Detailgrad eines Modus als Ausgangspunkt für „Eigene“.
+
+### Wann entstehen Bilder?
+
+**In jedem Modus** entstehen zu jeder Eingabe zwei Bilder: eines direkt **vor** der Eingabe und eines, sobald der Bildschirm **danach** 0,3 Sekunden ruhig ist (spätestens nach 3 Sekunden).
+
+**Zusatzbilder** entstehen, wenn sich der Bildschirm ändert, ohne dass Sie etwas eingeben – z. B. weil ein Programm lädt. Sie werden aufgenommen, sobald der Bildschirm danach 0,3 Sekunden ruhig ist, bei Dauerbewegung spätestens nach 5 Sekunden. Wie groß die Änderung dafür sein muss, legt die Einstellung fest:
+
+| Einstellung | Zusatzbild ab einer Änderung von … | Beispiele | Höchstens alle | Modus |
+|---|---|---|---|---|
+| **Nur große Änderungen** | ca. 2 % des Bildschirms (etwa 200 × 200 Pixel bei Full HD) | neues Fenster, Seitenwechsel | 2 Sekunden | Anleitung |
+| **Auch kleine Änderungen** | ca. 0,1 % (etwa 45 × 45 Pixel) | Meldung, Tooltip, Statusanzeige | 0,5 Sekunden | Support-Fall |
+| **Jede sichtbare Änderung** | ca. 0,01 % (etwa 15 × 15 Pixel) | Fortschrittsbalken, Zähler, Ladeanimation | 0,25 Sekunden | KI-Spur |
+
+**Erweiterter Programmkontext** bedeutet: Zusätzlich werden Menüpfade, Listeneinträge, Explorer-Ordner, Browser-Adressen, Office-Dokumente und Statusleisten gelesen. Für Anleitungen reicht der Basis-Kontext, für gute AutoHotkey-Skripte und KI-Auswertungen lohnt sich der erweiterte.
+
+---
+
+## Während der Aufnahme
+
+Oben auf dem Bildschirm schwebt eine kleine **Aufnahmeleiste** mit Zeit, Schrittzahl und den wichtigsten Knöpfen. Zusätzlich erscheint ein **Symbol im Infobereich der Taskleiste** (unten rechts). Ein Klick darauf blendet die Leiste ein oder aus, ein Rechtsklick öffnet ein Menü mit allen Befehlen. Unter Windows 11 liegt das Symbol zunächst im Überlauf „^“; über *Taskleisteneinstellungen → Andere Taskleistensymbole* lässt es sich dauerhaft anzeigen.
+
+| Tastenkürzel | Wirkung |
 |---|---|
-| **Portabel** | Eine EXE, keine Adminrechte, keine Registry-Einträge, kein Netzwerk |
-| **Vollständig** | Jede Eingabe im Rohprotokoll; was fehlt, steht als Lücke mit Ursache drin |
-| **Bilder, die stimmen** | Vorher-Bild garantiert vor der Eingabe, Nachher-Bild nach der Reaktion, Recorder nie im Bild |
-| **Flexibel** | Aufnahme von Bildschirm, Anwendung oder Bereich; Darstellung nachträglich wählbar |
-| **KI-tauglich** | `trace.md` + `steps.json` + Bilder, Belegstufen je Schritt, MCP-Server für Agenten |
-| **Automatisierbar** | Je Klick und Eingabe der volle Fensterkontext (ahk_class, ahk_exe, ClassNN, Steuerelement-ID und -Text, Fenster-/Client-/Bildschirmkoordinaten, Pixelfarbe, Fenstertexte, Programmversion und -rechte), Wartesignale, Erfolgsprüfungen, Wege zum Element nach Stabilität, Parameter und Wiederholungen – als AutoHotkey-v2-Skript, als AHK-KI-Paket und per MCP (`get_automation`) |
-| **Datensparsam** | Passwortfelder maskiert, Privattaste, Ausschlussliste, Schwärzung und Verallgemeinerung persönlicher Werte in allen Ausgaben |
-| **Praktisch** | Aufnahmeprofile, Ziel der Aufnahme und Fehler-Marker, Aufnahmen vergleichen, Abschnitte neu aufnehmen, Qualitätsprüfung vor dem Export, Volltextsuche, Support-Paket zum Zurückschicken |
-| **Offen** | Open Source, dokumentierte Formate |
+| **Strg+Umschalt+F9** | Aufnahme sofort starten · Pause / Fortsetzen |
+| **Strg+Umschalt+F10** | Aufnahme beenden und speichern |
+| **Strg+Umschalt+F1** | Fehlerstelle markieren |
+| **Strg+Umschalt+F2** | Marker „Erwartet“ |
+| **Strg+Umschalt+F7** | Marker setzen |
+| **Strg+Umschalt+F12** | Kommentar eingeben |
+| **Strg+Umschalt+F11** | Schnappschuss |
+| **Strg+Umschalt+F8** | Privattaste: Eingaben werden nur gezählt, nicht gespeichert |
+| **Strg+Umschalt+F6** | Letzten Schritt verwerfen |
+| **Strg+Umschalt+F4** | Leiste ein-/ausblenden (in den Infobereich minimieren) |
 
-## Spezifikation
+**Countdown und Signaltöne:** Auf Wunsch zählt das Programm vor dem Start herunter und gibt kurze Töne bei Start, Stopp, Pause und Markern aus – praktisch, wenn keine Leiste zu sehen ist.
 
-| Kapitel | Inhalt |
-|---|---|
-| [00 – Überblick](docs/spezifikation/00-ueberblick.md) | Vision, Ziele, Abgrenzung, Leitprinzipien, Glossar |
-| [01 – Anforderungen](docs/spezifikation/01-anforderungen.md) | Gesamtindex, nicht-funktionale Anforderungen, Rückverfolgung |
-| [02 – Architektur](docs/spezifikation/02-architektur.md) | Prozesse, Komponenten, Technik, Build |
-| [03 – Aufzeichnungskern](docs/spezifikation/03-aufzeichnungskern.md) | Eingaben, Bildschirm, UI Automation, Lücken |
-| [04 – Datenformat](docs/spezifikation/04-datenformat.md) | Sitzungsformat, Ereignistypen, Beispiele |
-| [05 – Schritterkennung](docs/spezifikation/05-schritterkennung.md) | Schritte, Wirkung, Belegstufen, Textvorlagen |
-| [06 – KI-Export und MCP](docs/spezifikation/06-ki-export-und-mcp.md) | KI-Paket, MCP-Server |
-| [07 – Aufnahme-Bedienung](docs/spezifikation/07-aufnahme-bedienung.md) | Start, Aufnahmebereich, Leiste, Hotkeys |
-| [08 – Viewer](docs/spezifikation/08-viewer.md) | Ansehen, Bearbeiten, Kommentieren, Kopieren |
-| [09 – Anleitungs-Export](docs/spezifikation/09-anleitungs-export.md) | HTML, Markdown, DOCX, PDF |
-| [10 – Datenschutz und Sicherheit](docs/spezifikation/10-datenschutz-und-sicherheit.md) | Maskierung, Schwärzung, Bedrohungsmodell |
-| [11 – Roadmap, Tests, Risiken](docs/spezifikation/11-roadmap-tests-risiken.md) | Meilensteine, Experimente, Tests |
+---
 
-## Technik (geplant)
+## Der Editor
 
-C# / .NET 10 (LTS) · WPF · self-contained Single-File-EXE für Windows 10 22H2 und Windows 11 (x64).
+Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das Bild, rechts Text und Einstellungen.
 
-## Lizenz
+**Schritte**
+- Überschrift und Anleitungstext direkt bearbeiten (mit Rechtschreibprüfung) – die automatisch erzeugten Texte sind ein guter Anfang.
+- Schritte per Ziehen umsortieren, ausblenden oder als Haupt-/Nebenschritt einstufen.
+- **Mehrere Schritte** mit Strg+Klick bzw. Umschalt+Klick auswählen und gemeinsam bearbeiten.
+- **Eigene Schritte einfügen:** reine Textschritte oder Bildschritte aus Datei, Zwischenablage oder einem neuen Bildschirmfoto.
+- **Bild ersetzen oder neu aufnehmen**, wenn sich die Oberfläche geändert hat – das Original lässt sich jederzeit wiederherstellen.
+- **Suchen und Ersetzen** (Strg+H) über alle Überschriften, Texte, Hinweise und Kapitel.
 
-Noch nicht festgelegt (Empfehlung: MIT) – siehe [Offene Entscheidungen](docs/spezifikation/11-roadmap-tests-risiken.md#9-offene-entscheidungen).
+**Bilder**
+- Vorher-/Nachher-Bild, ganzer Bildschirm, nur das Anwendungsfenster oder ein Ausschnitt um die Aktion (mit kleiner Übersicht des ganzen Bildschirms).
+- Zeichenwerkzeuge: Pfeil, Rahmen, Ellipse, Hervorheben, Text, nummerierte Markierungen, Schwärzen, Verpixeln, Zuschneiden – in sechs Farben und drei Strichstärken.
+- Automatische Markierungen: Klickpunkt, Zugweg, angeklicktes Element und gedrückte Tasten als kleine Tastenkappen im Bild – einzeln abschaltbar.
+- Zoom (Strg+Mausrad), Großansicht (F11 oder Doppelklick), Bild kopieren (Strg+C).
 
-## Umsetzung
+**Weitere Funktionen**
+- **Abspielen:** Schritte als Diashow.
+- **Vorschau:** die fertige Anleitung im Browser ansehen.
+- **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7).
+- **Deutsch und Englisch:** Mit „DE | EN“ über dem Bild pflegen Sie Texte in beiden Sprachen – aus einer Aufnahme werden zwei Anleitungen.
+- Alles wird automatisch gespeichert; Rückgängig mit Strg+Z.
 
-### Bauen und starten
+---
 
-Voraussetzung: .NET-SDK 8 mit Windows-10-SDK-Zielplattform (`net8.0-windows10.0.19041.0`, für die eingebaute Windows-Texterkennung); die Spezifikation nennt .NET 10, der Wechsel ist eine Zeile `TargetFramework`.
+## Bedienungsanleitungen gestalten
+
+Im Reiter **„Dokument“** wird aus den Schritten eine richtige Bedienungsanleitung:
+
+- **Titelseite:** Titel, Untertitel, Version, Zielgruppe, Autor oder Firma, **Logo**.
+- **Texte:** Einleitung, Voraussetzungen (als Aufzählung) und ein Abschluss.
+- **Aufbau:** Deckblatt, Inhaltsverzeichnis (im PDF mit Seitenzahlen), Nummerierung als 1.1, 1.2 … oder fortlaufend.
+- **Kapitel:** An jedem Schritt lässt sich ein neues Kapitel mit eigener Einleitung beginnen.
+- **Hinweiskästen:** Hinweis, Tipp, Achtung, Wichtig und Ergebnis – farbig abgesetzt.
+- **Bilder:** Größe (klein bis volle Breite), Anordnung unter oder neben dem Text, Bildausschnitt; je Schritt änderbar oder ganz ausblendbar.
+- **Gestaltung:** Akzentfarbe, Anrede „Sie“ oder „du“ in den automatischen Texten, Fußzeile mit Seitenzahl.
+- **Vorlagen:** Logo, Farbe, Fußzeile und Aufbau einmal als Vorlage speichern – neue Aufnahmen erhalten den Firmenlook auf Wunsch automatisch.
+- **Mehrere Aufnahmen zu einem Handbuch:** weitere Aufnahmen anhängen oder eine Aufnahme direkt fortsetzen; sie erscheinen als eigene Kapitel.
+
+---
+
+## Exportformate
+
+| Format | Ergebnis | Geeignet für |
+|---|---|---|
+| **PDF** | fertiges Dokument mit Deckblatt, Inhaltsverzeichnis und Seitenzahlen | Drucken, Weitergeben, Archivieren |
+| **Word (.docx)** | bearbeitbares Dokument mit echten Überschriften | Weiterbearbeiten in Word oder LibreOffice |
+| **HTML** | eine einzige Datei, Bilder eingebettet, Bilder per Klick vergrößerbar | E-Mail, Intranet, Ansehen ohne weitere Programme |
+| **Markdown** | Text plus Bilderordner | Wikis, Git-Repositories, Confluence, Obsidian |
+| **GIF** | animierte Kurzfassung: Titelbild, dann jeder Schritt mit Nummer und Überschrift | Teams, Chat, Wiki, schnelle Vorschau |
+| **KI-Paket** | Protokoll, Schritte, Bilder und Lesehilfe für KI-Assistenten | ChatGPT, Claude & Co. |
+| **AutoHotkey** | AutoHotkey-v2-Skript, das den Ablauf wiederholt | Automatisierung wiederkehrender Abläufe |
+| **Support-Paket** | ZIP mit HTML-Anleitung und KI-Paket | Fehler an den Helpdesk geben |
+
+Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – Sie geben die Dateien selbst weiter.
+
+---
+
+## Datenschutz
+
+- **Passwortfelder** werden immer maskiert; im Bild sind die Punkte zu sehen, im Protokoll nur die Anzahl der Zeichen.
+- **Privattaste** (Strg+Umschalt+F8): Eingaben werden nur gezählt, nicht gespeichert – z. B. für Kennwörter in Terminals.
+- **Ausschlussliste:** Passwortmanager wie KeePass, 1Password oder Bitwarden werden nie aufgezeichnet; die Liste ist erweiterbar.
+- **Durchsicht vor dem Export:** Auffällige Eingaben (Schlüssel, IBANs, Kartennummern, Kennwörter in Befehlen) müssen vor der Weitergabe geprüft werden.
+- **Schwärzen:** Bereiche im Bild schwärzen oder verpixeln, Texte überall schwärzen, persönliche Werte (z. B. Benutzername) durch Platzhalter ersetzen.
+- **Persönliche Daten in Bildern finden:** Die Windows-Texterkennung sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln und bietet sie zum Schwärzen an.
+- Alles bleibt auf Ihrem Rechner. Das Programm braucht kein Internet und sendet keine Daten.
+
+---
+
+## Für KI und Automatisierung
+
+- **KI-Paket:** enthält eine Lesehilfe für die KI, das vollständige Protokoll (`trace.md`), alle Schritte als JSON und die Bilder. Jeder Schritt sagt, wie sicher seine Wirkung belegt ist.
+- **MCP-Server:** KI-Agenten können Aufnahmen direkt abfragen:
+  ```bash
+  SebastiansStepRecorder.exe mcp --root "C:\Tools\Sessions"
+  ```
+  Beispiel für Claude Code (`.mcp.json`):
+  ```json
+  { "mcpServers": { "steprecorder": { "command": "C:\\Tools\\SebastiansStepRecorder.exe", "args": ["mcp", "--root", "C:\\Tools\\Sessions"] } } }
+  ```
+- **AutoHotkey:** Je Klick und Eingabe werden Fensterklasse, Programm, Steuerelement (ClassNN), Koordinaten und Wartesignale festgehalten. Daraus entsteht ein AutoHotkey-v2-Skript oder ein Paket, mit dem ein KI-Assistent das Skript verbessern kann.
+- **Kommandozeile:**
+
+  | Aufruf | Wirkung |
+  |---|---|
+  | `SebastiansStepRecorder.exe` | Startfenster |
+  | `SebastiansStepRecorder.exe <Aufnahmeordner>` | Aufnahme im Editor öffnen |
+  | `SebastiansStepRecorder.exe record [--scope screen\|app\|region] [--profile …] [--title …]` | Aufnahme sofort starten |
+  | `SebastiansStepRecorder.exe record --stop` | laufende Aufnahme beenden |
+  | `SebastiansStepRecorder.exe export <Aufnahme> --format pdf\|docx\|html\|md\|gif\|ki\|ahk` | exportieren |
+  | `SebastiansStepRecorder.exe compare <A> <B>` | zwei Aufnahmen vergleichen |
+  | `SebastiansStepRecorder.exe --help` | alle Optionen |
+
+---
+
+## Systemvoraussetzungen und Hinweise
+
+- **Windows 10 (ab Version 2004) oder Windows 11, 64 Bit.** Keine Installation, kein .NET nötig – alles steckt in der EXE (ca. 73 MB).
+- **Windows Server und ältere Windows-10-Versionen** (z. B. Windows Server 2019) können eigene Fenster nicht aus Bildschirmfotos ausschließen. Das Programm erkennt das und bietet an, **mit ausgeblendeter Anzeige** aufzunehmen: Leiste und Rahmen bleiben unsichtbar, die Bedienung läuft über Tastenkürzel und das Symbol im Infobereich.
+- **Texterkennung** (für die Suche nach persönlichen Daten) nutzt die in Windows eingebaute OCR. Fehlt das Sprachpaket, lässt es sich unter *Einstellungen → Zeit und Sprache → Sprache* nachinstallieren.
+- **Wo liegen die Daten?** Ist der Ordner der EXE beschreibbar, liegen Einstellungen und Aufnahmen daneben (Ordner `Sessions`) – ideal für einen USB-Stick. Sonst unter `%APPDATA%\StepRecorder` und `%LOCALAPPDATA%\StepRecorder`. Der Aufnahmeordner ist in den Einstellungen änderbar.
+- **Dunkel oder hell:** Das Programm startet im dunklen Design; unter *Einstellungen → Darstellung* lässt sich „Hell“ oder „Wie Windows“ wählen.
+
+---
+
+## Häufige Fragen
+
+**Sieht man die Aufnahmeleiste auf den Bildern?**
+Nein. Leiste, Rahmen, Menüs und Dialoge des Programms werden von Windows aus den Bildschirmfotos ausgeschlossen. Wo das nicht geht (z. B. Windows Server 2019), nimmt das Programm mit ausgeblendeter Anzeige auf.
+
+**Kann ich eine Aufnahme später erweitern?**
+Ja: im Editor unter „Dokument“ → „Aufnahme fortsetzen“ oder „Aufnahme anhängen“. Einzelne Bilder lassen sich neu aufnehmen, eigene Schritte einfügen.
+
+**Was passiert mit Kennwörtern?**
+Eingaben in Passwortfeldern werden nie gespeichert. Für Kennwörter außerhalb von Passwortfeldern (z. B. im Terminal) gibt es die Privattaste Strg+Umschalt+F8.
+
+**Kann ich eine Aufnahme weitergeben, ohne den Editor?**
+Ja – entweder als exportierte Datei (PDF, HTML …) oder den ganzen Aufnahmeordner. Wer das Programm hat, öffnet den Ordner über „Öffnen“ (dort `manifest.json` wählen) oder zieht ihn einfach auf das Startfenster.
+
+---
+
+### Aus dem Quellcode bauen
+
+Benötigt das .NET 8 SDK unter Windows.
 
 ```bash
 dotnet build StepRecorder.sln
@@ -60,45 +221,4 @@ dotnet test tests/StepRecorder.Tests
 dotnet publish src/StepRecorder.App -c Release -r win-x64
 ```
 
-Build-Ausgaben liegen außerhalb des (synchronisierten) Projektordners unter `%LOCALAPPDATA%\StepRecorder-build` (ARC-047). Die portable Einzel-EXE (≈ 67 MB, ohne Installation, ohne Registry) entsteht unter `…\StepRecorder-build\publish\StepRecorder\release_win-x64\StepRecorder.exe`.
-
-| Aufruf | Wirkung |
-|---|---|
-| `StepRecorder.exe` | Startfenster (Profil, Ziel der Aufnahme, Ganzer Bildschirm / Eine Anwendung / Bereich, Support-Paket) |
-| `StepRecorder.exe <Sitzung>` | Viewer |
-| `StepRecorder.exe record [--scope screen\|app\|region] [--app x.exe] [--title …] [--goal …]` / `record --stop` | Aufnahme per Kommandozeile |
-| `StepRecorder.exe export <Sitzung> --format html\|md\|docx\|pdf\|ki\|ahk\|ahk-ki [--with <Sitzung>]` | Anleitung, KI-Paket, AutoHotkey-v2-Skript bzw. AHK-KI-Paket (Kontext für KI-Assistenten, mit Bildausschnitten und Texterkennung) |
-| `StepRecorder.exe validate <Sitzung>` · `compare <A> <B>` · `steps <Sitzung>` | Formatprüfung, Vergleich, Schrittliste |
-| `StepRecorder.exe mcp --root <Sessions-Ordner> [--allow-edit]` | MCP-Server über stdio |
-
-Tastenkürzel während der Aufnahme (alle `Strg+Umschalt+…`): F9 Sofortaufnahme/Pause · F10 Stopp · F12 Kommentar · F7 Marker · F1 Marker „Fehler“ · F2 Marker „Erwartet“ · F11 Schnappschuss · F8 Privattaste · F6 letzten Schritt verwerfen · F4 Leiste ein/aus.
-
-Viewer: Das Menü „Mausmarkierung“ blendet Klickpunkt, Zug-/Haltepfad, Zielrahmen, Hinweise (Haltedauer, Tasten) und den Mausweg davor für alle Schritte ein oder aus; `H` schaltet sie beim aktuellen Schritt. Gedrückt halten und Ziehen werden mit Haltezeiten aufgezeichnet und im AutoHotkey-Skript nachgespielt.
-
-Oberfläche: eigenes, neutrales Design (Stile in `src/StepRecorder.App/Ui/Theme.xaml`, Farben in `Theme.cs`), folgt dem hellen bzw. dunklen Windows-Farbschema; `STEPRECORDER_THEME=light|dark` erzwingt eines. Symbole aus Segoe Fluent Icons (Windows 11) bzw. Segoe MDL2 Assets (Windows 10). Für Entwickler rendert `STEPRECORDER_UISHOT=<Ordner>` alle Fenster als PNG – die Fenster selbst sind in Bildschirmfotos absichtlich unsichtbar.
-
-MCP in Claude Code (`.mcp.json`):
-
-```json
-{ "mcpServers": { "steprecorder": { "command": "C:\\Tools\\StepRecorder\\StepRecorder.exe", "args": ["mcp", "--root", "C:\\Tools\\StepRecorder\\Sessions"] } } }
-```
-
-### Aufbau
-
-| Projekt | Inhalt |
-|---|---|
-| `src/StepRecorder.Core` | Capture-Host (Hooks → gemeinsamer Speicher), Aufzeichnungssteuerung, GDI-Bildaufnahme mit Ringpuffer (Vorher/Nachher/Zwischenbilder, key/delta/same-PNG), UI Automation, Fenster-/System-/Zwischenablage-Ereignisse, Schutzfilter, Sitzungs-Writer/-Reader, Wiederherstellung, Schritterkennung, Textvorlagen (de/en), Leseschicht (Schwärzung, Verallgemeinerung, Durchsicht), Exporte (KI-Paket, HTML, Markdown, DOCX, PDF, Support-Paket), Vergleich, Validator, MCP-Server |
-| `src/StepRecorder.App` | `StepRecorder.exe`: Rollenweiche (Capture-Host, MCP, CLI, Oberfläche), Startfenster, Aufnahmeleiste, Rahmen, Fenster-/Bereichsauswahl, Viewer/Editor, Einstellungen |
-| `tests/StepRecorder.Tests` | Golden-Journal-Tests der Schritterkennung, Leseschicht/Schwärzung, Exporte, MCP, Mustererkennung, Integrationstest mit echter Aufnahme |
-
-### Stand gegenüber der Spezifikation
-
-Umgesetzt sind die Kernabläufe 1–4 (aufnehmen → ansehen → kopieren; bearbeiten → exportieren; KI-Paket/MCP; Support-Paket). Bewusste Vereinfachungen dieser Version, jeweils als nächste Ausbaustufe:
-
-- **Bildaufnahme** nur über den GDI-Weg (Spec: Rückfallweg) mit Ringpuffer; DXGI Desktop Duplication und Windows.Graphics.Capture fehlen noch. Vorher-Bild-Garantie `beforeInput`, sonst ehrlich `atInput`.
-- **Raw Input** als Gegenkanal, Hook-Neuinstallation, Herzschlag-Neustart des Hosts, Tottasten-Tabellen aus dem Layout, IME, Terminal-Passwortabfrage-Erkennung (Regeln T1–T3) und Ausweichmodus der Unsichtbarkeit sind noch nicht umgesetzt (Lücken werden aber benannt; Privattaste und Passwortfeld-Maskierung funktionieren).
-- **UI Automation** über die verwaltete `System.Windows.Automation`-Schicht statt CsWin32-COM; Fokus über WinEvents. Kein `ui.snapshot`, keine `ui.toggle`/`ui.invoke`-Ereignisse.
-- **Viewer**: Ansehen, Abspielen, Suche, Haupt/Alle, Vorher/Nachher, Darstellung 1/2/3, Markierungen (Pfeil, Rahmen, Hervorhebung, Text, Nummer), Bild-, Text- und Schrittschwärzung, endgültiges Schwärzen, Verallgemeinern, Kommentare, Text ändern, Ausblenden, Wichtigkeit, Reihenfolge, Rückgängig, Durchsicht, Kopierfunktionen, Export, Vergleich. Noch nicht: Galerie, Zeitleiste, Kapitel, Zusammenführen/Teilen, Abschnitt neu aufnehmen, Qualitätsprüfung Q01–Q20, Volltextsuche über alle Sitzungen im Viewer (per MCP `search` vorhanden).
-- **Profile** als die drei eingebauten (Anleitung, Support-Fall, KI-Spur); kein Profileditor, kein Einstellungs-Export/-Import.
-- `README_AI.md` liegt deutsch vor; die englische Fassung beginnt mit einer Kurzfassung der Regeln.
-- Code-Signierung, Lizenzdatei und Release-Checkliste (M8) stehen aus.
+Die fertige `SebastiansStepRecorder.exe` liegt danach unter `%LOCALAPPDATA%\StepRecorder-build\publish\StepRecorder\release_win-x64\`. Das Datenformat der Aufnahmen ist unter [docs/spezifikation](docs/spezifikation/04-datenformat.md) beschrieben.

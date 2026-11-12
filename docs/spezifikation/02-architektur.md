@@ -59,14 +59,14 @@ Status: Entwurf 0.1 · Stand: 2026-11-11
 ## 2 Systemübersicht
 
 ```
-┌──────────────── StepRecorder.exe · Rolle Capture-Host (nur während der Aufnahme) ────────────────┐
+┌──────────────── SebastiansStepRecorder.exe · Rolle Capture-Host (nur während der Aufnahme) ────────────────┐
 │  T-H1  Hook-Thread:       WH_MOUSE_LL + WH_KEYBOARD_LL                                           │
 │  T-H2  Raw-Input-Thread:  zweiter, unabhängiger Eingabekanal                                     │
 └───────────────┬──────────────────────────────────────────────────────────────────────────────────┘
                 │  gemeinsamer Speicher (unbenannt, vererbt):
                 │  Eingabe-Ring · Pin-Tafel · Bildstand · Steuerblock · Statistik
 ┌───────────────▼──────────────────────────────────────────────────────────────────────────────────┐
-│  StepRecorder.exe · Rolle Hauptprozess                                                           │
+│  SebastiansStepRecorder.exe · Rolle Hauptprozess                                                           │
 │                                                                                                  │
 │  Eingabeverarbeitung ───────────────────────────┐                                                │
 │  Bildschirmaufnahme (je Monitor) ─► Bereichs-   │                                                │
@@ -78,14 +78,14 @@ Status: Entwurf 0.1 · Stand: 2026-11-11
 │  Schritterkennung ─► steps.json         Leseschicht ─► Viewer · Exporte · Validator              │
 └──────────────────────────────────────────────────────────────────────────────────────────────────┘
 
-  StepRecorder.exe mcp        (eigener Prozess, ohne Fenster) ─► Leseschicht ─► stdio (JSON-RPC)
-  StepRecorder.exe export     (eigener Prozess, ohne Fenster) ─► Leseschicht ─► Ausgabedateien
-  StepRecorder.exe validate   (eigener Prozess, ohne Fenster) ─► Leseschicht ─► Bericht
-  StepRecorder.exe compare    (eigener Prozess, ohne Fenster) ─► Leseschicht (zwei Sitzungen) ─► Bericht
-  StepRecorder.exe settings   (eigener Prozess, ohne Fenster) ─► Einstellungen ─► Austauschdatei
+  SebastiansStepRecorder.exe mcp        (eigener Prozess, ohne Fenster) ─► Leseschicht ─► stdio (JSON-RPC)
+  SebastiansStepRecorder.exe export     (eigener Prozess, ohne Fenster) ─► Leseschicht ─► Ausgabedateien
+  SebastiansStepRecorder.exe validate   (eigener Prozess, ohne Fenster) ─► Leseschicht ─► Bericht
+  SebastiansStepRecorder.exe compare    (eigener Prozess, ohne Fenster) ─► Leseschicht (zwei Sitzungen) ─► Bericht
+  SebastiansStepRecorder.exe settings   (eigener Prozess, ohne Fenster) ─► Einstellungen ─► Austauschdatei
 ```
 
-Alle Kästen sind dieselbe Datei `StepRecorder.exe`; welche Rolle ein Prozess übernimmt, entscheidet das erste Argument (Abschnitt [8](#betriebsarten)). Im Hauptprozess kommen als weitere Abnehmer der Leseschicht hinzu: der Suchindex, der Schrittabgleich zweier Sitzungen und das Support-Paket (Abschnitte [7.5](#suchindex) bis [7.7](#support-paket)).
+Alle Kästen sind dieselbe Datei `SebastiansStepRecorder.exe`; welche Rolle ein Prozess übernimmt, entscheidet das erste Argument (Abschnitt [8](#betriebsarten)). Im Hauptprozess kommen als weitere Abnehmer der Leseschicht hinzu: der Suchindex, der Schrittabgleich zweier Sitzungen und das Support-Paket (Abschnitte [7.5](#suchindex) bis [7.7](#support-paket)).
 
 ---
 
@@ -98,8 +98,8 @@ Alle Kästen sind dieselbe Datei `StepRecorder.exe`; welche Rolle ein Prozess ü
 |---|---|---|---|---|
 | **Hauptprozess** | Doppelklick, Sitzungspfad, `record` oder `support` | bis der Nutzer das Programm schließt | Startfenster, Aufnahmeleiste, Viewer | Steuerung, Bildschirmaufnahme, UI Automation, Fenster- und Systemereignisse, Zwischenablage, Schutzfilter, Schreiber, Schritterkennung, Viewer, Exporte |
 | **Capture-Host** | vom Hauptprozess im Vorlauf einer Aufnahme (Hooks erst mit Beginn der Aufnahme) | bis zum Stopp der Aufnahme | keine sichtbaren (nur ein Nachrichtenfenster für Raw Input) | Low-Level-Hooks und Raw Input entgegennehmen und in den gemeinsamen Speicher schreiben – sonst nichts |
-| **MCP-Server** | `StepRecorder.exe mcp …` durch einen Agenten | solange der Agent die Verbindung hält | keine | Abgeschlossene Sitzungen über die Leseschicht bereitstellen ([06](06-ki-export-und-mcp.md)) |
-| **Export / Validierung / Abgleich / Einstellungen** | `StepRecorder.exe export …`, `validate …`, `compare …` bzw. `settings …` | bis die Aufgabe erledigt ist | keine | Ausgaben erzeugen, Sitzung prüfen, zwei Sitzungen abgleichen, Einstellungen aus- und einlesen |
+| **MCP-Server** | `SebastiansStepRecorder.exe mcp …` durch einen Agenten | solange der Agent die Verbindung hält | keine | Abgeschlossene Sitzungen über die Leseschicht bereitstellen ([06](06-ki-export-und-mcp.md)) |
+| **Export / Validierung / Abgleich / Einstellungen** | `SebastiansStepRecorder.exe export …`, `validate …`, `compare …` bzw. `settings …` | bis die Aufgabe erledigt ist | keine | Ausgaben erzeugen, Sitzung prüfen, zwei Sitzungen abgleichen, Einstellungen aus- und einlesen |
 
 ### 3.2 Warum die Hooks einen eigenen Prozess bekommen
 
@@ -429,19 +429,19 @@ Weitere Festlegungen:
 
 | Aufruf | Betriebsart | Fenster | Standardausgabe |
 |---|---|---|---|
-| `StepRecorder.exe` | Startfenster | ja | unbenutzt |
-| `StepRecorder.exe <Sitzungspfad>` | Viewer mit dieser Sitzung (Ordner oder `.steprec`) | ja | unbenutzt |
-| `StepRecorder.exe record [Optionen]` | Aufnahme sofort starten, mit Aufnahmeleiste und Rahmen; `--profile <Name>` wählt ein Aufnahmeprofil (Abschnitt [12.5](#aufnahmeprofile)) | ja (Leiste, Rahmen) | Abschlusszeile mit dem Sitzungspfad |
-| `StepRecorder.exe record --stop` | laufende Aufnahme beenden | nein | Sitzungspfad |
-| `StepRecorder.exe support [--profile <Name>] [--reference <Text>]` | Support-Ablauf öffnen: Start mit dem Profil „Support-Fall" und den Ziel-Feldern, nach dem Stopp die geführte Weitergabe (Abschnitt [7.7](#support-paket)) | ja | Abschlusszeile mit dem Pfad des Pakets |
-| `StepRecorder.exe compare <A> <B> [--format md\|json] [--out <Pfad>]` | Zwei Sitzungen abgleichen (Abschnitt [7.6](#schrittabgleich)) | nein | Bericht; mit `--out` der Pfad der Datei |
-| `StepRecorder.exe settings export <Datei> [--parts <Liste>]` | Einstellungen, Vorlagen und Profile in eine Austauschdatei schreiben (Abschnitt [12.6](#einstellungs-austausch)) | nein | Pfad der Datei |
-| `StepRecorder.exe settings import <Datei> [--parts <Liste>] [--confirm]` | Austauschdatei prüfen und zeigen, was sich ändern würde; erst mit `--confirm` einlesen | nein | Liste der Änderungen |
-| `StepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf` ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki` ([06](06-ki-export-und-mcp.md)) | nein | Pfade der erzeugten Dateien |
-| `StepRecorder.exe validate <Sitzung> [--json]` | Format und Vollständigkeit prüfen | nein | Bericht |
-| `StepRecorder.exe mcp --root <Ordner> [--allow-edit]` | MCP-Server über stdio | nein | **ausschließlich** JSON-RPC |
-| `StepRecorder.exe --help` / `--version` | Hilfe / Version | nein | Text |
-| `StepRecorder.exe --capture-host …` | interne Rolle, nicht für Nutzer | nein | unbenutzt |
+| `SebastiansStepRecorder.exe` | Startfenster | ja | unbenutzt |
+| `SebastiansStepRecorder.exe <Sitzungspfad>` | Viewer mit dieser Sitzung (Ordner oder `.steprec`) | ja | unbenutzt |
+| `SebastiansStepRecorder.exe record [Optionen]` | Aufnahme sofort starten, mit Aufnahmeleiste und Rahmen; `--profile <Name>` wählt ein Aufnahmeprofil (Abschnitt [12.5](#aufnahmeprofile)) | ja (Leiste, Rahmen) | Abschlusszeile mit dem Sitzungspfad |
+| `SebastiansStepRecorder.exe record --stop` | laufende Aufnahme beenden | nein | Sitzungspfad |
+| `SebastiansStepRecorder.exe support [--profile <Name>] [--reference <Text>]` | Support-Ablauf öffnen: Start mit dem Profil „Support-Fall" und den Ziel-Feldern, nach dem Stopp die geführte Weitergabe (Abschnitt [7.7](#support-paket)) | ja | Abschlusszeile mit dem Pfad des Pakets |
+| `SebastiansStepRecorder.exe compare <A> <B> [--format md\|json] [--out <Pfad>]` | Zwei Sitzungen abgleichen (Abschnitt [7.6](#schrittabgleich)) | nein | Bericht; mit `--out` der Pfad der Datei |
+| `SebastiansStepRecorder.exe settings export <Datei> [--parts <Liste>]` | Einstellungen, Vorlagen und Profile in eine Austauschdatei schreiben (Abschnitt [12.6](#einstellungs-austausch)) | nein | Pfad der Datei |
+| `SebastiansStepRecorder.exe settings import <Datei> [--parts <Liste>] [--confirm]` | Austauschdatei prüfen und zeigen, was sich ändern würde; erst mit `--confirm` einlesen | nein | Liste der Änderungen |
+| `SebastiansStepRecorder.exe export <Sitzung> --format <f> [--out <Pfad>] …` | Ausgabe erzeugen: Anleitung mit `html`, `md`, `docx`, `pdf` ([09](09-anleitungs-export.md)); KI-Paket mit `--format ki` ([06](06-ki-export-und-mcp.md)) | nein | Pfade der erzeugten Dateien |
+| `SebastiansStepRecorder.exe validate <Sitzung> [--json]` | Format und Vollständigkeit prüfen | nein | Bericht |
+| `SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit]` | MCP-Server über stdio | nein | **ausschließlich** JSON-RPC |
+| `SebastiansStepRecorder.exe --help` / `--version` | Hilfe / Version | nein | Text |
+| `SebastiansStepRecorder.exe --capture-host …` | interne Rolle, nicht für Nutzer | nein | unbenutzt |
 
 Allgemeine Optionen aller Betriebsarten: `--data-dir <Ordner>` (Datenverzeichnis erzwingen), `--settings <Datei>`, `--log-level <stufe>`.
 
@@ -475,7 +475,7 @@ Eine Windows-EXE gehört genau einem Subsystem an. Beide Möglichkeiten haben ei
 
 1. **Umgeleitete Ströme** (Pipe oder Datei – der Normalfall bei Skripten und beim MCP-Start) funktionieren ohne Zutun. Erkennung über den Typ der Standard-Handles.
 2. **Nicht umgeleitet, aus einer Konsole gestartet:** In den Betriebsarten `record`, `support`, `export`, `validate`, `compare`, `settings`, `--help`, `--version` verbindet sich das Programm mit der Konsole des Elternprozesses (`AttachConsole`) und schreibt dorthin. Gelingt das nicht, entfällt die Ausgabe; sie steht dann nur im Protokoll.
-3. **Shell wartet nicht:** `cmd` und PowerShell warten nicht auf GUI-Programme. Die Dokumentation nennt die Aufrufformen, die warten (`start /wait "" StepRecorder.exe …` bzw. `Start-Process -Wait` oder Weiterleiten der Ausgabe). Skripte, die die Ausgabe einlesen, sind nicht betroffen.
+3. **Shell wartet nicht:** `cmd` und PowerShell warten nicht auf GUI-Programme. Die Dokumentation nennt die Aufrufformen, die warten (`start /wait "" SebastiansStepRecorder.exe …` bzw. `Start-Process -Wait` oder Weiterleiten der Ausgabe). Skripte, die die Ausgabe einlesen, sind nicht betroffen.
 4. **Kann:** In der ZIP-Variante darf ein winziges Konsolen-Startprogramm `StepRecorder.com` beiliegen, das die EXE startet, auf sie wartet und Ströme sowie Exit-Code durchreicht. Für die Einzel-EXE ist es nicht nötig.
 
 Ob die GUI-EXE den `mcp`-Modus und die Konsolenausgabe mit den gängigen Agenten und Shells sauber bedient, prüft das Vorab-Experiment VE-07 ([11](11-roadmap-tests-risiken.md)). Der Ausweichweg ist das Startprogramm aus Punkt 4.
@@ -651,7 +651,7 @@ src/
   StepRecorder.Export/           net10.0     KI-Paket, HTML, Markdown, DOCX, PDF, Support-Paket
   StepRecorder.Mcp/              net10.0     MCP-Server
   StepRecorder.App/              windows     Rollenweiche, Startfenster, Aufnahmeleiste, Viewer
-                                             → erzeugt StepRecorder.exe
+                                             → erzeugt SebastiansStepRecorder.exe
 tests/
   StepRecorder.Core.Tests/
   StepRecorder.Capture.Tests/    Integrationstests gegen die Test-Zielanwendung
@@ -711,7 +711,7 @@ In einer Single-File-Anwendung liefert `Assembly.Location` eine leere Zeichenfol
 | Artefakt | Inhalt |
 |---|---|
 | `StepRecorder-<Version>-win-x64.exe` | Einzel-EXE |
-| `StepRecorder-<Version>-win-x64.zip` | Ordner mit `StepRecorder.exe`, Laufzeitdateien, `LICENSE`, `THIRD-PARTY-NOTICES.txt` |
+| `StepRecorder-<Version>-win-x64.zip` | Ordner mit `SebastiansStepRecorder.exe`, Laufzeitdateien, `LICENSE`, `THIRD-PARTY-NOTICES.txt` |
 | `SHA256SUMS.txt` | Prüfsummen aller Artefakte |
 | Stückliste (SBOM) | alle Bestandteile mit Version und Lizenz |
 
@@ -873,7 +873,7 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 3. **Fehler einer Quelle** (Aufnahmeweg fällt aus, UI Automation hängt, Zwischenablage gesperrt) beenden die Aufnahme nicht. Sie führen zum Rückfallweg, zu einer herabgesetzten Belegstufe oder zu einer Lücke – jeweils in [03](03-aufzeichnungskern.md) festgelegt.
 4. **Dauerhafter Ausfall der Eingabeerfassung** führt nie zu stillem Weiterlaufen, sondern zu Pause mit sichtbarer Meldung.
 5. **Selbstmessung:** Der Recorder führt Zähler (Dauer der Hook-Aufrufe als Histogramm, Ringfüllung, Wartezeiten der Bildkodierung, UIA-Antwortzeiten, verworfene Bilder, neu gesetzte Hooks) und legt sie beim Stopp im Manifest unter `performance` ab. Die Zählernamen stehen in [03, Abschnitt 12.9](03-aufzeichnungskern.md#leistungsbudgets). Budgets lassen sich so auf jedem Rechner nachprüfen.
-6. **Vorprüfung ohne Aufnahme:** `StepRecorder.exe record --self-test` führt alle Startprüfungen aus (Aufnahmeweg je Monitor, Unsichtbarkeits-Selbsttest, UI Automation, Speicherplatz), gibt das Ergebnis aus und endet, ohne eine Sitzung anzulegen.
+6. **Vorprüfung ohne Aufnahme:** `SebastiansStepRecorder.exe record --self-test` führt alle Startprüfungen aus (Aufnahmeweg je Monitor, Unsichtbarkeits-Selbsttest, UI Automation, Speicherplatz), gibt das Ergebnis aus und endet, ohne eine Sitzung anzulegen.
 7. In den Betriebsarten ohne Oberfläche erscheint nie ein Dialog; Fehler gehen nach stderr und in den Exit-Code.
 
 ---
@@ -926,7 +926,7 @@ ARC-052 bis ARC-065 gehören zu den nachträglich freigegebenen Funktionen (Ziel
 
 | ID | Anforderung | Priorität | Abnahmekriterium |
 |---|---|---|---|
-| ARC-001 | Alle Betriebsarten und der Capture-Host starten aus derselben `StepRecorder.exe`; die Rolle wird vor dem ersten Zugriff auf WPF bestimmt. | Muss | In den Rollen Capture-Host, `mcp`, `export`, `validate` zeigt die Modulliste des Prozesses keine WPF-Assembly. |
+| ARC-001 | Alle Betriebsarten und der Capture-Host starten aus derselben `SebastiansStepRecorder.exe`; die Rolle wird vor dem ersten Zugriff auf WPF bestimmt. | Muss | In den Rollen Capture-Host, `mcp`, `export`, `validate` zeigt die Modulliste des Prozesses keine WPF-Assembly. |
 | ARC-002 | Low-Level-Hooks und Raw Input laufen ausschließlich im Capture-Host. | Muss | Architekturtest: Hook- und Raw-Input-Aufrufe kommen nur im Projekt Capture.Host vor. |
 | ARC-003 | Der Capture-Host fordert nach der Aufwärmphase keinen verwalteten Speicher an und übersetzt keinen Code mehr. | Muss | Lasttest über 10 min: Die Zähler der Speicherbereinigungen des Hosts bleiben nach dem Start unverändert auf ihrem Anfangswert. |
 | ARC-004 | Die Architektur hält die Dauer des Hook-Aufrufs unabhängig von der Last im Hauptprozess unter 1 ms (99,9-%-Wert). | Muss | Lasttest nach AUF-012 mit gleichzeitig erzwungenen Speicherbereinigungen und 4K-Bildkodierung im Hauptprozess. |

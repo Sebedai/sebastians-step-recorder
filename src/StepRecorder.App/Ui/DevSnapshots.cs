@@ -30,7 +30,7 @@ static class DevSnapshots
             if (size is { Length: 2 } && double.TryParse(size[0], out var sw) && double.TryParse(size[1], out var sh))
             {
                 if (w is ViewerWindow) { w.MaxWidth = w.MaxHeight = double.PositiveInfinity; w.Width = sw; w.Height = sh; }
-                else if (w is StartWindow) { w.SizeToContent = SizeToContent.Manual; w.MaxHeight = double.PositiveInfinity; w.Width = Math.Min(sw, 960); w.Height = sh; }
+                else if (w is StartWindow) { w.SizeToContent = SizeToContent.Manual; w.MaxHeight = double.PositiveInfinity; w.Width = Math.Min(sw, 1200); w.Height = sh; }
             }
             var t = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(900) };
             t.Tick += (_, _) =>

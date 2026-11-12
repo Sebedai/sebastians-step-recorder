@@ -153,7 +153,7 @@ Das KI-Paket entsteht auf zwei Wegen mit demselben Ergebnis:
 - **Auf der Kommandozeile** mit dem allgemeinen Exportbefehl und `--format ki`. Rahmen, Standardströme und Exit-Codes legt [02](02-architektur.md#betriebsarten) fest, die gemeinsamen Optionen und ihr Verhalten [09, Kommandozeilen-Export](09-anleitungs-export.md#14-kommandozeilen-export); hier stehen die Optionen des KI-Pakets.
 
 ```
-StepRecorder.exe export <Sitzung> --format ki
+SebastiansStepRecorder.exe export <Sitzung> --format ki
                  [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original]
                  [--lang de|en] [--out <Pfad>] [--zip] [--pdf] [--view screen|window] [--no-events]
                  [--split-tokens <n>] [--overwrite] [--strict] [--json] [--quiet]
@@ -198,9 +198,9 @@ Verhalten:
 Beispiele:
 
 ```
-StepRecorder.exe export "C:\Tools\StepRecorder\Sessions\2026-11-11 14.30 – Editor – notiz.txt" --format ki
+SebastiansStepRecorder.exe export "C:\Tools\StepRecorder\Sessions\2026-11-11 14.30 – Editor – notiz.txt" --format ki
 
-StepRecorder.exe export "D:\Aufnahmen\server-neustart.steprec" --format ki ^
+SebastiansStepRecorder.exe export "D:\Aufnahmen\server-neustart.steprec" --format ki ^
     --detail kompakt --image-profile hochaufloesend --lang en --zip --out "D:\Tickets\4711\server-neustart.ki-paket.zip" --strict --json
 ```
 
@@ -1827,7 +1827,7 @@ Schritte: 0,220 + 0,260 + 0,280 + 3,420 + 0,080 + 4,120 + 0,080 + 2,100 = 10,560
 
 ## 15. MCP-Server: Überblick
 
-Der MCP-Server ist eine Betriebsart derselben EXE (`StepRecorder.exe mcp`). Ein Agent startet ihn als Kindprozess und fragt Sitzungen über Standardein- und -ausgabe ab. Bezug: **MCP-Spezifikation, Revision 2026-07-28**; Umsetzung mit dem offiziellen C#-SDK `ModelContextProtocol` 2.x ([02](02-architektur.md#technologie)).
+Der MCP-Server ist eine Betriebsart derselben EXE (`SebastiansStepRecorder.exe mcp`). Ein Agent startet ihn als Kindprozess und fragt Sitzungen über Standardein- und -ausgabe ab. Bezug: **MCP-Spezifikation, Revision 2026-07-28**; Umsetzung mit dem offiziellen C#-SDK `ModelContextProtocol` 2.x ([02](02-architektur.md#technologie)).
 
 | Eigenschaft | Festlegung |
 |---|---|
@@ -1870,7 +1870,7 @@ compare_sessions(session_a, session_b) → zwei Durchläufe desselben Vorgangs v
 ### 16.1 Kommandozeile
 
 ```
-StepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
+SebastiansStepRecorder.exe mcp --root <Ordner> [--allow-edit] [--lang de|en]
                      [--max-result-tokens <n>] [--max-image-pixels <n>] [--max-images <n>]
                      [--log <Datei>] [--log-level error|warn|info|debug]
 ```
@@ -1900,7 +1900,7 @@ Projektweit in `.mcp.json` im Projektordner:
 {
   "mcpServers": {
     "steprecorder": {
-      "command": "C:\\Tools\\StepRecorder\\StepRecorder.exe",
+      "command": "C:\\Tools\\StepRecorder\\SebastiansStepRecorder.exe",
       "args": ["mcp", "--root", "C:\\Tools\\StepRecorder\\Sessions"]
     }
   }
@@ -1910,7 +1910,7 @@ Projektweit in `.mcp.json` im Projektordner:
 Oder per Befehl (für alle Projekte des Benutzers):
 
 ```
-claude mcp add --transport stdio --scope user steprecorder -- "C:\Tools\StepRecorder\StepRecorder.exe" mcp --root "C:\Tools\StepRecorder\Sessions"
+claude mcp add --transport stdio --scope user steprecorder -- "C:\Tools\StepRecorder\SebastiansStepRecorder.exe" mcp --root "C:\Tools\StepRecorder\Sessions"
 ```
 
 Claude Code ersetzt `${VAR}` und `${VAR:-Standard}` in `command`, `args` und `env`; damit lässt sich der Ordner je Rechner setzen – etwa für den Ausweichort im Benutzerprofil: `"args": ["mcp", "--root", "${LOCALAPPDATA}\\StepRecorder\\Sessions"]`.
@@ -1923,7 +1923,7 @@ In `%APPDATA%\Claude\claude_desktop_config.json` (über *Einstellungen → Entwi
 {
   "mcpServers": {
     "steprecorder": {
-      "command": "C:\\Tools\\StepRecorder\\StepRecorder.exe",
+      "command": "C:\\Tools\\StepRecorder\\SebastiansStepRecorder.exe",
       "args": ["mcp", "--root", "C:\\Tools\\StepRecorder\\Sessions", "--lang", "de"]
     }
   }
@@ -2592,7 +2592,7 @@ Regeln:
 - **Grenzen.** Nur abgeschlossene Sitzungen (`SESSION_BUSY` sonst). Hat eine Sitzung mehr Kernschritte als `compareMaxSteps` (5 000), wird nicht abgeglichen: `COMPARISON_TOO_LARGE`. Zeitziele in 05 (17.9).
 - **Kein Urteil.** Das Tool sagt nicht, welche Sitzung „richtig“ ist, und es vergleicht nur, was der Recorder beobachtet hat.
 
-**Kommandozeile und Viewer.** Derselbe Abgleich steht ohne Agenten bereit: `StepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]`. Aufruf, Standardströme und Exit-Codes legt [02](02-architektur.md#befehle-nachgelagert) fest; der Viewer speichert denselben Bericht aus der Ansicht „Vergleichen mit …“ ([08](08-viewer.md#59-zwei-aufnahmen-vergleichen)). Was der Bericht enthält, folgt aus diesem Abschnitt:
+**Kommandozeile und Viewer.** Derselbe Abgleich steht ohne Agenten bereit: `SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]`. Aufruf, Standardströme und Exit-Codes legt [02](02-architektur.md#befehle-nachgelagert) fest; der Viewer speichert denselben Bericht aus der Ansicht „Vergleichen mit …“ ([08](08-viewer.md#59-zwei-aufnahmen-vergleichen)). Was der Bericht enthält, folgt aus diesem Abschnitt:
 
 | Form | Inhalt |
 |---|---|
@@ -2713,7 +2713,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | KI-029 | Interne und ausgeblendete Kommentare des Autors erscheinen in keiner Datei des KI-Pakets – auch nicht in `steps.json`, `events.jsonl` und der PDF-Variante. | Muss | DT-19 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen): Sitzung mit einem internen Kommentar aus dem Viewer und einem aus der Aufnahme – Kanarien-Suche in allen Dateien des Pakets (alle Detailstufen) ohne Treffer; der Kommentar-Schritt aus der Aufnahme bleibt mit Nummer und Zeit erhalten |
 | KI-030 | Ein Export ohne Oberfläche (Kommandozeile) gibt ungeprüfte auffällige Eingaben nur als `{unreviewed:N}` aus und weist sie in Kopfdaten und Kopftabelle aus. Es gibt keine Option, die das aufhebt; mit `--strict` bricht der Aufruf stattdessen ab. | Muss | DT-15 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen) für den Kommandozeilen-Export: vor der Durchsicht nur Zähler in `trace.md`, `steps.json` und `events.jsonl` (Exit-Code 0, mit `--strict` Exit-Code 9 und kein Paket), danach Klartext bzw. `[geschwärzt]`; die Hilfe von `export` kennt keine Option zum Umgehen |
 | KI-031 | Jede schwarz gefüllte Fläche eines Bildes (Aufnahme-Maske oder Schwärzung) ist im Bildindex mit Lage und Grund ausgewiesen und im Schritt als Hinweis genannt. | Muss | Sitzung mit Passwortfeld, ausgeschlossener Anwendung, Aufnahmebereich „Eine Anwendung“ und einer Bildschwärzung: jede Fläche steht mit zutreffendem Grund unter `masks`; Rückrechnung der Lage auf den Monitor stimmt auf ±1 Pixel |
-| KI-032 | Das KI-Paket lässt sich per Kommandozeile erzeugen: `StepRecorder.exe export <Sitzung> --format ki` mit den Optionen, dem Verhalten und den Exit-Codes aus 3.1. Das Ergebnis ist bei gleichen Optionen dasselbe wie aus dem Viewer. | Muss | Paket derselben Sitzung einmal aus dem Viewer, einmal per Kommandozeile mit gleichen Optionen: Dateien bytegleich (außer `createdAt`); jede Option der Tabelle wirkt; jeder Exit-Code der Tabelle wird im Test erreicht; Optionen nur für Anleitungen führen zu Exit-Code 2 |
+| KI-032 | Das KI-Paket lässt sich per Kommandozeile erzeugen: `SebastiansStepRecorder.exe export <Sitzung> --format ki` mit den Optionen, dem Verhalten und den Exit-Codes aus 3.1. Das Ergebnis ist bei gleichen Optionen dasselbe wie aus dem Viewer. | Muss | Paket derselben Sitzung einmal aus dem Viewer, einmal per Kommandozeile mit gleichen Optionen: Dateien bytegleich (außer `createdAt`); jede Option der Tabelle wirkt; jeder Exit-Code der Tabelle wird im Test erreicht; Optionen nur für Anleitungen führen zu Exit-Code 2 |
 | KI-033 | Zeitangaben sind eindeutig: Die Zeit in der Überschrift ist die des Ankerereignisses (Beginn der Eingabe), der Abstand zählt von Beginn zu Beginn (nach einer Lücke ab ihrem Ende), und jede Wirkung nennt ihre Verzögerung ab der Zeit in der Überschrift. | Muss | Golden-Journal-Vergleich: Abstand = Differenz der Ankerzeiten; Überschriftzeit + Verzögerung = Zeit des Wirkungsereignisses im Rohprotokoll (±1 ms); keine Wirkung ohne Zeitangabe außer der reinen Bildschirmänderung |
 | KI-034 | Der Kopf von `trace.md` enthält den Abschnitt „Angaben des Autors zur Aufnahme“ mit den wirksamen Ziel-Angaben (Ziel der Aufnahme, erwartetes Ergebnis, Bezug) im Wortlaut der Vorlagen aus 05 und der Liste der Marker; ohne Angaben steht dort „keine“. Dieselben Angaben stehen in `ai-package.json` unter `session.goal`. | Soll | Sitzung mit allen drei Angaben, mit nur einer und ohne: Zeilen wie in 7.6 bzw. „keine“; eine im Viewer geänderte Angabe erscheint in der neuen Fassung, eine gelöschte gar nicht – auch nicht im `session.start` von `events.jsonl` |
 | KI-035 | Marker erscheinen im Ablauf als Schritte der Art „Marker“ mit dem Satz ihres wirksamen Typs und den Feldern `Marker-Typ` und – falls vorhanden – `Marker-Text`, in jeder Detailstufe; die Gliederung nennt die Bezeichnung, der Kopf Typ und Schrittnummer jedes Markers. Zu Markern der Typen Fehler, Erwartet und Wichtig liegt das Bild zum Marker bei (`-marker`), in „Kompakt“ nur zu Fehler und Erwartet. | Soll | Sitzung mit je einem Marker jedes Typs, einer davon im Viewer umtypisiert: Satz, Felder, Gliederung und Kopfzeile stimmen in allen drei Detailstufen; Bilddateien nach der Regel vorhanden |
@@ -2728,7 +2728,7 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 
 | ID | Anforderung | Priorität | Abnahmekriterium |
 |---|---|---|---|
-| MCP-001 | `StepRecorder.exe mcp` stellt einen MCP-Server über stdio bereit; kein Port, keine Verbindung. | Muss | Claude Code verbindet sich und ruft `list_sessions` auf; T-12 ohne Netzwerkereignis |
+| MCP-001 | `SebastiansStepRecorder.exe mcp` stellt einen MCP-Server über stdio bereit; kein Port, keine Verbindung. | Muss | Claude Code verbindet sich und ruft `list_sessions` auf; T-12 ohne Netzwerkereignis |
 | MCP-002 | Der Server spricht die Revision 2026-07-28 und bedient nach Möglichkeit Clients der Revision 2025-11-25. | Muss (2026-07-28), Soll (älter) | Prüfwerkzeug des Protokolls ohne Fehler; Verbindung mit den aktuellen Versionen von Claude Code und Claude Desktop |
 | MCP-003 | Im `mcp`-Modus wird nie aufgezeichnet, kein Hook gesetzt, kein Fenster oder Symbol gezeigt, kein Kindprozess gestartet. | Muss | Prozessüberwachung während einer MCP-Sitzung: keine Hooks, keine Fenster, keine Kindprozesse |
 | MCP-004 | `--root` ist Pflicht; die Sandbox-Regeln S1–S10 gelten. | Muss | Testreihe mit Verknüpfungen nach außen, präparierten ZIP-Einträgen, übergroßen Dateien: kein Zugriff außerhalb, kein Absturz (T-10) |

@@ -152,7 +152,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | Netzwerk | Kein Netzwerkzugriff |
 | Sprache | Oberfläche Deutsch und Englisch; Datenformat-Bezeichner englisch; Spezifikation deutsch |
 | Lizenz des Projekts | Empfehlung MIT; Entscheidung vor Version 1.0 ([11](11-roadmap-tests-risiken.md)) |
-| Arbeitstitel | StepRecorder, `StepRecorder.exe` |
+| Arbeitstitel | StepRecorder, `SebastiansStepRecorder.exe` |
 
 ## 10. Aufbau der Spezifikation
 

@@ -833,7 +833,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 │                                                                                  │
 │ Claude Code – Datei .mcp.json im Projektordner                      [Kopieren]   │
 │   { "mcpServers": { "steprecorder": {                                            │
-│       "command": "D:\\Werkzeuge\\StepRecorder\\StepRecorder.exe",                │
+│       "command": "D:\\Werkzeuge\\StepRecorder\\SebastiansStepRecorder.exe",                │
 │       "args": ["mcp", "--root", "D:\\Werkzeuge\\StepRecorder\\Sessions"] } } }   │
 │                                                                                  │
 │ Claude Code – als Befehl                                            [Kopieren]   │

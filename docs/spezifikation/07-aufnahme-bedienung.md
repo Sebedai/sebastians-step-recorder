@@ -68,7 +68,7 @@ Das Programm wird nicht installiert und braucht keine Adminrechte.
 
 | Aufruf | Ergebnis |
 |---|---|
-| Doppelklick auf `StepRecorder.exe` | Startfenster |
+| Doppelklick auf `SebastiansStepRecorder.exe` | Startfenster |
 | Sitzungsordner oder `.steprec`-Datei auf die EXE ziehen, oder EXE mit Sitzungspfad starten | Viewer mit dieser Sitzung |
 | EXE mit dem Befehl `record` | Aufnahme ohne Startfenster, auf Wunsch mit einem Aufnahmeprofil (`--profile`), siehe [3.1](#31-aufnahme-über-die-kommandozeile) |
 | EXE mit dem Befehl `support` | Support-Start: Aufnahme für ein Support-Paket vorbereiten, siehe [3.2](#32-support-aufnahme-über-die-kommandozeile) |
@@ -84,9 +84,9 @@ Die übrigen Befehle stehen in anderen Dokumenten: `export` im [Anleitungs-Expor
 Der Befehl `record` startet eine Aufnahme ohne Startfenster, etwa aus einem Skript oder einer Verknüpfung. Rahmen der Kommandozeile, Standardströme und Exit-Codes legt [02](02-architektur.md#betriebsarten) fest; hier stehen die Optionen.
 
 ```
-StepRecorder.exe record [Optionen]
-StepRecorder.exe record --stop
-StepRecorder.exe record --self-test
+SebastiansStepRecorder.exe record [Optionen]
+SebastiansStepRecorder.exe record --stop
+SebastiansStepRecorder.exe record --self-test
 ```
 
 | Option | Bedeutung | Standard |
@@ -122,8 +122,8 @@ StepRecorder.exe record --self-test
 Beispiele:
 
 ```
-StepRecorder.exe record --scope app --app notepad.exe --title "Datei im Editor speichern"
-StepRecorder.exe record --profile "KI-Spur" --goal "Rechnung als PDF speichern" --reference "Ticket 4711"
+SebastiansStepRecorder.exe record --scope app --app notepad.exe --title "Datei im Editor speichern"
+SebastiansStepRecorder.exe record --profile "KI-Spur" --goal "Rechnung als PDF speichern" --reference "Ticket 4711"
 ```
 
 ### 3.2 Support-Aufnahme über die Kommandozeile
@@ -131,7 +131,7 @@ StepRecorder.exe record --profile "KI-Spur" --goal "Rechnung als PDF speichern" 
 Der Befehl `support` öffnet den Support-Start ([4.9](#49-support-paket-aufnehmen)) – gedacht für eine Verknüpfung oder Stapeldatei, die ein Helpdesk zusammen mit der EXE weitergibt (Soll).
 
 ```
-StepRecorder.exe support [Optionen]
+SebastiansStepRecorder.exe support [Optionen]
 ```
 
 | Option | Bedeutung | Standard |
@@ -151,7 +151,7 @@ StepRecorder.exe support [Optionen]
 Beispiel:
 
 ```
-StepRecorder.exe support --reference "Ticket 4711"
+SebastiansStepRecorder.exe support --reference "Ticket 4711"
 ```
 
 Profile lassen sich mit der EXE weitergeben: Eine Datei `profiles.json` neben der EXE wird zusätzlich gelesen ([02](02-architektur.md#aufnahmeprofile)). So kann ein Helpdesk ein angepasstes Profil „Support-Fall“ mitliefern, ohne dass der Empfänger etwas einstellt.
@@ -1144,7 +1144,7 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 | BED-144 | Profil in der Sitzung festgehalten | Soll | `manifest.profile` nennt den Profilnamen und die wirksamen Einstellungen; eine spätere Änderung des Profils ändert die Sitzung nicht. |
 | BED-145 | `record --profile` | Soll | Der Aufruf nimmt mit dem genannten Profil auf; Einzeloptionen gehen dem Profil vor; ein unbekannter Name endet mit Exit-Code 2; eine Abweichung nach BED-143 steht zusätzlich auf der Fehlerausgabe. |
 | BED-150 | Kachel „Support-Paket“ und Support-Start | Soll | Die Kachel öffnet den Support-Start mit Erklärung, den drei Ziel-Feldern und „Aufnahme starten“; es gilt das Profil „Support-Fall“; Ablauf A19. |
-| BED-151 | Befehl `support` | Soll | `StepRecorder.exe support` öffnet den Support-Start, ohne aufzunehmen; `--reference` belegt „Bezug“ vor, `--recipient-note` den Hinweis für den Empfänger; der Aufruf kehrt zurück, wenn der Ablauf endet, und nennt mit Exit-Code 0 den Pfad des Pakets, sonst endet er mit Exit-Code 5. |
+| BED-151 | Befehl `support` | Soll | `SebastiansStepRecorder.exe support` öffnet den Support-Start, ohne aufzunehmen; `--reference` belegt „Bezug“ vor, `--recipient-note` den Hinweis für den Empfänger; der Aufruf kehrt zurück, wenn der Ablauf endet, und nennt mit Exit-Code 0 den Pfad des Pakets, sonst endet er mit Exit-Code 5. |
 | BED-152 | Hinweise während der Support-Aufnahme | Soll | Die Meldezeile nennt einmal die Kürzel für die Marker „Fehler“ und „Erwartet“ und für Stopp; nach dem Stopp öffnet sich der geführte Ablauf aus [08](08-viewer.md#122-support-paket-geführter-ablauf). |
 | BED-160 | Einstellungen exportieren | Soll | Die Datei `StepRecorder-Einstellungen.json` enthält genau die angekreuzten Teile; eine Suche nach Benutzername, Rechnername und Benutzerprofilpfad des Testrechners sowie nach Sitzungs- und Zielpfaden ergibt keinen Treffer. |
 | BED-161 | Import mit Änderungsvorschau | Soll | Vor jeder Änderung zeigt der Dialog je Teil, was neu, geändert oder unverändert ist; übernommen wird nur das Gewählte; „Abbrechen“ ändert nichts. |
