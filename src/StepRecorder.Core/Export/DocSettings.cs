@@ -25,12 +25,21 @@ public sealed class DocSettings
     public string View = "screen";
     /// <summary>Im Ausschnitt eine kleine Übersicht des ganzen Bildschirms einblenden.</summary>
     public bool Overview = true;
+    /// <summary>Seitenformat für Word und PDF: a4 | letter (09 §4.4).</summary>
+    public string Page = "a4";
+    /// <summary>Querformat für Word und PDF.</summary>
+    public bool Landscape;
+    /// <summary>Eigene Word-Vorlage (.dotx/.docx, Base64; 09 §7.3); leer = keine. Höchstens <see cref="WordTemplateMaxBytes"/>.</summary>
+    public string WordTemplate = "";
+    /// <summary>Dateiname der Word-Vorlage (nur zur Anzeige).</summary>
+    public string WordTemplateName = "";
+    public const int WordTemplateMaxBytes = 5 * 1024 * 1024;
 
     /// <summary>Felder, die je Sprache gepflegt werden (guide.i18n.&lt;lang&gt; überschreibt für andere Sprachen als Deutsch).</summary>
     public static readonly string[] LocalizedKeys = { "subtitle", "audience", "prerequisites", "footer" };
 
     /// <summary>Felder, die eine Vorlage überträgt (nicht: Untertitel, Version, Voraussetzungen – die gehören zur einzelnen Anleitung).</summary>
-    public static readonly string[] TemplateKeys = { "author", "audience", "footer", "cover", "toc", "showDate", "numbering", "imageSize", "layout", "accent", "logo", "view", "overview" };
+    public static readonly string[] TemplateKeys = { "author", "audience", "footer", "cover", "toc", "showDate", "numbering", "imageSize", "layout", "accent", "logo", "view", "overview", "page", "landscape", "wordTemplate", "wordTemplateName" };
 
     /// <summary>
     /// Vorlage aus fremder Quelle prüfen und bereinigen: nur bekannte Schlüssel, Längen begrenzt, Farbe #RRGGBB,
@@ -47,8 +56,19 @@ public sealed class DocSettings
             if (v == null) continue;
             switch (k)
             {
-                case "cover" or "toc" or "showDate" or "overview":
+                case "cover" or "toc" or "showDate" or "overview" or "landscape":
                     if (v is JsonValue bv && bv.TryGetValue<bool>(out var b)) r[k] = b; break;
+                case "page": if (t.Str(k) is "a4" or "letter") r[k] = t.Str(k); break;
+                case "wordTemplate":
+                    if (t.Str(k) is { Length: > 0 } wt)
+                    {
+                        // Word-Vorlage: nur ohne Makros und ohne Verweise nach außen (09 §9.2, EXP-073)
+                        byte[]? raw = null;
+                        try { raw = Convert.FromBase64String(wt); } catch { }
+                        string? why = raw == null || raw.Length > WordTemplateMaxBytes ? Loc.L("Word-Vorlage ungültig oder zu groß", "Word template invalid or too large") : Formats.SimpleDocx.CheckTemplate(raw);
+                        if (why != null) problem = why; else r[k] = wt;
+                    }
+                    break;
                 case "numbering": if (t.Str(k) is "chapter" or "flat" or "none") r[k] = t.Str(k); break;
                 case "imageSize": if (t.Str(k) is "s" or "m" or "l" or "full") r[k] = t.Str(k); break;
                 case "layout": if (t.Str(k) is "below" or "side") r[k] = t.Str(k); break;
@@ -126,7 +146,29 @@ public sealed class DocSettings
         d.Logo = j.Str("logo") ?? "";
         d.View = j.Str("view") is "window" or "crop" ? j.Str("view")! : "screen";
         if (j["overview"] != null) d.Overview = j.Bool("overview");
+        d.Page = j.Str("page") == "letter" ? "letter" : "a4";
+        d.Landscape = j.Bool("landscape");
+        d.WordTemplate = j.Str("wordTemplate") ?? ""; d.WordTemplateName = j.Str("wordTemplateName") ?? "";
     }
+
+    public static (string id, string name)[] Pages => new[] { ("a4", "A4"), ("letter", "Letter") };
+
+    /// <summary>Seitengröße in Punkt (1/72 Zoll), Querformat berücksichtigt.</summary>
+    public (double w, double h) PagePoints()
+    {
+        var (w, h) = Page == "letter" ? (612.0, 792.0) : (Formats.SimplePdf.A4W, Formats.SimplePdf.A4H);
+        return Landscape ? (h, w) : (w, h);
+    }
+
+    /// <summary>Seitengröße in Twips (1/20 Punkt) für Word, Querformat berücksichtigt.</summary>
+    public (int w, int h) PageTwips()
+    {
+        var (w, h) = Page == "letter" ? (12240, 15840) : (11906, 16838);
+        return Landscape ? (h, w) : (w, h);
+    }
+
+    /// <summary>Bytes der Word-Vorlage oder null.</summary>
+    public byte[]? WordTemplateBytes() { try { return WordTemplate.Length > 0 ? Convert.FromBase64String(WordTemplate) : null; } catch { return null; } }
 
     public static (string id, string name)[] Views => new[] { ("screen", Loc.L("Ganzer Bildschirm", "Full screen")), ("window", Loc.L("Anwendungsfenster", "Application window")), ("crop", Loc.L("Bereich um die Aktion", "Area around the action")) };
 
@@ -148,7 +190,8 @@ public sealed class DocSettings
     {
         ["subtitle"] = Subtitle, ["author"] = Author, ["version"] = Version, ["audience"] = Audience, ["prerequisites"] = Prerequisites, ["footer"] = Footer,
         ["cover"] = Cover, ["toc"] = Toc, ["showDate"] = ShowDate, ["numbering"] = Numbering, ["imageSize"] = ImageSize, ["layout"] = Layout, ["accent"] = Accent,
-        ["logo"] = Logo, ["view"] = View, ["overview"] = Overview
+        ["logo"] = Logo, ["view"] = View, ["overview"] = Overview,
+        ["page"] = Page, ["landscape"] = Landscape, ["wordTemplate"] = WordTemplate, ["wordTemplateName"] = WordTemplateName
     };
 
     public (double r, double g, double b) AccentRgb()

@@ -56,6 +56,10 @@ public sealed class GuideOptions
     public bool MdLegacy { get; set; }
     /// <summary>GIF: Größenziel in Bytes (0 = ohne); darüber werden Breite und dann Bildzahl verringert.</summary>
     public long GifMaxBytes { get; set; }
+    /// <summary>Word/PDF: Seitenformat a4 | letter; null = aus den Dokument-Einstellungen.</summary>
+    public string? Page { get; set; }
+    /// <summary>Word/PDF: Querformat; null = aus den Dokument-Einstellungen.</summary>
+    public bool? Landscape { get; set; }
 }
 
 /// <summary>
@@ -144,6 +148,8 @@ public static partial class GuideExport
         var s = d.S;
         GuidePresets.ApplyDoc(o.Preset, s);
         if (!o.Numbering) s.Numbering = "none";
+        if (o.Page is "a4" or "letter") s.Page = o.Page;
+        if (o.Landscape is { } land) s.Landscape = land;
         d.Title = view.Clean(DocSettings.GuideText(guide, "title", lang) is { Length: > 0 } lt ? lt : view.Title);
         d.Subtitle = view.Clean(s.Subtitle);
         d.Intro = Intro(view, lang);
@@ -465,11 +471,30 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     static void Docx(Doc d, string outPath)
     {
         var x = new SimpleDocx { Title = d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US", Accent = d.S.AccentHex, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title };
-        if (d.Logo != null) { using var lm = new MemoryStream(d.Logo); using var lb = new Bitmap(lm); x.Image(d.Logo, "png", lb.Width, lb.Height, "Logo", d.S.Cover ? 6 : 4, d.S.Cover ? 2.6 : 1.6, border: false); }
-        x.Heading(d.Title, 0);
-        if (d.Subtitle.Length > 0) x.Subtitle(d.Subtitle);
-        foreach (var (label, value) in d.Meta) x.MetaLine(label, value);
-        if (d.S.Cover) x.PageBreak();
+        var (pw, ph) = d.S.PageTwips();
+        x.SetPage(pw, ph);
+        // Eigene Word-Vorlage (09 §7.3): ihre Seiteneinrichtung, Formatvorlagen, Kopf- und Fußzeilen; .dotm wird abgelehnt
+        bool templateTitle = false;
+        if (d.S.WordTemplateBytes() is { } tpl)
+        {
+            x.UseTemplate(tpl);
+            string Meta(string de, string en) => d.Meta.FirstOrDefault(m => m.label == d.L(de, en)).value ?? "";
+            x.Fields["SR.Title"] = d.Title; x.Fields["SR.Subtitle"] = d.Subtitle; x.Fields["SR.Author"] = Meta("Autor", "Author"); x.Fields["SR.Version"] = Meta("Version", "Version");
+            x.Fields["SR.Date"] = DateTime.TryParseExact(d.Date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt) ? dt.ToString(d.Lang == "de" ? "dd.MM.yyyy" : "yyyy-MM-dd") : d.Date;
+            // Hat die Vorlage ein Titelfeld, bringt sie Titelblock bzw. Deckblatt selbst mit
+            templateTitle = x.TemplateHasField("SR.Title");
+        }
+        if (!templateTitle)
+        {
+            if (d.Logo != null) { using var lm = new MemoryStream(d.Logo); using var lb = new Bitmap(lm); x.Image(d.Logo, "png", lb.Width, lb.Height, "Logo", d.S.Cover ? 6 : 4, d.S.Cover ? 2.6 : 1.6, border: false); }
+            x.Heading(d.Title, 0);
+            if (d.Subtitle.Length > 0) x.Subtitle(d.Subtitle);
+            foreach (var (label, value) in d.Meta) x.MetaLine(label, value);
+            if (d.S.Cover) x.PageBreak();
+        }
+        // Bildgrößen wachsen mit dem Satzspiegel (A4 hoch: 17 cm breit) und bleiben auf einer Seite
+        double cwCm = x.TextWidthCm, maxHCm = x.TextHeightCm - 4;
+        double Wd(double cm) => cwCm == 17 ? cm : Math.Round(cm * cwCm / 17, 2);
         // Sprungziele je Block (Kapitel = Überschrift 1, Schritt = Überschrift 2) – das Inhaltsverzeichnis verweist darauf
         var marks = new Dictionary<object, string>();
         for (int i = 0; i < d.Blocks.Count; i++) marks[d.Blocks[i]] = SimpleDocx.TocBookmark(i + 1);
@@ -508,12 +533,13 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 x.Image(it.AfterPng, "png", it.AW, it.AH, it.Title + " – " + d.L("Ergebnis", "Result"), maxW, maxH);
             }
             if (it.Png != null && d.S.Layout == "side")
-                x.SideBySide(Text, () => { x.Image(it.Png, "png", it.W, it.H, it.Title, 9.2, 9); After(9.2, 9); }, 42);
+                x.SideBySide(Text, () => { x.Image(it.Png, "png", it.W, it.H, it.Title, Wd(9.2), Math.Min(9, maxHCm)); After(Wd(9.2), Math.Min(9, maxHCm)); }, 42);
             else
             {
                 Text();
-                if (it.Png != null) x.Image(it.Png, "png", it.W, it.H, it.Title, 17 * DocSettings.Factor(it.Size), 17 * DocSettings.Factor(it.Size) * 0.8 + 3);
-                After(17 * DocSettings.Factor(it.Size), 17 * DocSettings.Factor(it.Size) * 0.8 + 3);
+                double mw = cwCm * DocSettings.Factor(it.Size), mh = Math.Min(cwCm * DocSettings.Factor(it.Size) * 0.8 + 3, maxHCm);
+                if (it.Png != null) x.Image(it.Png, "png", it.W, it.H, it.Title, mw, mh);
+                After(mw, mh);
             }
         }
         if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
@@ -559,17 +585,22 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     {
         var acc = d.S.AccentRgb();
         var ink = (0.11, 0.11, 0.10); var muted = (0.42, 0.41, 0.38); var line = (0.85, 0.84, 0.81);
-        var pdf = new SimplePdf { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US" };
+        var (pw, ph) = d.S.PagePoints();
+        var pdf = new SimplePdf(pw, ph) { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US" };
         double cw = pdf.ContentWidth;
+        // Bildhöhe höchstens Satzspiegel abzüglich Platz für den Schritttext (A4 hoch: wie bisher 560 · Faktor + 60)
+        double maxImgH = pdf.ContentHeight - 100;
+        // Lagen auf dem Deckblatt sind für A4 hoch festgelegt und wachsen mit der Seitenhöhe mit
+        double Vy(double y) => Math.Round(y * pdf.PageH / SimplePdf.A4H, 2);
 
         // Deckblatt oder Kopf
         if (d.S.Cover)
         {
             pdf.NoFooter.Add(0);
-            pdf.FillRect(0, SimplePdf.PageH - 14, SimplePdf.PageW, 14, acc);
-            pdf.FillRect(pdf.Margin, 250, 5, 330, acc);
-            if (logo is { } lg) { pdf.SetY(700); pdf.Image(lg.jpg, lg.w, lg.h, 200, 70, pdf.Margin + 22, border: false); }
-            pdf.SetY(560);
+            pdf.FillRect(0, pdf.PageH - 14, pdf.PageW, 14, acc);
+            pdf.FillRect(pdf.Margin, Vy(250), 5, Vy(580) - Vy(250), acc);
+            if (logo is { } lg) { pdf.SetY(Vy(700)); pdf.Image(lg.jpg, lg.w, lg.h, 200, 70, pdf.Margin + 22, border: false); }
+            pdf.SetY(Vy(560));
             pdf.Paragraph(d.Title, 28, true, 22, 10, ink);
             if (d.Subtitle.Length > 0) pdf.Paragraph(d.Subtitle, 15, false, 22, 22, muted);
             foreach (var (label, value) in d.Meta) pdf.Paragraph(label + ":  " + value, 10.5, false, 22, 3, muted);
@@ -700,13 +731,13 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             if (hasImg && !side)
             {
                 double f = DocSettings.Factor(it.Size);
-                pdf.Image(jp.jpg, jp.w, jp.h, cw * f, 560 * f + 60);
+                pdf.Image(jp.jpg, jp.w, jp.h, cw * f, Math.Min(560 * f + 60, maxImgH));
             }
             if (afterJpegs.TryGetValue(it, out var aj))
             {
                 // Ergebnis: in der Breite des Schrittbilds, bei „nebeneinander“ in der Bildspalte
                 double f = DocSettings.Factor(it.Size);
-                double ax = side ? pdf.Margin + textW + 16 : -1, amaxW = side ? imgW : cw * f, amaxH = side ? 360 : 560 * f + 60;
+                double ax = side ? pdf.Margin + textW + 16 : -1, amaxW = side ? imgW : cw * f, amaxH = side ? 360 : Math.Min(560 * f + 60, maxImgH);
                 pdf.EnsureSpace(Math.Min(amaxH, aj.h * Math.Min(1, amaxW / aj.w)) + 24);
                 pdf.Paragraph(d.L("Ergebnis", "Result"), 9.5, false, side ? textW + 16 : 0, 3, muted);
                 pdf.Image(aj.jpg, aj.w, aj.h, amaxW, amaxH, ax);

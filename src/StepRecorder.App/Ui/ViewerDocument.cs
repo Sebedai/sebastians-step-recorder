@@ -170,6 +170,29 @@ sealed partial class ViewerWindow
         look.Children.Add(U.Field(Loc.L("Anrede in automatischen Texten", "Form of address in automatic texts"), adTrack, Loc.L("Von Ihnen geänderte Texte bleiben unverändert.", "Texts you have changed stay unchanged.")));
         look.Children.Add(U.Field(Loc.L("Fußzeile", "Footer"), CommitBox(d.Footer, v => LocDocChange("footer", v), Loc.L("z. B. Firma · intern", "e.g. Company · internal")), Loc.L("Links in der Fußzeile; rechts steht die Seitenzahl (Word, PDF).", "On the left in the footer; the page number is on the right (Word, PDF).")));
 
+        // Seite und Word-Vorlage (09 §4.4, §7.3)
+        var page = Section(Loc.L("Seite (Word und PDF)", "Page (Word and PDF)"));
+        var (pageTrack, pages) = U.Segmented("dpage", d.Page == "letter" ? 1 : 0, DocSettings.Pages.Select(x => ((string?)null, x.name)).ToArray());
+        for (int i = 0; i < pages.Length; i++) { string v = DocSettings.Pages[i].id; pages[i].Checked += (_, _) => DocChange(x => x.Page = v); pages[i].IsEnabled = !ro; }
+        var (orTrack, ors) = U.Segmented("dorient", d.Landscape ? 1 : 0, (null, Loc.L("Hochformat", "Portrait")), (null, Loc.L("Querformat", "Landscape")));
+        ors[0].Checked += (_, _) => DocChange(x => x.Landscape = false); ors[1].Checked += (_, _) => DocChange(x => x.Landscape = true);
+        foreach (var o in ors) o.IsEnabled = !ro;
+        page.Children.Add(U.Field(Loc.L("Seitenformat", "Page size"), U.Row(pageTrack, orTrack), Loc.L("Bilder passen sich der Seitenbreite an. Mit einer Word-Vorlage gilt im Word-Dokument deren Seiteneinrichtung.", "Images adapt to the page width. With a Word template, the Word document uses the template's page setup.")));
+        var wordRow = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
+        if (d.WordTemplate.Length > 0)
+        {
+            var nameText = U.Text(d.WordTemplateName.Length > 0 ? d.WordTemplateName : Loc.L("Word-Vorlage", "Word template"), Theme.FsHint, true, margin: new Thickness(3, 0, 10, 0));
+            nameText.VerticalAlignment = VerticalAlignment.Center;
+            wordRow.Children.Add(nameText);
+        }
+        var pickTpl = U.Btn(Theme.IOpen, d.WordTemplate.Length > 0 ? Loc.L("Andere Vorlage …", "Different template …") : Loc.L("Word-Vorlage wählen …", "Choose Word template …"), PickWordTemplate,
+            Loc.L(".dotx oder .docx mit Firmenlayout – Vorlagen mit Makros (.dotm) werden abgelehnt", ".dotx or .docx with corporate layout – templates with macros (.dotm) are rejected")); pickTpl.IsEnabled = !ro;
+        wordRow.Children.Add(pickTpl);
+        if (d.WordTemplate.Length > 0) wordRow.Children.Add(U.Btn(Theme.IDelete, Loc.L("Entfernen", "Remove"), () => DocChange(x => { x.WordTemplate = ""; x.WordTemplateName = ""; }, quiet: false)));
+        page.Children.Add(U.Field(Loc.L("Word-Vorlage", "Word template"), wordRow,
+            Loc.F("Das Word-Dokument übernimmt Formatvorlagen, Schriften, Seitenränder, Kopf- und Fußzeile der Vorlage. Der Inhalt steht an der Textmarke oder dem Inhaltssteuerelement „{0}“, sonst am Ende; Felder SR.Title, SR.Subtitle, SR.Author, SR.Date und SR.Version werden gefüllt.",
+                  "The Word document takes the template's styles, fonts, margins, header and footer. The content goes to the bookmark or content control “{0}”, otherwise to the end; fields SR.Title, SR.Subtitle, SR.Author, SR.Date and SR.Version are filled.", StepRecorder.Export.Formats.SimpleDocx.ContentMarker)));
+
         // Vorlage
         var st = StepRecorder.Settings.AppSettings.Load();
         var tplBox = Section(Loc.L("Vorlage", "Template"), st.DefaultTemplate.Length > 0 ? Loc.F("Neue Aufnahmen erhalten automatisch die Vorlage „{0}“.", "New recordings automatically get the template “{0}”.", st.DefaultTemplate) : Loc.L("Logo, Farbe, Autor, Fußzeile, Aufbau und Bilder als Firmenlook für weitere Anleitungen übernehmen.", "Use logo, colour, author, footer, structure and images as a corporate look for further guides."));
@@ -235,6 +258,25 @@ sealed partial class ViewerWindow
         if (dlg.ShowDialog(this) != true) return;
         try { using var img = System.Drawing.Image.FromFile(dlg.FileName); string b64 = DocSettings.LogoFrom(img); DocChange(x => x.Logo = b64, quiet: false); }
         catch (Exception ex) { Msg.Show(Loc.L("Das Logo lässt sich nicht öffnen:\n", "The logo cannot be opened:\n") + ex.Message); }
+    }
+
+    /// <summary>Eigene Word-Vorlage wählen (.dotx/.docx); Makros werden abgelehnt (09 §7.3).</summary>
+    void PickWordTemplate()
+    {
+        var dlg = new Microsoft.Win32.OpenFileDialog { Filter = Loc.L("Word-Vorlage", "Word template") + " (*.dotx;*.docx)|*.dotx;*.docx" };
+        if (dlg.ShowDialog(this) != true) return;
+        try
+        {
+            string ext = Path.GetExtension(dlg.FileName).ToLowerInvariant();
+            if (ext is ".dotm" or ".docm") { Msg.Show(Loc.L("Vorlagen mit Makros (.dotm, .docm) werden nicht verwendet.", "Templates with macros (.dotm, .docm) are not used.")); return; }
+            var info = new FileInfo(dlg.FileName);
+            if (info.Length > DocSettings.WordTemplateMaxBytes) { Msg.Show(Loc.F("Die Word-Vorlage ist größer als {0}.", "The Word template is larger than {0}.", Loc.Bytes(DocSettings.WordTemplateMaxBytes))); return; }
+            var data = File.ReadAllBytes(dlg.FileName);
+            if (StepRecorder.Export.Formats.SimpleDocx.CheckTemplate(data) is { } why) { Msg.Show(why); return; }
+            string b64 = Convert.ToBase64String(data), name = Path.GetFileName(dlg.FileName);
+            DocChange(x => { x.WordTemplate = b64; x.WordTemplateName = name; }, quiet: false);
+        }
+        catch (Exception ex) { Msg.Show(Loc.L("Die Word-Vorlage lässt sich nicht öffnen:\n", "The Word template cannot be opened:\n") + ex.Message); }
     }
 
     static string[] TemplateKeys => DocSettings.TemplateKeys;

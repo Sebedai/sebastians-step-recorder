@@ -32,6 +32,7 @@ Aufruf:
       [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
+      Word, PDF:   [--page a4|letter] [--landscape|--portrait]   Seitenformat (sonst aus der Aufnahme)
       Markdown:    [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
       KI-Paket:    [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original] [--zip] [--no-events]
                    Bilder: [--before auto|immer|nie] [--no-crop] [--no-after]
@@ -76,6 +77,7 @@ Usage:
       [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
+      Word, PDF:  [--page a4|letter] [--landscape|--portrait]   page format (otherwise from the recording)
       Markdown:   [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
       AI package: [--detail compact|standard|full] [--image-profile compatible|highres|original] [--zip] [--no-events]
                   images: [--before auto|always|never] [--no-crop] [--no-after]
@@ -176,8 +178,8 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb" },
-            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after", "--front-matter", "--md-legacy" }, "--with");
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb", "--page" },
+            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after", "--front-matter", "--md-legacy", "--landscape", "--portrait" }, "--with");
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
         // Bilder im KI-Paket (Vorher-Bild) und in Anleitungen (Nachher-Bild als „Ergebnis“) – deutsche und englische Werte
@@ -195,6 +197,10 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
             MdDialect = c["--md-dialect"] ?? "plain", MdFrontMatter = c.Has("--front-matter"), MdLegacy = c.Has("--md-legacy")
         };
         if (req.MdDialect is not ("plain" or "github" or "obsidian")) return Usage("--md-dialect: plain | github | obsidian");
+        // Seitenformat für Word und PDF (09 §4.4); ohne Angabe gilt die Einstellung der Aufnahme
+        if (c["--page"] is { } pg) { req.Page = pg.ToLowerInvariant(); if (req.Page is not ("a4" or "letter")) return Usage("--page: a4 | letter"); }
+        if (c.Has("--landscape") && c.Has("--portrait")) return Usage("--landscape | --portrait");
+        if (c.Has("--landscape")) req.Landscape = true; else if (c.Has("--portrait")) req.Landscape = false;
         if (c["--gif-max-mb"] is { } gm) { if (!double.TryParse(gm, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mb) || mb < 0.5 || mb > 1000) return Usage("--gif-max-mb: 0.5–1000"); req.GifMaxMb = mb; }
         if (!Exporter.IsKnownFormat(req.Format)) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", req.Format));
         // Schrittbereich: --from/--to oder --steps a-b (Nummern der Schrittliste)
