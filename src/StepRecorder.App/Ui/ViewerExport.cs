@@ -35,6 +35,29 @@ sealed partial class ViewerWindow
         return items.ToArray();
     }
 
+    /// <summary>Fehlerbericht als Markdown in die Zwischenablage (Bilder bleiben weg – dafür den Export „Fehlerbericht“ nutzen).</summary>
+    async void CopyBugReport()
+    {
+        if (!ReviewedFor("bugreport")) return;
+        string tmp = Path.Combine(_view.Session.ReadOnly ? Path.GetTempPath() : Path.Combine(_view.Session.Path, "export", ".tmp"), "bug-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            string path = _path, lang = _view.Language;
+            var r = await ExportProgressWindow.Run(this, Loc.L("Fehlerbericht wird erstellt …", "Creating bug report …"), (_, ct) =>
+            {
+                using var v = SessionView.Open(path, lang: lang);
+                return GuideExport.Export(v, new GuideOptions { Format = "bugreport", OutPath = Path.Combine(tmp, "bericht.md"), Language = lang, Importance = "secondary" });
+            });
+            var text = System.Text.RegularExpressions.Regex.Replace(r.Text ?? "", @"(?m)^\s*!\[[^\]]*\]\(bilder/[^)]*\)\s*$\n?", "");
+            text = System.Text.RegularExpressions.Regex.Replace(text, @"(?m)^## [^\n]+\n\n(?:- bilder/[^\n]*\n)+\n?", "");
+            var d = new DataObject(); d.SetText(text);
+            SetClipboard(d, Loc.L("Fehlerbericht kopiert – zum Einfügen in ein Ticket", "Bug report copied – paste it into a ticket"));
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException) { UiApp.ShowError(ex); }
+        catch (OperationCanceledException) { }
+        finally { try { Directory.Delete(tmp, true); } catch { } }
+    }
+
     /// <summary>Ausgaben ohne Platzhalter für ungeprüfte Eingaben verlangen vorher die Durchsicht.</summary>
     bool ReviewedFor(string format)
     {

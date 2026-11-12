@@ -161,6 +161,27 @@ public static class StepImages
     }
 
 
+    /// <summary>
+    /// Klickfläche für die Klick-Tour in Prozent des Bildes: Zielrechteck (mit Rand), sonst ein 56-px-Feld um den Klickpunkt,
+    /// mindestens <paramref name="minPx"/> groß. Null bei Schritten ohne Mausklick oder ohne bekannte Stelle („Weiter“-Knopf).
+    /// </summary>
+    public static RectangleF? HotspotPercent(RenderedImage img, string kind, int minPx = 32, int padPx = 6)
+    {
+        if (kind is not ("click" or "doubleClick" or "tripleClick" or "rightClick" or "drag")) return null;
+        int W = img.Bitmap.Width, H = img.Bitmap.Height;
+        if (W <= 0 || H <= 0) return null;
+        RectangleF r;
+        if (img.TargetRect is { } t && t.Width > 0 && t.Height > 0 && (img.Marker is not { } m0 || Rectangle.Inflate(t, 4, 4).Contains(m0)))
+            r = RectangleF.Inflate(t, padPx, padPx);
+        else if (img.Marker is { } m) r = new RectangleF(m.X - 28, m.Y - 28, 56, 56);
+        else return null;
+        if (r.Width < minPx) r = RectangleF.Inflate(r, (minPx - r.Width) / 2, 0);
+        if (r.Height < minPx) r = RectangleF.Inflate(r, 0, (minPx - r.Height) / 2);
+        r = RectangleF.Intersect(r, new RectangleF(0, 0, W, H));
+        if (r.Width <= 0 || r.Height <= 0) return null;
+        return new RectangleF(r.X * 100f / W, r.Y * 100f / H, r.Width * 100f / W, r.Height * 100f / H);
+    }
+
     /// <summary>Übersicht im Ausschnitt: kleines Gesamtbild in einer Ecke (weg vom Klickpunkt), Ausschnitt orange umrandet.</summary>
     static void DrawOverview(Graphics g, Bitmap full, Rectangle src, Size size, Point? marker)
     {

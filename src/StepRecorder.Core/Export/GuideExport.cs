@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -49,9 +49,9 @@ public sealed class GuideOptions
 /// Anleitungs-Exporte (09): HTML (eine Datei), Markdown (Ordner), DOCX, PDF – als Bedienungsanleitung mit
 /// optionalem Deckblatt, Inhaltsverzeichnis, Kapiteln, Hinweiskästen, Voraussetzungen und Abschluss.
 /// </summary>
-public static class GuideExport
+public static partial class GuideExport
 {
-    sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size);
+    sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size, RectangleF? Hot = null);
     sealed record Chapter(string Number, string Anchor, string Title, string Text);
 
     /// <summary>Alles, was ein Dokument braucht – einmal gesammelt, für alle Formate gleich.</summary>
@@ -90,18 +90,29 @@ public static class GuideExport
         GuidePresets.Apply(o.Preset, o, null);
         var doc = Build(view, o, lang);
         string title = view.Title;
-        string ext = o.Format switch { "md" or "markdown" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", _ => "html" };
-        string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", ext == "md" ? "markdown" : ext, Fmt.FileSafe(title.Length > 0 ? title : "Anleitung") + "." + ext);
+        string fmt = o.Format switch { "markdown" => "md", var f => f };
+        if (fmt == "bugreport" && view.UnreviewedCount > 0)
+            throw new InvalidOperationException(lang == "de" ? $"Fehlerbericht erst nach der Durchsicht: {view.UnreviewedCount} auffällige Eingaben sind ungeprüft." : $"Bug report only after the review: {view.UnreviewedCount} flagged inputs are not reviewed.");
+        if (fmt == "tour") o.MouseMarks = false;   // die Klickfläche zeigt die Stelle – keine eingezeichneten Mausmarken
+        string ext = fmt switch { "md" or "bugreport" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", _ => "html" };
+        string sub = fmt switch { "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", _ => ext };
+        string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", sub, Fmt.FileSafe(title.Length > 0 ? title : "Anleitung") + "." + ext);
         if (Directory.Exists(outPath) || outPath.EndsWith('\\') || outPath.EndsWith('/')) outPath = Path.Combine(outPath, Fmt.FileSafe(title) + "." + ext);
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
         if (File.Exists(outPath) && !o.Overwrite) throw new IOException("Ziel existiert bereits: " + outPath);
-        switch (ext)
+        switch (fmt)
         {
-            case "html": File.WriteAllText(outPath, Html(doc, o), new UTF8Encoding(false)); break;
             case "md": Markdown(doc, outPath); break;
             case "docx": Docx(doc, outPath); break;
-            case "pdf": Pdf(doc, outPath); break;
+            case "pdf": Pdf(doc, outPath, res); break;
             case "gif": Gif(doc, outPath, o); break;
+            case "bugreport": res.Text = BugReport(view, doc, outPath); break;
+            case "tour":
+                File.WriteAllText(outPath, Tour(doc, o), new UTF8Encoding(false));
+                if (new FileInfo(outPath).Length > 25L << 20) res.Notices.Add(lang == "de" ? "Die Klick-Tour ist größer als 25 MB – zum Verschicken ggf. die Darstellung „Ausschnitt“ oder weniger Schritte wählen." : "The click tour is larger than 25 MB – for sending, consider the \"detail\" view or fewer steps.");
+                break;
+            case "pptx": Pptx(doc, outPath, o); break;
+            default: File.WriteAllText(outPath, Html(doc, o), new UTF8Encoding(false)); break;
         }
         res.Files.Add(outPath); res.Path = outPath;
         return res;
@@ -167,15 +178,15 @@ public static class GuideExport
                 "flat" => flat.ToString(),
                 _ => chap == 0 ? (++pre).ToString() : $"{chap}.{++inChap}"
             };
-            byte[]? png = null; int w = 0, h = 0;
+            byte[]? png = null; int w = 0, h = 0; RectangleF? hot = null;
             if (o.Images && !st.Redacted && st.ShowImage != false)
             {
                 string variant = StepImages.GuideVariant(st, viewMode);
                 using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: viewMode == "window" ? "window" : "screen", mask: ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks), overview: overview, authorAnnotations: true);
-                if (img != null) { png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height; }
+                if (img != null) { png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height; if (o.Format == "tour") hot = StepImages.HotspotPercent(img, st.Kind); }
             }
             var notes = st.Comments.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).Where(n => n.Item2.Length > 0).ToList();
-            d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize));
+            d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot));
         }
         }
 
@@ -461,7 +472,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     // PDF (zwei Durchläufe: der erste ermittelt die Seitenzahlen fürs Inhaltsverzeichnis)
     // =====================================================================================
 
-    static void Pdf(Doc d, string outPath)
+    static void Pdf(Doc d, string outPath, ExportResult res)
     {
         var jpegs = new Dictionary<Item, (byte[] jpg, int w, int h)>();
         (byte[] jpg, int w, int h)? logo = null;

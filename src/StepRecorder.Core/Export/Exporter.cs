@@ -69,7 +69,7 @@ public static class Exporter
     static readonly HashSet<string> Known = new(Guide) { "ki", "ahk", "autohotkey", "ahk-ki", "ahkki" };
 
     /// <summary>Formate, die <see cref="GuideExport"/> wirklich erzeugen kann (wird mit neuen Formaten erweitert).</summary>
-    public static Func<string, bool> GuideSupports { get; set; } = f => f is "html" or "md" or "docx" or "pdf" or "gif";
+    public static Func<string, bool> GuideSupports { get; set; } = f => f is "html" or "md" or "docx" or "pdf" or "gif" or "pptx" or "tour" or "bugreport";
 
     public static string Normalize(string format) => format.ToLowerInvariant() switch { "markdown" => "md", "autohotkey" => "ahk", "ahkki" => "ahk-ki", var f => f };
     public static bool IsKnownFormat(string format) { var f = Normalize(format); return Known.Contains(f) && (!Guide.Contains(f) || GuideSupports(f)); }
