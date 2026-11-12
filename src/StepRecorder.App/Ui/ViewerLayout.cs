@@ -304,6 +304,7 @@ sealed partial class ViewerWindow
         var statusBar = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(16, 6, 16, 7), Child = _status };
 
         var root = new DockPanel();
+        Anim.Appear(top, 0, -6, 360); Anim.Appear(left, 60, 10); Anim.Appear(center, 130, 10); Anim.Appear(detPanel, 200, 10);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
@@ -496,6 +497,7 @@ sealed partial class ViewerWindow
             if (_thumbTargets.TryGetValue(s.Id, out var img) && _thumbs[s.Id] is { } src)
             {
                 img.Source = src;
+                Anim.Refresh(img, 0, 320);
                 if (img.Parent is Border { Parent: Grid lg } && lg.Children.Count > 1) lg.Children[1].Visibility = Visibility.Collapsed;
             }
             PumpThumbs();

@@ -1,0 +1,116 @@
+Sebastians Step Recorder – Lizenz
+Copyright © 2026 Sebedai (https://github.com/Sebedai). Alle Rechte vorbehalten.
+
+Diese Lizenz trennt zwischen dem fertigen Programm und dem Quellcode.
+(English summary at the end.)
+
+
+1. DAS PROGRAMM (kostenlos nutzbar)
+
+„Programm“ ist die vom Rechteinhaber veröffentlichte Datei SebastiansStepRecorder.exe,
+wie sie unter https://github.com/Sebedai/sebastians-step-recorder/releases bereitgestellt wird.
+
+1.1 Sie dürfen das Programm kostenlos, zeitlich unbegrenzt und auf beliebig vielen Rechnern
+    nutzen – privat, in Schule und Ausbildung sowie beruflich und gewerblich.
+
+1.2 Sie dürfen das Programm unverändert und kostenlos an andere weitergeben, z. B. per USB-Stick
+    oder im Firmennetz, sofern diese Lizenz bzw. ein Hinweis auf die Bezugsquelle beiliegt.
+
+1.3 Nicht erlaubt ist,
+    a) das Programm zu verkaufen, zu vermieten oder gegen Entgelt bereitzustellen,
+    b) das Programm zu verändern, zu dekompilieren, zu disassemblieren oder anders zurückzuentwickeln,
+       soweit dies nicht durch zwingendes Recht (z. B. § 69e UrhG) ausdrücklich erlaubt ist,
+    c) Urheberrechts- und Lizenzhinweise zu entfernen oder zu verändern,
+    d) das Programm unter anderem Namen oder als eigenes Produkt auszugeben.
+
+1.4 Alles, was Sie mit dem Programm erstellen – Aufnahmen, Anleitungen, Exporte, KI-Pakete,
+    Skripte –, gehört Ihnen. Diese Lizenz stellt daran keine Ansprüche.
+
+
+2. DER QUELLCODE (alle Rechte vorbehalten)
+
+„Quellcode“ ist alles in diesem Repository: Programmcode, Projektdateien, Tests, Dokumentation,
+Spezifikation, Grafiken und Symbole.
+
+2.1 Der Quellcode wird ausschließlich zum Ansehen veröffentlicht („source available“).
+    Er ist keine Open-Source-Software.
+
+2.2 Ohne vorherige schriftliche Erlaubnis des Rechteinhabers ist es nicht gestattet,
+    a) den Quellcode ganz oder in Teilen zu kopieren, zu speichern oder zu vervielfältigen –
+       ausgenommen das reine Ansehen im Browser,
+    b) den Quellcode zu ändern, zu übersetzen oder abgeleitete Werke daraus zu erstellen,
+    c) eigene Programmversionen aus dem Quellcode zu erstellen (zu kompilieren) und
+       diese zu nutzen oder weiterzugeben,
+    d) Teile des Quellcodes in andere Projekte zu übernehmen,
+    e) den Quellcode oder Abwandlungen davon zu veröffentlichen oder zu verbreiten,
+       auch nicht als Fork, Spiegelung oder Kopie auf anderen Plattformen.
+
+2.3 Hinweis zu GitHub: Die Nutzungsbedingungen von GitHub ermöglichen es GitHub-Nutzern,
+    öffentliche Repositories innerhalb von GitHub anzusehen und mit der Fork-Funktion zu kopieren.
+    Ein solcher Fork räumt keinerlei weitere Rechte ein: Insbesondere ist es nicht gestattet,
+    einen Fork zu verändern, daraus Programme zu erstellen oder ihn außerhalb von GitHub zu nutzen
+    oder zu verbreiten. Abschnitt 2.2 gilt für Forks uneingeschränkt.
+
+2.4 Fehlermeldungen und Verbesserungsvorschläge über die Issues-Funktion von GitHub sind
+    willkommen. Mit dem Einreichen von Code, Text oder Ideen räumen Sie dem Rechteinhaber das
+    unentgeltliche, unbefristete Recht ein, diese zu nutzen.
+
+Anfragen für weitergehende Rechte: über https://github.com/Sebedai
+
+
+3. HAFTUNG UND GEWÄHRLEISTUNG
+
+Das Programm wird kostenlos und so, wie es ist, überlassen. Der Rechteinhaber haftet nur bei
+Vorsatz und grober Fahrlässigkeit, bei Verletzung von Leben, Körper oder Gesundheit sowie nach
+dem Produkthaftungsgesetz. Im Übrigen ist jede Haftung und Gewährleistung ausgeschlossen,
+soweit gesetzlich zulässig – insbesondere für Datenverlust und für Inhalte, die mit dem Programm
+aufgezeichnet oder weitergegeben werden. Sie sind selbst dafür verantwortlich, Aufnahmen vor der
+Weitergabe auf vertrauliche oder personenbezogene Daten zu prüfen.
+
+
+4. BESTANDTEILE DRITTER
+
+Das Programm enthält die .NET-Laufzeitumgebung und die Windows Presentation Foundation von Microsoft
+unter der MIT-Lizenz:
+
+    The MIT License (MIT)
+    Copyright (c) .NET Foundation and Contributors
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+    and associated documentation files (the "Software"), to deal in the Software without restriction,
+    including without limitation the rights to use, copy, modify, merge, publish, distribute,
+    sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or
+    substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+    NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+    NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+    DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Die Lizenzen dieser Bestandteile bleiben von dieser Lizenz unberührt.
+
+
+5. SCHLUSSBESTIMMUNGEN
+
+Es gilt das Recht der Bundesrepublik Deutschland. Sollte eine Bestimmung unwirksam sein,
+bleiben die übrigen Bestimmungen wirksam.
+
+
+---------------------------------------------------------------------------------------------------
+ENGLISH SUMMARY (the German text above is binding)
+
+The PROGRAM (SebastiansStepRecorder.exe as published in the GitHub releases) is freeware: you may
+use it free of charge, privately and commercially, on any number of computers, and share unmodified
+copies free of charge. You may not sell, modify or reverse-engineer it. Everything you create with it
+belongs to you.
+
+The SOURCE CODE in this repository is source-available, not open source. All rights reserved.
+Viewing it on GitHub is permitted; copying, modifying, compiling, reusing parts of it, publishing it
+or distributing it – including as a fork or mirror – requires prior written permission. GitHub's
+fork feature does not grant any of these rights.
+
+The program is provided "as is", without warranty, to the extent permitted by law.

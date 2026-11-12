@@ -368,9 +368,10 @@ sealed class CountdownWindow : Window
             _left--;
             if (_left <= 0) { t.Stop(); Close(); Finished?.Invoke(); return; }
             _num.Text = _left.ToString();
+            Anim.Pop(_num, 0.55, 360);
             Tones.Tick();
         };
-        Loaded += (_, _) => { Tones.Tick(); t.Start(); };
+        Loaded += (_, _) => { Tones.Tick(); t.Start(); if (Content is UIElement ce) Anim.Pop(ce, 0.85, 300); Anim.Pop(_num, 0.55, 360); };
         KeyDown += (_, e) => { if (e.Key == Key.Escape) { t.Stop(); Close(); } };
     }
 }

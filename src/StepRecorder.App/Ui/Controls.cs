@@ -128,6 +128,7 @@ static class U
         content.Children.Add(body);
         root.Children.Add(content);
         w.Content = root;
+        Anim.Appear(content, 0, 8, 320);
     }
 
     /// <summary>Kopf eines Abschnitts (klein, gedämpft).</summary>

@@ -4,7 +4,7 @@
 
 Sebastians Step Recorder zeichnet auf, was Sie am Windows-PC tun: jeden Klick, jede Eingabe, jede Tastenkombination – samt Bildschirmfoto und dem Namen des angeklickten Bedienelements. Daraus entstehen Bedienungsanleitungen als PDF, Word, HTML, Markdown oder animiertes GIF, ein Paket für KI-Assistenten oder ein AutoHotkey-Skript, das den Ablauf wiederholt.
 
-Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das Programm ist in seinen eigenen Bildschirmfotos nie zu sehen.
+Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das Programm ist in seinen eigenen Bildschirmfotos nie zu sehen. **Kostenlos nutzbar** – auch beruflich ([Lizenz](#lizenz)).
 
 **[⬇ Download: SebastiansStepRecorder.exe](https://github.com/Sebedai/sebastians-step-recorder/releases/latest)**
 
@@ -22,6 +22,7 @@ Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das P
 - [Für KI und Automatisierung](#für-ki-und-automatisierung)
 - [Systemvoraussetzungen und Hinweise](#systemvoraussetzungen-und-hinweise)
 - [Häufige Fragen](#häufige-fragen)
+- [Lizenz](#lizenz)
 
 ---
 
@@ -211,14 +212,12 @@ Ja – entweder als exportierte Datei (PDF, HTML …) oder den ganzen Aufnahmeor
 
 ---
 
-### Aus dem Quellcode bauen
+## Lizenz
 
-Benötigt das .NET 8 SDK unter Windows.
+**Das Programm ist kostenlos:** `SebastiansStepRecorder.exe` darf privat und beruflich, auf beliebig vielen Rechnern und ohne Zeitlimit genutzt und unverändert kostenlos weitergegeben werden. Alles, was Sie damit erstellen, gehört Ihnen.
 
-```bash
-dotnet build StepRecorder.sln
-dotnet test tests/StepRecorder.Tests
-dotnet publish src/StepRecorder.App -c Release -r win-x64
-```
+**Der Quellcode bleibt vorbehalten:** Er ist hier nur zum Ansehen veröffentlicht und keine Open-Source-Software. Kopieren, Ändern, eigene Versionen erstellen oder verbreiten – auch als Fork – ist ohne schriftliche Erlaubnis nicht gestattet.
 
-Die fertige `SebastiansStepRecorder.exe` liegt danach unter `%LOCALAPPDATA%\StepRecorder-build\publish\StepRecorder\release_win-x64\`. Das Datenformat der Aufnahmen ist unter [docs/spezifikation](docs/spezifikation/04-datenformat.md) beschrieben.
+Den verbindlichen Text enthält die Datei [LICENSE](LICENSE). Fehler und Wünsche gerne über [Issues](https://github.com/Sebedai/sebastians-step-recorder/issues).
+
+© 2026 Sebedai

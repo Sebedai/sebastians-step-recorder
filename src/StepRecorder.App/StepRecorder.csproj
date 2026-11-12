@@ -15,7 +15,7 @@
     <Version>0.9.0</Version>
     <Product>Sebastians Step Recorder</Product>
     <AssemblyTitle>Sebastians Step Recorder</AssemblyTitle>
-    <Copyright>MIT License</Copyright>
+    <Copyright>© 2026 Sebedai – Freeware; Quellcode: alle Rechte vorbehalten</Copyright>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <Deterministic>true</Deterministic>

@@ -392,7 +392,7 @@ sealed class RecordingBar : Window
             SetWindowLongPtr(h, Win32.GWL_EXSTYLE, (nint)(ex | 0x08000000 /*NOACTIVATE*/ | Win32.WS_EX_TOOLWINDOW));
             Invisibility.Apply(this);
         };
-        Loaded += (_, _) => { Center(); SetPulse(true); };
+        Loaded += (_, _) => { Center(); SetPulse(true); if (Content is UIElement ce) Anim.Appear(ce, 0, -14, 380); };
         SizeChanged += (_, _) => { if (!_dragged) Center(); };
         SetTime(TimeSpan.Zero, 0, RecorderState.Recording, false);
     }

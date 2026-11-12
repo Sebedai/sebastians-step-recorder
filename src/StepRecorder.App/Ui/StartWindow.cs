@@ -42,6 +42,7 @@ sealed class StartWindow : Window
     readonly WrapPanel _chips = new() { Margin = new Thickness(0, 10, 0, 0) };
     Border _customCard = null!;
     Button _recLink = null!;
+    Border _strip = null!;
 
     int ProfileIndex => Math.Max(0, Array.FindIndex(_profiles, r => r.IsChecked == true));
 
@@ -86,7 +87,7 @@ sealed class StartWindow : Window
         var meterBox = U.Col(U.Overline("Detailgrad", new Thickness(0, 0, 0, 6)), _meter, _recLink);
         meterBox.Margin = new Thickness(24, 0, 0, 0); meterBox.MinWidth = 150;
         DockPanel.SetDock(meterBox, Dock.Right); stripTop.Children.Add(meterBox); stripTop.Children.Add(_modeText);
-        var strip = new Border
+        var strip = _strip = new Border
         {
             Background = Theme.Surface2, CornerRadius = new CornerRadius(7), Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 12, 0, 0),
             Child = U.Col(stripTop, _chips, U.Text(DetailPresets.BaseRule() + " Passwortfelder werden in allen Modi maskiert.", 11.5, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)))
@@ -194,7 +195,10 @@ sealed class StartWindow : Window
         root.Children.Add(hero);
         root.Children.Add(columns);
         root.Children.Add(foot);
-        Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        Content = Anim.WithAmbientGlow(new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, Theme.AccentColor);
+        // gestaffeltes Erscheinen
+        Anim.Appear(header, 0, 6); Anim.Appear(hero, 70, 12); Anim.Appear(main, 170, 14);
+        Anim.Appear(recentPanel, 250, 14); Anim.Appear(keysPanel, 320, 14); Anim.Appear(tipPanel, 390, 14); Anim.Appear(foot, 450, 6);
         UpdateProfile();
         FillRecent();
         PreviewKeyDown += (_, e) =>
@@ -233,7 +237,9 @@ sealed class StartWindow : Window
         var head = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
         if (action != null) { DockPanel.SetDock(action, Dock.Right); head.Children.Add(action); action.VerticalAlignment = VerticalAlignment.Center; }
         var t = U.Text(title, 15, true); t.FontFamily = Theme.Display; t.VerticalAlignment = VerticalAlignment.Center;
-        head.Children.Add(U.Row(U.Icon(glyph, 14, Theme.AccentText), new Border { Width = 10 }, t));
+        var ic = U.Icon(glyph, 14, Theme.AccentText);
+        if (glyph == Theme.IRecord) Anim.Breathe(ic, 0.3, 1800);   // „Neue Aufnahme“: ruhig pulsierender Aufnahmepunkt
+        head.Children.Add(U.Row(ic, new Border { Width = 10 }, t));
         return new Border
         {
             Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(10),
@@ -272,9 +278,15 @@ sealed class StartWindow : Window
         var hint = U.Row(U.Kbd("Eingabe", new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)), Theme.OnAccent, new SolidColorBrush(Color.FromArgb(90, 255, 255, 255))), U.Text("startet sofort", 11.5, fg: Theme.OnAccent, margin: new Thickness(4, 0, 0, 0)));
         ((FrameworkElement)hint.Children[1]).Opacity = 0.85; ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
         hint.Margin = new Thickness(0, 12, 0, 0);
-        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, sub, hint), Background = Theme.Accent, BorderBrush = Theme.Accent, Foreground = Theme.OnAccent, MinHeight = 132, ToolTip = "Ganzen Bildschirm aufnehmen (Eingabe)" };
-        b.MouseEnter += (_, _) => b.Background = (Brush)Application.Current.Resources["AccentHover"];
-        b.MouseLeave += (_, _) => b.Background = Theme.Accent;
+        // Verlauf in der Akzentfarbe mit weichem Leuchten; beim Überfahren etwas heller
+        var ac = Theme.AccentColor;
+        Color Mix(Color c, double t) => Color.FromRgb((byte)(c.R + (255 - c.R) * t), (byte)(c.G + (255 - c.G) * t), (byte)(c.B + (255 - c.B) * t));
+        var rest = new LinearGradientBrush(ac, Mix(ac, 0.22), new Point(0, 1), new Point(1, 0));
+        var hot = new LinearGradientBrush(Mix(ac, 0.08), Mix(ac, 0.32), new Point(0, 1), new Point(1, 0));
+        var b = new Button { Style = Theme.Style("Tile"), Content = U.Col(icon, head, sub, hint), Background = rest, BorderBrush = Brushes.Transparent, Foreground = Theme.OnAccent, MinHeight = 132, ToolTip = "Ganzen Bildschirm aufnehmen (Eingabe)" };
+        b.MouseEnter += (_, _) => b.Background = hot;
+        b.MouseLeave += (_, _) => b.Background = rest;
+        Anim.Glow(b, ac, 0.28, 0.55, 34);
         b.Click += (_, _) => { try { Begin(ScopeMode.Screen); } catch (Exception ex) { UiApp.ShowError(ex); } };
         return b;
     }
@@ -410,7 +422,9 @@ sealed class StartWindow : Window
     {
         if (_profiles == null || _recLink == null) return;
         int i = ProfileIndex;
+        bool changed = _modeText.Text != Modes[i].text && _modeText.Text.Length > 0;
         _modeText.Text = Modes[i].text;
+        if (changed) { Anim.Refresh(_strip, 0.3, 260); Anim.Stagger(_chips, 40, 35, 4); }
         if (i is 1 or 2 && _goalCard != null) _goalCard.Visibility = Visibility.Visible;
         _customCard.Visibility = i == 3 ? Visibility.Visible : Visibility.Collapsed;
         _recLink.Content = U.IconText(Theme.IEdit, i == 3 ? "Einstellungen ein/aus" : "Anpassen …");
@@ -578,7 +592,8 @@ sealed class StartWindow : Window
         "Privattaste Strg+Umschalt+F8: Eingaben werden nur gezählt, nicht gespeichert.\n\n" +
         "Editor: Texte direkt rechts ändern, Kapitel und Hinweiskästen am Schritt anlegen, im Reiter „Dokument“ Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe festlegen, Werkzeuge links am Bild (V Auswahl, A Pfeil, R Rahmen, E Ellipse, M Hervorheben, T Text, N Nummer, X Schwärzen), Markierungen anklicken und mit Entf löschen, Schritte per Ziehen umsortieren. Strg+C kopiert das Bild, Strg+E exportiert.\n\n" +
         "KI-Zugriff: SebastiansStepRecorder.exe mcp --root <Aufnahmeordner> startet den MCP-Server (stdio).\n\n" +
-        "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.",
+        "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.\n\n" +
+        "Freeware – kostenlos nutzbar, auch beruflich. Quellcode: alle Rechte vorbehalten. © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
         "Hilfe", MessageBoxButton.OK, MessageBoxImage.Information);
 
     protected override void OnClosed(EventArgs e) { base.OnClosed(e); UiApp.Instance.MaybeShutdown(); }
