@@ -48,7 +48,8 @@ public static class Redactor
         edits["savedAtUtc"] = Json.UtcNow();
         edits["savedBy"] = "recorder";
         Json.WriteAtomic(editsPath, Json.Pretty(edits));
-        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "lastInput", ["ranges"] = ranges.Count });
+        int frames = PurgeRangeFrames(folder, ranges);
+        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "lastInput", ["ranges"] = ranges.Count, ["frames"] = frames });
     }
 
     /// <summary>Wendet Text-Schwärzungen aus dem Overlay endgültig auf das Journal an.</summary>
@@ -99,12 +100,60 @@ public static class Redactor
             }
         }
         RewriteJournal(folder, lines);
-        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n });
+        // Bilder aller geschwärzten Zeiträume (auch früher angewendeter) aus den Rohdaten entfernen – wiederholbar
+        var imageRanges = (edits.Arr("redactions") ?? new JsonArray()).OfType<JsonObject>()
+            .Where(r => r.Str("kind") == "range" && (r["images"]?.GetValue<bool>() ?? true))
+            .SelectMany(r => r.Arr("seqRanges") ?? new JsonArray()).Select(a => (a![0]!.GetValue<long>(), a[1]!.GetValue<long>())).ToList();
+        int frames = PurgeRangeFrames(folder, imageRanges);
+        AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n, ["frames"] = frames });
         try { var cache = Path.Combine(folder, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
-        return n;
+        return n + frames;
     }
 
     static void NeuterKey(JsonObject e) { e["key"] = "Redacted"; e["vk"] = 0; e["sc"] = 0; e.Remove("ch"); }
+
+    /// <summary>
+    /// Entfernt die Bilder geschwärzter Zeiträume aus den Rohdaten: Bildereignisse im Zeitraum (oder mit Bezug darauf) werden
+    /// zu <c>store: none</c>; spätere Bilder, die als Änderung darauf aufbauen, werden vorher als Schlüsselbild neu gespeichert;
+    /// nicht mehr verwendete Blobs werden gelöscht. Gibt die Zahl entfernter Bilder zurück.
+    /// </summary>
+    public static int PurgeRangeFrames(string folder, IReadOnlyCollection<(long from, long to)> ranges)
+    {
+        if (ranges.Count == 0) return 0;
+        var path = Path.Combine(folder, "events.jsonl");
+        List<JsonObject> lines;
+        using (var fs = File.OpenRead(path)) lines = Session.ReadJournal(fs).events;
+        bool In(long q) => ranges.Any(r => q >= r.from && q <= r.to);
+        var frames = new Dictionary<string, JsonObject>();
+        foreach (var l in lines) if (l.Str("type") == "frame" && l.Str("id") is { } id) frames[id] = l;
+        var purge = frames.Values.Where(f => f.Obj("store").Str("kind") is not (null or "none") && (In(f.Long("seq")) || (f.LongN("ref") is long r && In(r))))
+                                 .Select(f => f.Str("id")!).ToHashSet();
+        if (purge.Count == 0) return 0;
+        bool Depends(string id, int depth)
+        {
+            if (depth > 64 || !frames.TryGetValue(id, out var f)) return false;
+            var st = f.Obj("store");
+            string? baseId = st.Str("kind") switch { "same" => st.Str("as"), "delta" => st.Str("base"), _ => null };
+            return baseId != null && (purge.Contains(baseId) || Depends(baseId, depth + 1));
+        }
+        using (var s = Session.Open(folder, recover: false))
+        {
+            foreach (var (id, f) in frames)
+            {
+                if (purge.Contains(id) || !Depends(id, 0)) continue;
+                using var bmp = s.RestoreFrameCopy(id);
+                f["store"] = bmp == null
+                    ? new JsonObject { ["kind"] = "none", ["reason"] = "redacted" }
+                    : FrameStore(folder, FrameBlobs.EncodeKey(bmp));
+            }
+        }
+        foreach (var id in purge) { frames[id]["store"] = new JsonObject { ["kind"] = "none", ["reason"] = "redacted" }; frames[id].Remove("cursor"); }
+        RewriteJournal(folder, lines);
+        FrameBlobs.DeleteUnreferenced(folder, FrameBlobs.Referenced(lines));
+        return purge.Count;
+    }
+
+    static JsonObject FrameStore(string folder, byte[] png) => new() { ["kind"] = "key", ["blob"] = FrameBlobs.Write(folder, png), ["bytes"] = png.Length };
 
     /// <summary>Zu jedem key.down das nächste key.up derselben Taste (vor dem Entschärfen aufrufen).</summary>
     public static List<JsonObject> PairedKeyUps(IReadOnlyList<JsonObject> lines, HashSet<long> downs)

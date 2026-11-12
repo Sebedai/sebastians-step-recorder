@@ -614,12 +614,14 @@ sealed partial class ViewerWindow : Window
 
     void FinalRedact()
     {
-        if (Msg.Show("Alle Text- und Zeitraum-Schwärzungen jetzt endgültig in die Rohdaten schreiben?\n\nDas lässt sich nicht rückgängig machen.\n\nHinweis: Bildschwärzungen, Verpixelungen und Verallgemeinerungen bleiben eine Bearbeitung; die Bilder eines geschwärzten Zeitraums bleiben in den Rohdaten, werden aber in keiner Ausgabe gezeigt. Für die Weitergabe der ganzen Aufnahme die bereinigte Kopie verwenden.", "Endgültig schwärzen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        if (Msg.Show(Loc.L("Alle Text- und Zeitraum-Schwärzungen jetzt endgültig in die Rohdaten schreiben?\n\nDas lässt sich nicht rückgängig machen. Die Bilder geschwärzter Zeiträume werden dabei aus der Aufnahme gelöscht.\n\nHinweis: Bildschwärzungen, Verpixelungen und Verallgemeinerungen bleiben eine Bearbeitung. Für die Weitergabe der ganzen Aufnahme die bereinigte Kopie verwenden (Alle Aufnahmen → Packen).",
+                "Write all text and time-range redactions permanently into the raw data now?\n\nThis cannot be undone. Images of redacted time ranges are deleted from the recording.\n\nNote: image redactions, pixelation and generalizations remain edits. To share the whole recording, use the sanitized copy (All recordings → Pack)."),
+                Loc.L("Endgültig schwärzen", "Redact permanently"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         int n = Redactor.ApplyTextRedactionsDestructive(_view.Session.Path, _view.Edits);
         _view.SaveEdits();
         var anchor = Sel?.Id;
         Load(); _thumbs.Clear(); Fill(anchor);
-        Msg.Show($"{n} Stellen endgültig geschwärzt.");
+        Msg.Show(Loc.N(n, "1 Stelle endgültig geschwärzt.", "{0} Stellen endgültig geschwärzt.", "1 item redacted permanently.", "{0} items redacted permanently."));
     }
 
     void ClearAnnotations()
