@@ -425,12 +425,12 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         if (d.Subtitle.Length > 0) x.Subtitle(d.Subtitle);
         foreach (var (label, value) in d.Meta) x.MetaLine(label, value);
         if (d.S.Cover) x.PageBreak();
+        // Sprungziele je Block (Kapitel = Überschrift 1, Schritt = Überschrift 2) – das Inhaltsverzeichnis verweist darauf
+        var marks = new Dictionary<object, string>();
+        for (int i = 0; i < d.Blocks.Count; i++) marks[d.Blocks[i]] = SimpleDocx.TocBookmark(i + 1);
         if (d.ShowToc)
         {
-            x.Heading(d.L("Inhalt", "Contents"), 1);
-            foreach (var b in d.Blocks)
-                if (b is Chapter c) x.TocEntry(Heading(c.Number, c.Title), 0);
-                else if (b is Item it) x.TocEntry(Heading(it.Number, it.Title), d.HasChapters ? 1 : 0);
+            x.Toc(d.L("Inhalt", "Contents"), d.Blocks.Select(b => b is Chapter c ? (Heading(c.Number, c.Title), 1, marks[b]) : (Heading(((Item)b).Number, ((Item)b).Title), 2, marks[b])));
             if (d.S.Cover) x.PageBreak();
         }
         if (d.Intro.Length > 0) { x.Heading(d.L("Über diese Anleitung", "About this guide"), 1); x.Paragraph(d.Intro); }
@@ -439,7 +439,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
-                x.Heading(Heading(c.Number, c.Title), 1);
+                x.Heading(Heading(c.Number, c.Title), 1, marks[b]);
                 if (c.Text.Length > 0) x.Paragraph(c.Text);
                 continue;
             }
@@ -452,7 +452,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                     foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
                     return;
                 }
-                x.Heading(Heading(it.Number, it.Title), 2);
+                x.Heading(Heading(it.Number, it.Title), 2, marks[b]);
                 if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
                 foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
             }
@@ -493,13 +493,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         PdfRender(d, jpegs, logo, pages, null);
         var pdf = PdfRender(d, jpegs, logo, new Dictionary<string, int>(), pages);
         File.WriteAllBytes(outPath, pdf.ToBytes());
+        res.Warnings.AddRange(pdf.Warnings);
     }
 
     static SimplePdf PdfRender(Doc d, Dictionary<Item, (byte[] jpg, int w, int h)> jpegs, (byte[] jpg, int w, int h)? logo, Dictionary<string, int> record, Dictionary<string, int>? known)
     {
         var acc = d.S.AccentRgb();
         var ink = (0.11, 0.11, 0.10); var muted = (0.42, 0.41, 0.38); var line = (0.85, 0.84, 0.81);
-        var pdf = new SimplePdf { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title };
+        var pdf = new SimplePdf { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US" };
         double cw = pdf.ContentWidth;
 
         // Deckblatt oder Kopf
@@ -544,6 +545,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 if (t != title) t = t.TrimEnd() + "…";
                 pdf.DrawText(pdf.Margin + indent + numW, pdf.Y + 3, t, size, isChap, ink);
                 pdf.DrawText(pdf.Margin + cw - SimplePdf.TextWidth(pg, size), pdf.Y + 3, pg, size, false, muted);
+                pdf.LinkTo(pdf.Margin + indent, pdf.Y, cw - indent, lh, key);
             }
             pdf.NewPage();
         }
@@ -565,6 +567,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 pdf.EnsureSpace(120);
                 pdf.Space(10);
                 record[c.Anchor] = pdf.PageCount;
+                pdf.Dest(c.Anchor);
+                pdf.Bookmark(Heading(c.Number, c.Title), 0, c.Anchor);
                 pdf.Paragraph(Heading(c.Number, c.Title), 17, true, 0, 4, acc);
                 pdf.Line(pdf.Margin, pdf.Y, pdf.Margin + cw, pdf.Y, acc, 1.2);
                 pdf.Space(10);
@@ -579,6 +583,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 double th = SimplePdf.MeasureText(it.Title, cw - lead, 10.5, true);
                 pdf.EnsureSpace(th + 14);
                 record[it.Anchor] = pdf.PageCount;
+                pdf.Dest(it.Anchor);
+                pdf.Bookmark(Heading(it.Number, it.Title), d.HasChapters ? 1 : 0, it.Anchor);
                 double top2 = pdf.Y;
                 if (d.Checkboxes) pdf.StrokeRect(pdf.Margin + 1, top2 - 12, 10, 10, ink, 0.8);
                 else if (it.Number.Length > 0) pdf.DrawText(pdf.Margin, top2 - 10, it.Number + ".", 10.5, true, acc);
@@ -600,6 +606,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             record[it.Anchor] = pdf.PageCount;
 
             double top = pdf.Y;
+            pdf.Bookmark(Heading(it.Number, it.Title), d.HasChapters ? 1 : 0, it.Anchor);
             double imgH = 0, imgW = 0;
             if (side)
             {
@@ -609,6 +616,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 double textH = titleH + SimplePdf.MeasureText(it.Text, textW, 10.5) + 20;
                 if (top - Math.Max(imgH, textH) < pdf.Margin + 20) { pdf.NewPage(); top = pdf.Y; record[it.Anchor] = pdf.PageCount; }
             }
+            pdf.SetY(top); pdf.Dest(it.Anchor);
             // Nummer als Marke, Überschrift daneben
             if (numW > 0)
             {

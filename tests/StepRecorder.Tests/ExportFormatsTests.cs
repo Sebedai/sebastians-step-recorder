@@ -77,6 +77,34 @@ public class ExportFormatsTests : IDisposable
             Assert.Equal(3, theme.Descendants(ad + lst).Single().Elements().Count());
     }
 
+    // ---------------- Word: echtes Inhaltsverzeichnis ----------------
+
+    [Fact]
+    public void Docx_TocIsField_WithBookmarkLinks_NoUpdatePrompt()
+    {
+        var a = New();
+        using (var v = SessionView.Open(a))
+        {
+            long first = v.GuideSteps().First().Anchor;
+            v.Edits["steps"] = new System.Text.Json.Nodes.JsonArray(new System.Text.Json.Nodes.JsonObject { ["anchor"] = first, ["chapter"] = new System.Text.Json.Nodes.JsonObject { ["title"] = "Vorbereitung" } });
+            Assert.True(v.SaveEdits());
+        }
+        var r = Export(a, "docx", "a.docx");
+        using var zip = ZipFile.OpenRead(r.Path);
+        Assert.DoesNotContain(zip.Entries, e => e.FullName == "word/settings.xml");          // kein updateFields
+        string xml; using (var sr = new StreamReader(zip.GetEntry("word/document.xml")!.Open())) xml = sr.ReadToEnd();
+        var doc = XDocument.Parse(xml);
+        XNamespace w = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+        Assert.Contains(doc.Descendants(w + "docPartGallery"), e => (string?)e.Attribute(w + "val") == "Table of Contents");
+        Assert.Contains(doc.Descendants(w + "instrText"), e => e.Value.Contains("TOC \\o \"1-2\" \\h \\z \\u"));
+        var anchors = doc.Descendants(w + "hyperlink").Select(e => (string)e.Attribute(w + "anchor")!).ToList();
+        var marks = doc.Descendants(w + "bookmarkStart").Select(e => (string)e.Attribute(w + "name")!).ToHashSet();
+        Assert.NotEmpty(anchors);
+        Assert.All(anchors, x => Assert.Contains(x, marks));
+        Assert.DoesNotContain("w:dirty", xml);
+        Assert.Equal(1, doc.Descendants(w + "fldChar").Count(e => (string?)e.Attribute(w + "fldCharType") == "begin" && e.Parent!.ElementsAfterSelf().Any(x => x.Value.Contains("TOC"))));
+    }
+
     // ---------------- Klick-Tour ----------------
 
     [Fact]
