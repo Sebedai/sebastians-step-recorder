@@ -108,7 +108,7 @@ V14 bis V20 und Kernablauf 3 gehören zu Funktionen der Priorität Soll. In V20 
 |---|---|
 | Nach dem Stopp einer Aufnahme | Der Viewer öffnet sich von selbst mit der neuen Sitzung ([07](07-aufnahme-bedienung.md#12-stopp-und-übergang-zum-viewer)). |
 | Startfenster, „Zuletzt verwendet“ | Ein Klick öffnet die Sitzung. |
-| Sitzungsbibliothek | Siehe [Abschnitt 11](#11-sitzungen-verwalten). |
+| Sitzungsbibliothek | „Alle Aufnahmen“, siehe [Abschnitt 11](#11-sitzungen-verwalten). `Strg+L` öffnet sie im Editor und im Startfenster. |
 | Drag & Drop | Sitzungsordner oder `.steprec`-Datei auf das Fenster oder auf die EXE ziehen. |
 | Kommandozeile | EXE mit dem Pfad der Sitzung starten ([02](02-architektur.md)). |
 | Dialog „Sitzung öffnen“ | `Strg+O`. |
@@ -116,9 +116,9 @@ V14 bis V20 und Kernablauf 3 gehören zu Funktionen der Priorität Soll. In V20 
 Weitere Festlegungen:
 
 - **Keine Dateizuordnung:** Ein Doppelklick auf eine `.steprec`-Datei öffnet den Viewer nicht von selbst. Dafür müsste das Programm die Registry ändern, und das tut es ohne Ausnahme nicht. Geöffnet wird per Drag & Drop, über „Zuletzt verwendet“ und über die Kommandozeile.
-- **Gepackte Sitzungen** (`.steprec`) öffnen sich direkt und lassen sich bearbeiten. Ob dazu in die Datei zurückgeschrieben oder im Hintergrund entpackt wird, regelt [04](04-datenformat.md).
+- **Gepackte Sitzungen** (`.steprec`) öffnen sich direkt, aber nur zum Lesen: Eine Leiste „Schreibgeschützt (.steprec) – zum Bearbeiten bitte entpacken.“ mit der Schaltfläche „Entpacken …“ steht unter der Kopfleiste. Ansehen, Abspielen, Kopieren und Export funktionieren; Bearbeitungsstände gibt es nicht ([7.10](#710-bearbeitungsstände)). „Entpacken …“ legt eine bearbeitbare Aufnahme im Aufnahmeordner an (bei gleicher Aufnahme fragt das Programm nach) und öffnet sie anstelle des Archivs ([11](#11-sitzungen-verwalten)). Wie das Archiv aufgebaut ist und geprüft wird, regelt [04](04-datenformat.md).
 - **Nur lesen:** Liegt die Sitzung auf einem schreibgeschützten Datenträger oder stammt sie aus einer neueren Formatversion, öffnet sie sich mit einem Hinweisbalken; Ansehen, Abspielen und Kopieren funktionieren, Bearbeiten nicht. „Kopie zum Bearbeiten anlegen“ steht im Balken.
-- **Mehrere Sitzungen** öffnen sich in eigenen Fenstern (Kann). Wird eine bereits geöffnete Sitzung erneut geöffnet, kommt ihr Fenster nach vorn.
+- **Mehrere Sitzungen** öffnen sich in eigenen Fenstern. Wird eine bereits geöffnete Sitzung erneut geöffnet – etwa aus der Bibliothek –, kommt ihr Fenster nach vorn, auf Wunsch mit Sprung zu einem Schritt.
 - **Schließen** fragt nichts: Alles ist gespeichert. „Neue Aufnahme“ führt zurück zum Startfenster.
 - Beginnt eine Aufnahme, verschwindet der Viewer und kehrt nach dem Stopp zurück ([07](07-aufnahme-bedienung.md#11-unsichtbarkeitsgarantie-aus-nutzersicht)).
 
@@ -161,7 +161,7 @@ Weitere Festlegungen:
 | Zeitleiste (unten) | Schritte, Lücken, Marker, Pausen auf der Zeitachse | `Strg+T` |
 | Statusleiste | Position, Speicherstatus, aktive Schwärzungen, Stand der Eingaben-Durchsicht, Sprache der Texte | immer sichtbar |
 
-Die Trennlinien sind verschiebbar; Aufteilung, Fenstergröße und Zoom werden gemerkt. Bei schmalem Fenster klappt zuerst der Detailbereich ein. `F11` zeigt nur das Bild.
+Die Trennlinien sind verschiebbar; was das Programm sich merkt, steht in [4.5](#45-fensterlage-und-gemerkter-zustand). Bei schmalem Fenster klappt zuerst der Detailbereich ein. `F11` zeigt nur das Bild.
 
 ### 4.2 Schrittliste
 
@@ -170,6 +170,9 @@ Die Trennlinien sind verschiebbar; Aufteilung, Fenstergröße und Zoom werden ge
 - **Lücken**, die Eingaben betreffen können, stehen als eigene, schraffierte Zeilen an ihrer zeitlichen Stelle, mit Ursache und Dauer (Schrittart „Lücke“, [05](05-schritterkennung.md#schrittarten)). Die übrigen – etwa ein einzelnes ausgelassenes Bild oder die Bedienung des Recorders – stehen in Zeitleiste und Lückenliste.
 - Der Umschalter **Haupt | Alle** zeigt nur Hauptschritte oder alle Schritte einschließlich Nebenschritten und Spurdaten ([05](05-schritterkennung.md#wichtigkeitsstufen)). Marker sind zusätzlich als Fähnchen sichtbar; das Fähnchen zeigt den Typ des Markers ([4.4](#44-ziel-der-aufnahme-und-marker-typen)). Ein Marker „Notiz“ ist ein Nebenschritt, die Typen „Fehler“, „Erwartet“ und „Wichtig“ sind Hauptschritte.
 - Kapitel erscheinen als einklappbare Überschriften.
+- **Reihenfolge:** Die Liste folgt der Reihenfolge der Anleitung, auch nach dem Umsortieren ([9.2](#92-aktionen)). Ausgeblendete Schritte behalten ihren Platz und erscheinen grau; „Nach oben“ und „Nach unten“ rechnen auf derselben Folge.
+- **Zusammengefasste Schritte** ([9.2](#92-aktionen)): Der führende Schritt trägt das Kennzeichen „N zusammengefasst“, die übrigen Mitglieder „→ Schritt N“.
+- **Qualität:** Ein Schritt mit einer Warnung der Qualitätsprüfung trägt ein Kennzeichen mit der Regelnummer ([12.1](#121-qualitätshinweise)).
 - Nummeriert sind die sichtbaren Hauptschritte in der Reihenfolge der Anleitung. Die Kennung des Schritts (etwa `s1734`) ändert sich nie und steht in den technischen Details; über sie lassen sich Anleitung und KI-Protokoll einander zuordnen.
 
 ### 4.3 Sitzungsübersicht
@@ -222,6 +225,28 @@ Ein Klick auf das Info-Symbol neben dem Titel öffnet die Übersicht der Sitzung
 - **Typ ändern:** Das Kontextmenü des Markers bietet die vier Typen an. Die Änderung steht im Overlay (`steps[].markerKind`, [04](04-datenformat.md#ev-marker)); das Rohprotokoll bleibt unverändert. Mit dem Typ wechselt die Wichtigkeit, sofern der Autor sie nicht eigens gesetzt hat ([05](05-schritterkennung.md#schrittarten)).
 - **Wichtigkeit:** „Fehler“, „Erwartet“ und „Wichtig“ sind Hauptschritte und stehen damit in der Anleitung – als Hinweis mit dem Bild des Augenblicks ([09](09-anleitungs-export.md#46-ziel-marker-neuaufnahmen-und-platzhalter)). „Notiz“ ist ein Nebenschritt für den Autor.
 - Der Typ ist eine Angabe des Autors, keine Beobachtung. Im Vergleich zweier Aufnahmen und im KI-Paket erscheint er mit.
+
+### 4.5 Fensterlage und gemerkter Zustand
+
+Das Programm merkt sich, wie der Autor arbeitet, damit er an der Stelle weitermachen kann, an der er aufgehört hat. Gespeichert wird das im flüchtigen Zustand des Programms (`StepRecorder.state.json`), nie in der Aufnahme; die Datei enthält keine Inhalte der Aufnahmen. Ist sie unlesbar, beginnt das Programm mit den Vorgaben.
+
+| Was | Gilt für | Verhalten |
+|---|---|---|
+| Fensterlage und -größe, Maximierung | Startfenster, Editor, „Alle Aufnahmen“ (je Fenster) | Das Fenster öffnet dort, wo es geschlossen wurde. Die Lage wird an die heutigen Monitore und ihre Skalierung angepasst: Fehlt der Monitor oder ist die Fläche kleiner, rückt das Fenster in den sichtbaren Bereich. |
+| Breite der Schrittliste und des Detailbereichs, gewählter Reiter im Detailbereich | alle Aufnahmen | Wie zuletzt eingestellt, soweit die Mindestbreiten es erlauben. |
+| Zuletzt gewählter Schritt | je Aufnahme | Eine Aufnahme öffnet am zuletzt gewählten Schritt. |
+| Filter „Alle“ (statt „Haupt“) und Bildansicht (Darstellung) | je Aufnahme | Wie zuletzt eingestellt. |
+
+- Der Zustand der letzten 50 Aufnahmen bleibt erhalten, ältere fallen weg.
+- Beim Öffnen aus der Bibliothek oder aus einem Suchtreffer hat der gewünschte Schritt Vorrang vor dem gemerkten.
+
+### 4.6 Sprache der Oberfläche
+
+Alle Fenster und Meldungen sind zweisprachig (Deutsch, Englisch). Die Sprache wählt die Einstellung „Oberflächensprache“: dem System folgen, Deutsch oder Englisch. Davon unabhängig ist die Sprache der Anleitungstexte ([9.1](#91-texte)), die in der Statusleiste steht.
+
+- Texte, die in die Aufnahme oder in eine Ausgabe gelangen – ein neues Kapitel, ein eingefügter Schritt, die Kopie als Text oder Markdown –, folgen der Sprache der Anleitungstexte, nicht der Oberfläche.
+- Tastennamen („Strg“ oder „Ctrl“), Datum und Zahlen folgen der Oberflächensprache. Der Name eines gespeicherten Detailgrads bleibt deutsch, angezeigt wird er übersetzt.
+- Die Kürzelübersicht (`F1`) und die Menüs zeigen die Tastennamen der Oberflächensprache; die Beschreibungen in dieser Spezifikation nennen die deutschen.
 
 ## 5 Ansehen
 
@@ -300,7 +325,8 @@ Die Galerie zeigt die Bilder aller Schritte als Raster – für den schnellen Ü
 
 ### 5.6 Suche und Filter
 
-- **Suche** (`Strg+F`) durchsucht Schritttexte, Elementnamen, getippten Text, Fenstertitel, Kommentare und die Text-Schnappschüsse neuer Fenster. Treffer sind in der Schrittliste hervorgehoben; `F3` und `Umschalt+F3` springen weiter.
+- **Suche** (`Strg+F`) durchsucht Überschrift und Text der Schritte (Anleitungs- und Protokolltext, eigene Texte), die Titel und Texte der Kapitel, Elementnamen, getippten Text, Fenstertitel, Kommentare einschließlich interner Notizen und die Text-Schnappschüsse neuer Fenster. Treffer sind in der Schrittliste hervorgehoben; `F3` und `Umschalt+F3` springen weiter.
+- **Suchregeln:** Ohne Beachtung der Groß- und Kleinschreibung. Mehrere durch Leerzeichen getrennte Wörter müssen **alle** vorkommen (UND); Wörter in Anführungszeichen („…“ oder "…") suchen die genaue **Wortfolge**. Mehrfache Leerzeichen und Zeilenumbrüche zählen als ein Leerzeichen. Dieselben Regeln gelten in der Kürzelübersicht (`F1`) und in der Bibliothek ([11.2](#112-volltextsuche-über-alle-sitzungen)).
 - Maskierte und geschwärzte Inhalte sind nicht durchsuchbar.
 - **Filter:** Anwendung, Schrittart, Wichtigkeitsstufe, mit Kommentar, bearbeitet, mit Schwärzung, Belegstufe, ausgeblendet, verworfen, „zu prüfen“ (Belegstufe nicht „belegt“ oder ungeprüfte Eingabe). Mit den zugehörigen Funktionen kommen hinzu (Soll): Marker nach Typ, ersetzt, neu aufgenommen, mit Qualitätshinweis.
 
@@ -404,7 +430,8 @@ Die Ausgabe der Wiedergabe als GIF oder Video ist Kann.
   5. Markierungen des Autors,
   6. Skalierung auf die Zielgröße.
 - Markierungen sind an **Bildkoordinaten des gespeicherten Bildes** gebunden. Beim Wechsel der Darstellung bleiben sie an derselben Stelle des Inhalts.
-- Markierungen gehören zum **Schritt und Bild** (Vorher oder Nachher): Dasselbe gespeicherte Bild kann in zwei Schritten unterschiedliche Markierungen tragen.
+- Markierungen gehören zum **Schritt und Bild** (Vorher oder Nachher): Dasselbe gespeicherte Bild kann in zwei Schritten unterschiedliche Markierungen tragen. Eine Markierung erscheint **nur auf dem Bild, auf dem sie gezeichnet wurde** – im Editor, in Kopien und in jedem Export. Eine Markierung auf dem Vorher-Bild fehlt auf dem Nachher-Bild und umgekehrt.
+- **Eine Geometrie für alle:** Wo ein Objekt getroffen wird, welche Griffe es hat und wie es sich verschiebt oder in der Größe ändert, rechnet ein gemeinsamer Baustein im Kern; Editor und Export zeichnen dieselben Formen und kommen deshalb zum selben Bild.
 - Schwärzungen gehören dagegen zum **gespeicherten Bild** und gelten überall, wo es vorkommt ([7.6](#76-schwärzen-und-verpixeln)).
 
 ```
@@ -429,19 +456,22 @@ Die Ausgabe der Wiedergabe als GIF oder Video ist Kann.
 | Werkzeug | Taste | Zweck | Einstellbar | Priorität |
 |---|---|---|---|---|
 | Auswahl | `V` | Objekte wählen, verschieben, in der Größe ändern, löschen | – | Muss |
-| Pfeil | `A` | Auf etwas zeigen | Farbe, Stärke, Spitze (ohne Spitze: Linie) | Muss |
+| Pfeil | `A` | Auf etwas zeigen | Farbe, Stärke | Muss |
+| Linie | `Umschalt+A` | Gerade Linie ohne Spitze | Farbe, Stärke | Soll |
 | Rechteck | `R` | Etwas einrahmen | Farbe, Stärke, Füllung, Eckenrundung | Muss |
-| Ellipse | `O` | Etwas einkreisen | wie Rechteck | Muss |
+| Ellipse | `E` | Etwas einkreisen | wie Rechteck | Muss |
 | Text | `T` | Beschriftung im Bild | Größe, Farbe, Hintergrund | Muss |
 | Nummer | `N` | Nummerierte Marke; zählt je Bild hoch | Farbe, Größe, Startwert | Muss |
 | Markierstift | `M` | Halbtransparente Hervorhebung | Farbe, Stärke | Muss |
-| Lupe | `L` | Vergrößerter Einsatz eines Bildteils | Vergrößerung 1,5- bis 4-fach, Form | Soll |
+| Lupe | `L` | Vergrößerter Einsatz eines Bildteils: Bereich aufziehen, die runde Linse zeigt ihn vergrößert | Linse und Quelle lassen sich getrennt verschieben; ein runder Griff an der Linse ändert den Zoom | Soll |
 | Zuschnitt | `C` | Freien Bildausschnitt festlegen | Seitenverhältnis, Vorgaben | Muss |
-| Schwärzen | `S` | Bereich schwarz abdecken | Ausdehnung | Muss |
-| Verpixeln | `X` | Bereich in Verpixel- oder Unschärfe-Optik abdecken | Optik, Ausdehnung | Muss |
-| Kommentar-Pin | `P` | Nummerierter Pin mit Text | Nummer | Soll |
-| Spotlight | `U` | Alles außer einem Bereich abdunkeln | Stärke der Abdunklung | Kann |
-| Freihand | `F` | Freie Linie | Farbe, Stärke | Kann |
+| Schwärzen | `X` | Bereich schwarz abdecken | Ausdehnung | Muss |
+| Verpixeln | `P` | Bereich in Verpixel- oder Unschärfe-Optik abdecken | Optik, Ausdehnung | Muss |
+| Kommentar-Pin | – | Nummerierter Pin mit Text | Nummer | Soll, noch nicht vorhanden |
+| Spotlight | `U` | Alles außer einem Bereich abdunkeln | Die Strichstärke bestimmt die Abdunklung: dünn 0,4, mittel 0,55, dick 0,7 | Kann |
+| Freihand | `F` | Freie Linie; beim Loslassen wird sie geglättet | Farbe, Stärke | Kann |
+
+Die Werkzeugleiste ordnet die Werkzeuge in drei Spalten, darunter die Farbpalette. Umgesetzt sind alle Werkzeuge der Tabelle bis auf den Kommentar-Pin; die Tasten stehen auch in der Kürzelübersicht (`F1`, [15](#15-tastenkürzel)). Beim Anklicken wird ein Spotlight zuletzt geprüft, weil es große Flächen deckt; Markierungen darunter bleiben erreichbar.
 
 Automatische Markierungen sind keine Werkzeuge, sondern Schalter:
 
@@ -523,6 +553,17 @@ Ein Bildersatz umgeht keine Schwärzung: Kommt später eine hinzu, gilt sie auch
 - `Strg+Z` und `Strg+Y` nehmen jede Bearbeitung zurück und stellen sie wieder her – Markierungen, Texte, Reihenfolge, Ausblenden, Schwärzungen. Unbegrenzt, solange die Sitzung geöffnet ist. Ein Verlauf über das Schließen hinaus ist Kann.
 - „Schritt zurücksetzen“ entfernt alle Bearbeitungen eines Schritts; „Sitzung zurücksetzen“ nach Rückfrage alle.
 - Nicht rücknehmbar ist allein das endgültige Schwärzen.
+- Frühere Stände der gesamten Bearbeitung lassen sich über die [Bearbeitungsstände](#710-bearbeitungsstände) wiederherstellen.
+
+### 7.10 Bearbeitungsstände
+
+Das Programm sichert das Bearbeitungs-Overlay von selbst, damit sich auch eine große Bearbeitung zurückholen lässt, die längst aus dem Rückgängig-Verlauf ist. Die Stände liegen in der Sitzung unter `history/` (`edits-<UTC>-r<Revision>-<Anlass>.json`).
+
+- **Wann gesichert wird:** beim ersten Speichern nach dem Öffnen, danach höchstens alle 10 Minuten und erzwungen vor „Alle ersetzen“, „Zuschnitt auf alle“, „Vorlage anwenden“ und vor dem Wiederherstellen. Ein Stand mit derselben Revision wird nicht doppelt gesichert.
+- **Grenzen:** höchstens 40 Stände und 15 MB; die ältesten fallen weg. Ein Fehler beim Sichern hält die Bearbeitung nie auf.
+- **Fenster „Bearbeitungsstände …“** (Menü „…“): Jeder Stand zeigt, wann er entstand (relativ), den Anlass, die Revision, eine Zusammenfassung und den Unterschied zum jetzigen Stand. Ein Stand, der dem jetzigen entspricht, lässt sich nicht wiederherstellen.
+- **Wiederherstellen ist eine normale Bearbeitung:** `Strg+Z` nimmt sie zurück, die Revision steigt weiter. **Schwärzungen, Verallgemeinerungen und der Stand der Durchsicht bleiben standardmäßig, wie sie jetzt sind**; ein Kontrollkästchen im Fenster hebt das auf. So macht ein alter Stand weder eine Schwärzung noch eine Durchsicht ungeschehen.
+- **Schutz:** „Endgültig schwärzen“ löscht alle Stände ([7.6](#76-schwärzen-und-verpixeln)). Eine `.steprec`-Datei und eine bereinigte Kopie enthalten keine Stände; ein geöffnetes Archiv hat keine.
 
 ## 8 Kommentieren
 
@@ -546,6 +587,7 @@ Ebenso erscheinen **ausgeblendete Kommentare** in keiner Ausgabe – weder in de
 
 - Kommentare sind reiner Text mit einfacher Auszeichnung: fett, kursiv, Code, Link. Andere Auszeichnung wird als Text ausgegeben.
 - Kommentare lassen sich bearbeiten, verschieben, in der Kennzeichnung ändern und löschen. Das gilt auch für Kommentare aus der Aufnahme: Sie werden im Bearbeitungs-Overlay geändert oder ausgeblendet, das Rohprotokoll bleibt unberührt ([04](04-datenformat.md#edits-json)).
+- **Interne Kommentare:** Auch ein bei der Aufnahme geschriebener Kommentar lässt sich als intern kennzeichnen („Interner Kommentar – erscheint in keiner Ausgabe“). Sein Text bleibt im Editor sichtbar. Interne Notizen eines Schritts stehen im Detailbereich unter „Interne Notizen (N) – in keiner Ausgabe“ und lassen sich dort löschen. Eine bereinigte Kopie ([11](#11-sitzungen-verwalten)) enthält sie nicht.
 - Marker aus der Aufnahme erscheinen als Fähnchen; ein Klick darauf legt einen Kommentar an dieser Stelle an.
 - Kommentare fließen als „Kommentar des Autors“ in die Anleitung ([09](09-anleitungs-export.md)) und ins KI-Paket ([06](06-ki-export-und-mcp.md#74-kommentare-des-autors)).
 
@@ -566,8 +608,9 @@ Ebenso erscheinen **ausgeblendete Kommentare** in keiner Ausgabe – weder in de
 | Ausblenden, Einblenden | `Entf` in der Schrittliste, `Strg+H` | Der Schritt fehlt; im Viewer bleibt er grau sichtbar |
 | Verwerfen, Verwerfen zurücknehmen | Kontextmenü | Ein Schritt wird nachträglich als Fehlbedienung gekennzeichnet und fehlt dann; ein bei der Aufnahme verworfener Schritt erscheint wieder |
 | Inhalt schwärzen | `Umschalt+Entf` | An der Stelle des Schritts steht der Platzhalter „Schritt geschwärzt“; er fehlt nur, wenn der Schritt zusätzlich ausgeblendet ist ([7.6](#76-schwärzen-und-verpixeln)) |
-| Zusammenfassen | `Strg+J` | Aufeinanderfolgende Schritte werden ein Schritt mit dem ersten Vorher- und dem letzten Nachher-Bild |
-| Teilen | `Strg+Umschalt+J` | Ein zusammengefasster Schritt oder eine Texteingabe wird an einer gewählten Stelle geteilt |
+| Zusammenfassen | `Strg+J` | Aufeinanderfolgende Schritte werden ein Schritt mit dem ersten Vorher- und dem letzten Nachher-Bild (Festlegungen unten) |
+| Zusammenfassung aufheben | `Strg+Umschalt+J` | Die Mitglieder erscheinen wieder einzeln |
+| Teilen (Soll) | – | Eine Texteingabe wird an einer gewählten Stelle geteilt; noch nicht vorhanden |
 | Verschieben | `Alt+↑`, `Alt+↓`, Ziehen | Neue Reihenfolge |
 | Kapitel einfügen | `Strg+Umschalt+K` | Überschrift vor dem gewählten Schritt |
 | Hinweisschritt einfügen | `Einfg` | Eigener Textschritt nach dem gewählten Schritt |
@@ -578,9 +621,13 @@ Festlegungen:
 
 - **Ausblenden ist nicht Schwärzen.** Ausgeblendete Schritte fehlen nur in der Anleitung. Was niemand sehen darf, wird geschwärzt.
 - **Bearbeitungen für die Anleitung nehmen der KI nichts weg.** Wie ausgeblendete, verworfene, zusammengefasste und umsortierte Schritte im KI-Paket erscheinen, regelt [06](06-ki-export-und-mcp.md); aus Sicht des Viewers bleibt das KI-Protokoll zeitlich geordnet und vollständig, und nur Schwärzungen entfernen dort Inhalt.
-- **Umsortieren** ändert nur die Reihenfolge der Anleitung. Die Statusleiste zeigt „Reihenfolge geändert“; „Zeitliche Reihenfolge wiederherstellen“ nimmt es zurück. Die Bilder zeigen weiterhin den Zustand zum Zeitpunkt der Aufnahme.
+- **Umsortieren** ändert nur die Reihenfolge der Anleitung; die Schrittliste zeigt sie ([4.2](#42-schrittliste)). Die Statusleiste zeigt „Reihenfolge geändert“; „Zeitliche Reihenfolge wiederherstellen“ nimmt es zurück. Die Bilder zeigen weiterhin den Zustand zum Zeitpunkt der Aufnahme.
 - **Teilen** zeigt die Eingaben des Schritts als Streifen; ein Klick zwischen zwei Eingaben setzt die Trennstelle.
-- **Zusammenfassen** ist auflösbar; die Einzelschritte bleiben erhalten.
+- **Zusammenfassen** gilt nur für Anleitungen (HTML, Markdown, Word, PDF, PowerPoint, Klick-Tour, Fehlerbericht, GIF). KI-Paket, MCP-Server, Vergleich und AutoHotkey zeigen weiter die Einzelschritte.
+  - **Voraussetzung:** Gewählt sind mindestens zwei **aufeinanderfolgende** aufgenommene Schritte. Eingefügte Schritte, Lücken der Aufzeichnung und Schritte, die schon zu einer Gruppe gehören, lassen sich nicht zusammenfassen; ebenso wenig eine Auswahl, in der ab dem zweiten Schritt ein Kapitel beginnt. Das Programm nennt den Grund in der Statuszeile.
+  - **Ergebnis:** Der erste Schritt führt die Gruppe. Die Anleitung zeigt ihn mit dem ersten sichtbaren Vorher- und dem letzten Nachher-Bild; Zeitspanne, Kommentare und Wichtigkeit (die höchste der Mitglieder) fassen alle zusammen. Der Text ist die Aneinanderreihung der Texte der sichtbaren Mitglieder; ausgeblendete oder geschwärzte Mitglieder tragen nichts bei.
+  - **Text der Gruppe:** Der Autor bearbeitet ihn am führenden Schritt. Er gilt für die Sprache, in der er geschrieben wurde, und steht in `edits.merges[].text` je Sprache ([04](04-datenformat.md#edits-json)); „Automatischen Text wiederherstellen“ nimmt ihn zurück. „Alle ersetzen“ erfasst auch diese Texte.
+  - **Aufheben** (`Strg+Umschalt+J` auf einem Mitglied) löscht nur die Gruppe; die Einzelschritte und ihre Bearbeitungen bleiben erhalten. Ist der führende Schritt ausgeblendet, ist die Gruppe ausgeblendet.
 - Alle Aktionen sind an Ereignisnummern verankert und überstehen eine Neuberechnung der Schritte ([04](04-datenformat.md)).
 
 ### 9.3 Abschnitt neu aufnehmen und ersetzen
@@ -696,6 +743,7 @@ Eine Anleitung soll für andere gelten: nicht der eigene Benutzername, sondern `
 | Mehrere Schritte kopieren | `Strg+C` bei Mehrfachauswahl | Die Bilder der gewählten Schritte nacheinander | HTML, RTF, Datei |
 | Mini-Anleitung kopieren | `Strg+Umschalt+C` bei Mehrfachauswahl | Nummerierte Schritte mit Text und Bild | HTML, RTF, Text |
 | Ganze Anleitung kopieren | Menü Kopieren | Wie die Mini-Anleitung, für alle sichtbaren Hauptschritte | HTML, RTF, Text |
+| Als Fehlerbericht kopieren | Menü Kopieren | Der Fehlerbericht ([09](09-anleitungs-export.md#8c-fehlerbericht)) als Markdown, ohne Bildverweise; mit den Bildern gibt es ihn als Export. Voraussetzung ist die Durchsicht | Text |
 | Einzelangabe kopieren | Klick auf das Kopier-Symbol | Getippter Text, Elementname, Fenstertitel, Pfad, Adresse oder Tastenfolge | Text |
 | Technische Daten kopieren | Im Detailbereich | Der Schritt als JSON | Text |
 
@@ -813,11 +861,16 @@ Die beiden letzten Einstellungen setzen die dafür vorgesehenen Windows-Kennzeic
 └─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Die **Sitzungsbibliothek** zeigt alle Sitzungen des Aufnahmeordners mit Vorschaubild, Titel, Schrittzahl, Dauer, Größe und Schlagwörtern. Suche über Titel, Schlagwörter und Anwendungen; Sortierung nach Datum, Titel, Größe. Die Suche in den Inhalten aller Sitzungen beschreibt [11.2](#112-volltextsuche-über-alle-sitzungen).
+- Die **Sitzungsbibliothek** („Alle Aufnahmen“, `Strg+L` im Editor und im Startfenster) ist ein eigenes Fenster; ein zweiter Aufruf holt es nach vorn und aktualisiert es. Sie findet die Aufnahmen und `.steprec`-Archive des Aufnahmeordners, ohne Verknüpfungen zu folgen, und zeigt je Aufnahme Vorschaubild, Titel, Schrittzahl (Hauptschritte), Dauer und Größe. Das Vorschaubild kommt über die Leseschicht und enthält alle Schwärzungen – nie ein Rohbild. Titel, Stand der Durchsicht und Vorschaubild merkt sich das Programm unter `cache/`.
+- **Kennzeichen** je Aufnahme: „Aufnahme läuft“, „nicht regulär beendet“, „nicht lesbar“, „schreibgeschützt (.steprec)“, „Durchsicht offen (N)“, „im Editor geöffnet“ und die Art des Aufnahmeprofils.
+- **Filter und Sortierung:** Das Suchfeld filtert nach Titel („Titel“) oder sucht in den Inhalten aller Aufnahmen („Inhalte“, [11.2](#112-volltextsuche-über-alle-sitzungen)). Sortiert wird nach Datum (neueste oder älteste zuerst), Titel, Dauer oder Schrittzahl. Mehrfachauswahl ist möglich.
+- **Aktionen:** Öffnen (`Eingabe`), Umbenennen (`F2`), Packen …, Im Explorer zeigen, Löschen (`Entf`); im Menü „Weitere Aktionen“ Exporte löschen …, Aus „Zuletzt“ entfernen und Pfad kopieren. `F5` aktualisiert, `Strg+F` und `Strg+Umschalt+F` setzen den Fokus ins Suchfeld im Modus „Titel“ bzw. „Inhalte“. Schlagwörter, Duplizieren, Verschieben, Vergleichen mit … und Support-Paket erstellen sind Soll.
+- **Umbenennen** ändert den Titel in der Aufnahme, nicht den Ordnernamen. Bei `.steprec`-Archiven ist es gesperrt: erst entpacken.
+- **Packen …** speichert die Aufnahme als `.steprec`-Datei und fragt, wie ([11.3](#113-packen-und-entpacken)). Im Editor steht dieselbe Funktion im Menü „…“ als „Als .steprec packen …“.
+- **Entpacken:** Eine `.steprec`-Datei, die auf das Fenster gezogen oder über „Entpacken …“ gewählt wird, entpackt das Programm in den Aufnahmeordner und öffnet die Aufnahme ([11.3](#113-packen-und-entpacken)).
 - **Automatischer Name:** Jede Sitzung erhält beim Stopp einen Titel nach dem Muster `{Datum} {Zeit} – {Anwendung} – {Titel}`, mit der Anwendung, in der die meisten Hauptschritte liegen, und dem ersten Fenstertitel. Der Ordner wird passend benannt; unzulässige Zeichen werden ersetzt. Gelingt das Umbenennen nicht, bleibt der Zeitstempel als Ordnername.
-- **Aktionen je Sitzung:** Öffnen, Umbenennen, Schlagwörter, Duplizieren, Verschieben, Packen zu `.steprec` und Entpacken, Bereinigte Kopie erstellen, Im Explorer zeigen, Export, KI-Paket, Aufnahme anhängen, Löschen; dazu (Soll) Vergleichen mit … ([5.9](#59-zwei-aufnahmen-vergleichen)) und Support-Paket erstellen ([12.2](#122-support-paket-geführter-ablauf)).
 - **Lokal aufgenommen, später verschoben:** Wurde wegen der Sync-Warnung lokal aufgenommen ([07](07-aufnahme-bedienung.md#13-einstellungen)), bietet der Viewer nach der Durchsicht der Eingaben an, die Sitzung in den ursprünglich gewählten Ordner zu verschieben (Soll).
-- **Löschen** legt die Sitzung in den Papierkorb, nach Rückfrage.
+- **Löschen** verschiebt die Aufnahme nach Rückfrage in den Papierkorb. Geöffnete und laufende Aufnahmen lassen sich nicht löschen. Gibt es auf dem Laufwerk keinen Papierkorb, fragt das Programm ausdrücklich nach endgültigem Löschen und löscht nie stillschweigend. „Exporte löschen …“ entfernt nur die Ausgaben im Ordner `export/` auf demselben Weg.
 - **Aufnahme anhängen:** „Aufnahme fortsetzen“ im Viewer startet eine Aufnahme mit dem Aufnahmebereich der Sitzung. Die neuen Schritte stehen am Ende; der Viewer öffnet sich danach beim ersten neuen Schritt. „Hier einfügen“ stellt sie in der Anleitung hinter den gewählten Schritt (Kann).
 - Unvollständige und nicht lesbare Sitzungen sind gekennzeichnet.
 - Die Bibliothek liest je Sitzung nur Kopfdaten und Vorschaubild, für die Suche in den Inhalten zusätzlich den Suchindex der Sitzung.
@@ -853,7 +906,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 
 ### 11.2 Volltextsuche über alle Sitzungen
 
-„Wo habe ich das schon einmal aufgenommen?“ – die Suche der Sitzungsbibliothek findet Text in den Inhalten aller Sitzungen des Aufnahmeordners (Soll).
+„Wo habe ich das schon einmal aufgenommen?“ – die Suche der Sitzungsbibliothek findet Text in den Inhalten aller Sitzungen des Aufnahmeordners.
 
 ```
 ┌─ Alle Aufnahmen ───────────────────────────────────────────────────────────────────────┐
@@ -870,7 +923,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Aufruf:** das Suchfeld der Sitzungsbibliothek mit der Wahl „Inhalte“; aus dem Viewer `Strg+Umschalt+F`. „Nur Titel“ sucht wie bisher in Titel, Schlagwörtern und Anwendungen.
+- **Aufruf:** das Suchfeld der Sitzungsbibliothek mit der Wahl „Inhalte“; in der Bibliothek setzt `Strg+Umschalt+F` den Fokus dorthin. Die Wahl „Titel“ oder „Inhalte“ wird gemerkt. „Nur Titel“ sucht wie bisher in Titel, Schlagwörtern und Anwendungen.
 - **Durchsucht werden** die Texte, die der Suchindex führt ([06](06-ki-export-und-mcp.md#197-search)): getippte Texte, Elementnamen, Fenstertitel, Kommentare, das Ziel der Aufnahme – Ziel, erwartetes Ergebnis, Bezug –, Sitzungstitel, eigene Schritttexte und Marker-Texte. Feldinhalte, Text-Schnappschüsse und Zwischenablage-Inhalte stehen nicht im Index; sie findet nur die Suche innerhalb einer Sitzung ([5.6](#56-suche-und-filter)).
 - **Treffer** stehen gruppiert je Sitzung, mit Schritt, einer Zeile Umgebung, hervorgehobener Fundstelle und Vorschaubild. Ein Klick öffnet die Sitzung im Viewer an diesem Schritt; der Suchbegriff ist dort als Suche übernommen. Treffer in Ziel und Titel gehören zu keinem Schritt und öffnen die Sitzung am Anfang.
 - Treffer in ersetzten Schritten und in nicht verwendeten Neuaufnahmen ([9.3](#93-abschnitt-neu-aufnehmen-und-ersetzen)) sind als solche gekennzeichnet; verworfene Abschnitte durchsucht die Suche nicht.
@@ -882,6 +935,18 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 - **Geschwindigkeit:** Mit vorhandenen Indizes erscheinen die Treffer aus 200 Sitzungen auf System A in höchstens 2 Sekunden ([02](02-architektur.md#suchindex)). Kein Öffnen einer Sitzung und kein Aufnahmestart wartet auf den Index.
 - Der MCP-Server bietet dieselbe Suche über die Sitzungen seines freigegebenen Ordners – das Werkzeug `search` mit `scope: "all"` ([06](06-ki-export-und-mcp.md#197-search)).
 
+### 11.3 Packen und Entpacken
+
+**Packen** (Bibliothek, Menü „…“ im Editor) schreibt eine `.steprec`-Datei und fragt zuerst, welche Fassung:
+
+| Fassung | Inhalt | Voraussetzung |
+|---|---|---|
+| **Bereinigte Kopie** – zum Weitergeben | Eine neue Aufnahme aus der Sicht der Leseschicht: Schwärzungen und Verallgemeinerungen sind fest angewendet, interne Kommentare und Bearbeitungsstände entfernt, Bilder geschwärzter Zeiträume gelöscht; sie erhält eine neue Kennung. Vor dem Schreiben prüft das Programm alle Textdateien auf geschwärzte und verallgemeinerte Inhalte; schlägt das fehl, entsteht nichts | Die Durchsicht ist abgeschlossen; sonst ist die Fassung gesperrt |
+| **Vollständig** – zum Weiterbearbeiten | Alle Rohdaten, auch was im Editor geschwärzt, verallgemeinert oder ausgeblendet ist | Eine zweite Bestätigung mit der Liste dessen, was der Empfänger sehen oder aufheben kann |
+
+- Gepackt werden nur bekannte Teile; nie `cache`, `export`, `history` und die Sperrdatei. Absolute Pfade von Anhängen werden entfernt. Der Dateiname ergibt sich aus dem Titel (bei der bereinigten Kopie mit dem Zusatz „(bereinigt)“).
+- **Entpacken** prüft das Archiv, bevor etwas im Aufnahmeordner entsteht: Eintrag für Eintrag nach einer Positivliste, mit Grenzen für Anzahl, Größe und Kompressionsverhältnis, über einen Zwischenordner. Ein präpariertes Archiv hinterlässt nichts. Liegt dieselbe Aufnahme schon im Ordner, fragt das Programm nach.
+- Aufnahmen, die im Archiv angehängt sind, übernimmt das Programm nicht; ein Archiv trägt keine Bearbeitungsstände.
 ## 12 Komfortfunktionen
 
 | Funktion | Beschreibung | Priorität |
@@ -890,9 +955,9 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Automatische Sitzungsnamen | Siehe [Abschnitt 11](#11-sitzungen-verwalten) | Muss |
 | Durchsicht der Eingaben vor dem Export | Siehe [Abschnitt 13](#13-durchsicht-der-eingaben) | Muss |
 | Vollständige Tastaturbedienung | Jede Funktion ist ohne Maus erreichbar | Muss |
-| Kürzelübersicht | `F1` zeigt alle Tastenkürzel, durchsuchbar | Soll |
+| Kürzelübersicht | `F1` zeigt alle Tastenkürzel, durchsuchbar ([15](#15-tastenkürzel)) | Soll |
 | Sitzungsbibliothek mit Suche | Siehe [Abschnitt 11](#11-sitzungen-verwalten) | Soll |
-| Ein-Klick-Export | `Strg+Umschalt+E` exportiert im zuletzt genutzten Format mit den zuletzt genutzten Einstellungen ([09](09-anleitungs-export.md)) | Soll |
+| Ein-Klick-Export | `Strg+Umschalt+E` wiederholt den letzten Export dieser Aufnahme mit denselben Einstellungen und demselben Ziel ([09](09-anleitungs-export.md#32-ein-klick-export)) | Soll |
 | Hell und Dunkel | Folgt der Windows-Einstellung; umschaltbar | Soll |
 | Stilvorlagen für Markierungen | Siehe [7.3](#73-eigenschaften-und-stilvorlagen) | Soll |
 | Vorschläge zum Schwärzen | Siehe [7.6](#76-schwärzen-und-verpixeln) | Soll |
@@ -900,7 +965,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Am Element einrasten | Siehe [7.4](#74-am-element-einrasten) | Soll |
 | Ganze Anleitung in die Zwischenablage | Siehe [10.2](#102-kopierbefehle) | Soll |
 | Darstellung für alle Schritte auf einmal | Ein Klick stellt alle Bilder auf Fenster oder Ausschnitt um | Soll |
-| Zuletzt gesehene Stelle | Eine Sitzung öffnet sich am zuletzt gewählten Schritt | Soll |
+| Zuletzt gesehene Stelle | Eine Sitzung öffnet sich am zuletzt gewählten Schritt; Fensterlage und Spaltenbreiten bleiben erhalten, siehe [4.5](#45-fensterlage-und-gemerkter-zustand) | Soll |
 | Vorschau beim Überfahren der Zeitleiste | Siehe [5.5](#55-zeitleiste) | Soll |
 | Dauer und Wartezeit je Schritt | Im Detailbereich; hilft bei Hinweisen wie „kurz warten“ | Soll |
 | Ziel der Aufnahme im Sitzungskopf | Ziel, erwartetes Ergebnis und Bezug ansehen und ändern, siehe [4.4](#44-ziel-der-aufnahme-und-marker-typen) | Soll |
@@ -908,7 +973,7 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Zwei Aufnahmen vergleichen | Siehe [5.9](#59-zwei-aufnahmen-vergleichen) | Soll |
 | Abschnitt neu aufnehmen und ersetzen | Siehe [9.3](#93-abschnitt-neu-aufnehmen-und-ersetzen) | Soll |
 | Werte verallgemeinern | Persönliche Werte durch Platzhalter ersetzen, siehe [9.4](#94-werte-verallgemeinern) | Soll |
-| Qualitätshinweise | Hinweisliste der Qualitätsprüfung, siehe [12.1](#121-qualitätshinweise) | Soll |
+| Qualitätshinweise | Fenster der Qualitätsprüfung (`F8`), siehe [12.1](#121-qualitätshinweise) | Soll |
 | Support-Paket | Geführter Ablauf nach einer Support-Aufnahme, siehe [12.2](#122-support-paket-geführter-ablauf) | Soll |
 | Volltextsuche über alle Sitzungen | Siehe [11.2](#112-volltextsuche-über-alle-sitzungen) | Soll |
 | Schritt neu bebildern | „Bild neu aufnehmen“ ersetzt das Bild eines Schritts durch einen frischen Schnappschuss | Kann |
@@ -918,13 +983,13 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Rechtschreibprüfung | In Schritttexten und Kommentaren, soweit Windows die Sprache bereitstellt | Kann |
 | Kapitelvorschläge | Vorschlag für Kapitel bei jedem Wechsel der Anwendung | Kann |
 | Präsentationsansicht | Vollbild mit Bild und Schritttext zum Durchklicken in Schulungen | Kann |
-| Bearbeitungsstände | Ältere Stände der Bearbeitung wiederherstellen | Kann |
-| Mehrere Fenster | Zwei Sitzungen nebeneinander | Kann |
+| Bearbeitungsstände | Ältere Stände der Bearbeitung wiederherstellen, siehe [7.10](#710-bearbeitungsstände) | Kann |
+| Mehrere Fenster | Zwei Sitzungen nebeneinander, siehe [3](#3-öffnen-und-schließen) | Kann |
 | Wiedergabe als GIF oder Video | Siehe [Abschnitt 6](#6-abspielen) | Kann |
 
 ### 12.1 Qualitätshinweise
 
-Die Qualitätsprüfung sucht Stellen, die eine Anleitung schlechter machen: ein Schritt ohne benanntes Ziel, eine Klickmarke außerhalb des Bildes, ein Text, der fehlt. Sie läuft vor jedem Export mit ([09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog)) und steht im Viewer jederzeit als Hinweisliste bereit (Soll).
+Die Qualitätsprüfung sucht Stellen, die eine Anleitung schlechter machen: ein Schritt ohne benanntes Ziel, eine Klickmarke außerhalb des Bildes, ein Text, der fehlt. Der Regelkatalog steht in [09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog); der Viewer zeigt ihn jederzeit als Hinweisliste, der Exportdialog fasst ihn zusammen, und die Kommandozeile gibt ihn mit `check` und bei `export` aus.
 
 ```
 ┌─ Qualität ───────────────────────────────────────────────────────────────────────────┐
@@ -941,14 +1006,14 @@ Die Qualitätsprüfung sucht Stellen, die eine Anleitung schlechter machen: ein 
 └──────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Aufruf:** `F8`, ein Klick auf „Qualität“ in der Statusleiste oder das Menü der Kopfleiste. Die Liste erscheint anstelle des Detailbereichs und lässt sich daneben andocken.
-- **Regeln:** Es gilt der Regelkatalog Q01 ff. aus [09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog). Jede Fundstelle nennt die Regel, ihre Schwere – Hinweis oder Warnung – und den Schritt. Fundstellen derselben Regel stehen zusammen.
-- **Sprung:** Ein Klick auf die Fundstelle wählt den Schritt und zeigt, worum es geht – den Text im Bearbeitungsfeld oder das Bild mit der betroffenen Stelle. `F4` und `Umschalt+F4` gehen zur nächsten und vorigen Fundstelle.
-- **Abhilfe:** Wo es eine naheliegende gibt, bietet die Fundstelle sie als Schaltfläche an, etwa „Ausschnitt anpassen“ oder „Regel anlegen“. Welche das je Regel ist, steht im Katalog.
-- **Ignorieren:** „Ignorieren“ blendet genau diese Fundstelle aus; sie zählt dann auch in der Export-Vorprüfung nicht mehr. Gespeichert wird je Fundstelle in `edits.qualityIgnores` ([04](04-datenformat.md#edits-quality)). „Ignorierte zeigen“ holt sie zurück. „Alle Fundstellen dieser Regel ignorieren“ merkt sich ebenfalls jede Fundstelle einzeln, sodass neue wieder erscheinen.
-- **Ignorieren hebt keinen Schutz auf.** Eine ungeprüfte auffällige Eingabe steht zuoberst in der Liste und führt in die [Durchsicht](#13-durchsicht-der-eingaben). Wer den Hinweis ignoriert, hat die Sperre vor der Weitergabe weiterhin vor sich; auch Schwärzungen und Verallgemeinerungen bleiben unberührt.
-- **Aktualität:** Die Liste rechnet nach jeder Bearbeitung im Hintergrund neu. Die Statusleiste zeigt den Stand („Qualität: 2 Warnungen · 5 Hinweise“); Schritte mit offenen Fundstellen tragen in der Schrittliste ein Kennzeichen und sind über den Filter „mit Qualitätshinweis“ erreichbar.
-- **Umfang:** Geprüft wird die Anleitung, wie sie mit den Einstellungen des letzten Exports dieser Sitzung entstünde – Sprache, Umfang, Darstellung; ohne früheren Export mit den Vorgaben der Vorlage „Standard“.
+- **Aufruf:** `F8`, der Link „Qualität: …“ in der Statusleiste, das Menü „…“ oder „Ansehen (F8)“ im Exportdialog. Die Liste ist ein **eigenes, nicht modales Fenster** (neben dem Editor); der Editor bleibt dabei bedienbar. Das Fenster zeigt oben „N Warnungen · M Hinweise“, „Ignorierte zeigen“ und „Erneut prüfen“; ohne Befunde steht dort „Keine Befunde – die Anleitung ist bereit.“
+- **Regeln:** Es gilt der Regelkatalog Q01 ff. aus [09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog). Jede Fundstelle nennt die Regel, ihre Schwere – Hinweis oder Warnung – und den Schritt. Die Liste steht nach Schwere geordnet – **Warnungen zuerst** – und innerhalb davon nach Schrittnummer. Was bei Q15 und Q18 bisher geprüft wird, steht in [09](09-anleitungs-export.md#121-qualitätsprüfung-regelkatalog).
+- **Sprung:** Ein Klick auf die Fundstelle wählt den Schritt (bei Bedarf mit Filter „Alle“); die Statuszeile nennt die Regel. `F4` und `Umschalt+F4` gehen zur nächsten und vorigen Fundstelle mit Schritt, im Kreis. Die Fenster bleiben dabei offen.
+- **Abhilfe:** Wo es eine naheliegende gibt, bietet die Fundstelle sie als Schaltfläche an: erst Sprung zum Schritt, dann das passende Werkzeug – „Durchsicht …“, „Text bearbeiten“, „Übersetzen“, „Zuschneiden“ (Zuschnitt-Werkzeug), „Ausblenden“, „Hinweis einfügen“, „Bilder prüfen …“, „Bild ersetzen …“ oder „Zusammenfassen“. Sonst heißt die Schaltfläche „Zum Schritt“.
+- **Ignorieren:** „Ignorieren“ blendet genau diese Fundstelle aus; sie zählt dann auch in der Export-Vorprüfung nicht mehr. Gespeichert wird je Fundstelle in `edits.qualityIgnores` ([04](04-datenformat.md#edits-quality)). „Ignorierte zeigen“ holt sie zurück, dort heißt die Schaltfläche „Wieder berücksichtigen“. (Soll: „Alle Fundstellen dieser Regel ignorieren“, das sich jede Fundstelle einzeln merkt, sodass neue wieder erscheinen.)
+- **Ignorieren hebt keinen Schutz auf.** Eine ungeprüfte auffällige Eingabe (Q12) führt in die [Durchsicht](#13-durchsicht-der-eingaben). Wer den Hinweis ignoriert, hat die Sperre vor der Weitergabe weiterhin vor sich; die Schaltfläche trägt den Hinweis „Ignorieren hebt die Durchsichtspflicht nicht auf.“ Auch Schwärzungen und Verallgemeinerungen bleiben unberührt.
+- **Aktualität:** Der Editor behält die Befunde bis zur nächsten Änderung und rechnet erst dann neu; im Fenster gibt „Erneut prüfen“ den Anstoß. Die Statusleiste zeigt den Stand („Qualität: 2 Warnungen, 5 Hinweise“ bzw. „Qualität: keine Befunde“). Schritte mit einer Warnung tragen in der Schrittliste ein Kennzeichen mit der Regelnummer. Der Filter „mit Qualitätshinweis“ ([5.6](#56-suche-und-filter)) ist Soll.
+- **Umfang:** Geprüft werden die Hauptschritte in der Sprache der Anleitungstexte und mit der Darstellung aus den Dokument-Einstellungen der Aufnahme. Die Kommandozeile prüft mit `--importance` und `--lang` ([09](09-anleitungs-export.md#14c-befehl-check)).
 - Für Sitzung M steht die Liste auf den Systemen A und B höchstens eine Sekunde nach dem Aufruf.
 
 ### 12.2 Support-Paket: geführter Ablauf
@@ -1040,6 +1105,9 @@ Die Durchsicht ist Teil des Schutznetzes: Bevor etwas die Sitzung verlässt, sie
 - Wege ohne Oberfläche – MCP-Server und Export per Kommandozeile – erhalten ungeprüfte auffällige Eingaben nur als Zähler `{unreviewed:N}`, bis der Autor sie hier geprüft hat. N zählt bei getippten Läufen die Tastenanschläge, bei Feldinhalten, Zwischenablage-Inhalten, Kommentaren, Ziel-Angaben und Marker-Texten die Zeichen. Die Durchsicht ist damit auch Voraussetzung dafür, dass ein Agent diese Inhalte lesen kann.
 - Die Statusleiste zeigt „Eingaben: 3 ungeprüft“; ein Klick öffnet die Durchsicht, ebenso das Menü der Sitzung und `Strg+Umschalt+R`.
 - Maskierte Eingaben erscheinen als Zeile ohne Inhalt („maskiert, 8 Tastenanschläge“) und brauchen keine Entscheidung.
+- **Terminal, Remote-Desktop und virtuelle Maschinen:** Was in einem Terminalfenster, einem Fernzugriffsprogramm oder einer virtuellen Maschine getippt wird, ist **prüfpflichtig** (Grund „Klartext-Fenster“). Die Aufnahme kann dort nicht erkennen, ob ein Kennwort eingegeben wird; Kennwortabfragen im Terminal werden **nicht** automatisch maskiert. Die Durchsicht ist deshalb der Schutz. In der Schutzstufe „Streng“ wird Getipptes in diesen Fenstern vollständig maskiert.
+- **Lesbare Gründe:** Jeder auffällige Eintrag nennt den Grund in Worten („Grund: …“), etwa „Klartext-Fenster“ oder die Art des Mustertreffers („Schlüssel“, „IBAN“ …).
+- **Sammelentscheidung für Terminalbefehle:** Sind mehrere Klartext-Eingaben offen, steht oben die Schaltfläche „Übrige Klartext-Eingaben (N): in Ordnung“. Sie setzt alle noch offenen Eingaben aus Terminal-, Remote-Desktop- und VM-Fenstern auf „In Ordnung“. **Mustertreffer** (Schlüssel, IBAN …) bleiben davon ausgenommen und brauchen weiter eine Einzelentscheidung.
 
 ## 14 Geschwindigkeitsziele
 
@@ -1099,7 +1167,11 @@ Was diese Ziele voraussetzen:
 
 ## 15 Tastenkürzel
 
-Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, solange in einem Textfeld getippt wird. Alle Kürzel sind in den Einstellungen änderbar (Soll).
+Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, solange in einem Textfeld getippt wird. Die Kürzel des Editors sind nicht änderbar (Soll); die systemweiten Kürzel der Aufnahme lassen sich in den Einstellungen ändern, mit Prüfung auf Doppelbelegung.
+
+**Befehlstabelle und Kürzelübersicht.** Der Editor führt seine Befehle in **einer Tabelle**: Befehl, Gruppe, Beschriftung, Kürzel, Bedingung. Aus ihr kommen die Tastenbehandlung, die Kürzel in den Menüs und die Übersicht – ein Kürzel steht deshalb nie an zwei Stellen verschieden. Die Tabelle wird von oben nach unten abgearbeitet; die erste passende Zeile gilt, Zeilen mit Bedingung (etwa „Markierung gewählt“) stehen vor allgemeineren. Beim Tippen in einem Textfeld wirken nur die Befehle, die dafür vorgesehen sind (Funktionstasten wie `F1`, `F5`, `F8`, `F4`).
+
+`F1` öffnet das Fenster **„Tastenkürzel“**. Es zeigt alle Befehle des Editors in den Gruppen „Schritte“, „Bild und Markierungen“, „Kopieren und Exportieren“ und „Allgemein“ und dazu **„Während der Aufnahme (systemweit)“** mit den aktuell belegten Kürzeln aus den Einstellungen („nicht belegt“, wo keines gesetzt ist). Das Suchfeld oben findet Befehl oder Kürzel; es gelten die Suchregeln aus [5.6](#56-suche-und-filter). Nicht aufgeführt sind Zweitbelegungen, etwa `←` und `→` für den nächsten und vorigen Schritt.
 
 **Navigation**
 
@@ -1111,7 +1183,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Strg+G` | Zu Schrittnummer springen |
 | `Strg+F`, `F3`, `Umschalt+F3` | Suchen, nächster, voriger Treffer |
 | `Strg+→`, `Strg+←` | Nächster, voriger Marker |
-| `F4`, `Umschalt+F4` | Nächste, vorige Fundstelle der Qualitätsprüfung; im Vergleich nächster, voriger Unterschied |
+| `F4`, `Umschalt+F4` | Nächste, vorige Fundstelle der Qualitätsprüfung (im Vergleich: nächster, voriger Unterschied, Soll) |
 | `F6` | Zwischen Schrittliste, Bild, Detailbereich und Zeitleiste wechseln |
 
 **Ansicht**
@@ -1128,7 +1200,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `I` `E` | Klickmarke, Elementrahmen ein und aus |
 | `Strg+B` `Strg+I` `Strg+T` | Schrittliste, Detailbereich, Zeitleiste ein und aus |
 | `F7` | Vergleichen mit … |
-| `F8` | Qualitätshinweise ein und aus |
+| `F8` | Fenster der Qualitätsprüfung öffnen |
 | `F11` | Vollbild |
 
 **Abspielen**
@@ -1145,8 +1217,11 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 
 | Kürzel | Funktion |
 |---|---|
-| `V` `A` `R` `O` `T` `N` `M` `L` | Auswahl, Pfeil, Rechteck, Ellipse, Text, Nummer, Markierstift, Lupe |
-| `C` `S` `X` `P` | Zuschnitt, Schwärzen, Verpixeln, Kommentar-Pin |
+| `V` `A` `Umschalt+A` `F` | Auswahl, Pfeil, Linie, Freihand |
+| `R` `E` `M` `U` `L` | Rechteck, Ellipse, Markierstift, Spotlight, Lupe |
+| `T` `N` | Text, Nummer |
+| `X` `P` `C` | Schwärzen, Verpixeln, Zuschnitt |
+| Kommentar-Pin | noch ohne Kürzel (Soll) |
 | `Umschalt` beim Zeichnen | Quadrat, Kreis, Winkel in 45-Grad-Schritten |
 | `Strg` beim Zeichnen | Einrasten am Element aussetzen |
 | `Entf` (Objekt gewählt) | Objekt löschen |
@@ -1165,7 +1240,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Einfg` | Hinweisschritt einfügen |
 | `Entf` (Schrittliste), `Strg+H` | Schritt ausblenden, einblenden |
 | `Umschalt+Entf` | Inhalt des Schritts schwärzen |
-| `Strg+J`, `Strg+Umschalt+J` | Zusammenfassen, teilen |
+| `Strg+J`, `Strg+Umschalt+J` | Zusammenfassen, Zusammenfassung aufheben |
 | `Alt+↑`, `Alt+↓` | Schritt nach oben, nach unten |
 | `Strg+↑`, `Strg+↓` | Wichtigkeit erhöhen, verringern |
 | `Strg+Umschalt+K` | Kapitel einfügen |
@@ -1186,7 +1261,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Alt+Ziehen` im Bild | Ausschnitt kopieren |
 | `Strg+Umschalt+S` | Bild speichern unter |
 | `Strg+E` | Export-Dialog |
-| `Strg+Umschalt+E` | Ein-Klick-Export |
+| `Strg+Umschalt+E` | Letzten Export wiederholen (Ein-Klick-Export) |
 
 **Sitzung und Programm**
 
@@ -1196,7 +1271,8 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Strg+N` | Neue Aufnahme (Startfenster) |
 | `Strg+Umschalt+N` | Aufnahme an diese Sitzung anhängen |
 | `Strg+Umschalt+R` | Eingaben prüfen |
-| `Strg+Umschalt+F` | In allen Sitzungen suchen |
+| `Strg+L` | „Alle Aufnahmen“ (Bibliothek) öffnen |
+| `Strg+Umschalt+F` | In der Bibliothek: in allen Sitzungen suchen |
 | `Strg+W` | Fenster schließen |
 | `Strg+,` | Einstellungen |
 | `F1` | Hilfe und Kürzelübersicht |
@@ -1232,7 +1308,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-002 | Erste Anzeige unter einer Sekunde | Muss | Nach dem Stopp sind Schrittliste und erstes Bild mit Sitzung M auf System A und auf System B in höchstens 1,0 s sichtbar (95 % der Messungen). |
 | VIE-003 | Öffnen über Zuletzt, Drag & Drop, Kommandozeile, Dialog | Muss | Jeder der vier Wege öffnet einen Sitzungsordner und eine `.steprec`-Datei. |
 | VIE-004 | Dateizuordnung für `.steprec` | entfallen | Gestrichen: Das Programm ändert die Registry ohne Ausnahme nicht (Entscheidung E19 in [01](01-anforderungen.md)). Geöffnet wird nach VIE-003. |
-| VIE-005 | Gepackte Sitzungen bearbeiten | Soll | Eine Bearbeitung an einer `.steprec`-Sitzung ist nach erneutem Öffnen vorhanden. |
+| VIE-005 | Gepackte Sitzungen | Soll | Eine `.steprec`-Datei öffnet schreibgeschützt mit der Leiste „Entpacken …“; nach dem Entpacken ist eine Bearbeitung nach erneutem Öffnen vorhanden. Bearbeiten direkt im Archiv ist nicht vorgesehen. |
 | VIE-006 | Nur-Lesen-Betrieb | Muss | Sitzungen auf schreibgeschütztem Datenträger und aus neuerer Formatversion öffnen sich mit Hinweis; Ansehen, Abspielen, Kopieren funktionieren. |
 | VIE-007 | Schließen ohne Rückfrage | Muss | Nach beliebiger Bearbeitung schließt das Fenster ohne Dialog; die Bearbeitung ist beim nächsten Öffnen vorhanden. |
 | VIE-010 | Fensteraufbau | Muss | Kopfleiste, Schrittliste, Bildbereich, Detailbereich, Zeitleiste und Statusleiste sind vorhanden; die drei Seitenbereiche sind ein- und ausblendbar. |
@@ -1248,7 +1324,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-025 | Ansicht „Änderung“ | Soll | Geänderte Bereiche zweier Testbilder sind umrandet; die erkannte Wirkung steht in Worten darunter. |
 | VIE-026 | Galerie | Soll | Raster aller Schrittbilder mit Mehrfachauswahl; Doppelklick wechselt zum Schritt. |
 | VIE-027 | Zeitleiste | Soll | Schritte, Lücken, Marker und Pausen sind an ihrer zeitlichen Stelle dargestellt; ein Klick springt dorthin. |
-| VIE-028 | Suche | Muss | Die Suche findet Text in Schritttexten, Elementnamen, getipptem Text, Fenstertiteln, Kommentaren und Text-Schnappschüssen; maskierte und geschwärzte Inhalte ergeben keine Treffer. |
+| VIE-028 | Suche | Muss | Die Suche findet Text in Schritttexten, Kapiteln, Elementnamen, getipptem Text, Fenstertiteln, Kommentaren und Text-Schnappschüssen; mehrere Wörter müssen alle vorkommen, Anführungszeichen suchen die Wortfolge; maskierte und geschwärzte Inhalte ergeben keine Treffer. |
 | VIE-029 | Filter | Soll | Jeder Filter aus 5.6 schränkt die Schrittliste entsprechend ein; Filter sind kombinierbar. |
 | VIE-030 | Lücken und Belegstufen sichtbar | Muss | Jede Lücke der Sitzung steht mit Ursachentext und Dauer in Zeitleiste und Lückenliste, Lücken mit eigenem Schritt auch in der Schrittliste; jeder Schritt mit Belegstufe ungleich „belegt“ trägt ein Kennzeichen mit Begründung. |
 | VIE-031 | Technische Details | Soll | Rohereignisse, Elementeigenschaften, Bilder und Zeiten des Schritts sind einsehbar und als JSON kopierbar, mit Schwärzungen. |
@@ -1260,7 +1336,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-044 | Wiedergabe ändert nichts | Muss | Nach einer Wiedergabe sind alle Dateien der Sitzung unverändert. |
 | VIE-045 | Wiedergabe als GIF oder Video | Kann | Eine Wiedergabe lässt sich als Datei ausgeben. |
 | VIE-050 | Werkzeuge der Priorität Muss | Muss | Auswahl, Pfeil, Rechteck, Ellipse, Text, Nummer, Markierstift, Zuschnitt, Schwärzen und Verpixeln sind vorhanden und per Taste wählbar. |
-| VIE-051 | Lupe und Kommentar-Pin | Soll | Beide Werkzeuge sind vorhanden und erscheinen in Kopie und Export wie angezeigt. |
+| VIE-051 | Lupe und Kommentar-Pin | Soll | Die Lupe ist vorhanden und erscheint in Kopie und Export wie angezeigt; der Kommentar-Pin ist noch nicht umgesetzt. |
 | VIE-052 | Objekte bearbeiten | Muss | Gezeichnete Objekte lassen sich wählen, verschieben, in der Größe ändern, verdoppeln und löschen. |
 | VIE-053 | Stilvorlagen | Soll | Drei mitgelieferte Vorlagen; eigene Vorlagen speicherbar; „auf alle Schritte anwenden“ stellt bestehende Markierungen um. |
 | VIE-054 | Am Element einrasten | Soll | Mit einem Klick liegt ein Rechteck oder eine Schwärzung deckungsgleich (±1 Pixel) auf dem Elementrechteck. |
@@ -1287,7 +1363,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-080 | Schritttext ändern und wiederherstellen | Muss | `F2` ändert den Text; „Automatischen Text wiederherstellen“ nimmt die Änderung zurück. |
 | VIE-081 | Schritt ausblenden | Muss | Ein ausgeblendeter Schritt fehlt in Export und Mini-Anleitung und bleibt im Viewer grau sichtbar. |
 | VIE-082 | Verwerfen zurücknehmen | Muss | Ein bei der Aufnahme verworfener Schritt ist gekennzeichnet und lässt sich wieder aufnehmen. |
-| VIE-083 | Zusammenfassen und Teilen | Soll | Beides funktioniert wie in 9.2 beschrieben und ist auflösbar. |
+| VIE-083 | Zusammenfassen und Teilen | Soll | Zusammenfassen funktioniert wie in 9.2 beschrieben und ist auflösbar; Teilen ist noch nicht umgesetzt. |
 | VIE-084 | Umsortieren | Soll | Die neue Reihenfolge gilt in Export und Mini-Anleitung; „Zeitliche Reihenfolge wiederherstellen“ nimmt sie zurück. |
 | VIE-085 | Kapitel | Soll | Kapitelüberschriften lassen sich einfügen, umbenennen, einklappen und erscheinen im Export. |
 | VIE-086 | Mehrfachauswahl | Soll | Ausblenden, Darstellung, Stil, Zusammenfassen und Kopieren wirken auf alle gewählten Schritte. |
@@ -1312,15 +1388,15 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-105 | Nachfrage bei ungeprüften auffälligen Eingaben | Muss | Die erste Text-Kopie einer Sitzung, die eine ungeprüfte auffällige Eingabe enthält, löst die Nachfrage aus; Bild-Kopien nicht. |
 | VIE-110 | Sitzungsbibliothek | Soll | Alle Sitzungen des Aufnahmeordners sind gelistet, durchsuchbar und sortierbar. |
 | VIE-111 | Automatischer Sitzungsname | Muss | Jede neue Sitzung trägt einen Titel nach dem Muster; der Autor wird nicht gefragt. |
-| VIE-112 | Umbenennen, Schlagwörter, Löschen | Soll | Löschen legt die Sitzung nach Rückfrage in den Papierkorb. |
+| VIE-112 | Umbenennen, Schlagwörter, Löschen | Soll | Umbenennen ändert den Titel, nicht den Ordner; Löschen legt die Sitzung nach Rückfrage in den Papierkorb und fragt ohne Papierkorb ausdrücklich nach. Schlagwörter sind noch nicht umgesetzt. |
 | VIE-113 | Aufnahme anhängen | Soll | Eine angehängte Aufnahme erscheint als weitere Schritte am Ende derselben Sitzung. |
 | VIE-114 | Packen und Entpacken | Soll | Eine gepackte und wieder entpackte Sitzung ist inhaltsgleich. |
 | VIE-115 | Verschieben und bereinigte Kopie | Soll | Eine verschobene Sitzung ist am Ziel vollständig und am Ursprung entfernt; eine bereinigte Kopie enthält keinen der geschwärzten Inhalte. |
 | VIE-116 | Kopierbare MCP-Konfiguration | Soll | Der Dialog aus 11.1 zeigt die Konfiguration für Claude Code (Datei und Befehl) und Claude Desktop mit dem tatsächlichen Pfad der EXE und dem gewählten Ordner. In Claude Code eingefügt, startet der Server ohne Nacharbeit; das Programm selbst schreibt dabei in keine fremde Datei. |
 | VIE-120 | Automatisches Speichern | Muss | Wird das Programm 1 s nach einer Bearbeitung hart beendet, ist die Bearbeitung beim nächsten Öffnen vorhanden. |
-| VIE-121 | Ein-Klick-Export | Soll | `Strg+Umschalt+E` erzeugt ohne Dialog die Ausgabe im zuletzt genutzten Format. |
+| VIE-121 | Ein-Klick-Export | Soll | (Umgesetzt als Wiederholung des letzten Exports der Aufnahme.) `Strg+Umschalt+E` erzeugt ohne Dialog die Ausgabe im zuletzt genutzten Format. |
 | VIE-122 | Hell und Dunkel | Soll | Der Viewer folgt der Windows-Einstellung und ist umschaltbar. |
-| VIE-123 | Kürzelübersicht | Soll | `F1` zeigt alle Kürzel aus Abschnitt 15 mit aktueller Belegung. |
+| VIE-123 | Kürzelübersicht | Soll | `F1` zeigt alle Befehle der Tabelle und die Aufnahme-Kürzel aus den Einstellungen mit aktueller Belegung; das Suchfeld findet nach Wortfolgen; Menüs zeigen dieselben Kürzel wie die Tabelle. |
 | VIE-124 | Vollständige Tastaturbedienung | Muss | Jeder Bedienablauf dieses Dokuments ist ohne Maus ausführbar, mit Ausnahme des freien Zeichnens. |
 | VIE-125 | Komfortfunktionen der Priorität Kann | Kann | Jede umgesetzte Kann-Funktion aus Abschnitt 12 wirkt wie dort beschrieben. |
 | VIE-130 | Durchsicht der Eingaben | Muss | Die Durchsicht listet Tippläufe, Feldinhalte, aufgezeichnete Zwischenablage-Inhalte und die Texte des Autors – Kommentare sowie, wo vorhanden, Ziel-Angaben, Marker-Texte und den Hinweis für den Empfänger –, gruppiert nach Fenster. Ein nach der Durchsicht geänderter Text des Autors gilt wieder als nicht durchgesehen. Auffällige Eingaben stehen oben und verlangen je Eintrag eine Einzelentscheidung (In Ordnung, Schwärzen, Überall schwärzen); unauffällige lassen sich gesammelt bestätigen. |
@@ -1347,7 +1423,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-192 | Wirkung in Text und Bild | Soll | Nach dem Anwenden zeigt der Viewer an jeder Textfundstelle den Platzhalter und im Bild an jeder Stelle mit bekannter Textposition eine gefüllte Fläche mit dem Platzhalter; Fundstellen ohne bekannte Bildposition sind im Dialog gezählt, lassen sich von Hand markieren und stehen in der Qualitätsprüfung (T-15). |
 | VIE-193 | Originalwerte nur als Anzeige | Soll | Mit „Originalwerte zeigen“ erscheinen die aufgezeichneten Werte hervorgehoben; Kopie, Export und Suche liefern währenddessen weiterhin die Platzhalter, und die Kopierbestätigung sagt das. Nach dem Schließen der Sitzung ist die Ansicht aus. |
 | VIE-194 | Verallgemeinerung endgültig anwenden | Soll | Nach bereinigter Kopie oder endgültigem Anwenden ist ein verallgemeinerter Wert im Ergebnisordner nicht mehr auffindbar – auch nicht in `edits.json`; vorher ist er in den Rohdaten unverändert vorhanden. |
-| VIE-200 | Hinweisliste der Qualitätsprüfung | Soll | `F8` zeigt alle Fundstellen des Regelkatalogs aus 09 mit Regelnummer, Schwere und Schritt; nach einer Bearbeitung, die eine Fundstelle behebt, ist sie ohne Zutun verschwunden; für Sitzung M steht die Liste in höchstens 1 s. |
+| VIE-200 | Hinweisliste der Qualitätsprüfung | Soll | `F8` öffnet ein nicht modales Fenster, das alle Fundstellen des Regelkatalogs aus 09 mit Regelnummer, Schwere und Schritt; nach einer Bearbeitung, die eine Fundstelle behebt, ist sie ohne Zutun verschwunden; für Sitzung M steht die Liste in höchstens 1 s. |
 | VIE-201 | Sprung und Abhilfe | Soll | Ein Klick auf eine Fundstelle wählt den Schritt und zeigt die betroffene Stelle; `F4` und `Umschalt+F4` wechseln die Fundstelle; die im Katalog genannte Abhilfe ist als Schaltfläche vorhanden; Ablauf V17. |
 | VIE-202 | Ignorieren je Fundstelle | Soll | „Ignorieren“ entfernt genau diese Fundstelle aus Liste und Export-Vorprüfung und legt einen Eintrag in `edits.qualityIgnores` an; „Ignorierte zeigen“ macht es rückgängig. Die Sperre für ungeprüfte auffällige Eingaben bleibt auch nach dem Ignorieren bestehen. |
 | VIE-210 | Geführter Support-Ablauf | Soll | Nach einer Support-Aufnahme zeigt der Viewer die drei Schritte Ansehen, Eingaben prüfen, Paket erstellen mit „Zurück“, „Weiter“ und „Abbrechen“; der Ablauf ist über das Menü „Export“ für jede Sitzung aufrufbar. |
@@ -1358,6 +1434,15 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-221 | Treffer mit Sprung | Soll | Jeder Treffer nennt Sitzung, Schritt und Umgebung mit Vorschaubild; ein Klick öffnet den Viewer an diesem Schritt. |
 | VIE-222 | Index nur aus Freigegebenem | Soll | Ein geschwärzter Text, eine maskierte Eingabe, eine ungeprüfte auffällige Eingabe, ein interner Kommentar und der Originalwert einer Verallgemeinerung ergeben keinen Treffer und sind in keiner Datei unter `cache/search/` auffindbar; nach einer neuen Schwärzung ist der alte Index verworfen. |
 | VIE-223 | Index abgeleitet, Suche ehrlich und schnell | Soll | Nach dem Löschen von `cache/search/` liefert die Suche nach dem Neuaufbau dieselben Treffer; Sitzungen ohne gültigen Index sind als „noch nicht durchsucht“ ausgewiesen. Mit vorhandenen Indizes erscheinen die Treffer aus 200 Sitzungen auf System A in höchstens 2 s. |
+| VIE-230 | Befehlstabelle und Kürzelübersicht | Soll | Tasten, Menükürzel und `F1` kommen aus einer Tabelle; `F1` führt Editor- und Aufnahme-Kürzel, durchsuchbar nach Wortfolgen. |
+| VIE-231 | Fensterlage und gemerkter Zustand | Soll | Start-, Editor- und Bibliotheksfenster öffnen dort, wo sie geschlossen wurden, auch nach Wechsel von Monitoren oder Skalierung; Spaltenbreiten, Reiter, letzter Schritt, Filter „Alle“ und Bildansicht bleiben erhalten; die Aufnahme enthält davon nichts. |
+| VIE-232 | Linie, Freihand, Spotlight, Lupe | Soll | Die vier Werkzeuge sind mit `Umschalt+A`, `F`, `U` und `L` wählbar; Spotlight dunkelt je Strichstärke mit 0,4, 0,55 oder 0,7 ab; Linse und Quelle der Lupe sind getrennt verschiebbar; Kopie und Export zeigen dasselbe wie der Editor. |
+| VIE-233 | Markierungen nur auf ihrem Bild | Muss | Eine auf dem Vorher-Bild gezeichnete Markierung erscheint nicht auf dem Nachher-Bild desselben Schritts – weder im Editor noch in Kopie oder Export. |
+| VIE-234 | Schritte zusammenfassen | Soll | Aufeinanderfolgende aufgenommene Schritte ohne Lücke und ohne Kapitelbeginn lassen sich mit `Strg+J` zusammenfassen und mit `Strg+Umschalt+J` aufheben; Anleitungen zeigen einen Schritt, KI-Paket und AutoHotkey die Einzelschritte. |
+| VIE-235 | Bearbeitungsstände | Kann | Nach Bearbeitungen liegen Stände unter `history/` (höchstens 40 und 15 MB); Wiederherstellen ist mit `Strg+Z` rückgängig zu machen und lässt Schwärzungen, Verallgemeinerungen und Durchsicht unverändert; „Endgültig schwärzen“ löscht alle Stände. |
+| VIE-236 | Bibliothek, Packen, Entpacken | Soll | „Alle Aufnahmen“ listet Aufnahmen und Archive mit geschwärztem Vorschaubild; die bereinigte Kopie entsteht erst nach der Durchsicht; ein präpariertes Archiv hinterlässt beim Entpacken nichts. |
+| VIE-237 | Oberflächensprache | Soll | Mit der Oberflächensprache Englisch erscheinen alle Fenster und Meldungen englisch; Texte, die in die Aufnahme oder einen Export gelangen, folgen der Sprache der Anleitungstexte. |
+| VIE-238 | Terminal, Remote-Desktop, virtuelle Maschinen | Muss | Getipptes in diesen Fenstern ist prüfpflichtig; in der Schutzstufe „Streng“ ist es vollständig maskiert. Kennwortabfragen im Terminal werden nicht automatisch erkannt. |
 
 ## 18 Offene Punkte
 

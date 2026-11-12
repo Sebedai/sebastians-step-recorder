@@ -43,6 +43,29 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 **Reihenfolge-Begründung:** MCP (M5) kommt nach dem Viewer, weil das KI-Paket aus M2 KI-Nutzung bereits ermöglicht und der Viewer für Menschen den größeren Nutzen hat. Die Leseschicht mit Schwärzung und Durchsichtsregel entsteht in M2, weil schon das KI-Paket nur über sie lesen darf; Viewer (M3/M4) und MCP (M5) nutzen sie.
 
+### 2.1 Stand der Umsetzung
+
+Über die Meilensteine hinaus wurde ein Bündel von acht Ausbaupaketen umgesetzt, das Funktionen aus M3, M4, M7 und M8 vorzieht oder ergänzt. Die Tabelle nennt den Stand je Paket; „erledigt“ heißt: gebaut und durch automatische Tests belegt. Die Prüfungen von Hand stehen in Abschnitt [5.2](#52-prüfungen-von-hand).
+
+| Paket | Inhalt | Stand |
+|---|---|---|
+| 0 Fundament und Schutz-Korrekturen | Zweisprachigkeit (`Loc`) und Prüftest, Programmprotokoll mit Absturzbehandlung, Oberflächenzustand, robuste Einstellungen mit Migration, Tastenkürzel-Tabelle, vollständige und strenge Kommandozeile (`check`, `steps`, `settings export\|import\|reset`, `record --self-test`), Austausch von Einstellungen, Diagnose-Paket, Export-Unterbau, automatischer Build (GitHub); Korrekturen: Ordner-Exporte leeren nie fremde Ordner, `key.up` ungeprüfter Eingaben verrät keine Tasten, „Text überall schwärzen“ wirkt sofort, interne Kommentare, Terminal-Eingaben prüfpflichtig, Blob-Namen geprüft | erledigt |
+| 1 Alltagskomfort | Papierkorb, Fensterlage und Spaltenbreiten merken, letzter Schritt, Befehlstabelle mit F1-Übersicht, Exportdialog mit Fortschritt und Ergebnisfenster, Ein-Klick-Wiederholung, einstellbare Tastenkürzel, Suche im Editor | erledigt |
+| 2 Aufnahme-Bibliothek | Katalog, Fenster „Alle Aufnahmen“, `.steprec` packen und entpacken, Suche über alle Aufnahmen, bereinigte Kopie, endgültiges Entfernen der Bilder geschwärzter Zeiträume | erledigt |
+| 3 Bessere Anleitungen | Zeichenwerkzeuge (Linie, Freihand, Spotlight, Lupe), Schritte zusammenfassen, Qualitätsprüfung Q01–Q20 (Q15 und Q18 teilweise), Bearbeitungsstände | erledigt |
+| 4 Neue Ausgabeformate | Word mit Inhaltsverzeichnis, PDF mit Verweisen, Lesezeichen und Unicode, Arten der Ausgabe (Standard, Kurzfassung, Checkliste), PowerPoint, Klick-Tour, Fehlerbericht, GIF | erledigt |
+| 5 Aufnahme und Datenschutz | UAC und sicherer Desktop als benannter Schritt, Bildschutz bei Sperre und Ruhezustand, Erinnerungen, letzter Aufnahmebereich | erledigt; **Regel T1** (Kennwortabfragen im Terminal) **offen** |
+| 6 KI-Anbindung | Tokenschätzung im KI-Dialog, „Mit KI verbinden“, Agent bittet um Vorführung (`--allow-requests`) | erledigt |
+| 7 Englische Oberfläche | alle Fenster und Meldungen zweisprachig, Prüftest ohne Ausnahmeliste | erledigt |
+
+**Offen bleiben:**
+
+- **.NET 10.** Gebaut wird mit .NET 8; das .NET-10-SDK fehlt auf dem Entwicklungsrechner (Abschnitt [9](#9-offene-entscheidungen), O-08).
+- **Regel T1.** Die Erkennung von Kennwortabfragen im Terminal (DS-022, DS-023) ist nicht umgesetzt. Es gilt: Getipptes in Terminal, Remote-Desktop und VM ist prüfpflichtig, „Streng“ maskiert dort alles (O-09).
+- **Code-Signierung.** Nicht umgesetzt; die Lizenzfrage ist offen (O-10).
+- **Zurückgestellt:** Abschnitt neu aufnehmen und ersetzen (damit Aufnahmeabschnitte, Ersetzungen und Nahtstellen aus [05, Abschnitt 16](05-schritterkennung.md)), visueller Vergleich zweier Aufnahmen, Befehlspalette, Lesezeichen und Textbausteine, Seitenformat (Letter, quer) und eigene Word-Vorlage, weitere Sprachen der automatischen Texte, Video-Export, ARM64, Bedienhilfen der Oberfläche (Namen für Sprachausgabe), Terminal-Regeln T2 und T3 (O-11).
+- **Vorab-Experimente VE-01 bis VE-14** und die Berichte unter `docs/experimente/` liegen nicht vor; die Messkriterien aus Abschnitt 3 sind damit nicht belegt.
+
 ## 3. Vorab-Experimente (M0)
 
 Jedes Experiment ist ein Wegwerf-Prototyp. Kriterium nicht erfüllt → Ausweichweg wird Teil der Spezifikation.
@@ -105,6 +128,39 @@ Fragen aus [02 §17](02-architektur.md) und [03 §15.2](03-aufzeichnungskern.md)
 | **Netzwerk-Mitschnitt** | Windows-Firewall-Protokoll bzw. ETW-Netzwerkereignisse für den Prozess und alle Kindprozesse |
 | **System-Diff** | Vergleich von Dateisystem (außer Sitzungs- und Einstellungsordner) und Registry vor und nach einem Lauf |
 
+### 5.1 Automatische Tests im Projekt
+
+Die Tests liegen in `tests/StepRecorder.Tests` (xUnit) und laufen bei jedem Build ohne Oberfläche. Der Integrationstest `RecorderIntegrationTests` braucht einen interaktiven Desktop mit echten Hooks; er ist als `Category=Integration` gekennzeichnet, läuft nicht im automatischen Build (`--filter "Category!=Integration"`) und wird von Hand gestartet. Das Hilfsmittel `SyntheticSession` baut künstliche Aufnahmen (mit Kommentar, Terminal-Eingabe, UAC-Lücke, Kanarienwerten), `DevDemoSession` die Demo-Aufnahme für Oberflächen-Schnappschüsse.
+
+| Testdatei | Gegenstand | Bezug |
+|---|---|---|
+| `StepBuilderTests` | Buchführung (jedes Eingabeereignis genau einem Schritt), Schrittarten, Textvorlagen, Schwärzung und Bildzuschnitt | T-02, T-03, T-08 |
+| `AhkContextTests`, `ExportAndMcpTests`, `GifWriterTests`, `ManualTests` | AutoHotkey-Auszüge, KI-Paket und MCP-Werkzeuge, GIF, Detailgrade und Anleitungsformate | T-09, T-10 |
+| `EditorFeatureTests`, `GuideFeatureTests` | eigene Schritte, Zuschnitt, Texterkennung, Zeichenwerkzeuge und Geometrie, Zusammenfassen, Reihenfolge, Qualitätsprüfung, Arten der Ausgabe | – |
+| `ProtectionFixTests` | Ordner-Exporte löschen nichts Fremdes, `key.up` verrät keine Tasten, Textschwärzung ohne endgültiges Schwärzen, interne Kommentare, Terminal-Eingabe prüfpflichtig, Blob-Pfade | T-07, T-08 |
+| `FoundationTests`, `SettingsStateTests` | Austausch von Einstellungen (Einzelbestätigung, Rücknahme, Zurücksetzen), Export-Unterbau (Abbruch, Zielordner), Diagnose, Migration, tolerantes Lesen, Zustand, Tastenkürzel-Regeln, Protokoll | T-17 |
+| `ComfortTests` | Fensterlage bei Monitor-Änderungen, Suche im Editor, Reihenfolge der Schrittliste | – |
+| `LibraryTests` | Katalog, Packen und Entpacken mit Grenzen, Suchindex ohne geschützte Werte, wörtliche Verallgemeinerung | T-15 |
+| `SanitizerTests` | bereinigte Kopie (keine Kanarienwerte, schwarze Bildstellen, Validator fehlerfrei, Original unverändert), endgültiges Entfernen der Bilder | T-08, T-16 |
+| `EditHistoryTests` | Intervall, Deduplizierung, Obergrenzen, Schutz beim Wiederherstellen, Revision, Löschen | – |
+| `ExportFormatsTests`, `PdfTests` | PPTX-Paket (bytegleich bei zwei Exporten), Word-Inhaltsverzeichnis, Klick-Tour, Fehlerbericht; PDF-Prüfer, Unicode-Einbettung, Teilmengen, Verweise und Lesezeichen | – |
+| `SecureDesktopTests` | Zustandslogik des Desktop-Wechsels, UAC-Lücke als benannter Schritt ohne Bild | AUF-044 |
+| `RegionMemoryTests`, `ReminderClockTests` | letzter Aufnahmebereich (genau, verschoben, beschnitten, verloren), Erinnerungen (Leerlauf, Privattaste, Ruhezustand) | – |
+| `KiEstimateTests` | Bildgröße und Tokenschätzung entsprechen dem Export | – |
+| `RecordingRequestsTests` | Bereinigung, Zustandsübergänge, Frist, Missbrauchsschutz, MCP-Werkzeuge nur mit Schalter | – |
+| `LocalizationTests` | keine unübersetzten Texte, englischer Text und gleiche Platzhalter zu jedem Aufruf | – |
+
+### 5.2 Prüfungen von Hand
+
+Diese Prüfungen lassen sich nicht automatisieren und stehen vor einer Veröffentlichung aus:
+
+- PowerPoint und Word öffnen die erzeugten Dateien ohne Rückfrage und ohne Reparaturhinweis; das Word-Inhaltsverzeichnis lässt sich mit „Felder aktualisieren“ vervollständigen.
+- Zweiter Monitor mit anderer Skalierung: Fensterlage, Bereichsauswahl und „Letzter Bereich“ stimmen.
+- Programm und Aufnahmen auf einem USB-Stick (portabler Betrieb, Papierkorb-Rückfrage).
+- UAC-Abfrage („Ja“ und „Nein“), Win+L und Strg+Alt+Entf während der Aufnahme: Der Schritt erscheint, und unter `frames\` liegen keine schwarzen Bilder.
+- Kennwortabfrage im Windows Terminal mit einem Kanarien-Kennwort: Die Eingabe ist prüfpflichtig (Regel T1 fehlt, siehe O-09); danach Aufnahmeordner, Exporte und MCP-Antworten nach dem Kanarienwert durchsuchen.
+- Alle Fenster mit `STEPRECORDER_UILANG=en` und `qps` ansehen.
+
 ## 6. Abnahmetests der Kernversprechen
 
 | ID | Versprechen | Test | Bestanden, wenn |
@@ -149,11 +205,11 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 
 | Nr. | Risiko | Wahrscheinlichkeit | Auswirkung | Gegenmaßnahme | Prüfung |
 |---|---|---|---|---|---|
-| R-01 | Virenscanner, SmartScreen, Smart App Control stufen die EXE wegen Tastatur-Hooks als Keylogger ein | hoch | hoch | Code-Signierung (SignPath Foundation), offene Quellen, reproduzierbare Builds, Meldung als Fehlalarm, Erklärung in README | VE-12, M8 |
+| R-01 | Virenscanner, SmartScreen, Smart App Control stufen die EXE wegen Tastatur-Hooks als Keylogger ein | hoch | hoch | Code-Signierung (SignPath Foundation – *offen, siehe O-10*), offene Quellen, reproduzierbare Builds, Meldung als Fehlalarm, Erklärung in README | VE-12, M8 |
 | R-02 | Unsichtbarkeit wirkt nicht auf jedem Aufnahmeweg oder jeder Windows-Version | mittel | hoch | Selbsttest bei jedem Start, Ausweichmodus | VE-05, T-05 |
 | R-03 | Hook wird bei Last vom System entfernt | mittel | hoch | Capture-Host-Prozess, Raw Input als Gegenkanal, Lückenmarker | VE-01, T-02 |
 | R-04 | UI Automation langsam, unvollständig oder hängt in einzelnen Anwendungen | hoch | mittel | Eigener Thread, Zeitlimits, doppelte Ermittlung, Rückfallkette, Einstufung „undurchsichtig“ | VE-04 |
-| R-05 | Passworteingaben in Terminal, Remote-Desktop, VM nicht erkennbar | sicher | hoch | Entschieden: Schutznetz (Hinweis, Privattaste, Mustererkennung, Durchsicht vor Export); Stufe „Streng“ wählbar; offen dokumentiert | VE-08, T-07 |
+| R-05 | Passworteingaben in Terminal, Remote-Desktop, VM nicht erkennbar | sicher | hoch | Entschieden: Schutznetz (Hinweis, Privattaste, Durchsichtspflicht für Getipptes in Terminal, Remote-Desktop und VM); Stufe „Streng“ maskiert dort alles; die Mustererkennung für Kennwortabfragen im Terminal (Regel T1) ist **nicht umgesetzt**; offen dokumentiert | VE-08, T-07 |
 | R-06 | Fenster mit Adminrechten liefern keine Eingaben | sicher | mittel | Lückenmarker, „als Administrator neu starten“ | VE-02 |
 | R-07 | Speicher- und Rechenbedarf bei 4K-Mehrmonitor | mittel | mittel | Differenzbilder, Pufferung im Grafikspeicher, zeitversetzte Kodierung, Lückenmarker statt stillem Verlust | VE-09, T-13 |
 | R-08 | Hybrid-Grafik, HDR, Remote-Sitzungen brechen die Bildaufnahme | mittel | mittel | Rückfallkette Desktop Duplication → Windows.Graphics.Capture → GDI | VE-10 |
@@ -171,26 +227,31 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 
 | Nr. | Frage | Empfehlung | Spätestens |
 |---|---|---|---|
-| O-01 | Projektlizenz | MIT (einfach, firmenfreundlich; Abhängigkeiten sind kompatibel). Alternative: Apache-2.0 wegen Patentklausel | vor M8 |
+| O-01 | Projektlizenz | *Entschieden:* CC BY-ND 4.0 für Programm und Quellcode ([LICENSE](../../LICENSE)). Folge: keine OSI-Lizenz, siehe O-10 | erledigt |
 | O-02 | Endgültiger Produktname | Namensrecherche (Marken, Domains, GitHub) | vor M8 |
 | O-03 | Hauptauslieferung Einzel-EXE oder ZIP | Beides; Einzel-EXE als Standard, wenn VE-11 Start < 2 s bestätigt | M0 |
 | O-04 | Konsolen-Startprogramm für `mcp` nötig? | Nur falls VE-07 scheitert | M0 |
 | O-05 | Texterkennung (OCR) als Rückfall | Windows-OCR braucht Paketidentität; später mit mitgelieferter Engine prüfen | nach 1.0 |
 | O-06 | Schwellenwerte (Beruhigungszeit, Verweilzeit, Rückhaltefenster) | Startwerte aus [03](03-aufzeichnungskern.md)/[05](05-schritterkennung.md), feinjustiert nach M6-Tests | M6 |
-| O-07 | Quellcode-Hosting und Mitwirkung | GitHub (Releases, Issues, SignPath-Anbindung) | M0 |
+| O-07 | Quellcode-Hosting und Mitwirkung | GitHub (Releases, Issues, SignPath-Anbindung). *Stand: GitHub, Workflow `build.yml` baut, testet und veröffentlicht bei Tag `v*`; Anbindung der Signierung offen* | M0 |
+| O-08 | .NET 10 statt .NET 8 | Das .NET-10-SDK installieren (`winget install Microsoft.DotNet.SDK.10`), `global.json` und die Zielplattform beider Projekte anheben, `PublishReadyToRun` neu bewerten, alle Tests wiederholen. Bis dahin läuft alles auf .NET 8 (SDK 8.0.4xx) | offen – wartet auf das SDK |
+| O-09 | Regel T1: Kennwortabfragen im Terminal erkennen (DS-022, DS-023) | Vorversuch, ob Windows Terminal und die klassische Konsole die Cursorzeile über UI Automation liefern (`Read-Host`, `runas`, `sudo` in WSL, `ssh`; p95 unter 100 ms). Bei Erfolg Umsetzung mit maskierter Zeile bis zur Eingabetaste, sonst bleibt es bei Durchsichtspflicht und „Streng“ | offen |
+| O-10 | Code-Signierung und Lizenz | Die SignPath Foundation verlangt nach bisherigem Kenntnisstand eine OSI-anerkannte Lizenz; CC BY-ND 4.0 ist keine. Zu klären: Lizenzwechsel, ein anderer Signierdienst oder ein eigenes Zertifikat. Bis dahin sind Releases unsigniert (Prüfsumme in `SHA256SUMS.txt`) | offen, vor M8 |
+| O-11 | Zurückgestellte Funktionen | Abschnitt neu aufnehmen und ersetzen; visueller Vergleich zweier Aufnahmen; Befehlspalette, Lesezeichen, Textbausteine; Seitenformat (Letter, quer) und eigene Word-Vorlage; weitere Sprachen der automatischen Texte; Video-Export; ARM64; Bedienhilfen (Namen für Sprachausgabe); Terminal-Regeln T2 und T3. Jede ist später einzeln planbar | nach 1.0 |
 
 ## 10. Veröffentlichung
 
 **Release-Checkliste (ab M8):**
 
-- [ ] Lizenzdatei, `THIRD-PARTY-NOTICES` mit allen Abhängigkeiten und Lizenztexten
-- [ ] Englische README mit Zweck, Datenschutz-Grundsätzen, Erklärung der Hooks („warum Virenscanner warnen könnten“)
+- [x] Lizenzdatei (`LICENSE`, CC BY-ND 4.0), `THIRD-PARTY-NOTICES.md` mit allen Abhängigkeiten und Lizenztexten
+- [x] Englische README (`README.en.md`) mit Zweck, Datenschutz-Grundsätzen, Erklärung der Hooks („warum Virenscanner warnen könnten“)
 - [ ] Benutzerdoku (Deutsch, Englisch): Aufnehmen, Viewer, Export, KI-Paket, MCP-Einrichtung
 - [ ] `CONTRIBUTING.md`, Verhaltenskodex, `SECURITY.md` (Meldeweg für Sicherheitslücken)
 - [ ] Datenschutzerklärung: keine Datenerhebung, kein Netzwerk; Hinweise zu DSGVO/Betriebsrat
 - [ ] Formatdokumentation (Sitzungsformat, KI-Paket) mit Schema-Version
-- [ ] Signierte EXE und ZIP über SignPath Foundation, SHA-256-Prüfsummen
-- [ ] Reproduzierbarer CI-Build aus getaggtem Stand
+- [x] SHA-256-Prüfsumme der EXE (`SHA256SUMS.txt`, Release-Auftrag des Workflows)
+- [ ] Signierte EXE über SignPath Foundation oder einen anderen Dienst (offen, O-10); ZIP-Variante (nicht gebaut)
+- [x] CI-Build aus getaggtem Stand (`build.yml`); die Bitgleichheit zweier Builds ist nicht geprüft
 - [ ] T-01 bis T-17 und alle DT-Prüfungen aus [10 §17](10-datenschutz-und-sicherheit.md) auf dem Release-Build bestanden
 - [ ] Rechtliche Hinweise ([10](10-datenschutz-und-sicherheit.md)) fachlich gegengelesen
 - [ ] Optional: portable Manifeste für winget (`InstallerType: portable`) und Scoop
@@ -204,6 +265,6 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 | Vollständige UI-Baum-Schnappschüsse zu jedem Schritt | KI sieht alle Bedienelemente, nicht nur das angeklickte |
 | Texterkennung als Rückfall für undurchsichtige Oberflächen | Text aus Remote-Desktop- und VM-Fenstern |
 | ARM64-Build | Windows on ARM |
-| „Agent bittet um Vorführung“ über MCP | Ein Agent startet eine Aufnahme mit Aufgabenbeschreibung und wertet sie danach aus (mit ausdrücklicher Bestätigung durch den Nutzer) |
-| Export in weitere Formate (PowerPoint, Confluence, Agenten-Trajektorienformate) | Breitere Weiterverwendung |
-| Mehrsprachige Anleitungen aus einer Aufnahme | Textvorlagen in weiteren Sprachen |
+| „Agent bittet um Vorführung“ über MCP – **umgesetzt** | Ein Agent bittet mit Aufgabenbeschreibung um eine Aufnahme (`request_recording`, nur mit `--allow-requests`) und wertet sie danach aus; der Nutzer bestätigt jede Anfrage ausdrücklich, die Aufnahme ist normal und sichtbar ([06](06-ki-export-und-mcp.md)) |
+| Export in weitere Formate (Confluence, Agenten-Trajektorienformate, Video); **PowerPoint ist umgesetzt** | Breitere Weiterverwendung |
+| Mehrsprachige Anleitungen aus einer Aufnahme | Textvorlagen in weiteren Sprachen (zurückgestellt; Deutsch und Englisch sind umgesetzt) |

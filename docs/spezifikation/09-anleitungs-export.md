@@ -2,7 +2,7 @@
 
 Status: Entwurf 0.1 · Stand: 2026-11-11
 
-Dieses Dokument legt fest, wie aus einer Sitzung eine Anleitung für Menschen wird: als HTML, Markdown, Word-Dokument oder PDF. Es beschreibt den Exportdialog, die Optionen, die Eigenschaften jedes Formats, Vorlagen, die Entschärfung aufgezeichneter Texte, die Prüfung vor dem Export mit dem Regelkatalog der Qualitätsprüfung, das Support-Paket und den Export über die Kommandozeile. Das KI-Paket ist kein Anleitungs-Export und steht in [06](06-ki-export-und-mcp.md).
+Dieses Dokument legt fest, wie aus einer Sitzung eine Anleitung für Menschen wird: als HTML, Markdown, Word-Dokument oder PDF; dazu kommen PowerPoint, Klick-Tour, Fehlerbericht und GIF ([8a](#8a-powerpoint) bis [8d](#8d-gif)). Es beschreibt den Exportdialog, die Optionen, die Eigenschaften jedes Formats, Vorlagen, die Entschärfung aufgezeichneter Texte, die Prüfung vor dem Export mit dem Regelkatalog der Qualitätsprüfung, das Support-Paket und den Export über die Kommandozeile. Das KI-Paket ist kein Anleitungs-Export und steht in [06](06-ki-export-und-mcp.md).
 
 ## Inhalt
 
@@ -52,49 +52,58 @@ Der Anleitungs-Export erzeugt aus einer Sitzung ein Dokument, das ein Leser ohne
 
 ### 3.1 Exportdialog
 
-Aufruf mit `Strg+E` oder „Export“ im Viewer.
+Aufruf mit `Strg+E` oder über das Exportmenü im Editor. Das Menü bietet nur Formate an, die das Programm erzeugen kann. Die Oberfläche ist zweisprachig; die Beschriftungen folgen der Programmsprache.
 
 ```
-┌─ Anleitung exportieren ─────────────────────────────────────────────────────────┐
-│ Format:    (•) HTML   ( ) Markdown   ( ) Word (DOCX)   ( ) PDF   ( ) KI-Paket   │
-│ Vorlage:   [Standard                  v]                                        │
+┌─ Exportieren ───────────────────────────────────────────────────────────────────┐
+│ Format:  [HTML] [Markdown] [Word] [PDF] [PowerPoint] [Klick-Tour]               │
+│          [Fehlerbericht] [GIF] [KI-Paket] [AutoHotkey]                          │
 │                                                                                 │
-│ Schritte:  (•) Hauptschritte   ( ) Alle   ( ) Auswahl (7)                       │
-│ Bilder:    [Wie im Viewer festgelegt  v]    Nachher-Bild: [Wie im Viewer    v]  │
-│ Sprache:   [Deutsch v]                      Anrede:       [Sie              v]  │
-│ Umfang:    [x] Titelblatt   [x] Inhaltsverzeichnis   [x] Kommentare             │
-│                                                           [Mehr Optionen v]     │
+│ Art:     [Standard v]                        Sprache:     [Deutsch v]           │
+│ Umfang:  [Hauptschritte v]                   Darstellung: [Ganzer Bildschirm v] │
+│ Fehlt eine Übersetzung: [Automatischer Text der Exportsprache v]                │
+│ Im Bild markieren: [x] Mausaktionen   [x] Tastatur                              │
 │ ─────────────────────────────────────────────────────────────────────────────── │
-│ Prüfung:   (!) 1 auffällige Eingabe ungeprüft                   [Jetzt prüfen]  │
-│            (i) 2 Schwärzungen werden angewendet · 23 Schritte · etwa 4 MB       │
-│ ─────────────────────────────────────────────────────────────────────────────── │
-│ Ziel:      C:\...\export\Editor – notiz.txt.html                    [Ändern]    │
-│                                                                                 │
-│ [Vorschau]                                         [Exportieren]  [Abbrechen]   │
+│ Qualität: 2 Warnungen, 5 Hinweise                               [Ansehen (F8)]  │
+│ Speichern unter: [C:\...\export\html\Editor – notiz.html] [Durchsuchen …]     │
+│                                                       [Standardort]             │
+│ Enthält: <Titel>.html – Titel, Einleitung, … Die Bilder stecken in der Datei.   │
+│                                                    [Exportieren]  [Abbrechen]   │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Der Dialog öffnet mit den Einstellungen des letzten Exports dieser Sitzung ([4.5](#45-gespeicherte-export-einstellungen)); gibt es keinen, mit denen des letzten Exports überhaupt, sonst mit der Vorlage „Standard“.
-- **Aufnahmeprofil (Soll):** Hat das Profil der Sitzung ein Format mit Vorlage festgelegt ([07](07-aufnahme-bedienung.md#47-aufnahmeprofile)), öffnet sich der Dialog nach dem Stopp von selbst über dem Viewer und ist damit ausgefüllt – solange die Sitzung noch keinen eigenen Export hat. Exportiert wird erst mit „Exportieren“; Vorprüfung und Durchsicht gelten wie immer.
+- **Vorbelegung:** Der Dialog öffnet mit den Optionen, die für das gewählte Format zuletzt galten ([4.5](#45-gespeicherte-export-einstellungen)). Die Sprache ist die des letzten Exports dieser Aufnahme, sonst die der Anleitungstexte. Beim ersten Mal stammen Darstellung und Ausschnittübersicht aus den Dokument-Einstellungen der Aufnahme.
+- **Zielwahl:** „Speichern unter“ zeigt den vollständigen Pfad der Datei (beim KI-Paket und bei AutoHotkey als KI-Paket den des Ordners). „Durchsuchen …“ wählt Ordner und Namen; „Standardort“ kehrt in den Ordner `export/` der Aufnahme zurück. Ein unvollständiger Pfad wird zurückgewiesen. Das Feld „Enthält“ nennt die Dateien, die entstehen.
+- **Optionen je Format:** „Art“ gibt es bei HTML, Markdown, Word und PDF ([9.4](#94-art-der-anleitung)). Umfang, Darstellung und der Umgang mit fehlenden Übersetzungen gelten für alle Anleitungsformate, „Im Bild markieren“ für alle Formate mit Bildern. Das KI-Paket zeigt Detailstufe und Bildgröße ([3.4](#34-ki-paket-im-selben-dialog)), das GIF die Dauer je Schritt, die Klick-Tour den Hinweisring, AutoHotkey die Denkpausen und die Wahl „Als KI-Paket“.
+- **Qualität:** Bei Anleitungsformaten zeigt eine Zeile die Zusammenfassung der Qualitätsprüfung ([12.1](#121-qualitätsprüfung-regelkatalog)) – „Qualität: N Warnungen, M Hinweise“. „Ansehen (F8)“ schließt den Dialog und öffnet die Hinweisliste im Editor ([08](08-viewer.md#121-qualitätshinweise)). Gibt es keine Befunde, fehlt die Zeile.
+- **Durchsicht:** Sind auffällige Eingaben ungeprüft, fragt das Programm schon vor dem Dialog, ob die Durchsicht jetzt geöffnet werden soll; die Ausgabe entsteht erst danach ([12](#12-export-vorprüfung)). Das KI-Paket ist davon ausgenommen ([06](06-ki-export-und-mcp.md), [10](10-datenschutz-und-sicherheit.md)).
 - „Exportieren“ ist die Standardschaltfläche. Der häufigste Weg ist damit `Strg+E`, Eingabetaste.
-- Die Zeile **Prüfung** zeigt das Ergebnis der [Vorprüfung](#12-export-vorprüfung) und aktualisiert sich bei jeder Änderung.
-- **Vorschau** (Soll) erzeugt die Ausgabe im Ordner `export/.tmp/` der Sitzung – nie in `%TEMP%` – und öffnet sie im Standardprogramm für das Format. Die Vorschaudatei wird beim Schließen der Sitzung entfernt.
-- Der Export läuft im Hintergrund mit Fortschrittsanzeige und lässt sich abbrechen. Ein abgebrochener Export hinterlässt keine unvollständige Datei.
+- **Hintergrund, Fortschritt, Abbruch:** Der Export läuft in einer eigenen Leseansicht der Aufnahme im Hintergrund; der Editor ist währenddessen gesperrt. Dauert er länger als 0,7 s, erscheint ein Fortschrittsfenster („<Format> wird erstellt …“, „N von M“ und Phase) mit „Abbrechen“. Gearbeitet wird in einem Arbeitsordner; erst die fertige Ausgabe gelangt an ihr Ziel ([Abschnitt 13](#13-dateibenennung-und-ablage)). Ein Abbruch hinterlässt nichts am Ziel, die Statuszeile meldet ihn.
+- **Ergebnisfenster:** Nach dem Export nennt das Fenster „Export erstellt“ den Pfad, die Warnungen und Hinweise des Exports sowie die Schaltflächen aus [3.3](#33-nach-dem-export).
+- **Aufnahmeprofil (Soll):** Hat das Profil der Sitzung ein Format mit Vorlage festgelegt ([07](07-aufnahme-bedienung.md#47-aufnahmeprofile)), öffnet sich der Dialog nach dem Stopp von selbst über dem Viewer und ist damit ausgefüllt – solange die Sitzung noch keinen eigenen Export hat. Exportiert wird erst mit „Exportieren“; Vorprüfung und Durchsicht gelten wie immer.
+- **Vorschau (Soll)** erzeugt die Ausgabe im Ordner `export/.tmp/` der Sitzung – nie in `%TEMP%` – und öffnet sie im Standardprogramm für das Format. Die Vorschaudatei wird beim Schließen der Sitzung entfernt. Im Dialog fehlt sie noch; die Schaltfläche „Vorschau“ der Kopfleiste im Editor öffnet die Anleitung als HTML im Browser und legt die Datei bei Aufnahmen im Ordner `export/.tmp/vorschau/` ab, bei schreibgeschützten Archiven im Temp-Ordner des Benutzers.
+- **Soll, noch nicht im Dialog:** die Wahl benannter Vorlagen ([9](#9-vorlagen-und-branding)), der Anrede, der Seitenoptionen und des Umfangs „Auswahl“ sowie die Zeile „Prüfung“ mit allen Befunden der Vorprüfung.
 
 ### 3.2 Ein-Klick-Export
 
-`Strg+Umschalt+E` exportiert ohne Dialog im zuletzt genutzten Format mit den zuletzt genutzten Einstellungen.
+`Strg+Umschalt+E` wiederholt den letzten Export dieser Aufnahme ohne Dialog – im selben Format, mit denselben Optionen und demselben Ziel.
 
-- Meldet die Vorprüfung eine Sperre oder Warnung, öffnet sich stattdessen der Dialog mit dem Befund.
-- Hinweise ohne Handlungsbedarf erscheinen in der Erfolgsmeldung.
+- Gibt es für die Aufnahme noch keinen Export, öffnet sich der Dialog mit dem zuletzt genutzten Format, sonst mit HTML.
+- Sind auffällige Eingaben ungeprüft, fragt das Programm wie beim Dialog nach der Durchsicht.
+- Fortschritt, Abbruch und Ergebnisfenster verhalten sich wie beim Dialog.
+- **Soll:** Meldet die Vorprüfung eine Sperre oder Warnung, öffnet sich stattdessen der Dialog mit dem Befund; Hinweise ohne Handlungsbedarf erscheinen in der Erfolgsmeldung. Bisher wertet der Ein-Klick-Export die Qualitätsprüfung nicht aus.
 
 ### 3.3 Nach dem Export
 
-Eine Meldung im Viewer nennt die erzeugte Datei und bietet an: **Öffnen**, **Ordner zeigen**, **Pfad kopieren**, **Datei kopieren** (zum Einfügen als E-Mail-Anhang).
+Das Ergebnisfenster „Export erstellt“ zeigt den Pfad und bietet an: **Öffnen**, **Im Ordner zeigen**, **Pfad kopieren** und **Schließen**.
+
+- „Öffnen“ fehlt bei AutoHotkey-Skripten und `.steprec`-Dateien: Ein Skript wird nie durch Öffnen gestartet. Bei Ordnerausgaben öffnet es den Ordner. Fehlt „Öffnen“, ist „Im Ordner zeigen“ die Hauptschaltfläche.
+- Die Statuszeile des Editors nennt außerdem den Pfad („Exportiert: …“).
+- **Datei kopieren** (zum Einfügen als E-Mail-Anhang) ist Soll.
 
 ### 3.4 KI-Paket im selben Dialog
 
-Der Exportdialog bietet als fünftes Ziel das **KI-Paket** an. Statt der Optionen aus [Abschnitt 4](#4-gemeinsame-optionen) zeigt er dann die des KI-Pakets – Detailstufe, Bildprofil, Darstellung, Sprache, Umgang mit ausgeblendeten Schritten – und, bevor etwas geschrieben wird, die Token-Abschätzung. Inhalt, Optionen und Abschätzung legt [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile) fest. Vorprüfung, Fortschritt, Ablage und die Aktionen nach dem Export sind dieselben wie bei den Anleitungsformaten. Auf der Kommandozeile entsteht das KI-Paket mit `export <Sitzung> --format ki` ([Abschnitt 14](#14-kommandozeilen-export)).
+Der Exportdialog bietet das **KI-Paket** als weiteres Ziel an. Statt der Optionen aus [Abschnitt 4](#4-gemeinsame-optionen) zeigt er dann die des KI-Pakets – Detailstufe, Bildprofil, Darstellung, Sprache, Umgang mit ausgeblendeten Schritten – und, bevor etwas geschrieben wird, die Token-Abschätzung: eine Zeile „Geschätzt: ≈ N Tokens (Text, Bilder) · M Bilder“ mit den Hinweisschwellen aus [06](06-ki-export-und-mcp.md#10-token-abschätzung-und-paketteilung). Sie wird im Hintergrund in einer eigenen Leseansicht berechnet, bei jeder Änderung der Optionen nach 150 ms neu, und liest keine Pixel. Daneben steht der Link „Mit KI verbinden …“: Statt eines Pakets liest die KI die Aufnahmen direkt über den MCP-Server ([06](06-ki-export-und-mcp.md)). Inhalt, Optionen und Abschätzung legt [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile) fest. Vorprüfung, Fortschritt, Ablage und die Aktionen nach dem Export sind dieselben wie bei den Anleitungsformaten. Auf der Kommandozeile entsteht das KI-Paket mit `export <Sitzung> --format ki` ([Abschnitt 14](#14-kommandozeilen-export)).
 
 ### 3.5 Support-Paket
 
@@ -204,27 +213,19 @@ Einzelheiten zur Sprache in [Abschnitt 10](#10-sprache-der-schritttexte).
 
 ### 4.5 Gespeicherte Export-Einstellungen
 
-Die Einstellungen des letzten Exports stehen je Sitzung im Objekt `exports` von `edits.json` ([04](04-datenformat.md#edits-json)). So wird eine Sitzung beim nächsten Mal genauso ausgegeben.
+Das Programm merkt sich die Optionen im eigenen Zustand ([02](02-architektur.md#konfiguration)), nicht in der Aufnahme. So bleibt eine weitergegebene Aufnahme frei von Ordnernamen des Rechners.
 
-```json
-"exports": {
-  "last": "pdf",
-  "formats": {
-    "pdf":  { "template": "Schulung", "options": { "after": "changed", "toc": "always" } },
-    "html": { "template": "Standard", "options": { "view": "window" } }
-  }
-}
-```
-
-| Feld | Bedeutung |
+| Stelle | Inhalt |
 |---|---|
-| `last` | Zuletzt verwendetes Format: `html`, `md`, `docx` oder `pdf` |
-| `formats.<Format>.template` | Name der Vorlage |
-| `formats.<Format>.options` | Nur die Optionen, die von der Vorlage abweichen. Schlüssel wie die Optionen der Kommandozeile ohne `--` (`steps`, `view`, `after`, `lang` …), dazu `titlePage`, `toc`, `comments`, `chapters`, `numbering`, `address`, `pageSize`, `orientation`, `oneStepPerPage`, `imageFormat`, `maxImageWidth` |
+| je Format | Die zuletzt gewählten Optionen (Art, Umfang, Darstellung, Markierungen, Umgang mit fehlender Übersetzung, Optionen des KI-Pakets, GIF-Dauer, Hinweisring der Klick-Tour, Vortragsnotizen bei PowerPoint) und der zuletzt gewählte Zielordner |
+| zuletzt genutztes Format | Das Format, das der Dialog ohne Aufnahmebezug vorschlägt |
+| je Aufnahme | Der letzte Export dieser Aufnahme mit allen Optionen, Sprache und Ziel – die Grundlage für `Strg+Umschalt+E` ([3.2](#32-ein-klick-export)) und für die Sprache der Vorbelegung |
 
-- **Zielpfade stehen nicht in der Sitzung.** Sie würden Ordnernamen des Rechners verraten, wenn die Sitzung weitergegeben wird. Das zuletzt gewählte Ziel merkt sich das Programm in seinem eigenen Zustand ([02](02-architektur.md#konfiguration)).
-- Unbekannte Schlüssel bleiben beim Speichern erhalten.
-- **Vorgabe aus dem Aufnahmeprofil (Soll):** Ein Profil kann den Export nach dem Stopp vorbelegen. Es nennt dazu unter `afterStop.export` dieselben Angaben wie ein Eintrag oben, ergänzt um das Format – `{ "format": "pdf", "template": "Schulung", "options": { "after": "changed" } }`. `format` ist `html`, `md`, `docx`, `pdf` oder `ki`; für `ki` gelten die Optionen aus [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Die Vorlage ist nach ihrem Namen genannt, ein Pfad steht dort nie. Die Sitzung hält die Vorgabe in `manifest.profile` fest ([04](04-datenformat.md#manifest-profile)); mit dem ersten eigenen Export gilt `exports`.
+- **Ohne Zielpfad und Sprache:** Die Optionen je Format enthalten weder Ziel noch Sprache. Gemerkt wird nur der Ordner.
+- **Ordner innerhalb einer Aufnahme** (etwa `export/` einer Aufnahme) werden nie zur Vorgabe für andere Aufnahmen. Für sie gilt wieder der Standardort ([13](#13-dateibenennung-und-ablage)).
+- Die Optionen eines Formats gelten für alle Aufnahmen; erst der letzte Export hängt an der Aufnahme.
+- **Soll:** Das Objekt `exports` in `edits.json` ([04](04-datenformat.md#edits-json)) mit Vorlage und abweichenden Optionen je Format (`last`, `formats.<Format>.template`, `formats.<Format>.options`; Schlüssel wie die Optionen der Kommandozeile ohne `--`). Unbekannte Schlüssel blieben dann beim Speichern erhalten.
+- **Vorgabe aus dem Aufnahmeprofil (Soll):** Ein Profil kann den Export nach dem Stopp vorbelegen. Es nennt dazu unter `afterStop.export` das Format und – wie ein Eintrag oben – Vorlage und Optionen: `{ "format": "pdf", "template": "Schulung", "options": { "after": "changed" } }`. `format` ist `html`, `md`, `docx`, `pdf` oder `ki`; für `ki` gelten die Optionen aus [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Die Vorlage ist nach ihrem Namen genannt, ein Pfad steht dort nie. Die Sitzung hält die Vorgabe in `manifest.profile` fest ([04](04-datenformat.md#manifest-profile)).
 
 ### 4.6 Ziel, Marker, Neuaufnahmen und Platzhalter
 
@@ -366,7 +367,7 @@ Vier Angaben des Autors verändern, was die Anleitung zeigt (alle Soll). Sie sta
 
 ### 7.1 Eigenschaften
 
-- Erzeugt mit dem Open-XML-SDK, ohne installiertes Word.
+- Erzeugt mit einem eigenen Schreiber, ohne installiertes Word und ohne Fremdbibliothek.
 - Dateityp `.docx`: keine Makros, keine eingebetteten Objekte, keine externen Bezüge. Verweise entstehen nur aus Links, die der Autor selbst in einen Kommentar geschrieben hat.
 - Das Dokument öffnet in Word ab 2016, Word im Web und LibreOffice ab 7 ohne Reparaturhinweis.
 
@@ -388,7 +389,7 @@ Der Inhalt verwendet durchgehend benannte Formatvorlagen. Wer das Dokument in Wo
 
 - **Nummerierung:** Schritte sind über eine Listendefinition nummeriert, nicht über getippte Zahlen. Löscht oder verschiebt der Leser in Word einen Schritt, stimmt die Nummerierung weiter.
 - **Bilder:** auf die Satzspiegelbreite eingepasst, nie über ihre natürliche Größe hinaus vergrößert, und so begrenzt, dass Schritttext und Bild auf eine Seite passen.
-- **Inhaltsverzeichnis:** als Word-Feld, bereits gefüllt. Die Seitenzahlen aktualisiert Word beim Drucken oder mit `F9`.
+- **Inhaltsverzeichnis:** ein echtes Word-Feld `TOC \o "1-2" \h \z \u` in einem Inhaltsverzeichnis-Block, bereits mit Einträgen gefüllt. Die Einträge sind Verweise auf Lesezeichen (`_Toc…`) an den Überschriften und lassen sich anklicken. Die Seitenzahlen ergänzt Word mit „Felder aktualisieren“ (`F9`) oder beim Drucken; das Dokument verlangt das beim Öffnen nicht (kein `updateFields`, kein Schmutz-Kennzeichen), damit Word keine Rückfrage stellt. Die Formatvorlagen `TOC Heading`, `toc 1`, `toc 2` und `Hyperlink` sind angelegt.
 - **Sprache:** Die Dokumentsprache ist gesetzt, damit Rechtschreibprüfung und Silbentrennung stimmen.
 
 ### 7.3 Eigene Formatvorlage
@@ -406,9 +407,12 @@ Der Autor kann eine eigene Word-Vorlage (`.dotx` oder `.docx`) angeben, etwa mit
 
 ### 8.1 Eigenschaften
 
-- Erzeugt mit SkiaSharp durch ein eigenes Seitenlayout – ohne Browser, ohne Word, ohne Druckertreiber.
+- Erzeugt durch einen eigenen PDF-Schreiber mit eigenem Seitenlayout – ohne Browser, ohne Word, ohne Druckertreiber und ohne Fremdbibliothek.
 - **Echter Text:** Der Text ist markierbar, durchsuchbar und kopierbar. Nur Screenshots sind Bilder.
-- **Eingebettete Schriften:** Das Programm bringt frei lizenzierte Schriften für Fließtext und für dicktengleichen Text mit und bettet die verwendeten Zeichen ein. Die Ausgabe sieht so auf jedem Rechner gleich aus. Fehlt ein Zeichen, wird eine Systemschrift herangezogen.
+- **Schriften und Unicode:** Text läuft in Helvetica (WinAnsi), solange alle Zeichen dort vorkommen; dann wird nichts eingebettet. Kommt ein anderes Zeichen vor – etwa Kyrillisch, Griechisch, Pfeile oder Häkchen –, setzt der Schreiber diesen Text in eine eingebettete **Teilmenge** von Segoe UI (fett: Segoe UI Bold, Symbole: Segoe UI Symbol; Rückfall Arial, Tahoma) als Type0-Schrift mit `Identity-H` und `ToUnicode`-Tabelle. Kopieren und Suchen funktionieren damit auch für diese Zeichen. Eingebettet sind nur die benutzten Glyphen. Die Schriften stammen vom Rechner, der exportiert; ihre Einbettungsrechte (`fsType`) werden beachtet.
+- **Grenze:** Schriften mit Zeichenformung oder Schreibrichtung (CJK, Arabisch, Hebräisch, Thai) und Emoji sind nicht umgesetzt. Ihre Zeichen erscheinen als „?“, und der Export meldet genau eine Warnung dazu; er bricht nicht ab.
+- **Verweise und Lesezeichen:** Das Inhaltsverzeichnis ist klickbar (Link-Anmerkungen auf die Seite des Eintrags). Die Lesezeichenleiste zeigt Kapitel und Schritte; Kapitel sind eingeklappt. Titel stehen als UTF-16.
+- **Dokumentangaben:** `/Lang` ist gesetzt. Objektnummern werden beim Schreiben vergeben.
 - **Metadaten:** Titel, Autor (falls angegeben), Sprache, erzeugendes Programm, Erstellungsdatum.
 
 ### 8.2 Seitenlayout
@@ -421,16 +425,64 @@ Der Autor kann eine eigene Word-Vorlage (`.dotx` oder `.docx`) angeben, etwa mit
 | Bildgröße | Auf die Satzspiegelbreite eingepasst, nie über die natürliche Größe vergrößert, höchstens so hoch wie der Satzspiegel abzüglich des Schritttexts |
 | Kopf- und Fußzeile | Titel und „Seite X von Y“; das Layout wird dafür zweimal durchlaufen |
 | Titelblatt | Eigene Seite mit Titel, Untertitel, Angaben, Logo |
-| Inhaltsverzeichnis | Mit Seitenzahlen; Einträge sind Sprungziele (Soll) |
+| Inhaltsverzeichnis | Mit Seitenzahlen; Einträge sind Sprungziele |
 | Kommentare | Kasten mit Kennzeichnung; wird bei Platzmangel zusammen mit seinem Schritt umbrochen |
 
 - **Bilder** werden verlustfrei oder als JPEG eingebettet, in Originalauflösung. Eine Obergrenze für die Auflösung ist einstellbar; Standard ist keine, weil kleine Schrift in Screenshots sonst unleserlich wird.
 - **Verweise:** Nur Links aus Kommentaren des Autors werden anklickbar, und nur mit den Schemata `http`, `https` und `mailto`.
-- **Kann:** PDF/A, Lesezeichenleiste mit den Kapiteln, Strukturmarkierung für Bildschirmleser. Ob SkiaSharp das bereitstellt, ist offen ([Abschnitt 18](#18-offene-punkte)).
+- **Kann:** PDF/A und Strukturmarkierung für Bildschirmleser ([Abschnitt 18](#18-offene-punkte)). Die Lesezeichenleiste ist umgesetzt.
+
+## 8a PowerPoint
+
+Format `pptx`: ein Foliensatz im Format 16:9, den PowerPoint und LibreOffice öffnen. Er entsteht wie die anderen Formate aus den Texten und Bildern des Viewers ([Abschnitt 2](#2-grundsätze)); Schwärzungen, Verallgemeinerungen und Entschärfung gelten unverändert.
+
+- **Erzeugung:** durch einen eigenen Schreiber, ohne installiertes PowerPoint. Das Paket enthält ein vollständiges Theme. Die Zeitstempel sind fest: Zwei Exporte mit gleichen Einstellungen sind bytegleich.
+- **Aufbau:** Titelfolie (Titel, Untertitel, Angaben, Logo) · „Über diese Anleitung“ mit Einleitung und Voraussetzungen, falls vorhanden · eine Folie je Kapitel · je Schritt eine Folie · Abschlussfolie.
+- **Schrittfolie:** Nummernmarke, Titel als echter Titelplatzhalter (damit Gliederungsansicht und Bildschirmleser ihn finden), Text links, bis zu zwei Hinweiskästen unter dem Text, das Bild eingepasst rechts. Weitere Hinweise hängen am Text. Die Fußzeile zeigt den Fußzeilentext oder den Titel; Akzentfarbe und Logo folgen den Dokument-Einstellungen. Die Schriftgröße wird so gewählt, dass Titel und Text in ihren Rahmen passen.
+- **Vortragsnotizen:** Jede Folie trägt den vollen Text mit allen Hinweisen in ihren Notizen. Eine Option schaltet die Notizen ab.
+- Die Art der Anleitung ([9.4](#94-art-der-anleitung)) gilt für PowerPoint nicht.
+
+## 8b Klick-Tour
+
+Format `tour`: eine HTML-Datei, in der der Leser die Schritte durchklickt wie in einer Vorführung. Sie ist in sich geschlossen wie die HTML-Anleitung ([5.1](#51-eigenschaften)) und enthält **kein Skript**.
+
+- **Folien:** Jeder Schritt ist ein Abschnitt, der über das Sprungziel in der Adresse (`:target`) sichtbar wird. Eine Startseite zeigt Titel, Schrittzahl, Einleitung und Voraussetzungen, eine Endseite den Abschluss mit „Von vorn“ und „Übersicht“.
+- **Klickfläche:** Über dem Ziel des Schritts liegt ein Verweis; ein Klick auf die markierte Stelle führt zum nächsten Schritt. Ihre Lage in Prozent des Bildes ergibt sich aus Bildausschnitt und Ziel des Schritts. Dazu gibt es „Zurück“ und „Weiter“ und die Zugriffstasten `p` und `n`. In den Bildern sind keine Mausmarken eingezeichnet, weil die Klickfläche die Stelle zeigt.
+- **Hinweisring:** Der Ring um die Klickfläche pulsiert immer, nur beim Überfahren und bei Fokus (Standard) oder nie. Die Wahl steht im Exportdialog.
+- **Ohne Skript:** Alle Maße, auch die der Klickflächen, stehen im Stilblock; es gibt kein `<script>`. Die Content Security Policy sperrt alles außer eingebetteten Bildern und dem Stilblock.
+- **Druck:** Die Druckansicht zeigt alle Schritte untereinander, ohne Klickflächen und Schaltflächen.
+- Ab 25 MB weist der Export darauf hin, dass sich die Darstellung „Ausschnitt um die Aktion“ oder weniger Schritte anbieten.
+
+## 8c Fehlerbericht
+
+Format `bugreport`: ein Markdown-Text für Ticket oder Issue und ein Ordner `bilder/` mit den Bildern der Schritte. Er richtet sich an jemanden, der den Fehler nachstellen soll.
+
+| Abschnitt | Inhalt |
+|---|---|
+| Zusammenfassung | Das Ziel der Aufnahme ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)), sonst die Einleitung; fehlt beides, steht dort „(bitte ergänzen)“ |
+| Umgebung | Windows-Ausgabe und -Version, Sprache, Monitore (Größe, Skalierung), beteiligte Programme mit Version, Aufnahmezeitpunkt und Programmversion |
+| Schritte zum Nachstellen | Nummerierte Schritte mit Text, Hinweisen und Bild; Marker vom Typ „Fehler“ und „Erwartet“ stehen nicht hier |
+| Erwartetes Ergebnis | Die Angabe „Erwartetes Ergebnis“ des Ziels und die Marker vom Typ `expected` mit ihrem Zeitpunkt |
+| Tatsächliches Ergebnis | Die Marker vom Typ `error` mit ihrem Zeitpunkt |
+| Anhänge | Die Liste der Bilddateien |
+
+- **Nie enthalten:** Programmpfade, Kommandozeilen und Prozessnummern. Die Umgebung nennt Programme nur mit Prozessname, Produkt und Version.
+- **Harte Durchsichtspflicht:** Solange eine auffällige Eingabe ungeprüft ist, entsteht kein Fehlerbericht – auch nicht über die Kommandozeile, wo bei den anderen Formaten `{unreviewed:N}` erscheint.
+- **Ohne Angaben:** Fehlt das erwartete oder das tatsächliche Ergebnis, steht „(bitte ergänzen)“, damit der Autor es im Ticket nachträgt.
+- **Zwischenablage:** Im Editor kopiert „Kopieren → Als Fehlerbericht“ den Text ohne Bildverweise in die Zwischenablage ([08](08-viewer.md#102-kopierbefehle)).
+- Dateinamen und Ordner: [Abschnitt 13](#13-dateibenennung-und-ablage).
+
+## 8d GIF
+
+Format `gif`: ein animiertes Bild, das die Schritte nacheinander zeigt – für Wiki, Chat und E-Mail.
+
+- Ein Titelbild, dann je Schritt ein Bild mit Nummer und Überschrift; ohne Anleitungstexte. Die Animation läuft in einer Schleife.
+- Die Dauer je Schritt wählt der Dialog: 1,5, 2,5 (Standard) oder 4 Sekunden.
+- Umfang, Darstellung und Markierungen gelten wie bei den Anleitungsformaten.
 
 ## 9 Vorlagen und Branding
 
-Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate.
+Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate. Umgesetzt sind bisher die **Dokument-Einstellungen** der Aufnahme (Deckblatt, Inhaltsverzeichnis, Nummerierung, Bildgröße und -anordnung, Akzentfarbe, Logo, Fußzeile; `edits.guide.doc`), die der Editor als Vorlage speichern und anwenden kann und die sich über den Einstellungsaustausch weitergeben lassen, und die **Art der Anleitung** ([9.4](#94-art-der-anleitung)). Die mitgelieferten Vorlagen aus 9.1 und die Wahl einer Vorlage im Exportdialog sind Soll.
 
 ### 9.1 Mitgelieferte Vorlagen
 
@@ -461,13 +513,28 @@ Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Si
 
 Die Stilvorlage für Markierungen in den Bildern gehört zur Sitzung und wird im Viewer gewählt ([08](08-viewer.md#73-eigenschaften-und-stilvorlagen)); der Export übernimmt sie.
 
+### 9.4 Art der Anleitung
+
+Die Art wählt im Exportdialog, wie viel eine Anleitung enthält. Sie gilt für HTML, Markdown, Word und PDF und wirkt nur über Optionssätze auf die Dokument-Einstellungen; es gibt keine eigenen Ausgabewege.
+
+| Art | Gedacht für | Kennzeichen |
+|---|---|---|
+| Standard | Die ausführliche Anleitung | Es gilt, was die Dokument-Einstellungen festlegen |
+| Kurzfassung | Eine knappe Übersicht der Schritte | Ohne Bilder, ohne Deckblatt und Inhaltsverzeichnis, kompakte Schritte, fortlaufend nummeriert (nicht je Kapitel) |
+| Checkliste | Zum Ausdrucken und Abhaken | Wie die Kurzfassung, mit einem Kästchen je Schritt |
+
+- Auf der Kommandozeile heißt die Option `--template standard|short|checklist` ([14](#14-kommandozeilen-export)); `kurz`, `kurzfassung`, `kompakt` und `checkliste` werden ebenfalls erkannt.
+- **Dateiname:** Kurzfassung und Checkliste hängen „ – Kurzfassung“ bzw. „ – Checkliste“ (englisch „ – short“, „ – checklist“) an den Titel, damit die Standardanleitung nicht überschrieben wird.
+- Für PowerPoint, Klick-Tour, Fehlerbericht, GIF, KI-Paket und AutoHotkey gibt es keine Art.
+
 ## 10 Sprache der Schritttexte
 
 - Automatische Schritttexte entstehen beim Export aus den Textvorlagen im Anleitungsstil, in der gewählten Sprache ([05](05-schritterkennung.md#textvorlagen)). Eine Sitzung lässt sich so auf Deutsch und auf Englisch ausgeben, ohne neu aufzunehmen.
-- **Eigene Texte des Autors** liegen in der Sprache vor, in der sie geschrieben wurden; sie werden nicht übersetzt. Fehlt ein eigener Text in der Exportsprache, gilt dort der automatische Text. Die Vorprüfung meldet die betroffenen Schritte und bietet an:
+- **Eigene Texte des Autors** liegen in der Sprache vor, in der sie geschrieben wurden; sie werden nicht übersetzt. Fehlt ein eigener Text in der Exportsprache, gilt dort der automatische Text. Die Qualitätsprüfung meldet die betroffenen Schritte und Dokumenttexte (Q13). Der Exportdialog fragt dazu „Fehlt eine Übersetzung“ und bietet an:
   - den automatischen Text der Exportsprache verwenden (Standard),
-  - stattdessen den vorhandenen Text unverändert übernehmen,
-  - abbrechen und im Viewer übersetzen.
+  - stattdessen den eigenen Text der anderen Sprache unverändert übernehmen.
+
+  Wer übersetzen will, bricht ab und übersetzt im Viewer. Die Wahl gilt für diesen Export; die Aufnahme bleibt unverändert. Die Kommandozeile verwendet den automatischen Text.
 - **Namen aus der aufgenommenen Anwendung** (Schaltflächen, Menüs, Fenstertitel) bleiben, wie sie aufgezeichnet wurden. Eine englische Anleitung zu einer deutschen Oberfläche nennt die deutschen Beschriftungen in Anführungszeichen.
 - **Tastennamen** folgen der Exportsprache („Strg“ oder „Ctrl“); die Zuordnung steht in [05](05-schritterkennung.md#textvorlagen).
 - **Anführungszeichen, Datums- und Zahlenformat** folgen der Exportsprache.
@@ -536,7 +603,7 @@ Vor jedem Export – im Dialog laufend, beim Ein-Klick-Export und auf der Komman
 | Ausgabe größer als 25 MB | Hinweis | Abhilfen nach [5.3](#53-größe) |
 | Zieldatei existiert außerhalb des Ordners `export/` der Sitzung | Sperre | Überschreiben bestätigen · anderen Namen wählen |
 | Ziel nicht beschreibbar | Sperre | Anderes Ziel wählen |
-| Qualitätsprüfung nach dem Regelkatalog ([12.1](#121-qualitätsprüfung-regelkatalog)) (Soll) | Hinweis oder Warnung, je Regel | Sprung zum Schritt · Abhilfe der Regel · Ignorieren |
+| Qualitätsprüfung nach dem Regelkatalog ([12.1](#121-qualitätsprüfung-regelkatalog)) | Hinweis oder Warnung, je Regel | Sprung zum Schritt · Abhilfe der Regel · Ignorieren |
 
 Mehrere Zeilen dieser Tabelle sind zugleich Regeln des Katalogs: fehlende Übersetzung (Q13), Schritte ohne Text (Q10), fehlende Bilder (Q16), Belegstufen (Q02, Q03) und Lücken (Q04). Sie werden auch ohne die Qualitätsprüfung geprüft; mit ihr tragen ihre Fundstellen die Regelnummer und lassen sich einzeln ignorieren.
 
@@ -546,7 +613,7 @@ Die Vorprüfung ändert nichts an der Sitzung. Bestätigungen gelten für diesen
 
 ### 12.1 Qualitätsprüfung: Regelkatalog
 
-Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt, sondern nach Verständlichkeit: Kommt ein Leser mit dieser Anleitung zurecht? (Soll) Sie läuft vor jedem Export und steht im Viewer jederzeit als Hinweisliste bereit ([08](08-viewer.md#121-qualitätshinweise)).
+Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt, sondern nach Verständlichkeit: Kommt ein Leser mit dieser Anleitung zurecht? Sie liest nur Daten der Leseschicht und dekodiert keine Bilder. Im Viewer steht sie jederzeit als Fenster mit Hinweisliste bereit (`F8`, [08](08-viewer.md#121-qualitätshinweise)); der Exportdialog fasst sie zusammen ([3.1](#31-exportdialog)), und die Kommandozeile gibt sie bei `export` und mit dem Befehl `check` aus ([14](#14-kommandozeilen-export)).
 
 - Jede Regel hat eine feste **Nummer**, eine **Schwere** – Hinweis oder Warnung –, einen **Meldetext** und eine **Prüfregel**.
 - Die Prüfregel stützt sich auf ein Kriterium aus [05](05-schritterkennung.md#qualitaetskriterien). Dort steht, aus welchen Daten es gelesen wird; hier stehen Schwere, Schwellen und Wortlaut.
@@ -592,18 +659,25 @@ Festlegungen:
 - **Schwellen** stehen in dieser Tabelle; die Vorgaben aus 05 gelten, wo keine genannt ist.
 - **Die Nummern sind fest.** Eine Regel behält ihre Nummer; entfällt sie, bleibt die Nummer frei; neue Regeln kommen ans Ende. Ein Eintrag in `qualityIgnores` mit einer unbekannten Regel bleibt erhalten und wirkt nicht.
 - In der Ausgabe der Kommandozeile trägt jede Meldung der Qualitätsprüfung ihre Regelnummer und die Kennung des Schritts ([Abschnitt 14](#14-kommandozeilen-export)).
+- **Stand der Regeln:** Q15 prüft bisher, ob eine Verallgemeinerungsregel überhaupt Bildflächen ermittelt hat (Schlüssel: Kennung der Regel), nicht ob der Wert in jedem Bild erreicht ist. Q18 meldet bisher angehängte Aufnahmen als Nahtstelle (Schlüssel `continuation:<Kennung>`), nicht Nahtstellen nach einer Neuaufnahme. Q20 meldet nur, wenn die Reihenfolge geändert wurde. Q13 gilt auch für die Dokumenttexte Einleitung und Abschluss (Schlüssel `<Sprache>:<Feld>`). Q15 und Q18 hängen an keinem Schritt. Die übrigen Regeln sind wie beschrieben umgesetzt.
+- **Geprüfter Umfang:** Q12 prüft alle Schritte, nicht nur die des Umfangs, weil eine ungeprüfte Eingabe jede Weitergabe sperrt. Alle anderen Regeln prüfen die Schritte des gewählten Umfangs.
+- **Zwischenspeicher:** Der Editor behält die Befunde bis zur nächsten Änderung der Aufnahme und rechnet erst dann neu.
+- **Abhilfen im Editor:** Die Hinweisliste bietet je Befund die Abhilfe der Regel an – Durchsicht öffnen, Text bearbeiten, Zuschneiden, Ausblenden, Hinweisschritt einfügen, Zusammenfassen, Regel anlegen, anderes Bild wählen, Bilder prüfen – und „Ignorieren“. Einzelheiten stehen in [08](08-viewer.md#121-qualitätshinweise).
+- **Wirkung im Dialog und beim Ein-Klick-Export:** Der Dialog zeigt die Zusammenfassung „Qualität: N Warnungen, M Hinweise“ mit dem Link „Ansehen (F8)“ und hält den Export nicht auf. Dass der Ein-Klick-Export bei einer Warnung stattdessen den Dialog öffnet, ist Soll ([3.2](#32-ein-klick-export)).
 
 ## 13 Dateibenennung und Ablage
 
 - **Standardziel** ist der Ordner `export/` in der Sitzung ([04](04-datenformat.md)). Bei gepackten Sitzungen ist es ein Ordner `Name-export/` neben der `.steprec`-Datei.
-- **Dateiname:** `{Titel}.{Endung}`. Die Vorlage kann `{Datum}`, `{Sprache}` und `{Vorlage}` hinzufügen, etwa `Datei im Editor speichern (en).pdf`.
+- **Dateiname:** `{Titel}.{Endung}`. Bei der Kurzfassung und der Checkliste steht die Art dahinter ([9.4](#94-art-der-anleitung)). Die Vorlage kann `{Datum}`, `{Sprache}` und `{Vorlage}` hinzufügen (Soll), etwa `Datei im Editor speichern (en).pdf`.
+- **Unterordner von `export/`:** `html/`, `markdown/`, `docx/`, `pdf/`, `pptx/`, `tour/`, `fehlerbericht/`, `gif/`, `ahk/` und `ahk-ki/`; das KI-Paket liegt als `ki-paket-<Zeitstempel>/` unmittelbar in `export/`. Bei `.steprec`-Aufnahmen (schreibgeschützt) ist das Standardziel der Ordner neben der Archivdatei.
+- **Fremde Ordner:** Wählt der Autor einen eigenen Ordner, legen Markdown, Fehlerbericht und AutoHotkey darin einen Unterordner mit dem Titel an, damit `bilder` nicht mit anderem vermischt wird. Ordnerausgaben (KI-Paket, AutoHotkey als KI-Paket) leeren nie einen fremden Ordner: Ist der Zielordner nicht leer und enthält er keinen früheren Export, endet der Export mit einer Meldung (Exit-Code 8 auf der Kommandozeile).
 - Der Titel wird nach den Regeln aus [Abschnitt 11](#11-entschärfung-aufgezeichneter-texte) zu einem gültigen Dateinamen gemacht.
 - **Markdown:** `{Titel}.md` und `{Titel}-bilder/`, beide in der ASCII-Schreibweise aus [6.1](#61-dateien).
 - **Vorhandene Dateien:** Im Ordner `export/` der Sitzung wird ohne Rückfrage überschrieben, denn dort liegen nur erzeugte Ausgaben. An jedem anderen Ort fragt das Programm nach.
-- Das zuletzt gewählte Ziel wird je Format gemerkt.
+- Der zuletzt gewählte Ordner wird je Format gemerkt, ein Ordner innerhalb einer Aufnahme nicht ([4.5](#45-gespeicherte-export-einstellungen)).
 - **Support-Paket** (Soll): `Support-<Datum>-<Titel>.zip` im Ordner `export/` der Sitzung. Es wird nie überschrieben; ein vergebener Name erhält eine laufende Nummer ([3.5](#35-support-paket)).
 - **Vergleich zweier Sitzungen** (Soll): Der Viewer legt einen gespeicherten Vergleich im Ordner `export/` der Sitzung A ab ([08](08-viewer.md#59-zwei-aufnahmen-vergleichen)).
-- **Zwischendateien** des Exports und der Vorschau liegen im Sitzungsordner unter `export/.tmp/`, nie in `%TEMP%`, und werden entfernt, sobald sie nicht mehr gebraucht werden; Reste eines Absturzes räumt das nächste Öffnen der Sitzung auf.
+- **Zwischendateien** des Exports und der Vorschau liegen im Sitzungsordner unter `export/.tmp/job-<Kennung>/`, nie in `%TEMP%`, und werden entfernt, sobald sie nicht mehr gebraucht werden; Arbeitsordner, die älter als ein Tag sind, räumt das nächste Öffnen der Sitzung auf. Bei schreibgeschützten Aufnahmen liegt der Arbeitsordner neben dem Ziel.
 - **Ältere Ausgaben nach einer Schwärzung:** Liegen im Ordner `export/` Ausgaben, die vor einer Schwärzung entstanden sind, listet der Viewer sie auf und bietet an, sie zu löschen ([10](10-datenschutz-und-sicherheit.md#106-abgeleitete-daten-und-frühere-exporte)). Ausgaben an anderen Orten kennt das Programm nicht.
 - Ein abgebrochener oder fehlgeschlagener Export hinterlässt keine Datei: Geschrieben wird in eine Zwischendatei unter `export/.tmp/`, und erst die fertige Ausgabe gelangt an ihr Ziel. Liegt das Ziel auf einem anderen Datenträger, entsteht sie dort zunächst unter einem vorläufigen Namen und wird zuletzt umbenannt.
 
@@ -614,51 +688,59 @@ Der Befehl `export` erzeugt eine Anleitung ohne Oberfläche, etwa in Skripten. R
 **Ein Name, eine Bedeutung:** `--profile` gibt es bei `export` nicht. Der Name ist dem Aufnahmeprofil vorbehalten (`record --profile`, `support --profile`, [07](07-aufnahme-bedienung.md#31-aufnahme-über-die-kommandozeile)); das Bildprofil des KI-Pakets heißt auf der Kommandozeile `--image-profile`. Optionen, die nur für Anleitungen gelten – etwa `--template`, `--address`, `--after`, `--steps` –, sind zusammen mit `--format ki` ein Aufruffehler, ebenso die Optionen des KI-Pakets zusammen mit einem Anleitungsformat.
 
 ```
-SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|ki> [Optionen]
+SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki> [Optionen]
 ```
 
 | Option | Bedeutung | Standard |
 |---|---|---|
-| `--format` | Ausgabeformat; `ki` erzeugt das KI-Paket | Pflicht |
-| `--out <Pfad>` | Zieldatei oder Zielordner | Ordner `export/` der Sitzung |
-| `--template <Name oder Datei>` | Vorlage | Standard |
+| `--format` | Ausgabeformat; `ki` erzeugt das KI-Paket, `ahk` das AutoHotkey-Skript, `ahk-ki` dessen KI-Paket | `html` |
+| `--out <Pfad>` | Zieldatei oder Zielordner | Ordner `export/` der Sitzung ([13](#13-dateibenennung-und-ablage)) |
+| `--template <standard\|short\|checklist>` | Art der Anleitung ([9.4](#94-art-der-anleitung)); nur HTML, Markdown, Word, PDF | `standard` |
 | `--lang <de\|en>` | Sprache der Schritttexte | Sprache der Sitzung |
-| `--address <formal\|informal\|neutral>` | Anrede in deutschen Schritttexten | `formal` |
-| `--view <as-edited\|screen\|window\|focus>` | Darstellung der Bilder | `as-edited` |
-| `--override-step-views` | Vorgabe gilt auch für Schritte mit eigener Festlegung | aus |
-| `--after <as-edited\|never\|changed\|always>` | Nachher-Bild | `as-edited` |
-| `--steps <main\|all>` | Umfang | `main` |
-| `--from <N>`, `--to <M>` | Bereich nach Schrittnummern der Anleitung | alle |
-| `--no-comments` | Kommentare weglassen | aus |
-| `--title <Text>` | Titel überschreiben | Titel der Sitzung |
-| `--docx-template <Datei>` | Word-Vorlage | aus der Vorlage |
-| `--image-format <png\|jpeg>`, `--jpeg-quality <85–95>` | Bildformat | `png` |
-| `--max-image-width <Pixel>` | Größte Bildbreite | Originalgröße |
-| `--overwrite` | Vorhandene Zieldatei außerhalb des Ordners `export/` der Sitzung ersetzen; innerhalb dieses Ordners wird immer überschrieben | aus |
-| `--strict` | Warnungen der Vorprüfung und zurückgehaltene Eingaben führen zum Abbruch | aus |
+| `--importance <primary\|secondary\|all>` | Umfang: Hauptschritte · Haupt- und Nebenschritte · alle | `primary` |
+| `--view <screen\|window\|crop>` | Darstellung der Bilder | aus den Dokument-Einstellungen |
+| `--strict` | Warnungen der Qualitätsprüfung und ungeprüfte Eingaben führen zum Abbruch | aus |
 | `--json` | Ergebnis als JSON auf der Standardausgabe | aus |
-| `--quiet` | Keine Fortschrittsmeldungen | aus |
+
+Zusätzlich für das KI-Paket: `--detail`, `--image-profile`, `--zip`, `--no-events`; für AutoHotkey: `--real-timing`, `--no-images`, `--no-ocr`, `--with <Sitzung>` (wiederholbar). Sie stehen in [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile) und [14a](#14a-autohotkey-skript). Die Hilfe (`--help`) gibt es auf Deutsch und Englisch.
+
+Der Argumentleser ist streng: Eine unbekannte Option oder ein Wert außerhalb der Liste ist ein Aufruffehler (Exit-Code 2) und wird gemeldet, bevor etwas geschrieben wird.
+
+**Soll, noch nicht vorhanden:** `--address`, `--override-step-views`, `--after`, `--steps` (an die Stelle tritt `--importance`), `--from`/`--to`, `--no-comments`, `--title`, `--docx-template`, `--image-format`/`--jpeg-quality`, `--max-image-width`, `--overwrite` und `--quiet`. Die Ausgabe nimmt die Dokument-Einstellungen der Aufnahme.
 
 Verhalten:
 
 - Es erscheint nie ein Fenster und nie eine Rückfrage.
-- Auf der **Standardausgabe** steht je erzeugter Datei eine Zeile mit ihrem Pfad, oder mit `--json` ein Objekt mit den Feldern `files`, `warnings`, `notices` und `unreviewed`. Fortschritt und Meldungen gehen auf die Fehlerausgabe.
+- Auf der **Standardausgabe** steht der Pfad der erzeugten Datei, oder mit `--json` ein Objekt mit den Feldern `files`, `warnings`, `notices`, `unreviewed`, `estimatedTokens` (Text und Bilder, für das KI-Paket) und `quality`. Hinweise und Meldungen der Qualitätsprüfung gehen auf die Fehlerausgabe.
 - Schwärzungen werden immer angewendet; dafür gibt es keinen Schalter. Dasselbe gilt für Verallgemeinerungen und Neuaufnahmen ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)): Die Kommandozeile gibt Platzhalter aus und nur die wirksame Schrittfolge.
-- **Qualitätsprüfung:** Ihre Fundstellen stehen als Hinweise und Warnungen in der Ausgabe ([12.1](#121-qualitätsprüfung-regelkatalog)). Im JSON-Objekt trägt jede davon die Regelnummer (`rule`), die Kennung des Schritts (`step`) und, wo die Regel einen hat, den Schlüssel (`key`). Ignorierte Fundstellen fehlen.
-- **Ungeprüfte auffällige Eingaben:** Die Kommandozeile kann die Durchsicht nicht zeigen. Solche Eingaben erscheinen in der Ausgabe deshalb als `{unreviewed:N}`, bis der Autor sie im Viewer geprüft hat. N zählt bei getippten Läufen die Tastenanschläge, bei Feldinhalten, Zwischenablage-Inhalten, Kommentaren, Ziel-Angaben und Marker-Texten die Zeichen ([10](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben)). Das JSON-Objekt nennt im Feld `unreviewed`, wie viele es sind. Einen Schalter, der sie im Klartext ausgibt, gibt es nicht.
-- **Warnungen** halten den Export nicht auf. Sie stehen auf der Fehlerausgabe und im JSON-Objekt; mit `--strict` endet der Aufruf stattdessen mit einem eigenen Exit-Code, ebenso bei zurückgehaltenen Eingaben.
+- **Qualitätsprüfung:** Bei Anleitungsformaten stehen ihre Fundstellen in der Ausgabe ([12.1](#121-qualitätsprüfung-regelkatalog)). Im JSON-Objekt trägt jede davon die Regelnummer (`rule`), die Nummer (`step`) und Kennung (`stepId`) des Schritts und, wo die Regel einen hat, den Schlüssel (`key`). Ignorierte Fundstellen fehlen. Auf der Fehlerausgabe steht je Fundstelle eine Zeile wie „Q08 Warnung Schritt 12: …“.
+- **Ungeprüfte auffällige Eingaben:** Die Kommandozeile kann die Durchsicht nicht zeigen. Solche Eingaben erscheinen in der Ausgabe deshalb als `{unreviewed:N}`, bis der Autor sie im Viewer geprüft hat ([10](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben)). Das JSON-Objekt nennt im Feld `unreviewed`, wie viele es sind. Einen Schalter, der sie im Klartext ausgibt, gibt es nicht. Eine Ausnahme ist der Fehlerbericht ([8c](#8c-fehlerbericht)): Er entsteht erst nach der Durchsicht.
+- **Warnungen** halten den Export nicht auf. Mit `--strict` endet der Aufruf stattdessen mit Exit-Code 9, ebenso bei ungeprüften Eingaben; es wurde dann nichts geschrieben.
+- Ein Abbruch mit `Strg+C` bricht den Export ab, ohne eine unvollständige Datei zu hinterlassen.
 - Exportiert werden nur abgeschlossene Sitzungen.
 
 Die Exit-Codes legt [02](02-architektur.md#betriebsarten) fest:
 
 | Exit-Code | Bedeutung für `export` |
 |---|---|
-| 0 | Erfolg – auch mit Warnungen und `{unreviewed:N}`; beides steht in der Ausgabe |
+| 0 | Erfolg – auch mit Hinweisen und `{unreviewed:N}`; beides steht in der Ausgabe |
 | 1 | Allgemeiner Fehler |
-| 2 | Aufruffehler: unbekannte Option, unbekannte Vorlage, vorhandene Zieldatei außerhalb des Ordners `export/` ohne `--overwrite` |
+| 2 | Aufruffehler: unbekannte oder unzulässige Option, unbekanntes Format |
 | 3 | Sitzung nicht gefunden, nicht lesbar oder noch nicht abgeschlossen |
-| 8 | Ziel nicht beschreibbar |
+| 8 | Ziel nicht beschreibbar oder ein Ordner, den der Export nicht ersetzen darf |
 | 9 | Abbruch durch `--strict`: Die Vorprüfung meldete Warnungen oder zurückgehaltene Eingaben; es wurde nichts geschrieben |
+
+### 14c Befehl check
+
+`check <Sitzung>` führt nur die Qualitätsprüfung aus und schreibt nichts.
+
+```
+SebastiansStepRecorder.exe check <Sitzung> [--lang de|en] [--importance primary|secondary|all] [--json] [--strict] [--all]
+```
+
+- Ausgabe: je Fundstelle eine Zeile „Q08 Warnung Schritt 12: …“ und zuletzt „N Warnungen · M Hinweise“; mit `--json` ein Objekt mit `findings`, `warnings` und `hints`.
+- `--all` nimmt ignorierte Fundstellen mit auf (sie sind als ignoriert gekennzeichnet); sonst fehlen sie.
+- Exit-Code 0; mit `--strict` und mindestens einer nicht ignorierten Warnung 9.
 
 Verwandte Befehle, die dieses Dokument nicht beschreibt:
 
@@ -814,13 +896,13 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-006 | Erzeugung ohne Fremdprogramme | Muss | Der Export gelingt auf einem System ohne Office und mit gesperrtem Netzwerk. |
 | EXP-007 | Wiederholbarkeit | Soll | Zwei Exporte mit gleichen Einstellungen sind nach den Regeln aus Abschnitt 15 bytegleich. |
 | EXP-008 | Platzhalter für Geschwärztes | Muss | In allen vier Formaten erscheint eine geschwärzte Textstelle als `[geschwärzt]` bzw. `[redacted]`, ein geschwärzter Schritt als „Schritt geschwärzt“ bzw. „Step redacted“ (er fehlt nur, wenn er zugleich ausgeblendet ist), ein geschwärzter Zeitraum als Hinweis „vom Autor entfernt“ mit Zeitpunkt und Dauer und ein geschwärzter Bildbereich als schwarz gefüllte Fläche. |
-| EXP-010 | Exportdialog | Muss | Der Dialog bietet Format, Vorlage, Umfang, Darstellung, Nachher-Bild, Sprache und Ziel; er zeigt das Ergebnis der Vorprüfung. |
+| EXP-010 | Exportdialog | Muss | Der Dialog bietet Format, Art, Umfang, Darstellung, Sprache, Umgang mit fehlender Übersetzung und Ziel mit „Durchsuchen“ und „Standardort“; er zeigt die Zusammenfassung der Qualitätsprüfung. Vorlage, Nachher-Bild und die übrigen Zeilen der Vorprüfung sind Soll. |
 | EXP-011 | Vorbelegung und kurzer Weg | Muss | Der Dialog öffnet mit den Einstellungen des letzten Exports; `Strg+E`, Eingabetaste erzeugt die Ausgabe. |
-| EXP-012 | Ein-Klick-Export | Soll | `Strg+Umschalt+E` exportiert ohne Dialog; bei Sperre oder Warnung öffnet sich der Dialog mit dem Befund. |
-| EXP-013 | Aktionen nach dem Export | Soll | Die Meldung bietet Öffnen, Ordner zeigen, Pfad kopieren und Datei kopieren. |
+| EXP-012 | Ein-Klick-Export | Soll | `Strg+Umschalt+E` wiederholt den letzten Export dieser Aufnahme ohne Dialog; bei ungeprüften Eingaben fragt das Programm nach der Durchsicht. Dass bei Sperre oder Warnung der Dialog mit dem Befund öffnet, ist noch nicht umgesetzt. |
+| EXP-013 | Aktionen nach dem Export | Soll | Das Ergebnisfenster bietet Öffnen (nicht bei Skripten), Im Ordner zeigen und Pfad kopieren. Datei kopieren ist noch nicht umgesetzt. |
 | EXP-014 | Vorschau | Soll | „Vorschau“ öffnet die Ausgabe im Standardprogramm, ohne die Zieldatei anzulegen; die Vorschaudatei liegt in `export/.tmp/` der Sitzung, nicht in `%TEMP%`, und ist nach dem Schließen der Sitzung entfernt. |
-| EXP-015 | Fortschritt und Abbruch | Muss | Ab 1 s Dauer erscheint ein Fortschritt; ein Abbruch hinterlässt keine Datei am Ziel. |
-| EXP-016 | Export-Einstellungen je Sitzung | Soll | Nach einem Export öffnet der Dialog derselben Sitzung mit denselben Einstellungen; `edits.json` enthält dafür das Objekt `exports` nach 4.5 und keinen Zielpfad. |
+| EXP-015 | Fortschritt und Abbruch | Muss | Ab 0,7 s Dauer erscheint ein Fortschrittsfenster mit „Abbrechen“; ein Abbruch hinterlässt keine Datei am Ziel. |
+| EXP-016 | Gemerkte Export-Einstellungen | Muss | Nach einem Export öffnet der Dialog mit den Optionen des Formats, die Sprache stammt vom letzten Export der Aufnahme; die Aufnahme enthält dafür nichts und keinen Zielpfad (4.5). Das Objekt `exports` in `edits.json` ist Soll. |
 | EXP-017 | KI-Paket im Exportdialog | Muss | Der Dialog bietet „KI-Paket“ als Ziel, zeigt dessen Optionen und die Token-Abschätzung aus [06](06-ki-export-und-mcp.md#10-token-abschätzung-und-paketteilung) und verwendet dieselbe Vorprüfung wie die Anleitungsformate. |
 | EXP-020 | Umfang wählbar | Muss | Hauptschritte, alle Schritte, Auswahl und Bereich ergeben jeweils genau die erwarteten Schritte. |
 | EXP-021 | Nie Enthaltenes | Muss | Ausgeblendete und verworfene Schritte, geschwärzte Inhalte sowie interne und ausgeblendete Kommentare erscheinen in keiner Ausgabe, bei keiner Kombination von Optionen. |
@@ -846,14 +928,14 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-051 | DOCX mit benannten Formatvorlagen und echter Nummerierung | Muss | Jeder Inhalt trägt die Formatvorlage aus 7.2; nach dem Löschen eines Schritts in Word stimmt die Nummerierung. |
 | EXP-052 | Eigene Word-Vorlage | Muss | Mit einer Vorlage erscheinen deren Kopfzeile, Schriften und Seitenränder; der Inhalt steht an der gekennzeichneten Stelle; eine `.dotm` wird abgelehnt. |
 | EXP-053 | DOCX-Bilder | Muss | Kein Bild überschreitet den Satzspiegel; jedes hat einen Alternativtext; Schritttext und Bild stehen auf derselben Seite. |
-| EXP-054 | DOCX-Inhaltsverzeichnis | Soll | Das Verzeichnis ist beim Öffnen gefüllt und lässt sich in Word aktualisieren. |
+| EXP-054 | DOCX-Inhaltsverzeichnis | Soll | Das Verzeichnis ist ein Word-Feld `TOC`, beim Öffnen mit anklickbaren Einträgen gefüllt, und lässt sich in Word aktualisieren; Word fragt beim Öffnen nicht nach. |
 | EXP-055 | DOCX ohne Makros und externe Bezüge | Muss | Das Paket enthält keinen Makro-Teil und keine externe Beziehung außer Links des Autors. |
 | EXP-060 | PDF mit echtem Text | Muss | Der Schritttext lässt sich im PDF-Betrachter markieren, kopieren und suchen. |
 | EXP-061 | PDF-Seitenumbruch | Muss | In einer Testsitzung mit Bildern unterschiedlicher Höhe ist kein Bild geteilt und kein Schritttext von seinem Bild getrennt. |
-| EXP-062 | PDF mit eingebetteten Schriften | Muss | Das PDF verweist auf keine nicht eingebettete Schrift; deutsche und englische Texte zeigen keine Ersatzzeichen. |
+| EXP-062 | PDF mit Unicode-Text | Muss | Deutsche und englische Texte zeigen keine Ersatzzeichen. Zeichen außerhalb von WinAnsi stehen in einer eingebetteten Teilmenge mit `ToUnicode` (Kopieren und Suchen funktionieren); nicht darstellbare Schriften (CJK, Arabisch, Hebräisch, Thai, Emoji) ergeben „?“ und genau eine Warnung. |
 | EXP-063 | PDF-Kopf- und Fußzeile | Soll | Jede Seite zeigt „Seite X von Y“ mit richtiger Gesamtzahl. |
-| EXP-064 | PDF-Inhaltsverzeichnis mit Sprungzielen | Soll | Ein Klick auf einen Eintrag führt zur Seite des Kapitels. |
-| EXP-065 | PDF/A, Lesezeichen, Strukturmarkierung | Kann | Je nach Umsetzung nachweisbar mit einem Prüfprogramm. |
+| EXP-064 | PDF-Inhaltsverzeichnis mit Sprungzielen | Soll | Ein Klick auf einen Eintrag führt zur Seite des Kapitels; die Lesezeichenleiste zeigt Kapitel und Schritte. |
+| EXP-065 | PDF/A, Strukturmarkierung | Kann | Je nach Umsetzung nachweisbar mit einem Prüfprogramm. Lesezeichen sind umgesetzt (EXP-064). |
 | EXP-070 | Mitgelieferte Vorlagen | Soll | Die vier Vorlagen aus 9.1 sind vorhanden und ergeben die genannten Kennzeichen. |
 | EXP-071 | Eigene Vorlagen | Soll | Gespeicherte Vorlagen stehen nach Neustart zur Wahl und liegen portabel beim Programm. |
 | EXP-072 | Branding | Soll | Logo, Akzentfarbe und Fußzeilentext erscheinen in allen Formaten, die sie vorsehen. |
@@ -861,7 +943,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-074 | Vorlagen weitergeben | Kann | Eine weitergegebene Vorlage ergibt auf einem zweiten Rechner dieselbe Ausgabe. |
 | EXP-080 | Schritttexte auf Deutsch | Muss | Alle automatischen Texte erscheinen auf Deutsch. |
 | EXP-081 | Schritttexte auf Englisch | Soll | Dieselbe Sitzung ergibt ohne Neuaufnahme eine englische Anleitung; Namen aus der Anwendung bleiben unverändert. |
-| EXP-082 | Fehlende Übersetzung eigener Texte | Soll | Die Vorprüfung meldet betroffene Schritte und bietet die drei Wege aus Abschnitt 10. |
+| EXP-082 | Fehlende Übersetzung eigener Texte | Soll | Die Qualitätsprüfung meldet betroffene Schritte (Q13); der Dialog bietet den automatischen Text (Standard) und den Text der anderen Sprache; die Kommandozeile nimmt den automatischen Text. |
 | EXP-083 | Anredeformen | Soll | Sie, du und neutral ergeben die jeweilige Form in allen automatischen deutschen Texten; für Englisch ist die Wahl ausgegraut. |
 | EXP-090 | Entschärfung in HTML | Muss | Alle Prüftexte aus Abschnitt 11 erscheinen wörtlich und bewirken nichts; geprüft im Browser und im Quelltext. |
 | EXP-091 | Entschärfung in Markdown | Muss | Alle Prüftexte erscheinen nach dem Rendern wörtlich; die Gegenprobe findet keine unerwarteten Knoten. |
@@ -877,13 +959,13 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-111 | Überschreibregel | Soll | Im Ordner `export/` wird ohne Rückfrage überschrieben, an anderen Orten nachgefragt. |
 | EXP-112 | Keine unvollständigen Dateien | Muss | Wird der Export hart beendet, liegt am Ziel keine Datei mit dem Zielnamen. |
 | EXP-113 | Ältere Ausgaben nach einer Schwärzung | Soll | Nach einer neuen Schwärzung sind die Ausgaben im Ordner `export/` der Sitzung aufgelistet und lassen sich mit einem Klick löschen. |
-| EXP-120 | Kommandozeilen-Export | Muss | Der Befehl aus Abschnitt 14 erzeugt alle vier Anleitungsformate mit den Optionen der Tabelle; mit `--format ki` entsteht das KI-Paket nach [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Im Ordner `export/` der Sitzung wird ohne `--overwrite` überschrieben, außerhalb endet der Aufruf dann mit Exit-Code 2. |
-| EXP-121 | Exit-Codes und Ausgabe | Muss | Jeder Fall der Tabelle in Abschnitt 14 liefert seinen Exit-Code, auch „Ziel nicht beschreibbar“ und „Abbruch durch `--strict`“; die Standardausgabe enthält nur Pfade bzw. das JSON-Objekt. |
+| EXP-120 | Kommandozeilen-Export | Muss | Der Befehl aus Abschnitt 14 erzeugt alle Anleitungsformate mit den Optionen der Tabelle; mit `--format ki` entsteht das KI-Paket nach [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Unbekannte Optionen enden mit Exit-Code 2. Die Option `--overwrite` ist Soll. |
+| EXP-121 | Exit-Codes und Ausgabe | Muss | Jeder Fall der Tabelle in Abschnitt 14 liefert seinen Exit-Code, auch „Ziel nicht beschreibbar“ und „Abbruch durch `--strict`“; die Standardausgabe enthält nur den Pfad bzw. das JSON-Objekt. |
 | EXP-122 | Kein Fenster, keine Rückfrage | Muss | Der Befehl läuft in einer Sitzung ohne Desktop-Zugriff durch. |
 | EXP-123 | Ungeprüfte Eingaben auf der Kommandozeile | Muss | Ungeprüfte auffällige Eingaben erscheinen in der Ausgabe als `{unreviewed:N}` und sind im JSON-Objekt gezählt; es gibt keine Option, die sie im Klartext ausgibt. Nach der Durchsicht im Viewer erscheinen sie im Klartext bzw. geschwärzt. |
 | EXP-130 | Dauer des Exports | Soll | Die Zeiten aus Abschnitt 15 sind auf System A und – mit dem dort genannten Faktor – auf System B eingehalten. |
 | EXP-131 | Bedienbarkeit während des Exports | Soll | Während eines Exports der Sitzung M reagiert der Viewer auf Schrittwechsel in höchstens 150 ms. |
-| EXP-140 | Qualitätsprüfung nach Regelkatalog | Soll | An einer Testsitzung mit je einer vorbereiteten Fundstelle meldet jede Regel Q01 bis Q20 genau diese, mit Nummer, Schwere und Meldetext der Tabelle in 12.1; eine Sitzung ohne Fundstellen ergibt keine Meldung. |
+| EXP-140 | Qualitätsprüfung nach Regelkatalog | Soll | (Q15 und Q18 teilweise, siehe 12.1.) An einer Testsitzung mit je einer vorbereiteten Fundstelle meldet jede Regel Q01 bis Q20 genau diese, mit Nummer, Schwere und Meldetext der Tabelle in 12.1; eine Sitzung ohne Fundstellen ergibt keine Meldung. |
 | EXP-141 | Schwere wirkt einheitlich | Soll | Ein Hinweis hält keinen Export auf; eine Warnung öffnet beim Ein-Klick-Export den Dialog und führt mit `--strict` zu Exit-Code 9. Regeln, die schon bisher geprüft wurden (Q02, Q03, Q04, Q10, Q13, Q16), behalten ihre Schwere. |
 | EXP-142 | Ignorierte Fundstellen | Soll | Eine in `edits.qualityIgnores` eingetragene Fundstelle erscheint weder im Dialog noch in der Ausgabe der Kommandozeile und zählt nicht für `--strict`; nach dem Entfernen des Eintrags erscheint sie wieder. Das Ignorieren von Q12 hebt weder die Sperre im Viewer noch `{unreviewed:N}` auf. |
 | EXP-143 | Regelnummern in der Ausgabe, stabil | Soll | Jede Meldung der Qualitätsprüfung nennt im Dialog die Regelnummer und im JSON-Objekt `rule`, `step` und gegebenenfalls `key`; zwischen zwei Programmversionen ändert keine Regel ihre Nummer. |
@@ -899,15 +981,23 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-172 | Support-Paket aus bereinigter Kopie | Soll | Ein geschwärzter Kanarienwert und ein verallgemeinerter Wert sind in keinem Byte der ZIP-Datei und ihrer entpackten Inhalte auffindbar; nach dem Erstellen und nach einem Abbruch liegt unter `export/.tmp/` keine bereinigte Kopie mehr. |
 | EXP-173 | Support-Paket nur nach Durchsicht, nur aus dem Viewer | Soll | Ohne vollständige Durchsicht entsteht kein Paket; `export` bietet kein Format dafür an. |
 | EXP-174 | Kein Versand | Soll | Beim Erstellen entsteht kein Netzwerkzugriff, und es wird kein Mailprogramm, Teilen-Dialog oder Upload aufgerufen; geöffnet wird nur der Ordner im Explorer. |
+| EXP-190 | Befehl `check` | Soll | `check` gibt die Fundstellen mit Regelnummer aus, mit `--json` als Objekt, und endet mit `--strict` bei einer nicht ignorierten Warnung mit Exit-Code 9; es schreibt nichts. |
+| EXP-191 | Ziel wählen, Ergebnisfenster | Muss | „Durchsuchen“ ändert Ordner und Namen, „Standardort“ stellt `export/` wieder her; das Ergebnisfenster zeigt den Pfad; ein Ordner innerhalb einer Aufnahme wird nicht zur Vorgabe für andere Aufnahmen. |
+| EXP-192 | Wiederholung | Soll | `Strg+Umschalt+E` erzeugt dieselbe Ausgabe wie der letzte Export dieser Aufnahme, ohne Dialog. |
+| EXP-193 | Art der Anleitung | Soll | Kurzfassung und Checkliste enthalten keine Bilder, kein Deckblatt und kein Inhaltsverzeichnis; die Checkliste hat ein Kästchen je Schritt; die Standardanleitung wird nicht überschrieben. |
+| EXP-194 | PowerPoint | Soll | Die Datei öffnet in PowerPoint und LibreOffice ohne Reparaturhinweis; sie enthält je Schritt eine Folie mit Titelplatzhalter und Notizen; zwei Exporte sind bytegleich. |
+| EXP-195 | Klick-Tour | Soll | Die Datei enthält kein Skript und keine fremde Adresse; ein Klick auf die Klickfläche führt zum nächsten Schritt; die Druckansicht zeigt alle Schritte. |
+| EXP-196 | Fehlerbericht | Soll | Der Bericht enthält Zusammenfassung, Umgebung, Schritte, erwartetes und tatsächliches Ergebnis und Anhänge, aber nie Pfade, Kommandozeilen oder Prozessnummern; mit ungeprüften Eingaben entsteht er nicht. |
+| EXP-197 | GIF | Kann | Das GIF zeigt Titelbild und alle Schritte in der gewählten Dauer und läuft in Schleife. |
 | EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |
 
 ## 18 Offene Punkte
 
 | Nr. | Punkt | Klärung |
 |---|---|---|
-| 1 | Stellt SkiaSharp PDF/A, Lesezeichen und Strukturmarkierung bereit? | Beim Bau des PDF-Exports prüfen; bis dahin Kann. |
-| 2 | Welche frei lizenzierten Schriften werden mitgeliefert? | Auswahl mit [02](02-architektur.md); Lizenzhinweise in die Liste Dritter aufnehmen. |
-| 3 | Schriftsatz für Schriften mit komplexer Formung (etwa Arabisch) im PDF | In Version 1 nicht zugesichert; die Ausgabe darf nicht abbrechen. |
+| 1 | PDF/A und Strukturmarkierung | Der PDF-Schreiber ist eigen; Lesezeichen sind umgesetzt, PDF/A und Struktur bleiben Kann. |
+| 2 | Mitgelieferte Schriften | Das Programm liefert keine Schriften mit: Text außerhalb von WinAnsi nutzt Segoe UI (Rückfall Arial, Tahoma) vom Rechner des Exports, der übrige Text die PDF-Standardschriften. Ob freie Schriften mitgeliefert werden, damit das Ergebnis auf jedem Rechner gleich ist, ist offen. |
+| 3 | Schriftsatz für Schriften mit komplexer Formung (etwa Arabisch) im PDF | Nicht umgesetzt: Die Zeichen erscheinen als „?“ mit einer Warnung; die Ausgabe bricht nicht ab. |
 | 4 | Getippte Werte als Beispielwert kennzeichnen („zum Beispiel …“) | Braucht eine weitere Variante der Textvorlagen in [05](05-schritterkennung.md#textvorlagen); bis dahin Kann. |
 | 5 | Zeile „Erstellt mit …“: Standard an oder aus? | Entscheidung des Projekts; derzeit aus. |
 | 6 | Policy für die Variante „HTML mit Bilderordner“ | Verhalten der Browser bei lokalen Dateien prüfen, bevor die Variante umgesetzt wird. |

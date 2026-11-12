@@ -393,7 +393,8 @@ Das Problem: Geht das Loslassen einer Taste verloren – typisch nach Win+L, ein
 | Anlass für den Abgleich | `reason` in `keystate.sync` |
 |---|---|
 | Sitzungskopf | `initial` |
-| Ende jeder Lücke; Rückkehr vom sicheren Desktop; Entsperren; Hook neu gesetzt; Vordergrund wechselt von Admin- zu normalem Fenster | `afterGap` |
+| Ende jeder Lücke; Entsperren; Hook neu gesetzt; Vordergrund wechselt von Admin- zu normalem Fenster | `afterGap` |
+| Rückkehr vom sicheren Desktop (UAC-Abfrage, `Strg+Alt+Entf`) | `secureDesktop`; das Ereignis nennt die Lücke (`gapId`) |
 | Fortsetzen nach Pause | `resume` |
 | Stichprobe alle 2 s ohne Eingabe zeigt eine Abweichung bei Umschaltern | `mismatch` |
 
@@ -474,6 +475,18 @@ Technische Randbedingungen für die Bedienung ([07](07-aufnahme-bedienung.md)):
 ### 3.10 Momentaufnahme der Eingabe-Einstellungen
 
 Zum Sitzungskopf liest der Kern die Einstellungen, die die Deutung der Rohereignisse beeinflussen: vertauschte Maustasten, Doppelklickzeit und -rechteck, Ziehschwelle, Radzeilen, Anschlagverzögerung und Wiederholrate, Verweilzeit, Einrastfunktion und verwandte Hilfen, Blinkzeit der Einfügemarke, installierte Tastaturlayouts sowie `LowLevelHooksTimeout`. Die Feldliste steht in [04, Abschnitt 4.2](04-datenformat.md#manifest). Ändert sich eine Einstellung während der Aufnahme, folgt `system` (`inputSettings`).
+
+### 3.11 Erinnerungsuhr
+
+Der Kern führt eine reine Uhr (`ReminderClock`, ohne Oberfläche und ohne Systemzugriff, damit testbar), die der Oberfläche meldet, wann sie den Autor erinnern soll. Sie **erinnert nur** – sie pausiert, maskiert oder beendet nichts und schreibt nichts ins Protokoll.
+
+| Erinnerung | Auslöser | Wiederholung |
+|---|---|---|
+| „Aufnahme läuft noch“ | N Minuten (aus, 5, 10 oder 30; Standard 10) ohne **jede** Eingabe – auch ohne Mausbewegung und auch außerhalb des Aufnahmebereichs | im selben Abstand, höchstens dreimal je Leerlaufphase; jede Eingabe beginnt eine neue Phase |
+| „Privattaste ist noch an“ | S Sekunden (30, 60 oder 120; Standard 60) ohne Tastendruck, seit der Privatmodus der Privattaste an ist | einmal je Einschalten |
+
+- **Nie in Pause, Lücke oder gesperrter Sitzung.** Solange die Aufnahme pausiert ist oder eine Lücke `sessionLocked`, `sessionDisconnected`, `secureDesktop` oder `suspend` läuft, stehen beide Uhren; nach dem Ende beginnen sie von vorn.
+- Der Kern prüft die Uhr im 250-ms-Takt des Wächters und meldet der Oberfläche Art und Wert. Wie die Erinnerung gezeigt wird, steht in [07](07-aufnahme-bedienung.md#74-hinweise-und-warnungen).
 
 ---
 
@@ -670,6 +683,15 @@ Das Koordinatenmodell steht in [04, Koordinatenmodell](04-datenformat.md#koordin
 5. **Physische Pixel überall.** Beide Prozesse sind Per-Monitor-V2. Dass Hook-, Raw-Input-, UIA- und Bildkoordinaten bei gemischter Skalierung auf ±1 Pixel übereinstimmen, prüft VE-06.
 6. **Plausibilität von Elementrechtecken.** Ein Rechteck, das den auslösenden Punkt nicht enthält, leer ist oder erkennbar skaliert gemeldet wurde (Anwendungen ohne DPI-Unterstützung, manche Qt- und Java-Programme), wird nicht als Rechteck gespeichert, sondern mit Grund vermerkt ([04, Abschnitt 8.4](04-datenformat.md#koordinatenmodell)).
 7. **Epochen über Aufnahmeabschnitte.** Ein weiterer Aufnahmeabschnitt beginnt immer mit einer neuen Epoche (Grund `partStart`), auch bei unveränderter Anordnung; die Epochennummern laufen sitzungsweit fort. Koordinaten und Bildketten eines Abschnitts beziehen sich nie auf eine Epoche eines früheren. Monitore werden über ihren gesalzenen Gerätehash wiedererkannt und behalten dann ihre Kennung; dafür muss das Salz der Sitzung für spätere Abschnitte lesbar sein. Es ist kein Geheimnis – es verhindert nur, dass sich Monitore über verschiedene Sitzungen hinweg wiedererkennen lassen ([1.7](#weitere-abschnitte)).
+
+### 4.14 Bildaufnahme aussetzen (Suspend und Resume)
+
+Auf dem sicheren Desktop, bei gesperrtem Rechner und im Ruhezustand liefert die Bildaufnahme keine verlässlichen Bilder. Der Bildspeicher (`FrameEngine`) hat dafür einen eigenen Zustand „ausgesetzt“, der zusätzlich zur Pause gilt ([10, 2.1](10-datenschutz-und-sicherheit.md#21-bildschutz-bei-sperre-ruhezustand-und-sicherem-desktop)):
+
+1. **Suspend.** Der Kern setzt die Aufnahme aus, sobald eine der Lücken `secureDesktop`, `sessionLocked`, `sessionDisconnected` oder `suspend` beginnt. Der Ringpuffer wird verworfen (er könnte schwarze oder halbe Bilder enthalten), ein offenes Nachher-Bild entfällt, und es werden keine Bilder mehr aufgenommen.
+2. **Kein Bild aus Lücken.** Ein Bildwunsch im ausgesetzten Zustand – Vorher-Bild einer Eingabe, Nachher- oder Zwischenbild – wird nicht erfüllt, sondern als Bildereignis ohne gespeichertes Bild (`store: none`, Grund `secureDesktop`) vermerkt; das Vorher-Bild gilt dann als nicht garantiert und zählt in den Statistiken. Eine fehlgeschlagene Aufnahme (zum Beispiel weil der Desktop wechselt) liefert kein Bild und kommt nie als schwarzes Bild in den Ringpuffer.
+3. **Resume.** Mit dem Ende der Lücke wird die Aufnahme wieder freigegeben. Nach dem sicheren Desktop erzwingt der Kern sofort ein Schlüsselbild; nach dem Ruhezustand ebenfalls, solange die Sitzung nicht noch gesperrt oder getrennt ist. Nach Sperre und Trennen folgt es erst mit dem bestätigten Fortsetzen ([8.3](#fensterereignisse)).
+4. Pause und Aussetzen sind getrennte Zustände: Eine Pause hält auch Eingaben an, das Aussetzen betrifft nur die Bilder.
 
 ---
 
@@ -1011,15 +1033,28 @@ Für jedes Fenster der obersten Ebene, das der Kern sieht, führt das Register: 
 
 ### 8.3 Sitzung, sicherer Desktop, Adminfenster, Energie
 
-**Sicherer Desktop** (UAC-Abfrage, Anmelde- und Sperrbildschirm). Dort kann ein normaler Prozess weder Eingaben noch Bilder beobachten. Erkannt wird er über mehrere Signale, von denen eines genügt:
+**Sicherer Desktop** (UAC-Abfrage, `Strg+Alt+Entf`, Bildschirmschoner, Anmelde- und Sperrbildschirm). Dort kann ein normaler Prozess weder Eingaben noch Bilder beobachten. Der Entwurf sah mehrere Signale vor; **umgesetzt** ist eines, das allein genügt: der Name des Eingabedesktops.
 
-| Signal | Quellenlage |
+| Signal | Stand |
 |---|---|
-| Aufbau der Duplizierung wird verweigert bzw. Zugriff geht verloren | belegt |
-| WinEvent „Desktop gewechselt" | Ereignis belegt; ob es bei UAC und Sperre eintritt: unbestätigt → Z-4 |
-| Der Eingabedesktop lässt sich nicht öffnen oder heißt nicht wie der Standarddesktop (Abfrage alle 250 ms, solange eines der anderen Signale anliegt oder keine Eingaben mehr kommen) | Entwurfsentscheidung |
+| Der Eingabedesktop (`OpenInputDesktop`, Name über `GetUserObjectInformation`) heißt nicht „Default“ oder lässt sich nicht öffnen (dann „inaccessible“); Abfrage **alle 250 ms**, durchgehend während der Aufnahme | umgesetzt (`DesktopProbe`) |
+| Aufbau der Duplizierung wird verweigert bzw. Zugriff geht verloren | belegt; als Zusatzsignal vorgesehen, nicht nötig |
+| WinEvent „Desktop gewechselt" | unbestätigt → Z-4; wird nicht benutzt |
 
-Folge: `system` (`desktopSwitch`), Lücke `secureDesktop` (alle Kanäle) vom ersten Signal bis zur Rückkehr. Danach: Tastenzustand abgleichen, Duplizierung neu aufbauen, Schlüsselbild, Vordergrund und Fokus neu lesen.
+**Zustandslogik (`DesktopWatch`, rein und getestet).**
+
+- **Beginn sofort.** Die erste Lesung eines anderen Desktops als „Default“ beginnt die Lücke.
+- **Ende erst nach zwei „Default“-Lesungen in Folge.** Beim Umschalten flackert der Name; eine einzelne „Default“-Lesung beendet die Lücke nicht. Das Ende liegt damit 250 bis 500 ms nach der Rückkehr. Dazwischen auftretende andere Lesungen beginnen das Zählen von vorn.
+- **Art.** Läuft bei der Lesung die Benutzerkontensteuerung (Prozess `consent.exe`), ist die Art `uac`, sonst `other`. Wird `consent.exe` erst später sichtbar, wird die Art während der Lücke auf `uac` angehoben.
+- **Zurücksetzen.** Sperre, Trennen und Ruhezustand setzen den Zustand zurück; eine offene Lücke `secureDesktop` geht in der Sperr-Lücke auf (Ende mit `end: sessionLocked`). Solange der Rechner gesperrt, getrennt oder im Ruhezustand ist, beginnt keine eigene Lücke `secureDesktop`.
+
+**Folge:**
+
+1. Beim Beginn: `system` (`desktopSwitch`, `to: secure`, mit dem Namen des Desktops), Lücke `secureDesktop` (alle Kanäle, Beginn sofort geschrieben) mit `detail.desktop` und `detail.kind`, und die Bildaufnahme wird ausgesetzt ([4.14](#bildschirmaufnahme)).
+2. Beim Ende: die Lücke endet mit der endgültigen Art (`detail.kind`), `system` (`desktopSwitch`, `to: default`), der Tastenzustand wird zurückgesetzt und neu gelesen (`keystate.sync` mit `reason: secureDesktop` und `gapId`, [3.5](#tastenzustand)), die Bildaufnahme wird freigegeben und ein **Schlüsselbild erzwungen**.
+3. Eingaben auf dem sicheren Desktop erreichen die Aufzeichnung nicht; das gilt auch für ein dort getipptes Kennwort.
+
+**Schritterkennung.** Der Schrittbau (Version 1.5.0; `StepParams.BuilderVersion`) macht aus der Lücke `secureDesktop` mit der Art `uac` einen eigenen Schritt „Benutzerkontensteuerung bestätigen“ (englisch „Confirm User Account Control“) und nennt die Dauer; Lücken ohne Art `uac` bleiben Lückenschritte. Lückenschritte durch sicheren Desktop, Sperre, Trennen und Ruhezustand tragen **kein Bild**, und ein Nachher-Bild wird nie aus einem Bild gebunden, das in einer solchen Lücke liegt ([05](05-schritterkennung.md)).
 
 **Sperren, Benutzerwechsel, Trennen.** Der Kern meldet sich für Sitzungsbenachrichtigungen an (Wiederholung, falls der Dienst noch nicht bereit ist *(belegt)*). Wird die Arbeitsstation gesperrt, der Benutzer gewechselt oder die Sitzung getrennt, **pausiert die Aufnahme**: Wie in jeder Pause werden die Hooks entfernt und die Bildaufnahme angehalten.
 
@@ -1027,7 +1062,7 @@ Folge: `system` (`desktopSwitch`), Lücke `secureDesktop` (alle Kanäle) vom ers
 2. Beim Entsperren bzw. Wiederverbinden: `system`-Ereignis, Ende dieser Lücke, `session.pause` mit dem Grund `lock` und **Beginn einer Lücke `paused`**.
 3. Die Aufnahme läuft erst weiter, wenn die Person am Rechner das bestätigt ([07](07-aufnahme-bedienung.md); [10](10-datenschutz-und-sicherheit.md), DS-003) – nach dem Entsperren kann jemand anderes dort sitzen. Mit der Bestätigung folgen `session.resume`, der Abgleich des Tastenzustands, falls nötig eine neue Topologie-Epoche und ein Schlüsselbild.
 
-Ohne Bestätigung bleibt die Aufnahme pausiert; ein selbsttätiges Fortsetzen gibt es nicht.
+Ohne Bestätigung bleibt die Aufnahme pausiert; ein selbsttätiges Fortsetzen gibt es nicht. Beim Sperren und Trennen wird zudem die Bildaufnahme ausgesetzt ([4.14](#bildschirmaufnahme)); Bilder des Sperrbildschirms entstehen nicht.
 
 **Fenster mit Adminrechten.** Kommt ein höher berechtigtes Fenster in den Vordergrund und läuft der Recorder ohne Adminrechte:
 
@@ -1035,7 +1070,7 @@ Ohne Bestätigung bleibt die Aufnahme pausiert; ein selbsttätiges Fortsetzen gi
 - Ob WinEvents für solche Fenster eintreffen, ist unbestätigt (→ Z-4). Deshalb fragt der Wächter das Vordergrundfenster zusätzlich alle 250 ms ab.
 - Die Aufnahmeleiste bietet „als Administrator neu starten" an ([02](02-architektur.md#prozessmodell), [07](07-aufnahme-bedienung.md)).
 
-**Energie.** Einschlafen und Aufwachen → `system` und Lücke `suspend`.
+**Energie.** Einschlafen und Aufwachen → `system` (`powerSuspend`, `powerResume`) und Lücke `suspend` (alle Kanäle, `inputLost: none`). Beim Einschlafen wird die Bildaufnahme ausgesetzt ([4.14](#bildschirmaufnahme)) und der Zustand der Desktop-Beobachtung zurückgesetzt; beim Aufwachen folgt – sofern die Sitzung nicht gesperrt oder getrennt ist – ein erzwungenes Schlüsselbild.
 
 **Abmelden und Herunterfahren.** Der Kern schließt die Sitzung sofort ab (`session.stop`, Grund `systemShutdown` bzw. `sessionEnd`) und blockiert das Herunterfahren nicht.
 
@@ -1073,10 +1108,10 @@ Felder und Ursachen: [04, `gap`](04-datenformat.md#ev-gap). Eine Lücke wird bei
 | Ursache (`cause`) | Erkennung | Betroffene Kanäle | Ende | Abschnitt |
 |---|---|---|---|---|
 | `paused` | Nutzer pausiert; außerdem nach dem Entsperren bzw. Wiederverbinden, bis das Fortsetzen bestätigt ist | alle | Fortsetzen bzw. Bestätigung | [1.3](#lebenszyklus), [8.3](#fensterereignisse) |
-| `privacyMode` | Privatmodus, ausgelöst durch den Schutzfilter: Privattaste (Umschalter, endet nicht von selbst) oder erkannte Passwortabfrage im Terminal | Tastatur, je nach Regel weitere | Privattaste erneut gedrückt; bei erkannter Abfrage: Eingabetaste, Strg+C, Strg+D, Esc, Fokuswechsel oder 60 s ohne Taste. Der Grund steht am Ende-Ereignis (`endReason`) | [10](10-datenschutz-und-sicherheit.md) |
+| `privacyMode` | Privatmodus, ausgelöst durch den Schutzfilter: Privattaste (Umschalter, endet nicht von selbst) oder erkannte Passwortabfrage im Terminal (die Erkennung ist nicht umgesetzt, [10, 6](10-datenschutz-und-sicherheit.md#6-passwortabfragen-im-terminal)) | Tastatur, je nach Regel weitere | Privattaste erneut gedrückt; bei erkannter Abfrage: Eingabetaste, Strg+C, Strg+D, Esc, Fokuswechsel oder 60 s ohne Taste. Der Grund steht am Ende-Ereignis (`endReason`) | [10](10-datenschutz-und-sicherheit.md) |
 | `excludedApp` | Anwendung der Ausschlussliste stellt den Fenster-Stempel | Tastatur, Maus, Elemente, Zwischenablage; **ohne Zähler und ohne Eingabenummern** | anderes Fenster im Vordergrund | [2.4](#zeitmodell), [10](10-datenschutz-und-sicherheit.md) |
 | `outOfScope` | Tasten, Maustasten, Rad oder Mausbewegungen außerhalb des Aufnahmebereichs | Tastatur, Maus, Elemente; mit Zählern je Art | nächste Eingabe im Bereich | [5.2](#aufnahmebereiche) |
-| `secureDesktop` | Signale des sicheren Desktops | alle | Rückkehr zum Standarddesktop | [8.3](#fensterereignisse) |
+| `secureDesktop` | Eingabedesktop ist nicht „Default“ (Art `uac` oder `other` in `detail.kind`) | alle | zwei aufeinanderfolgende „Default“-Lesungen | [8.3](#fensterereignisse) |
 | `sessionLocked` | Sitzungsbenachrichtigung | alle | Entsperren; danach `paused` bis zur Bestätigung | [8.3](#fensterereignisse) |
 | `sessionDisconnected` | Sitzungsbenachrichtigung (Trennen, Benutzerwechsel); Fehler der Bildaufnahme | alle | Wiederverbinden; danach `paused` bis zur Bestätigung | [8.3](#fensterereignisse) |
 | `suspend` | Energienachricht | alle | Aufwachen | [8.3](#fensterereignisse) |
@@ -1338,7 +1373,7 @@ AUF-097 bis AUF-109 gehören zu den nachträglich freigegebenen Funktionen (Aufn
 | AUF-041 | Gespeicherte Bilder enthalten keinen Mauszeiger; Form und Position stehen getrennt. | Muss | Pixelvergleich mit Referenz ohne Zeiger; Ausnahme nur mit Kennzeichen. |
 | AUF-042 | Formwechsel des Zeigers werden protokolliert; Standardformen sind benannt. | Soll | Zeiger über Link und Textfeld bewegen: benannte Formen im Protokoll. |
 | AUF-043 | Nach Verlust des Zugriffs wird die Aufnahme selbsttätig wieder aufgebaut; die Zeit ohne Bild ist als Lücke vermerkt. | Muss | Auflösung während der Aufnahme ändern: Aufnahme läuft weiter, neues Schlüsselbild, Lücke falls Eingaben betroffen. |
-| AUF-044 | Der sichere Desktop wird erkannt und als Lücke `secureDesktop` vermerkt. | Muss | UAC-Abfrage und Sperrbildschirm: Lücke mit Beginn und Ende; kein Bild des sicheren Desktops. |
+| AUF-044 | Der sichere Desktop wird erkannt (Eingabedesktop alle 250 ms) und als Lücke `secureDesktop` mit der Art `uac` oder `other` vermerkt; sie beginnt sofort und endet nach zwei aufeinanderfolgenden „Default“-Lesungen. | Muss | UAC-Abfrage und Sperrbildschirm: Lücke mit Beginn und Ende; kein Bild des sicheren Desktops; ein einzelnes „Default“-Flackern beendet die Lücke nicht (Test der Zustandslogik). |
 | AUF-045 | Vom System ausgeblendete geschützte Inhalte sind am Bild und als Lücke gekennzeichnet. | Muss | Geschütztes Testfenster: Kennzeichen und Lücke vorhanden. |
 | AUF-046 | HDR-Monitore werden aufgenommen; betroffene Bilder sind gekennzeichnet. | Muss | Testmatrix „HDR an": Bilder vorhanden und gekennzeichnet. |
 | AUF-047 | Auf Systemen mit Hybrid-Grafik funktioniert die Aufnahme ohne Zutun, notfalls über den Rückfallweg. | Muss | VE-10 und Referenzsystem C: Aufnahme mit Vorher-Bild-Garantie. |
@@ -1404,6 +1439,9 @@ AUF-097 bis AUF-109 gehören zu den nachträglich freigegebenen Funktionen (Aufn
 | AUF-107 | Ein Ersatz-Abschnitt nennt in seinem `session.start` den Zweck (`purpose: "replacement"`) und den Bereich (`replaces`). Nach seinem sauberen Stopp trägt die Aufzeichnungssteuerung die Ersetzung in `edits.replacements` ein; bei Absturz oder Verwerfen entsteht kein Eintrag. Die ersetzten Rohdaten bleiben unverändert im Journal. | Soll | Schritte 3 bis 5 neu aufnehmen: Sitzungskopf und Eintrag nennen denselben Bereich, `by.section` ist der neue Abschnitt; die alten Ereignisse stehen unverändert im Journal; Formatprüfung F22 besteht. Absturz während der Neuaufnahme: kein Eintrag, der Abschnitt gilt nach der Wiederherstellung als nicht verwendete Neuaufnahme. |
 | AUF-108 | Wird ein weiterer Abschnitt verworfen, wird das Journal nicht gekürzt: Der Abschnitt endet wie bei einem Stopp und wird als verworfen gekennzeichnet. Die Leseschicht hält ihn aus allen Ausgaben heraus; frühere Abschnitte und die Sitzung bleiben unberührt. | Soll | Kanarien-Text in einem weiteren Abschnitt tippen und den Abschnitt verwerfen: Das Journal ist bis zur alten Länge bytegleich und endet mit `session.stop`; die Sitzung liegt nicht im Papierkorb; der Kanarien-Text kommt in keiner Ausgabe vor – Anleitung, KI-Paket, Antworten des MCP-Servers, Suche und `cache/search/`, Abgleich, Support-Paket. Ein danach angehängter Abschnitt übernimmt Bereich und Einstellungen nicht vom verworfenen. |
 | AUF-109 | Der Start eines weiteren Abschnitts hält das Zeitziel aus 12.8 ein. | Soll | Messung auf Referenzsystem A mit einem Journal von 100 MB. |
+| AUF-110 | Bei sicherem Desktop, Sperre, Trennen und Ruhezustand wird die Bildaufnahme ausgesetzt: Ringpuffer verworfen, offenes Nachher-Bild entfällt, kein Bild aus einer Lücke, nie ein schwarzes Bild im Ringpuffer; danach `keystate.sync` (bei sicherem Desktop mit `reason: secureDesktop`) und ein erzwungenes Schlüsselbild (4.14, 8.3). | Muss | Synthetische UAC-Lücke und Sperre: kein Bild im Lückenzeitraum; Schlüsselbild nach dem Ende; Validator fehlerfrei. |
+| AUF-111 | Der Schrittbau (Version 1.5.0) macht aus einer UAC-Lücke den Schritt „Benutzerkontensteuerung bestätigen“ ohne Bild; Nachher-Bilder werden nie aus einer Lücke ohne Bildschirm gebunden. | Soll | Test mit synthetischer UAC-Lücke (Titel deutsch und englisch, kein Bild, Hauptschritt). |
+| AUF-112 | Die Erinnerungsuhr meldet „Aufnahme läuft noch“ nach der eingestellten Leerlaufzeit (höchstens dreimal je Phase) und „Privattaste ist noch an“ einmal je Einschalten; in Pause, Sperre, sicherem Desktop und Lücken stehen die Uhren; sie erinnert nur (3.11). | Soll | Test der reinen Zustandslogik mit künstlicher Zeit. |
 
 ---
 
@@ -1433,7 +1471,7 @@ Für diese Punkte gibt es in [11](11-roadmap-tests-risiken.md) noch kein Experim
 | Z-1 | Wie liest ein Prozess ohne Tastaturfokus die Feststeller verlässlich? | eigene Prüfung | mitgeführter Wert; Gegenprobe über den Feldinhalt |
 | Z-2 | Melden Hook und Raw Input bei vertauschten Maustasten die physische oder die logische Taste? | Erweiterung VE-06 | Zuordnung über die Einstellung in der Sitzung |
 | Z-3 | Windows.Graphics.Capture: Bedeutung der Systemzeit des Bilds; gelber Rahmen im Bild; rahmenlos und überhaupt nutzbar ohne Paketidentität? | Erweiterung VE-05/VE-10 | Garantie nur über Eintreffzeit; bei Rahmen im Bild Rückfall auf GDI |
-| Z-4 | Tritt „Desktop gewechselt" bei UAC und Sperre ein? Kommen WinEvents für Fenster mit Adminrechten an? | Erweiterung VE-02 | Abfrage des Eingabedesktops und des Vordergrundfensters im Takt |
+| Z-4 | Tritt „Desktop gewechselt" bei UAC und Sperre ein? Kommen WinEvents für Fenster mit Adminrechten an? | Erweiterung VE-02 | Abfrage des Eingabedesktops und des Vordergrundfensters im Takt. Für den sicheren Desktop **umgesetzt**: Der Eingabedesktop wird alle 250 ms gelesen, das WinEvent wird nicht benötigt; offen bleibt es für Fenster mit Adminrechten. |
 | Z-5 | Zählt der Leistungszähler die Schlafzeit mit? | eigene Prüfung | Lücke und Kontrollpunkt machen es unerheblich |
 | Z-6 | Wirkt die Ausnahme auch für durchsichtige Fenster, Tooltips und Popups? | Erweiterung VE-05 | Ausweichmodus |
 | Z-7 | Halten das Lesen des Fensters unter dem Zeiger und seines obersten Fensters im Hook-Aufruf das Budget? | Erweiterung VE-01 | Lesen unmittelbar nach der Entnahme aus dem Ring |
