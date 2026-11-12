@@ -1,6 +1,7 @@
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 
 namespace StepRecorder.Export;
 
@@ -92,7 +93,7 @@ public static class Exporter
     public static string SessionExportDir(SessionView view)
         => view.Session.ReadOnly ? Path.GetDirectoryName(view.Session.Path) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.Combine(view.Session.Path, "export");
 
-    static string Title(SessionView view, string fallback = "Anleitung") => Fmt.FileSafe(view.Title.Length > 0 ? view.Title : fallback);
+    static string Title(SessionView view, string? fallback = null, string? lang = null) => Fmt.FileSafe(view.Title.Length > 0 ? view.Title : fallback ?? Loc.For(lang ?? view.Language, "Anleitung", "Guide"));
 
     /// <summary>
     /// Vollständiges Ziel. <paramref name="lastFolder"/>: zuletzt gewählter Ordner für dieses Format (null = Standardort in der Aufnahme).
@@ -100,7 +101,7 @@ public static class Exporter
     /// </summary>
     public static string DefaultTarget(SessionView view, string format, string? lastFolder, string? template = null, string? lang = null)
     {
-        string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" ? "Ablauf" : "Anleitung");
+        string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" ? Loc.For(lang ?? view.Language, "Ablauf", "Workflow") : null, lang);
         string suffix = f is "html" or "md" or "docx" or "pdf" ? GuidePresets.FileSuffix(template, lang ?? view.Language) : "";
         if (lastFolder != null)
         {
@@ -128,7 +129,7 @@ public static class Exporter
         if (string.IsNullOrWhiteSpace(r.Target)) return DefaultTarget(view, f, null, r.Template, r.Language);
         string t = Path.GetFullPath(r.Target);
         if (!IsFolderOutput(f) && (Directory.Exists(t) || r.Target.EndsWith('\\') || r.Target.EndsWith('/')))
-            t = Path.Combine(t, Title(view) + "." + Extension(f));
+            t = Path.Combine(t, Title(view, null, r.Language) + "." + Extension(f));
         return t;
     }
 
@@ -168,9 +169,9 @@ public static class Exporter
                 });
             case "ahk" when r.AhkKi:
             case "ahk-ki":
-                return AhkKiPackage.Export(view, new AhkKiOptions { OutDir = work, With = r.With, Ocr = r.Ocr });
+                return AhkKiPackage.Export(view, new AhkKiOptions { OutDir = work, With = r.With, Ocr = r.Ocr, Language = r.Language });
             case "ahk":
-                return AhkExport.Export(view, new AhkOptions { OutPath = work, RealTiming = r.RealTiming, Images = r.Images });
+                return AhkExport.Export(view, new AhkOptions { OutPath = work, RealTiming = r.RealTiming, Images = r.Images, Language = r.Language });
             default:
                 return GuideExport.Export(view, new GuideOptions
                 {

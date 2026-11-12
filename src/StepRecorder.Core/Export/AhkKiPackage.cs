@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using StepRecorder.Compare;
 using StepRecorder.Data;
 using StepRecorder.ReadLayer;
+using StepRecorder.Settings;
 using StepRecorder.Steps;
 
 namespace StepRecorder.Export;
@@ -14,6 +15,8 @@ public sealed class AhkKiOptions
     public List<string> With { get; set; } = new();
     public bool Ocr { get; set; } = true;
     public bool ContextImages { get; set; } = true;
+    /// <summary>Sprache von Anleitung und Skriptentwurf (de/en); null = Sprache der Aufnahme.</summary>
+    public string? Language { get; set; }
 }
 
 /// <summary>
@@ -29,19 +32,21 @@ public static class AhkKiPackage
     public static ExportResult Export(SessionView view, AhkKiOptions o)
     {
         view.Rebuild();
+        string lang = o.Language ?? view.Session.Language;
+        view.Language = lang;
         var res = new ExportResult { Unreviewed = view.UnreviewedCount };
         if (res.Unreviewed > 0 && !view.Headless)
-            throw new InvalidOperationException($"{res.Unreviewed} auffällige Eingaben sind noch nicht durchgesehen (Durchsicht der Eingaben).");
-        string title = view.Title.Length > 0 ? view.Title : "Ablauf";
+            throw new InvalidOperationException(Loc.For(lang, $"{res.Unreviewed} auffällige Eingaben sind noch nicht durchgesehen (Durchsicht der Eingaben).", $"{res.Unreviewed} conspicuous inputs have not been reviewed yet (input review)."));
+        string title = view.Title.Length > 0 ? view.Title : Loc.For(lang, "Ablauf", "Workflow");
         string dir = o.OutDir ?? Path.Combine(view.Session.Path, "export", "ahk-ki", Fmt.FileSafe(title));
         ExportFolders.PrepareOwned(dir, "ablauf.json");
         string imgDir = Path.Combine(dir, "bilder");
 
         // Skriptentwurf (schreibt auch die 48×48-Ausschnitte für ImageSearch)
-        var ahkOpt = new AhkOptions { ImageDir = imgDir };
+        var ahkOpt = new AhkOptions { ImageDir = imgDir, Language = lang };
         File.WriteAllText(Path.Combine(dir, "entwurf.ahk"), AhkExport.Build(view, ahkOpt, res), new UTF8Encoding(true));
 
-        var doc = Document(view, o, imgDir, title);
+        var doc = Document(view, o, imgDir, title, lang);
         var steps = doc.Arr("steps")!;
         // Vergleich mit weiteren Aufnahmen
         var comparisons = new JsonArray();
@@ -54,24 +59,25 @@ public static class AhkKiPackage
                 using var me = SessionView.Open(view.Session.Path, headless: true);
                 var cmp = StepCompare.Compare(me, ov);
                 string file = $"vergleich-{++k}.md";
-                File.WriteAllText(Path.Combine(dir, file), StepCompare.Markdown(cmp, "de"), new UTF8Encoding(false));
+                File.WriteAllText(Path.Combine(dir, file), StepCompare.Markdown(cmp, lang), new UTF8Encoding(false));
                 comparisons.Add(new JsonObject { ["session"] = ov.Title, ["file"] = file });
             }
-            catch (Exception ex) { res.Warnings.Add($"Vergleich mit {other} nicht möglich: {ex.Message}"); }
+            catch (Exception ex) { res.Warnings.Add(Loc.For(lang, $"Vergleich mit {other} nicht möglich: {ex.Message}", $"Comparison with {other} not possible: {ex.Message}")); }
         }
         if (comparisons.Count > 0) doc["comparisons"] = comparisons;
         File.WriteAllText(Path.Combine(dir, "ablauf.json"), Json.Pretty(doc), new UTF8Encoding(false));
-        File.WriteAllText(Path.Combine(dir, "README_AHK_KI.md"), Readme(title, steps.Count, comparisons.Count > 0), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(dir, "README_AHK_KI.md"), Readme(title, steps.Count, comparisons.Count > 0, lang), new UTF8Encoding(false));
         res.Files.AddRange(Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories));
         res.Path = dir;
-        if (!Ocr.Available && o.Ocr) res.Notices.Add("Texterkennung nicht verfügbar (keine OCR-Sprache installiert).");
+        if (!Ocr.Available && o.Ocr) res.Notices.Add(Loc.For(lang, "Texterkennung nicht verfügbar (keine OCR-Sprache installiert).", "Text recognition not available (no OCR language installed)."));
         return res;
     }
 
     /// <summary>Inhalt von ablauf.json. Ohne <paramref name="imgDir"/> entstehen keine Bilder (z. B. für MCP).</summary>
-    public static JsonObject Document(SessionView view, AhkKiOptions o, string? imgDir, string? title = null)
+    public static JsonObject Document(SessionView view, AhkKiOptions o, string? imgDir, string? title = null, string? lang = null)
     {
-        title ??= view.Title.Length > 0 ? view.Title : "Ablauf";
+        lang ??= o.Language ?? view.Session.Language;
+        title ??= view.Title.Length > 0 ? view.Title : Loc.For(lang, "Ablauf", "Workflow");
         var steps = new JsonArray();
         var apps = new Dictionary<string, JsonObject>(StringComparer.OrdinalIgnoreCase);
         int ocrCount = 0;
@@ -79,7 +85,7 @@ public static class AhkKiPackage
         int tick = 0;
         foreach (var s in all)
         {
-            ExportJob.Tick(++tick, all.Count, "Schritte");
+            ExportJob.Tick(++tick, all.Count, Loc.For(lang, "Schritte", "Steps"));
             if (s.Kind == "move") continue;
             var item = Step(view, s, imgDir, o, ref ocrCount, apps);
             if (item != null) steps.Add(item);
@@ -97,7 +103,7 @@ public static class AhkKiPackage
                 ["monitors"] = start?.Obj("topology")?.Arr("monitors")?.DeepClone(),
                 ["keyboardLayouts"] = new JsonArray(view.Session.Events.Where(e => e.Str("hkl") != null).Select(e => e.Str("hkl")!).Distinct().Take(5).Select(x => (JsonNode)x).ToArray()),
                 ["applications"] = new JsonArray(apps.Values.Select(a => (JsonNode)a).ToArray()),
-                ["coordinates"] = "physische Pixel; window = relativ zur linken oberen Fensterecke, client = relativ zum Clientbereich, screen = virtueller Bildschirm"
+                ["coordinates"] = Loc.For(lang, "physische Pixel; window = relativ zur linken oberen Fensterecke, client = relativ zum Clientbereich, screen = virtueller Bildschirm", "physical pixels; window = relative to the top-left corner of the window, client = relative to the client area, screen = virtual screen")
             }.Clean(),
             ["parameters"] = view.Steps.Arr("parameters")?.DeepClone(),
             ["repetitions"] = view.Steps.Arr("repetitions")?.DeepClone(),
@@ -224,10 +230,15 @@ public static class AhkKiPackage
         return o.Clean();
     }
 
-    /// <summary>Regeln für KI-Assistenten (auch über MCP).</summary>
-    public static string Rules => Readme("Ablauf", 0, false);
+    /// <summary>Regeln für KI-Assistenten (auch über MCP), deutsch.</summary>
+    public static string Rules => Readme("Ablauf", 0, false, "de");
 
-    static string Readme(string title, int steps, bool comparisons) => $"""
+    /// <summary>Regeln für KI-Assistenten in der gewünschten Sprache (de/en).</summary>
+    public static string RulesFor(string lang) => Readme(Loc.For(lang, "Ablauf", "Workflow"), 0, false, lang);
+
+    static string Readme(string title, int steps, bool comparisons, string lang) => lang == "de" ? ReadmeDe(title, steps, comparisons) : ReadmeEn(title, steps, comparisons);
+
+    static string ReadmeDe(string title, int steps, bool comparisons) => $"""
 # AHK-KI-Paket: {title}
 
 Dieses Paket wurde von **StepRecorder** erzeugt. Es beschreibt einen am Windows-PC vorgeführten Ablauf ({steps} Schritte) so genau, dass daraus ein **robustes AutoHotkey-v2-Skript** entstehen kann. Lies zuerst diese Datei, dann `ablauf.json`; `entwurf.ahk` ist ein automatisch erzeugter Startpunkt.
@@ -262,5 +273,42 @@ Dieses Paket wurde von **StepRecorder** erzeugt. Es beschreibt einen am Windows-
 `kind` (click, doubleClick, rightClick, drag, scroll, type, hotkey, key, hover, windowSwitch, wait …), `title`/`text` (lesbare Beschreibung), `window`, `selectors`, `point` (window/client/screen/inControl), `control` (ClassNN, ID, Text, Häkchen), `element` (UI Automation), `elementPath`, `input`, `sync`, `verify`, `menuPath` (mit `commandId`, `win32Path`, `owner`), `choose` (mit `win32`), `data` (Dateidialog, Herkunft eingefügter Daten), `explorer`, `browser`, `office`, `list` (Win32-Liste: Anzahl, Auswahl, Einträge), `msaa`, `effect`, `images`, `ocr`, `windowTexts` (sichtbare Texte des Fensters mit Position `r` im Clientbereich).
 
 Datenschutz: Passwortfelder und Privatmodus-Eingaben sind nie enthalten; Inhalte anderer Eingabefelder nur, wenn sie in der Aufnahme durchgesehen wurden.
+""";
+
+    static string ReadmeEn(string title, int steps, bool comparisons) => $"""
+# AHK AI package: {title}
+
+This package was created by **StepRecorder**. It describes a workflow demonstrated on a Windows PC ({steps} steps) in enough detail to produce a **robust AutoHotkey v2 script** from it. Read this file first, then `ablauf.json`; `entwurf.ahk` is an automatically generated starting point.
+
+## Files
+
+| File | Content |
+|---|---|
+| `ablauf.json` | All steps with window, ways to reach the element, inputs, wait signals, expectations, parameters, repetitions and environment |
+| `entwurf.ahk` | Automatically generated script (AutoHotkey v2) – improve it, do not adopt it blindly |
+| `bilder/schritt-NN.png` | 48×48 crop around the click point (for `ImageSearch`) |
+| `bilder/schritt-NN-kontext.png` | Crop with marks: red ring = click, blue frame = element, orange = drag path |
+{(comparisons ? "| `vergleich-N.md` | Differences to further recordings of the same workflow |\n" : "")}
+## Rules for the script
+
+1. **AutoHotkey v2** (`#Requires AutoHotkey v2.0`). Coordinates in `ablauf.json` are physical pixels; therefore start with `DllCall("SetThreadDpiAwarenessContext", "ptr", -4, "ptr")`.
+2. Address **windows** via `window.winTitle` (`ahk_class … ahk_exe …`); before every action use `WinWait` + `WinActivate` + `WinWaitActive`. Tell dialogs (`#32770`) apart by title. `window.volatileClass: true` means the class name changes with every start – use title + `ahk_exe` instead.
+3. **Ways to reach the element** are in `selectors`, descending by `score` (5 = very stable). Preferred: `classNN`/`controlId` → `ControlClick`/`ControlFocus`/`ControlSetText`; `controlText` → `ControlClick "Text"`; `uia` → UIA v2 library (name, ControlType, AutomationId, index); `label` → field next to this label; `relative` → fraction of the client area (survives resizing); `window` → window coordinates only as a last resort. Use `ImageSearch` with `images.needle` as a fallback; `ocr` gives the text recognized at the click point.
+4. **Keyboard before mouse** when the application names a shortcut (`selectors[kind=keyboard]`, `menuPath.accelerator`). Classic menus (`menuPath.win32Menu`) with `MenuSelect` via `menuPath.win32Path` (or the positions `win32Positions` as "N&"), alternatively `PostMessage 0x111, menuPath.commandId, 0,, <menuPath.owner.winTitle>` (WM_COMMAND). Lists and selection fields (`choose`) with `ControlChooseString`/`ControlChooseIndex` when `choose.win32Control` or `choose.win32` (kind, ClassNN, 1-based index, text) is present; ListView rows via `ListViewGetContent` + keyboard; the MSAA default action (`msaa.defaultAction`) as an alternative to the click.
+5. **Do not sleep blindly:** `sync` says what was waited for – `busyMs` (mouse pointer busy → wait while `A_Cursor` is "Wait"/"AppStarting"), `waitWindow` (→ `WinWait`), `settleMs`/`readyMs` (screen calm). `thinkMs` is human thinking time and does **not** belong in the script.
+6. **Check success:** `verify` describes the state after the step (title, focus, changed texts and check marks by ClassNN). Derive checks from it (`WinExist`, `ControlGetText`, `ControlGetChecked`) and abort or report on deviation.
+7. **Application context:** `explorer.folder`/`folderAfter` → open the folder directly (`Run 'explorer.exe "…"'` or shell COM `Navigate`) instead of double clicks; `browser.url` (without query/fragment) → `Run "<url>"` + `WinWait` for the page title; `office` (Excel: workbook, sheet, cell; Word: document) → `ComObjActive("Excel.Application")`; `data.fileDialog.folder` + `fileNameControl` → full path with `ControlSetText` into the file name field; `control.caret` (line/column, never content) → `EditPaste`/`ControlSetText` instead of typing; `verify.statusBar` → `StatusBarGetText`/`StatusBarWait` as a wait condition. Generalize user paths (`A_MyDocuments`, `A_Desktop`, `A_AppData`, `A_Temp`, `EnvGet("USERPROFILE")`, `A_UserName` …).
+8. **Parameters:** `parameters` are the variable values (inputs, pasted data, file names). Create them as variables or function parameters at the top of the script. `secret: true` = password: **never** write it into the script, ask for it at runtime (`InputBox(..., "Password")`) or read it from a secure store.
+9. **Repetitions** (`repetitions`): the same sequence of steps several times in a row – write it as a loop over the varying values (`varying`).
+10. **Mouse:** `input.button`, `pressMs`/`longPress` (hold → `Click "x y Down"`, wait, `Click "x y Up"`), when dragging `holdBeforeMoveMs`, `pathWindow` (points with ms) and `holdAtEndMs` – move in small steps, do not jump.
+11. **Rights:** If a target program is `elevated: true` (`environment.applications`), the script must run as administrator (`if !A_IsAdmin` → `Run '*RunAs "' A_ScriptFullPath '"'`).
+12. **Start:** `environment.applications[].commandLine` shows how the program was started (`Run`), in case it is not already running.
+13. Comment every step briefly with its number and the text from `title`. Start with `^Esc::ExitApp` as an emergency brake.
+
+## Fields per step (excerpt)
+
+`kind` (click, doubleClick, rightClick, drag, scroll, type, hotkey, key, hover, windowSwitch, wait …), `title`/`text` (readable description), `window`, `selectors`, `point` (window/client/screen/inControl), `control` (ClassNN, ID, text, check mark), `element` (UI Automation), `elementPath`, `input`, `sync`, `verify`, `menuPath` (with `commandId`, `win32Path`, `owner`), `choose` (with `win32`), `data` (file dialog, origin of pasted data), `explorer`, `browser`, `office`, `list` (Win32 list: count, selection, entries), `msaa`, `effect`, `images`, `ocr`, `windowTexts` (visible texts of the window with position `r` in the client area).
+
+Privacy: password fields and private-mode inputs are never included; contents of other input fields only if they were reviewed in the recording.
 """;
 }

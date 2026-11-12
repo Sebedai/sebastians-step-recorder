@@ -232,16 +232,16 @@ Frage nicht nach diesen Inhalten und versuche nicht, sie aus anderen Stellen zu 
 
 ## 9. Bilder und Koordinaten
 
-**Dateinamen und Bildarten.** `schritt007-vorher.png` gehört zu Schritt 7. `-vorher` = Zustand unmittelbar **vor** der Eingabe; `-ausschnitt` = Originalauflösung rund um das Ziel; `-nachher` = Zustand, nachdem sich der Bildschirm beruhigt hat, spätestens vor der nächsten Eingabe; `-zwischen-1` = Änderung dazwischen; `-marker` = der Bildschirm in dem Moment, in dem der Autor einen Marker gesetzt hat. Bilder zu Schritten ohne Schrittnummer (Abschnitt 7) tragen die Kennung im Namen: `kennung-s1657-nachher.png`.
+**Dateinamen und Bildarten.** `schritt007-vorher.png` gehört zu Schritt 7. `-vorher` = Zustand unmittelbar **vor** der Eingabe; `-ausschnitt` = Originalauflösung rund um das Ziel; `-ausschnitt-ende` = Ausschnitt am Ende eines Ziehens; `-nachher` = Zustand, nachdem sich der Bildschirm beruhigt hat, spätestens vor der nächsten Eingabe; `-marker` = der Bildschirm in dem Moment, in dem der Autor einen Marker gesetzt hat. Bilder zu Schritten ohne Schrittnummer (Abschnitt 7) tragen die Kennung im Namen: `kennung-s1657-nachher.png`.
 
 **Welche Bilder beiliegen.** In der Detailstufe „Standard“:
 
 - Mausschritte: Übersicht vorher (mit Einzeichnung), Ausschnitt, und Übersicht nachher, wenn sich etwas geändert hat.
 - Tastaturschritte: bei Texteingaben der Ausschnitt um das Feld nach der Eingabe; dazu die Übersicht nachher, wenn sich etwas geändert hat. Ein Vorher-Bild liegt nicht bei – es zeigt den Zustand nach dem vorigen Schritt.
-- Lücken: das letzte Bild davor und das erste danach.
-- Marker der Typen Fehler, Erwartet und Wichtig: das Bild zum Marker.
+- Lücken, Systemschritte und Mausbewegungen: kein Bild.
+- Marker, Kommentare und Schnappschüsse: das Bild zum Zeitpunkt (in „Kompakt“ nur bei Hauptschritten).
 
-„Kompakt“ legt weniger bei, „Vollständig“ zusätzlich Zwischenbilder. Fehlt im Paket ein Bild, heißt das nicht, dass es in der Aufnahme fehlt (Kopf: „Bilder der Sitzung“).
+„Kompakt“ legt weniger bei. „Vollständig“ legt zu jedem Schritt Vorher-Bild, Ausschnitt (bei Mausschritten) und Nachher-Bild bei, beim Ziehen zusätzlich den Ausschnitt am Ende, und zu Lücken und Systemschritten das erste Bild danach. Fehlt im Paket ein Bild, heißt das nicht, dass es in der Aufnahme fehlt (Kopf: „Bilder der Sitzung“).
 
 **Koordinaten.** Jede Koordinate in `trace.md` gilt **im Pixelraum des Bildes, das in derselben Zeile genannt ist**: Ursprung oben links, x nach rechts, y nach unten.
 
