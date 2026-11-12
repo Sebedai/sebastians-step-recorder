@@ -82,6 +82,8 @@ static class DevSnapshots
             var demo = new StepRecorder.Export.ExportResult { Path = @"C:\Recordings\Example\export\pdf\Guide.pdf" };
             demo.Notices.Add(Loc.L("12 Schritte, 11 Bilder", "12 steps, 11 images"));
             ExportResultDialog.Show(v, demo, "pdf");
+            PackDialog.Show(v, v.SessionPath);
+            UiApp.Instance.ShowLibrary();
             new InputDialog("Kommentar", "", null, kinds: true) { Owner = v }.ShowDialog();
             new InputDialog("Text des Schritts", "Klicken Sie auf „Speichern“.", "Datei speichern") { Owner = v }.ShowDialog();
             for (int tab = 0; tab < 5; tab++) new SettingsWindow(tab) { Owner = v }.ShowDialog();

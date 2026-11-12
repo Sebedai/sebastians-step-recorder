@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -93,7 +93,7 @@ sealed partial class ViewerWindow
         var preview = new Button { Style = Theme.Style("Ghost"), Content = U.IconText(Theme.IEye, "Vorschau"), ToolTip = "Anleitung als HTML im Browser ansehen", Margin = new Thickness(2, 0, 2, 0) };
         preview.Click += (_, _) => PreviewDocument();
         var more = MenuButton(Theme.IMore, "", "Weitere Funktionen", null, () => new (string, Action)[]
-            { M("newRecording"), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
+            { M("newRecording"), M("library"), (Loc.L("Als .steprec packen …", "Pack as .steprec …"), () => { if (_view.Session.ReadOnly) Msg.Show(Loc.L("Das ist bereits ein .steprec-Archiv.", "This already is a .steprec archive.")); else PackDialog.Show(this, _path); }), ("-", () => { }), M("replace"), (Loc.L("Übersicht und Vollständigkeit", "Overview and completeness"), ShowOverview), M("compare"), ("-", () => { }), (Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this)), M("shortcuts") });
         var export = MenuButton(Theme.IExport, Loc.L("Exportieren", "Export"), Loc.F("Als Anleitung, KI-Paket oder Skript speichern ({0}) · letzten Export wiederholen ({1})", "Save as guide, AI package or script ({0}) · repeat last export ({1})", Cmd("export").Gesture, Cmd("repeatExport").Gesture), "Primary", ExportMenuItems);
         export.Margin = new Thickness(8, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, Sep(), play, preview, copy, privacy, review, Sep(), more, export }) cmds.Children.Add(e);
@@ -306,6 +306,18 @@ sealed partial class ViewerWindow
         var root = new DockPanel();
         Anim.Appear(top, 0, -6, 360); Anim.Appear(left, 60, 10); Anim.Appear(center, 130, 10); Anim.Appear(detPanel, 200, 10);
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
+        if (_view.Session.ReadOnly)
+        {
+            // .steprec: nur lesen – Entpacken macht daraus eine bearbeitbare Aufnahme im Aufnahmeordner
+            var unpack = U.Btn(Theme.IOpen, Loc.L("Entpacken …", "Unpack …"), async () => { if (await SessionImport.Unpack(this, _path) != null) Close(); }, null, "Ghost");
+            var bannerText = U.Text(Loc.L("Schreibgeschützt (.steprec) – zum Bearbeiten bitte entpacken.", "Read-only (.steprec) – unpack to edit."), 12.5, fg: Theme.Warn);
+            bannerText.VerticalAlignment = VerticalAlignment.Center; bannerText.Margin = new Thickness(8, 0, 0, 0);
+            var bannerDock = new DockPanel();
+            DockPanel.SetDock(unpack, Dock.Right); bannerDock.Children.Add(unpack);
+            bannerDock.Children.Add(U.Row(U.Icon(Theme.ILock, 13, Theme.Warn), bannerText));
+            var banner = new Border { Background = Theme.WarnSoft, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Padding = new Thickness(16, 4, 12, 4), Child = bannerDock };
+            DockPanel.SetDock(banner, Dock.Top); root.Children.Add(banner);
+        }
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
         Content = root;

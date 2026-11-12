@@ -91,16 +91,43 @@ sealed class UiApp : Application
 
     public void MaybeShutdown()
     {
-        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown();
+        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow or LibraryWindow)) Shutdown();
     }
 
-    public ViewerWindow OpenViewer(string path)
+    LibraryWindow? _library;
+
+    /// <summary>„Alle Aufnahmen“ (ein Fenster; ein zweiter Aufruf holt es nach vorn und aktualisiert).</summary>
+    public void ShowLibrary()
     {
-        var v = new ViewerWindow(path);
-        v.Closed += (_, _) => MaybeShutdown();
-        v.Show();
+        if (_library == null || !_library.IsLoaded)
+        {
+            _library = new LibraryWindow();
+            _library.Closed += (_, _) => { _library = null; MaybeShutdown(); };
+            _library.Show();
+        }
+        else { _library.Rescan(); if (_library.WindowState == WindowState.Minimized) _library.WindowState = WindowState.Normal; }
+        _library.Activate();
+    }
+
+    static string Norm(string p) { try { return Path.GetFullPath(p).TrimEnd('\\', '/'); } catch { return p; } }
+
+    public ViewerWindow? ViewerFor(string path) => Windows.OfType<ViewerWindow>().FirstOrDefault(v => string.Equals(Norm(v.SessionPath), Norm(path), StringComparison.OrdinalIgnoreCase));
+    public bool IsOpenInViewer(string path) => ViewerFor(path) != null;
+
+    /// <summary>Öffnet den Editor – oder holt ein schon offenes Fenster derselben Aufnahme nach vorn. Optional zu einem Schritt springen.</summary>
+    public ViewerWindow OpenViewer(string path, long? anchor = null, string? search = null)
+    {
+        var v = ViewerFor(path);
+        if (v == null)
+        {
+            v = new ViewerWindow(path);
+            v.Closed += (_, _) => { MaybeShutdown(); _library?.Rescan(); };
+            v.Show();
+            AppSettings.Load().AddRecent(path);
+        }
+        else if (v.WindowState == WindowState.Minimized) v.WindowState = WindowState.Normal;
         v.Activate();
-        AppSettings.Load().AddRecent(path);
+        if (anchor is long a) v.JumpTo(a, search);
         return v;
     }
 

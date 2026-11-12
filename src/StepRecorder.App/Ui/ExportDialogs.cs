@@ -340,14 +340,47 @@ sealed class ExportProgressWindow : Window
     public event Action? CancelRequested;
     bool _done;
 
-    public ExportProgressWindow(string format)
+    public ExportProgressWindow(string format) : this(Loc.F("{0} wird erstellt …", "Creating {0} …", format.ToUpperInvariant() switch { "KI" => Loc.L("KI-Paket", "AI package"), "AHK" or "AHK-KI" => "AutoHotkey", var f => f }), Loc.L("Exportieren", "Export")) { }
+
+    public ExportProgressWindow(string heading, string title)
     {
-        Title = Loc.L("Exportieren", "Export"); Width = 440; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = title; Width = 440; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         Button? cancel = null;
         cancel = U.Btn(Loc.L("Abbrechen", "Cancel"), () => { cancel!.IsEnabled = false; _text.Text = Loc.L("Wird abgebrochen …", "Cancelling …"); CancelRequested?.Invoke(); });
-        U.Dialog(this, Loc.F("{0} wird erstellt …", "Creating {0} …", format.ToUpperInvariant() switch { "KI" => Loc.L("KI-Paket", "AI package"), "AHK" or "AHK-KI" => "AutoHotkey", var f => f }), U.Col(_bar, _text), cancel);
+        U.Dialog(this, heading, U.Col(_bar, _text), cancel);
         Closing += (_, e) => { if (!_done) { e.Cancel = true; cancel.IsEnabled = false; CancelRequested?.Invoke(); } };
+    }
+
+    /// <summary>
+    /// Führt eine längere Arbeit im Hintergrund aus; der Besitzer ist solange gesperrt, ab 0,6 s erscheint dieses Fenster mit
+    /// „Abbrechen“. Fehler und Abbruch kommen als Ausnahme beim Aufrufer an.
+    /// </summary>
+    public static async Task<T> Run<T>(Window owner, string heading, Func<IProgress<ExportProgress>, CancellationToken, T> work)
+    {
+        var root = owner.Content as UIElement;
+        if (root != null) root.IsHitTestVisible = false;
+        owner.Cursor = System.Windows.Input.Cursors.Wait;
+        using var cts = new CancellationTokenSource();
+        var prog = new ExportProgressWindow(heading, owner.Title) { Owner = owner };
+        prog.CancelRequested += () => { try { cts.Cancel(); } catch (ObjectDisposedException) { } };
+        var progress = new Progress<ExportProgress>(prog.Report);
+        var task = Task.Run(() => work(progress, cts.Token));
+        try
+        {
+            if (await Task.WhenAny(task, Task.Delay(600)) != task)
+            {
+                _ = task.ContinueWith(_ => owner.Dispatcher.InvokeAsync(prog.Finish), TaskScheduler.Default);
+                prog.ShowDialog();
+            }
+            return await task;
+        }
+        finally
+        {
+            prog.Finish();
+            if (root != null) root.IsHitTestVisible = true;
+            owner.Cursor = null;
+        }
     }
 
     public void Report(ExportProgress p)
@@ -375,7 +408,7 @@ static class ExportResultDialog
         Theme.Prepare(w, Theme.Surface);
         bool isFile = File.Exists(r.Path);
         // Skripte nie per Doppelklick-Verhalten öffnen – das würde sie ausführen
-        bool canOpen = isFile ? !r.Path.EndsWith(".ahk", StringComparison.OrdinalIgnoreCase) : Directory.Exists(r.Path);
+        bool canOpen = isFile ? !r.Path.EndsWith(".ahk", StringComparison.OrdinalIgnoreCase) && !r.Path.EndsWith(".steprec", StringComparison.OrdinalIgnoreCase) : Directory.Exists(r.Path);
         var path = new TextBox { Text = r.Path, IsReadOnly = true, FontFamily = Theme.Mono, FontSize = 12, TextWrapping = TextWrapping.Wrap, Padding = new Thickness(8, 6, 8, 6) };
         var body = U.Col(path);
         foreach (var t in r.Warnings) body.Children.Add(U.Row(U.Icon(Theme.IWarn, 12, Theme.Warn), U.Text(t, 12.5, fg: Theme.Fg2, margin: new Thickness(8, 0, 0, 0))));

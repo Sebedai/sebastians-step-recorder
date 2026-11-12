@@ -68,6 +68,7 @@ sealed partial class ViewerWindow
             new("replace", "general", Loc.L("Suchen und Ersetzen …", "Find and replace …"), Key.H, C, ShowSearchReplace),
             new("insertStep", "steps", Loc.L("Schritt einfügen …", "Insert step …"), Key.Insert, S, () => InsertManual(null)),
             new("newRecording", "general", Loc.L("Neue Aufnahme", "New recording"), Key.N, C, () => UiApp.Instance.ShowStart()),
+            new("library", "general", Loc.L("Alle Aufnahmen …", "All recordings …"), Key.L, C, () => UiApp.Instance.ShowLibrary()),
             new("close", "general", Loc.L("Fenster schließen", "Close window"), Key.W, C, Close),
             // Schritte
             new("moreImportant", "steps", Loc.L("Wichtiger", "More important"), Key.Up, C, () => ChangeImportance(+1)),

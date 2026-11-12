@@ -24,8 +24,22 @@ public static class RecycleBin
         catch { return false; }
     }
 
-    /// <summary>Alle Pfade in einem Vorgang (eine Rückgängig-Einheit im Explorer) in den Papierkorb.</summary>
+    /// <summary>Alle Pfade in einem Vorgang (eine Rückgängig-Einheit im Explorer) in den Papierkorb. Darf aus jedem Thread gerufen werden.</summary>
     public static RecycleResult Delete(IReadOnlyList<string> paths, out string? error)
+    {
+        // IFileOperation verlangt einen STA-Thread (Hintergrund-Aufgaben laufen im MTA)
+        if (Thread.CurrentThread.GetApartmentState() == ApartmentState.STA) return DeleteSta(paths, out error);
+        RecycleResult result = RecycleResult.Failed;
+        string? err = null;
+        var t = new Thread(() => result = DeleteSta(paths, out err)) { IsBackground = true, Name = "RecycleBin" };
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start();
+        t.Join();
+        error = err;
+        return result;
+    }
+
+    static RecycleResult DeleteSta(IReadOnlyList<string> paths, out string? error)
     {
         error = null;
         var existing = paths.Where(p => File.Exists(p) || Directory.Exists(p)).Select(Path.GetFullPath).ToList();

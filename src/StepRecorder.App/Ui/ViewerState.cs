@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using StepRecorder.Data;
 using StepRecorder.ReadLayer;
 using StepRecorder.Settings;
 
@@ -38,6 +39,23 @@ sealed partial class ViewerWindow
     void RestoreStep()
     {
         if (AppState.Load().PeekSession(SessionKey)?.Step is long a) SelectAnchor(a);
+    }
+
+    public string SessionPath => _path;
+
+    /// <summary>Aus der Bibliothek: zum Schritt springen; mit Suchbegriff wird die Liste darauf gefiltert.</summary>
+    public void JumpTo(long anchor, string? search)
+    {
+        if (!string.IsNullOrWhiteSpace(search)) _search.Text = search;
+        if (!SelectAnchor(anchor)) { _allToggle.IsChecked = true; Fill(); SelectAnchor(anchor); }
+    }
+
+    /// <summary>Umbenennen von außen (Bibliothek) – über das Overlay mit Rückgängig.</summary>
+    public void RenameTo(string title)
+    {
+        Change(e => { var g = e.Obj("guide") ?? new System.Text.Json.Nodes.JsonObject(); g["title"] = title; e["guide"] = g; });
+        _titleBlock.Text = _view.Title;
+        Title = _view.Title + " – " + AppInfo.DisplayName;
     }
 
     public bool SelectAnchor(long anchor)

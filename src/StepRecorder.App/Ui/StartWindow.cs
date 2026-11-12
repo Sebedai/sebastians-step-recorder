@@ -141,8 +141,11 @@ sealed class StartWindow : Window
         var (tabTrack, tabs) = U.Segmented("stab", 0, (Theme.IHistory, "Zuletzt"), (Theme.IKeyboard, "Tastenkürzel"));
         var openFolder = U.Btn(Theme.IFolder, null, () => { var d = AppPaths.DefaultSessionsFolder(); Directory.CreateDirectory(d); Process.Start("explorer.exe", $"\"{d}\""); }, "Aufnahmeordner im Explorer öffnen", "Ghost");
         openFolder.Margin = new Thickness(0);
+        var allRec = U.Btn(Theme.IHistory, null, () => UiApp.Instance.ShowLibrary(), Loc.L("Alle Aufnahmen (Strg+L): suchen, umbenennen, packen, löschen", "All recordings (Ctrl+L): search, rename, pack, delete"), "Ghost");
+        allRec.Margin = new Thickness(0);
         var sideHead = new DockPanel { Margin = new Thickness(0, 0, 0, 14) };
-        DockPanel.SetDock(openFolder, Dock.Right); sideHead.Children.Add(openFolder); sideHead.Children.Add(tabTrack);
+        var headButtons = U.Row(allRec, openFolder);
+        DockPanel.SetDock(headButtons, Dock.Right); sideHead.Children.Add(headButtons); sideHead.Children.Add(tabTrack);
         var tabHost = new Grid();
         tabHost.Children.Add(_recent); tabHost.Children.Add(keysTab);
         keysTab.Visibility = Visibility.Hidden;   // „Hidden“ statt „Collapsed“: beide Reiter gleich hoch, nichts springt
@@ -186,6 +189,7 @@ sealed class StartWindow : Window
         {
             if (e.Key == Key.Enter && !(Keyboard.FocusedElement is TextBox or Button or ComboBox)) { Begin(ScopeMode.Screen); e.Handled = true; }
             if (e.Key == Key.O && Keyboard.Modifiers == ModifierKeys.Control) { OpenSession(); e.Handled = true; }
+            if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control) { UiApp.Instance.ShowLibrary(); e.Handled = true; }
         };
         Activated += (_, _) => { UpdateProfile(); FillRecent(); };
     }
@@ -495,20 +499,17 @@ sealed class StartWindow : Window
 
     static TextBlock Mono(string text) => new() { Text = text, FontFamily = Theme.Mono, FontSize = 11, Foreground = Theme.Muted, Margin = new Thickness(0, 3, 0, 0) };
 
-    /// <summary>Vorschaubild einer Aufnahme (ein frühes Bild der Sitzung) im Hintergrund laden.</summary>
+    /// <summary>Vorschaubild einer Aufnahme im Hintergrund laden – über die Leseschicht, also mit allen Schwärzungen.</summary>
     static void LoadThumb(string path, Image target)
     {
         Task.Run(() =>
         {
             try
             {
-                using var s = Session.Open(path, recover: false);
-                var ids = s.Frames.Keys.OrderBy(x => x, StringComparer.Ordinal).ToList();
-                if (ids.Count == 0) return null;
-                using var bmp = s.RestoreFrameCopy(ids[Math.Min(1, ids.Count - 1)]);
-                if (bmp == null) return null;
-                using var small = new System.Drawing.Bitmap(bmp, 192, Math.Max(1, 192 * bmp.Height / bmp.Width));
-                return U.ToSource(small);
+                if (StepRecorder.ReadLayer.SessionCatalog.Thumbnail(path, 192) is not { } png) return null;
+                using var ms = new MemoryStream(png);
+                var bi = new System.Windows.Media.Imaging.BitmapImage(); bi.BeginInit(); bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad; bi.StreamSource = ms; bi.EndInit(); bi.Freeze();
+                return (System.Windows.Media.Imaging.BitmapSource)bi;
             }
             catch { return null; }
         }).ContinueWith(t => { if (t.Result is { } src) { target.Source = src; Anim.Refresh(target, 0, 320); } }, TaskScheduler.FromCurrentSynchronizationContext());
