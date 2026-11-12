@@ -5,7 +5,7 @@ using System.Text;
 namespace StepRecorder.Export.Formats;
 
 /// <summary>
-/// Minimaler PDF-Erzeuger ohne Fremdbibliothek: A4-Seiten, JPEG-Bilder, Rechtecke und Linien, interne Verweise und
+/// Minimaler PDF-Erzeuger ohne Fremdbibliothek: Seiten in A4 oder Letter (hoch oder quer), JPEG-Bilder, Rechtecke und Linien, interne Verweise und
 /// Lesezeichen. Text läuft in Helvetica (WinAnsi), solange die Zeichen dort vorkommen; alles andere (z. B. Kyrillisch,
 /// Griechisch, Pfeile, Häkchen) in einer eingebetteten Teilmenge von Segoe UI bzw. Segoe UI Symbol (Type0, Identity-H,
 /// mit ToUnicode, damit Kopieren und Suchen funktionieren). Nicht darstellbar bleiben Schriften mit Zeichenformung
@@ -13,7 +13,11 @@ namespace StepRecorder.Export.Formats;
 /// </summary>
 public sealed class SimplePdf
 {
-    public const double PageW = 595.28, PageH = 841.89;
+    /// <summary>A4 hoch in Punkt.</summary>
+    public const double A4W = 595.28, A4H = 841.89;
+    /// <summary>Seitengröße in Punkt (A4, Letter, hoch oder quer; 09 §4.4).</summary>
+    public double PageW { get; }
+    public double PageH { get; }
     public double Margin { get; set; } = 50;
 
     readonly List<StringBuilder> _pages = new();
@@ -81,9 +85,13 @@ public sealed class SimplePdf
         '„' or '“' or '”' => 333, '‘' or '’' or '‚' => 222, '·' => 278, '•' => 350, '°' => 400, '§' => 556, '©' or '®' => 737, '×' => 584, _ => 556
     };
 
-    public SimplePdf() => NewPage();
+    public SimplePdf() : this(A4W, A4H) { }
+
+    public SimplePdf(double pageW, double pageH) { PageW = pageW; PageH = pageH; NewPage(); }
 
     public double ContentWidth => PageW - 2 * Margin;
+    /// <summary>Nutzbare Höhe einer Seite (ohne Ränder und Fußzeile).</summary>
+    public double ContentHeight => PageH - 2 * Margin - 20;
 
     public void NewPage()
     {
@@ -248,6 +256,7 @@ public sealed class SimplePdf
     {
         if (x < 0) x = Margin;
         if (maxW <= 0) maxW = ContentWidth;
+        maxH = Math.Min(maxH, ContentHeight - 4);   // ein Bild wird nie geteilt und passt immer auf eine Seite
         double scale = Math.Min(maxW / pxW, maxH / pxH);
         scale = Math.Min(scale, 0.75); // höchstens 96 dpi → 72 pt
         double w = pxW * scale, h = pxH * scale;

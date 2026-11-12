@@ -8,8 +8,9 @@ namespace StepRecorder.Export.Formats;
 /// Minimaler DOCX-Erzeuger (Office Open XML) ohne Fremdbibliothek: Überschriften, Absätze,
 /// fett/kursiv, Aufzählungen, Bilder (PNG/JPEG), Seitenumbruch. Nutzt echte Formatvorlagen
 /// (Überschrift 1/2, Titel), damit Word Navigation und Inhaltsverzeichnis anbieten kann.
+/// Seitenformat wählbar; mit einer eigenen Word-Vorlage siehe <c>SimpleDocx.Template.cs</c>.
 /// </summary>
-public sealed class SimpleDocx
+public sealed partial class SimpleDocx
 {
     StringBuilder _body = new();
     readonly List<(string name, byte[] data, string ext)> _media = new();
@@ -20,6 +21,25 @@ public sealed class SimpleDocx
     /// <summary>Text der Fußzeile (links); rechts steht die Seitenzahl. null = keine Fußzeile.</summary>
     public string? Footer { get; set; }
     int _docPrId = 1;
+
+    // ---------------- Seite (09 §4.4) ----------------
+
+    /// <summary>Seitengröße in Twips (Standard A4 hoch); quer, wenn breiter als hoch.</summary>
+    public int PageWTwips { get; private set; } = 11906;
+    public int PageHTwips { get; private set; } = 16838;
+    int _marL = 1134, _marR = 1134, _marT = 1134, _marB = 1134;
+    /// <summary>Breite des Satzspiegels in Twips (A4 hoch: 9638).</summary>
+    public int TextWidthTwips => Math.Max(1440, PageWTwips - _marL - _marR);
+    /// <summary>Satzspiegel in cm (auf 0,01 cm gerundet; A4 hoch: 17 × 25,7).</summary>
+    public double TextWidthCm => Math.Round(TextWidthTwips * 2.54 / 1440, 2);
+    public double TextHeightCm => Math.Round(Math.Max(1440, PageHTwips - _marT - _marB) * 2.54 / 1440, 2);
+
+    /// <summary>Seitenformat setzen (Twips; quer = breiter als hoch). Mit einer Word-Vorlage gilt deren Seiteneinrichtung.</summary>
+    public void SetPage(int wTwips, int hTwips)
+    {
+        if (_template != null) return;
+        PageWTwips = wTwips; PageHTwips = hTwips;
+    }
 
     static string X(string s) => SecurityElement.Escape(s ?? "") ?? "";
 
@@ -69,7 +89,7 @@ public sealed class SimpleDocx
         for (int i = 0; i < list.Count; i++)
         {
             var (text, level, bm) = list[i];
-            sb.Append($"<w:p><w:pPr><w:pStyle w:val=\"TOC{Math.Clamp(level, 1, 2)}\"/><w:tabs><w:tab w:val=\"right\" w:leader=\"dot\" w:pos=\"9628\"/></w:tabs></w:pPr>");
+            sb.Append($"<w:p><w:pPr><w:pStyle w:val=\"TOC{Math.Clamp(level, 1, 2)}\"/><w:tabs><w:tab w:val=\"right\" w:leader=\"dot\" w:pos=\"{TextWidthTwips - 10}\"/></w:tabs></w:pPr>");
             if (i == 0) sb.Append(fieldBegin);
             sb.Append($"<w:hyperlink w:anchor=\"{X(bm)}\" w:history=\"1\">{Run(text)}</w:hyperlink>");
             if (i == list.Count - 1) sb.Append("<w:r><w:fldChar w:fldCharType=\"end\"/></w:r>");
@@ -108,7 +128,7 @@ public sealed class SimpleDocx
         _body = new StringBuilder(); left(); string l = _body.ToString();
         _body = new StringBuilder(); right(); string r = _body.ToString();
         _body = outer;
-        int total = 9638, lw = total * leftPct / 100, rw = total - lw;
+        int total = TextWidthTwips, lw = total * leftPct / 100, rw = total - lw;
         if (l.Length == 0) l = "<w:p/>";
         if (r.Length == 0) r = "<w:p/>";
         _body.Append($"<w:tbl><w:tblPr><w:tblW w:w=\"{total}\" w:type=\"dxa\"/><w:tblLayout w:type=\"fixed\"/><w:tblCellMar><w:left w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"200\" w:type=\"dxa\"/></w:tblCellMar></w:tblPr><w:tblGrid><w:gridCol w:w=\"{lw}\"/><w:gridCol w:w=\"{rw}\"/></w:tblGrid>" +
@@ -117,7 +137,7 @@ public sealed class SimpleDocx
 
     public void PageBreak() => _body.Append("<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>");
 
-    /// <summary>Bild in maximal 16 cm Breite.</summary>
+    /// <summary>Bild in höchstens <paramref name="maxWidthCm"/> × <paramref name="maxHeightCm"/>, nie über die natürliche Größe (96 dpi).</summary>
     public void Image(byte[] data, string ext, int pxW, int pxH, string altText, double maxWidthCm = 16, double maxHeightCm = 12, bool border = true)
     {
         string name = $"image{_media.Count + 1}.{ext}";
@@ -134,6 +154,7 @@ public sealed class SimpleDocx
     public void Save(string path)
     {
         if (File.Exists(path)) File.Delete(path);
+        if (_template != null) { SaveWithTemplate(path); return; }
         using var zip = ZipFile.Open(path, ZipArchiveMode.Create);
         void Add(string name, string content)
         {
@@ -158,13 +179,13 @@ public sealed class SimpleDocx
         if (Footer != null)
         {
             const string rp = "<w:rPr><w:color w:val=\"7A776E\"/><w:sz w:val=\"16\"/></w:rPr>";
-            Add("word/footer1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:p><w:pPr><w:pBdr><w:top w:val=\"single\" w:sz=\"4\" w:space=\"4\" w:color=\"D0CEC6\"/></w:pBdr><w:tabs><w:tab w:val=\"right\" w:pos=\"9638\"/></w:tabs></w:pPr>" +
+            Add("word/footer1.xml", $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:p><w:pPr><w:pBdr><w:top w:val=\"single\" w:sz=\"4\" w:space=\"4\" w:color=\"D0CEC6\"/></w:pBdr><w:tabs><w:tab w:val=\"right\" w:pos=\"{TextWidthTwips}\"/></w:tabs></w:pPr>" +
                 Run(Footer, false, false, "7A776E", 16) + $"<w:r>{rp}<w:tab/></w:r><w:r>{rp}<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>{rp}<w:instrText xml:space=\"preserve\"> PAGE </w:instrText></w:r><w:r>{rp}<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>{rp}<w:t>1</w:t></w:r><w:r>{rp}<w:fldChar w:fldCharType=\"end\"/></w:r></w:p></w:ftr>");
         }
         Add("word/_rels/document.xml.rels", rels.ToString());
         Add("word/styles.xml", Styles());
         Add("word/document.xml", $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-<w:document xmlns:w=""http://schemas.openxmlformats.org/wordprocessingml/2006/main"" xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"" xmlns:wp=""http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing""><w:body>{_body}<w:sectPr>{(Footer != null ? "<w:footerReference w:type=\"default\" r:id=\"rIdFooter1\"/>" : "")}<w:pgSz w:w=""11906"" w:h=""16838""/><w:pgMar w:top=""1134"" w:right=""1134"" w:bottom=""1134"" w:left=""1134"" w:header=""567"" w:footer=""567"" w:gutter=""0""/></w:sectPr></w:body></w:document>");
+<w:document xmlns:w=""http://schemas.openxmlformats.org/wordprocessingml/2006/main"" xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"" xmlns:wp=""http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing""><w:body>{_body}<w:sectPr>{(Footer != null ? "<w:footerReference w:type=\"default\" r:id=\"rIdFooter1\"/>" : "")}<w:pgSz w:w=""{PageWTwips}"" w:h=""{PageHTwips}""{(PageWTwips > PageHTwips ? @" w:orient=""landscape""" : "")}/><w:pgMar w:top=""1134"" w:right=""1134"" w:bottom=""1134"" w:left=""1134"" w:header=""567"" w:footer=""567"" w:gutter=""0""/></w:sectPr></w:body></w:document>");
         foreach (var m in _media)
         {
             var e = zip.CreateEntry("word/media/" + m.name, CompressionLevel.NoCompression);

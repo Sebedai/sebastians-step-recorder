@@ -52,6 +52,9 @@ public sealed class ExportRequest
     public bool MdLegacy { get; set; }
     /// <summary>GIF: Größenziel in MB (0 = ohne).</summary>
     public double GifMaxMb { get; set; }
+    /// <summary>Word/PDF: Seitenformat a4 | letter und Querformat; null = aus den Dokument-Einstellungen (guide.doc).</summary>
+    public string? Page { get; set; }
+    public bool? Landscape { get; set; }
 
     public JsonObject ToJson() => new JsonObject
     {
@@ -61,6 +64,7 @@ public sealed class ExportRequest
         ["realTiming"] = RealTiming, ["images"] = Images, ["ahkKi"] = AhkKi, ["ocr"] = Ocr,
         ["guideAfter"] = GuideAfter, ["before"] = Before, ["crop"] = Crop, ["after"] = After, ["readable"] = Readable,
         ["mdDialect"] = MdDialect, ["mdFrontMatter"] = MdFrontMatter, ["mdLegacy"] = MdLegacy, ["gifMaxMb"] = GifMaxMb,
+        ["page"] = Page, ["landscape"] = Landscape,
     }.Clean();
 
     public static ExportRequest FromJson(JsonObject? o)
@@ -78,6 +82,7 @@ public sealed class ExportRequest
         if (o["crop"] != null) r.Crop = o.Bool("crop"); if (o["after"] != null) r.After = o.Bool("after"); r.Readable = o.Bool("readable");
         r.MdDialect = o.Str("mdDialect") is "github" or "obsidian" ? o.Str("mdDialect")! : "plain";
         r.MdFrontMatter = o.Bool("mdFrontMatter"); r.MdLegacy = o.Bool("mdLegacy"); r.GifMaxMb = Math.Clamp(o.Dbl("gifMaxMb", 0), 0, 1000);
+        r.Page = o.Str("page") is "a4" or "letter" ? o.Str("page") : null; if (o["landscape"] != null) r.Landscape = o.Bool("landscape");
         return r;
     }
 
@@ -218,7 +223,8 @@ public static class Exporter
                     Format = f, OutPath = work, Language = r.Language, Importance = r.Importance, View = r.View, Overview = r.Overview,
                     GifSeconds = r.GifSeconds, MouseMarks = r.MouseMarks, KeyMarks = r.KeyMarks, Preset = r.Template, MissingTranslation = r.MissingTranslation,
                     TourHints = r.TourHints, PptxNotes = r.PptxNotes, After = r.GuideAfter,
-                    MdDialect = r.MdDialect, MdFrontMatter = r.MdFrontMatter, MdLegacy = r.MdLegacy, GifMaxBytes = (long)(r.GifMaxMb * 1024 * 1024)
+                    MdDialect = r.MdDialect, MdFrontMatter = r.MdFrontMatter, MdLegacy = r.MdLegacy, GifMaxBytes = (long)(r.GifMaxMb * 1024 * 1024),
+                    Page = r.Page, Landscape = r.Landscape
                 });
         }
     }

@@ -206,7 +206,9 @@ Einzelheiten zur Sprache in [Abschnitt 10](#10-sprache-der-schritttexte).
 | Inhaltsverzeichnis | automatisch (bei Kapiteln oder mehr als 15 Schritten) · immer · nie | automatisch | alle |
 | Kopf- und Fußzeile | Titel, Seitenzahl „Seite X von Y“, Datum, freier Text | Titel links, Seitenzahl rechts | DOCX, PDF |
 | Seitenformat | A4 · Letter; Hoch · Quer | A4 hoch | DOCX, PDF |
-| Ein Schritt je Seite | an · aus | aus | DOCX, PDF |
+| Ein Schritt je Seite |
+
+**Seitenformat (umgesetzt):** Steht in den Dokument-Einstellungen der Aufnahme (`edits.guide.doc.page` = `a4` oder `letter`, `edits.guide.doc.landscape`; Editor: Reiter „Dokument“, Abschnitt „Seite“) und gehört zu dem, was eine gespeicherte Dokumentvorlage überträgt. Die Kommandozeile überschreibt es für einen einzelnen Export mit `--page` und `--landscape`/`--portrait` ([14](#14-kommandozeilen-export)). A4 ist 595,28 × 841,89 pt bzw. 11906 × 16838 Twips, Letter 612 × 792 pt bzw. 12240 × 15840 Twips; quer werden Breite und Höhe getauscht (Word: `w:orient="landscape"`). Die Ränder bleiben gleich (Word 20 mm, PDF 50 pt). Bildbreiten wachsen mit der Satzspiegelbreite; die Bildhöhe ist auf den Satzspiegel abzüglich Platz für den Schritttext begrenzt, sodass auch quer jedes Bild auf eine Seite passt. Das PDF-Deckblatt verteilt seine Elemente nach der Seitenhöhe. A4 hoch ergibt dieselben Dateien wie vorher. an · aus | aus | DOCX, PDF |
 | Zeile „Erstellt mit …“ | an · aus | aus | alle |
 | Hinweis auf Platzhalter (Soll) | an · aus | an, sobald die Anleitung Platzhalter enthält ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)) | alle |
 
@@ -409,6 +411,17 @@ Der Autor kann eine eigene Word-Vorlage (`.dotx` oder `.docx`) angeben, etwa mit
 - Die mitgelieferte Standardvorlage lässt sich als Datei speichern und als Ausgangspunkt anpassen.
 - Enthält die Vorlage Makros (`.dotm`), wird sie abgelehnt.
 
+**Umgesetzt** (eigener Schreiber, ohne Word; `SimpleDocx.Template.cs`):
+
+- **Wahl und Ablage:** im Editor, Reiter „Dokument“, Abschnitt „Seite (Word und PDF)“ → „Word-Vorlage wählen …“ / „Entfernen“. Die Datei (höchstens 5 MB) liegt Base64-kodiert in den Dokument-Einstellungen (`edits.guide.doc.wordTemplate`, Anzeigename `wordTemplateName`) – wie das Logo – und reist mit gespeicherten Dokumentvorlagen und dem Einstellungsaustausch; beim Einlesen wird sie erneut geprüft.
+- **Abgelehnt** werden beim Wählen, beim Einlesen und beim Export: Dateien, die keine Word-Datei sind, `.dotm`/`.docm` und jede Datei mit Makroteil (`vbaProject`, Inhaltstyp `macroEnabled`) sowie ActiveX-Steuerelemente. Der Export bricht dann mit einer Meldung ab.
+- **Ergebnis:** Grundlage ist die Vorlage selbst; übernommen werden alle ihre Teile (Formatvorlagen, Design, Schriftentabelle, Einstellungen, Kopf- und Fußzeilen, letzter Abschnitt mit Seitengröße und Rändern). Der Hauptteil erhält den Inhaltstyp eines Dokuments. Entfernt werden der Verweis auf die Vorlagendatei (`w:attachedTemplate`) und Verweise nach außen in den Beziehungen der Einstellungen. Die Dokumentangaben (Titel, Programm) schreibt der Export neu.
+- **Stelle:** Ein Inhaltssteuerelement `StepRecorderContent` (Kennung oder Titel) wird durch den Inhalt ersetzt; bei der Textmarke `StepRecorderContent` steht der Inhalt hinter ihrem Absatz; fehlt beides, vor dem letzten Abschnittsende.
+- **Felder:** `SR.Title`, `SR.Subtitle`, `SR.Author`, `SR.Date`, `SR.Version` – im Hauptteil sowie in Kopf- und Fußzeilen – erhalten den Text; das Format des ersten Laufs bleibt, die Platzhalteranzeige entfällt. Hat die Vorlage ein Feld `SR.Title`, bringt sie Titelblock bzw. Deckblatt selbst mit, und der Export setzt keinen eigenen Titelblock (Logo, Titel, Angaben) davor; sonst steht der Titelblock am Anfang des Inhalts.
+- **Formatvorlagen:** Jede Vorlage, die der Inhalt nutzt (`Title`, `Subtitle`, `Heading 1–3`, `TOC Heading`, `toc 1/2`, `Hyperlink`, `List Bullet`, `Note`), wird über ihre Kennung, dann über ihren Namen gesucht – so trifft „heading 1“ auch die deutsche Kennung `berschrift1`; `Normal` fällt notfalls auf die Standard-Absatzvorlage. Fehlende werden mit den Standardwerten angelegt, ihre Bezüge (`basedOn`, `next`) auf die Kennungen der Vorlage umgeschrieben. Die Dokumentsprache wird ergänzt, wenn die Vorlage keine festlegt.
+- **Seite:** Mit Word-Vorlage gilt deren Seiteneinrichtung, nicht das Seitenformat der Dokument-Einstellungen; Bildbreiten und Tabulatoren richten sich nach ihrem Satzspiegel. Bilder, Textmarken und Zeichnungskennungen erhalten eigene, mit der Vorlage nicht kollidierende Namen und Nummern (`media/sr-image…`).
+- **Noch nicht:** die eigenen `SR`-Formatvorlagen aus 7.2 (der Inhalt nutzt weiter die Vorlagen oben) und das Speichern der Standardvorlage als Datei.
+
 ## 8 PDF
 
 ### 8.1 Eigenschaften
@@ -425,7 +438,7 @@ Der Autor kann eine eigene Word-Vorlage (`.dotx` oder `.docx`) angeben, etwa mit
 
 | Regel | Festlegung |
 |---|---|
-| Seite | A4 oder Letter, Ränder 20 mm, einstellbar über die Vorlage |
+| Seite | A4 oder Letter, hoch oder quer ([4.4](#44-dokumentrahmen)); Ränder 50 pt (rund 18 mm) |
 | Schritt | Nummer, Text, Bild, Kommentare bilden einen Block |
 | Seitenumbruch | Ein Bild wird nie geteilt. Passt ein Schritt nicht mehr auf die Seite, beginnt er auf der nächsten. Schritttext und Bild bleiben zusammen. |
 | Bildgröße | Auf die Satzspiegelbreite eingepasst, nie über die natürliche Größe vergrößert, höchstens so hoch wie der Satzspiegel abzüglich des Schritttexts |
@@ -489,7 +502,7 @@ Format `gif`: ein animiertes Bild, das die Schritte nacheinander zeigt – für 
 
 ## 9 Vorlagen und Branding
 
-Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate. Umgesetzt sind bisher die **Dokument-Einstellungen** der Aufnahme (Deckblatt, Inhaltsverzeichnis, Nummerierung, Bildgröße und -anordnung, Akzentfarbe, Logo, Fußzeile; `edits.guide.doc`), die der Editor als Vorlage speichern und anwenden kann und die sich über den Einstellungsaustausch weitergeben lassen, und die **Art der Anleitung** ([9.4](#94-art-der-anleitung)). Die mitgelieferten Vorlagen aus 9.1 und die Wahl einer Vorlage im Exportdialog sind Soll.
+Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate. Umgesetzt sind bisher die **Dokument-Einstellungen** der Aufnahme (Deckblatt, Inhaltsverzeichnis, Nummerierung, Bildgröße und -anordnung, Akzentfarbe, Logo, Fußzeile, Seitenformat, Word-Vorlage; `edits.guide.doc`), die der Editor als Vorlage speichern und anwenden kann und die sich über den Einstellungsaustausch weitergeben lassen, und die **Art der Anleitung** ([9.4](#94-art-der-anleitung)). Die mitgelieferten Vorlagen aus 9.1 und die Wahl einer Vorlage im Exportdialog sind Soll.
 
 ### 9.1 Mitgelieferte Vorlagen
 
@@ -707,6 +720,7 @@ SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|gif|pptx|
 | `--lang <de\|en>` | Sprache der Schritttexte | Sprache der Sitzung |
 | `--importance <primary\|secondary\|all>` | Umfang: Hauptschritte · Haupt- und Nebenschritte · alle | `primary` |
 | `--view <screen\|window\|crop>` | Darstellung der Bilder | aus den Dokument-Einstellungen |
+| `--page <a4\|letter>`, `--landscape`, `--portrait` | Seitenformat für Word und PDF ([4.4](#44-dokumentrahmen)); gilt nur für diesen Export, `--landscape` und `--portrait` zusammen sind ein Aufruffehler | aus den Dokument-Einstellungen |
 | `--strict` | Warnungen der Qualitätsprüfung und ungeprüfte Eingaben führen zum Abbruch | aus |
 | `--json` | Ergebnis als JSON auf der Standardausgabe | aus |
 
@@ -714,7 +728,7 @@ Zusätzlich für das KI-Paket: `--detail`, `--image-profile`, `--zip`, `--no-eve
 
 Der Argumentleser ist streng: Eine unbekannte Option oder ein Wert außerhalb der Liste ist ein Aufruffehler (Exit-Code 2) und wird gemeldet, bevor etwas geschrieben wird.
 
-**Soll, noch nicht vorhanden:** `--address`, `--override-step-views`, `--after`, `--steps` (an die Stelle tritt `--importance`), `--from`/`--to`, `--no-comments`, `--title`, `--docx-template`, `--image-format`/`--jpeg-quality`, `--max-image-width`, `--overwrite` und `--quiet`. Die Ausgabe nimmt die Dokument-Einstellungen der Aufnahme.
+**Soll, noch nicht vorhanden:** `--address`, `--override-step-views`, `--after`, `--steps` (an die Stelle tritt `--importance`), `--from`/`--to`, `--no-comments`, `--title`, `--docx-template` (die Word-Vorlage steht in den Dokument-Einstellungen, [7.3](#73-eigene-formatvorlage)), `--image-format`/`--jpeg-quality`, `--max-image-width`, `--overwrite` und `--quiet`. Die Ausgabe nimmt die Dokument-Einstellungen der Aufnahme.
 
 Verhalten:
 
