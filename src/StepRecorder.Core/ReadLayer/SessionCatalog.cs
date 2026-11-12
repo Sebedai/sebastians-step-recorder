@@ -36,6 +36,20 @@ public sealed record SessionDetails(int Unreviewed, int GuideSteps);
 /// </summary>
 public static class SessionCatalog
 {
+    /// <summary>
+    /// Sitzungsangabe der Kommandozeile auflösen: <c>latest</c> (auch <c>neueste</c>) = die zuletzt begonnene abgeschlossene
+    /// Aufnahme im Aufnahmeordner <paramref name="root"/>; sonst der Pfad unverändert.
+    /// </summary>
+    public static string Resolve(string arg, string root)
+    {
+        if (!arg.Equals("latest", StringComparison.OrdinalIgnoreCase) && !arg.Equals("neueste", StringComparison.OrdinalIgnoreCase)) return arg;
+        return Latest(root)?.Path ?? throw new DirectoryNotFoundException(root);
+    }
+
+    /// <summary>Zuletzt begonnene, abgeschlossene Aufnahme (ohne Archive); null, wenn es keine gibt.</summary>
+    public static SessionInfo? Latest(string root)
+        => Scan(root, includeArchives: false).Where(s => s.Error == null && !s.Recording).OrderByDescending(s => s.StartUtc).FirstOrDefault();
+
     /// <summary>Aufnahmeordner (und optional <c>.steprec</c>-Dateien) bis <paramref name="maxDepth"/> Ebenen tief; folgt keinen Verknüpfungen.</summary>
     public static List<SessionInfo> Scan(string root, int maxDepth = 3, bool includeArchives = true, CancellationToken ct = default)
     {

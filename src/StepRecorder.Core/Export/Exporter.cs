@@ -43,6 +43,9 @@ public sealed class ExportRequest
     public bool AhkKi { get; set; }
     public bool Ocr { get; set; } = true;
     public List<string> With { get; set; } = new();
+    /// <summary>Schrittbereich (Nummern der Schrittliste, inklusive); null = von Anfang bzw. bis Ende. Wird nicht gemerkt.</summary>
+    public int? FromStep { get; set; }
+    public int? ToStep { get; set; }
 
     public JsonObject ToJson() => new JsonObject
     {
@@ -157,6 +160,8 @@ public static class Exporter
             ? Path.Combine(Path.GetDirectoryName(final)!, ".steprec-tmp-" + Guid.NewGuid().ToString("N")[..8])
             : Path.Combine(view.Session.Path, "export", ".tmp", "job-" + Guid.NewGuid().ToString("N")[..8]);
         Directory.CreateDirectory(tmpRoot);
+        var oldRange = view.Range;
+        if (r.FromStep != null || r.ToStep != null) view.Range = (r.FromStep ?? 1, r.ToStep ?? int.MaxValue);
         try
         {
             string work = Path.Combine(tmpRoot, Path.GetFileName(final));
@@ -165,7 +170,7 @@ public static class Exporter
             Commit(tmpRoot, work, final, folder, f == "ki" && r.Zip);
             return Rebase(res, tmpRoot, Path.GetDirectoryName(final)!);
         }
-        finally { try { Directory.Delete(tmpRoot, true); } catch { } }
+        finally { view.Range = oldRange; try { Directory.Delete(tmpRoot, true); } catch { } }
     }
 
     static ExportResult RunTo(SessionView view, ExportRequest r, string f, string work)

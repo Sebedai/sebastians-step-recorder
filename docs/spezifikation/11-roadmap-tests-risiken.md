@@ -263,7 +263,7 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 | O-16 | Ältere Leser (12, Paket 12): Programme bis 0.12 geben unbekannte Ereignisarten ungeprüft aus; nur eine neue Hauptversion des Formats hält sie auf | Leser-Mindestversion im Manifest und Sperre nach [04 §15.7](04-datenformat.md#157-erweiterungen-und-schutzrelevantes) für inhaltstragende Ereignisse; ausliefern mindestens eine Version vor der ersten solchen Quelle. Alternative: `schemaVersion` 2.0 mit der ersten Quelle | vor Paket 12 |
 | O-17 | Erzeugter Testcode (12, Pakete 16, 17) gegen das Nicht-Ziel „keine Automatisierung oder Wiedergabe“ ([00 §4](00-ueberblick.md#4-nicht-ziele)) | Zulässig wie der AutoHotkey-Export: Das Programm erzeugt Text, spielt nichts ab. Wortlaut des Nicht-Ziels so schärfen | vor Paket 16 |
 | O-18 | Abnahme erzeugter Tests (12, Paket 16): Darf das Testprojekt FlaUI oder einen C#-Übersetzer einbinden, um erzeugten Code zu übersetzen und auszuführen? | Ja, nur im Testprojekt und in einer eigenen Testkategorie mit Desktop (wie `Integration`); das Programm bleibt ohne Abhängigkeit (Lizenzprüfung wie NFA-019) | vor Paket 16 |
-| O-19 | Notizen des Agenten (12, Paket 8): wo sichtbar? | Im Editor und in MCP sichtbar, gekennzeichnet als „vom Agenten“; in Anleitungen und KI-Paket erst, wenn der Autor sie übernimmt | vor Paket 8 |
+| O-19 | Notizen des Agenten (12, Paket 8): wo sichtbar? | *Entschieden und umgesetzt:* im Editor und in MCP sichtbar, gekennzeichnet als „vom Agenten“; in Anleitungen und KI-Paket erst, wenn der Autor sie übernimmt | erledigt |
 
 ## 10. Veröffentlichung
 

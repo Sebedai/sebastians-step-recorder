@@ -27,7 +27,7 @@ Aufruf:
   SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
   SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
   SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
-      [--out <Pfad>] [--lang de|en] [--json] [--strict]
+      [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
       KI-Paket:    [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original] [--zip] [--no-events]
@@ -37,7 +37,9 @@ Aufruf:
   SebastiansStepRecorder.exe check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
   SebastiansStepRecorder.exe validate <Aufnahme> [--json] [--thorough]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
-  SebastiansStepRecorder.exe steps <Aufnahme>        Schrittliste ausgeben
+  SebastiansStepRecorder.exe steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
+  SebastiansStepRecorder.exe list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
+      Statt <Aufnahme> überall auch: latest (neueste Aufnahme im Aufnahmeordner)
   SebastiansStepRecorder.exe settings export <Datei> [--parts hotkeys,excluded,exportTemplates,customProfile,preferences]
   SebastiansStepRecorder.exe settings import <Datei> [--parts …] [--confirm] [--allow-weaker <Kennung>]… [--json]
   SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…
@@ -64,7 +66,7 @@ Usage:
   SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
   SebastiansStepRecorder.exe support                 prepare a support recording in the start window
   SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
-      [--out <path>] [--lang de|en] [--json] [--strict]
+      [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
       AI package: [--detail compact|standard|full] [--image-profile compatible|highres|original] [--zip] [--no-events]
@@ -74,7 +76,9 @@ Usage:
   SebastiansStepRecorder.exe check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
   SebastiansStepRecorder.exe validate <recording> [--json] [--thorough]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>]
-  SebastiansStepRecorder.exe steps <recording>       print the step list
+  SebastiansStepRecorder.exe steps <recording> [--json] [--all]   step list with response times
+  SebastiansStepRecorder.exe list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
+      Instead of <recording> you can always write: latest (newest recording in the recordings folder)
   SebastiansStepRecorder.exe settings export <file> [--parts hotkeys,excluded,exportTemplates,customProfile,preferences]
   SebastiansStepRecorder.exe settings import <file> [--parts …] [--confirm] [--allow-weaker <id>]… [--json]
   SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <id>]…
@@ -101,6 +105,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
                 case "validate": return ValidateCmd(args);
                 case "compare": return CompareCmd(args);
                 case "steps": return StepsCmd(args);
+                case "list": return ListCmd(args);
                 case "record" when args.Contains("--stop"): return Ui.SingleInstance.SendStop();
                 case "record" when args.Contains("--self-test"): return SelfTest(args);
                 case "settings": return SettingsCmd(args);
@@ -118,6 +123,9 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
     }
 
     static int Usage(string? error) { Console.Error.WriteLine(error ?? Loc.L("Aufruf unvollständig.", "Incomplete command.")); Console.Error.WriteLine(Loc.L("Hilfe: SebastiansStepRecorder.exe --help", "Help: SebastiansStepRecorder.exe --help")); return 2; }
+
+    /// <summary>Sitzungsangabe: Pfad oder <c>latest</c> (neueste Aufnahme im Aufnahmeordner).</summary>
+    static string S(string arg) => SessionCatalog.Resolve(arg, AppPaths.DefaultSessionsFolder());
 
     static string? NeedSession(CliArgs c, int count = 1)
         => c.Positional.Count < count ? Loc.L("Aufnahme fehlt.", "Recording missing.") : c.Positional.Count > count ? Loc.F("Zu viele Angaben: {0}", "Too many arguments: {0}", string.Join(" ", c.Positional.Skip(count))) : null;
@@ -156,7 +164,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after" },
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps" },
             new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after" }, "--with");
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
@@ -174,10 +182,21 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
             RealTiming = c.Has("--real-timing"), Images = !c.Has("--no-images"), Ocr = !c.Has("--no-ocr"), With = c.All("--with")
         };
         if (!Exporter.IsKnownFormat(req.Format)) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", req.Format));
+        // Schrittbereich: --from/--to oder --steps a-b (Nummern der Schrittliste)
+        if (c["--steps"] is { } range)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(range, @"^\s*(\d+)?\s*-\s*(\d+)?\s*$|^\s*(\d+)\s*$");
+            if (!m.Success) return Usage(Loc.L("--steps: a-b, a- oder -b (Schrittnummern)", "--steps: a-b, a- or -b (step numbers)"));
+            if (m.Groups[3].Success) req.FromStep = req.ToStep = int.Parse(m.Groups[3].Value);
+            else { if (m.Groups[1].Success) req.FromStep = int.Parse(m.Groups[1].Value); if (m.Groups[2].Success) req.ToStep = int.Parse(m.Groups[2].Value); }
+        }
+        if (c["--from"] is { } fs) { if (!int.TryParse(fs, out var fv) || fv < 1) return Usage("--from: >= 1"); req.FromStep = fv; }
+        if (c["--to"] is { } ts) { if (!int.TryParse(ts, out var tv) || tv < 1) return Usage("--to: >= 1"); req.ToStep = tv; }
+        if (req.FromStep > req.ToStep) return Usage(Loc.L("--from liegt hinter --to.", "--from is after --to."));
         if (req.Language is { } l && l is not ("de" or "en")) return Usage("--lang: de | en");
         if (req.Importance is not ("primary" or "secondary" or "all")) return Usage("--importance: primary | secondary | all");
         bool json = c.Has("--json");
-        using var view = SessionView.Open(c.Positional[0], headless: true, lang: req.Language);
+        using var view = SessionView.Open(S(c.Positional[0]), headless: true, lang: req.Language);
         if (view.Session.State == "recording") { Console.Error.WriteLine(Loc.L("Die Aufnahme ist nicht abgeschlossen.", "The recording is not finished.")); return 3; }
         if (c.Has("--strict") && view.UnreviewedCount > 0) { Console.Error.WriteLine(Loc.F("{0} auffällige Eingaben ungeprüft – Abbruch (--strict).", "{0} flagged inputs not reviewed – aborted (--strict).", view.UnreviewedCount)); return 9; }
         var quality = Exporter.IsGuideFormat(req.Format) ? QualityCheck.Run(view, new QualityOptions { Importance = req.Importance }) : new List<QualityFinding>();
@@ -215,7 +234,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         var c = CliArgs.Parse(a, 1, new[] { "--lang", "--importance" }, new[] { "--json", "--strict", "--all" });
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
-        using var view = SessionView.Open(c.Positional[0], headless: true, lang: c["--lang"]);
+        using var view = SessionView.Open(S(c.Positional[0]), headless: true, lang: c["--lang"]);
         var list = QualityCheck.Run(view, new QualityOptions { Importance = c["--importance"] ?? "primary", IncludeIgnored = c.Has("--all") });
         if (c.Has("--json")) Console.WriteLine(Json.Pretty(new JsonObject { ["findings"] = QualityCheck.ToJson(list, view.Language), ["warnings"] = list.Count(q => q.Severity == "warning" && !q.Ignored), ["hints"] = list.Count(q => q.Severity == "hint" && !q.Ignored) }));
         else
@@ -237,7 +256,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         var c = CliArgs.Parse(a, 1, Array.Empty<string>(), new[] { "--json", "--thorough" });
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
-        var (issues, report) = Validator.Validate(c.Positional[0], thorough: c.Has("--thorough"));
+        var (issues, report) = Validator.Validate(S(c.Positional[0]), thorough: c.Has("--thorough"));
         if (c.Has("--json")) Console.WriteLine(Json.Pretty(report));
         else
         {
@@ -256,8 +275,8 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         var c = CliArgs.Parse(a, 1, new[] { "--format", "--out" }, Array.Empty<string>());
         if (c.Error != null) return Usage(c.Error);
         if (c.Positional.Count != 2) return Usage(Loc.L("Zwei Aufnahmen angeben.", "Specify two recordings."));
-        using var va = SessionView.Open(c.Positional[0], headless: true);
-        using var vb = SessionView.Open(c.Positional[1], headless: true);
+        using var va = SessionView.Open(S(c.Positional[0]), headless: true);
+        using var vb = SessionView.Open(S(c.Positional[1]), headless: true);
         var r = StepCompare.Compare(va, vb);
         string fmt = c["--format"] ?? "md";
         if (fmt is not ("md" or "json")) return Usage("--format: md | json");
@@ -268,12 +287,62 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int StepsCmd(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, Array.Empty<string>(), Array.Empty<string>());
+        var c = CliArgs.Parse(a, 1, new[] { "--lang" }, new[] { "--json", "--all" });
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
-        using var view = SessionView.Open(c.Positional[0], headless: true);
-        foreach (var s in view.All.Where(x => x.Importance != "trace"))
-            Console.WriteLine($"{s.Number,4}. {Fmt.Time(s.TFrom, view.Language)}  {s.Kind,-12} {s.Protocol}  [{s.EvidenceLevel}]");
+        using var view = SessionView.Open(S(c.Positional[0]), headless: true, lang: c["--lang"]);
+        var steps = view.All.Where(x => c.Has("--all") || x.Importance != "trace").ToList();
+        if (c.Has("--json"))
+        {
+            Console.WriteLine(Json.Line(new JsonObject
+            {
+                ["sessionId"] = view.Session.SessionId, ["title"] = view.Title,
+                ["steps"] = new JsonArray(steps.Select(s => (JsonNode)new JsonObject
+                {
+                    ["number"] = s.Number, ["id"] = s.Id, ["t"] = Fmt.Time(s.TFrom, "en"), ["kind"] = s.Kind, ["importance"] = s.Importance,
+                    ["title"] = s.Title, ["text"] = s.Protocol, ["evidence"] = s.EvidenceLevel, ["markerKind"] = s.Kind == "marker" ? s.Json.Obj("input")?.Str("markerKind") : null,
+                    ["timing"] = s.Redacted ? null : Timing.Of(s.Json)
+                }.Clean()).ToArray())
+            }));
+            return 0;
+        }
+        foreach (var s in steps)
+        {
+            string timing = !s.Redacted && Timing.Of(s.Json) is { } t ? "  (" + Timing.Text(t, view.Language) + ")" : "";
+            Console.WriteLine($"{s.Number,4}. {Fmt.Time(s.TFrom, view.Language)}  {s.Kind,-12} {s.Protocol}  [{s.EvidenceLevel}]{timing}");
+        }
+        return 0;
+    }
+
+    // ---------------- list ----------------
+
+    static int ListCmd(string[] a)
+    {
+        var c = CliArgs.Parse(a, 1, new[] { "--limit", "--root" }, new[] { "--json", "--all" });
+        if (c.Error != null) return Usage(c.Error);
+        if (c.Positional.Count > 0) return Usage(Loc.F("Unerwartete Angabe: {0}", "Unexpected argument: {0}", c.Positional[0]));
+        int limit = 20;
+        if (c["--limit"] is { } ls && (!int.TryParse(ls, out limit) || limit < 1)) return Usage("--limit: >= 1");
+        string root = c["--root"] ?? AppPaths.DefaultSessionsFolder();
+        if (!Directory.Exists(root)) { Console.Error.WriteLine(Loc.F("Aufnahmeordner nicht gefunden: {0}", "Recordings folder not found: {0}", root)); return 3; }
+        var list = SessionCatalog.Scan(root, includeArchives: c.Has("--all")).Where(s => s.Error == null).OrderByDescending(s => s.StartUtc).Take(limit).ToList();
+        if (c.Has("--json"))
+        {
+            Console.WriteLine(Json.Line(new JsonObject
+            {
+                ["root"] = root,
+                ["sessions"] = new JsonArray(list.Select(s => (JsonNode)new JsonObject
+                {
+                    ["id"] = s.Id, ["title"] = s.Title, ["startedAt"] = s.StartUtc.ToString("o"), ["durationMs"] = s.DurationUs / 1000, ["state"] = s.State,
+                    ["steps"] = s.Steps, ["primarySteps"] = s.PrimarySteps, ["profile"] = s.ProfileId, ["path"] = s.Path, ["archive"] = s.Archive
+                }).ToArray())
+            }));
+            return 0;
+        }
+        string stepsWord = Loc.L("Schritte", "steps");
+        foreach (var s in list)
+            Console.WriteLine($"{s.StartUtc.ToLocalTime():yyyy-MM-dd HH:mm}  {s.Steps,4} {stepsWord}  {s.Title}  {s.Path}");
+        if (list.Count == 0) Console.WriteLine(Loc.L("Keine Aufnahmen.", "No recordings."));
         return 0;
     }
 

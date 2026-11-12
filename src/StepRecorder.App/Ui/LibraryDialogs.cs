@@ -20,7 +20,7 @@ static class PackDialog
         if (info.Recording) { Msg.Show(Loc.L("Die Aufnahme läuft noch.", "The recording is still running."), Loc.L("Packen", "Pack")); return; }
         var edits = Json.ReadObject(Path.Combine(folder, "edits.json")) ?? new JsonObject();
         int redactions = edits.Arr("redactions")?.Count ?? 0, generalizations = edits.Arr("substitutions")?.Count ?? 0;
-        int internalComments = (edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Count(c => c.Str("kind") == "internal" || c.Bool("hidden"));
+        int internalComments = (edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Count(c => StepRecorder.ReadLayer.SessionView.IsInternalKind(c.Str("kind")) || c.Bool("hidden"));
         int unreviewed = SessionCatalog.Details(folder)?.Unreviewed ?? 0;
         int protections = redactions + generalizations + internalComments + unreviewed;
 

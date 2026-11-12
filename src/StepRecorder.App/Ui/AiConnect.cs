@@ -17,15 +17,27 @@ static class AiConnect
         Theme.Prepare(w, Theme.Surface);
         string exe = Environment.ProcessPath ?? StepRecorder.Data.AppInfo.ExeName;
         var root = new TextBox { Text = AppPaths.DefaultSessionsFolder() };
-        var allowEdit = new CheckBox { Content = Loc.L("Texte bearbeiten erlauben (--allow-edit) – der Agent darf Überschriften und Anleitungstexte ändern", "Allow editing texts (--allow-edit) – the agent may change headings and guide texts"), Margin = new Thickness(0, 6, 0, 0) };
+        var allowEdit = new CheckBox { Content = Loc.L("Texte bearbeiten erlauben (--allow-edit) – der Agent darf Überschriften und Anleitungstexte ändern und Notizen anhängen", "Allow editing texts (--allow-edit) – the agent may change headings and guide texts and attach notes"), Margin = new Thickness(0, 6, 0, 0) };
         var allowReq = new CheckBox { Content = Loc.L("Agent darf um eine Vorführung bitten (--allow-requests) – jede Anfrage bestätigen Sie selbst", "Agent may ask for a demonstration (--allow-requests) – you confirm every request"), Margin = new Thickness(0, 4, 0, 0) };
         var lang = new ComboBox { Items = { Loc.L("Sprache der Aufnahme", "Recording language"), "Deutsch", "English" }, SelectedIndex = 0, MinWidth = 180 };
         var project = Block(); var cmd = Block(); var cli = Block();
+        var clients = McpConfig.Clients;
+        var client = new ComboBox { MinWidth = 260, HorizontalAlignment = HorizontalAlignment.Left };
+        foreach (var c in clients) client.Items.Add(c.name);
+        client.SelectedIndex = 0;
+        var fileHint = U.Text("", 11.5, fg: Theme.Muted, margin: new Thickness(0, 4, 0, 0));
         var warn = U.Text("", 12, fg: Theme.Warn, margin: new Thickness(0, 6, 0, 0));
         void Upd()
         {
             var o = new McpConfigOptions(exe, root.Text.Trim(), allowEdit.IsChecked == true, allowReq.IsChecked == true, lang.SelectedIndex switch { 1 => "de", 2 => "en", _ => null });
-            project.Text = McpConfig.ProjectJson(o);
+            var cl = clients[Math.Max(0, client.SelectedIndex)];
+            project.Text = cl.text(o);
+            fileHint.Text = cl.id switch
+            {
+                "claudeDesktop" => Loc.L("Eintrag unter „mcpServers“ in claude_desktop_config.json ergänzen (Einstellungen → Entwickler → Konfiguration bearbeiten).", "Add the entry under \"mcpServers\" in claude_desktop_config.json (Settings → Developer → Edit config)."),
+                "codex" => Loc.F("Abschnitt in {0} einfügen.", "Add this section to {0}.", cl.file),
+                _ => Loc.F("Als Datei {0} im Projektordner speichern (vorhandene Einträge zusammenführen).", "Save as {0} in the project folder (merge with existing entries).", cl.file)
+            };
             cmd.Text = McpConfig.ClaudeAddCommand(o);
             cli.Text = McpConfig.CommandLine(o);
             var ws = McpConfig.Warnings(o);
@@ -33,7 +45,7 @@ static class AiConnect
             warn.Text = string.Join("\n", ws); warn.Visibility = ws.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         root.TextChanged += (_, _) => Upd(); allowEdit.Checked += (_, _) => Upd(); allowEdit.Unchecked += (_, _) => Upd();
-        allowReq.Checked += (_, _) => Upd(); allowReq.Unchecked += (_, _) => Upd(); lang.SelectionChanged += (_, _) => Upd();
+        allowReq.Checked += (_, _) => Upd(); allowReq.Unchecked += (_, _) => Upd(); lang.SelectionChanged += (_, _) => Upd(); client.SelectionChanged += (_, _) => Upd();
         var browse = U.Btn(Theme.IFolder, null, () => { var d = new Microsoft.Win32.OpenFolderDialog { InitialDirectory = Directory.Exists(root.Text) ? root.Text : null }; if (d.ShowDialog(w) == true) root.Text = d.FolderName; }, Loc.L("Ordner wählen …", "Choose folder …"));
         browse.Margin = new Thickness(8, 0, 0, 0);
         var rootRow = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); rootRow.Children.Add(browse); rootRow.Children.Add(root);
@@ -44,7 +56,9 @@ static class AiConnect
         var body = U.Col(sees,
             U.Field(Loc.L("Aufnahmeordner für den Agenten", "Recordings folder for the agent"), U.Col(rootRow, allowEdit, allowReq, warn)),
             U.Field(Loc.L("Sprache der Antworten", "Answer language"), lang),
-            Section(Loc.L("Claude Code und andere: Datei .mcp.json im Projekt", "Claude Code and others: file .mcp.json in the project"), project, Loc.L("Bei Claude Desktop denselben Eintrag unter „mcpServers“ in claude_desktop_config.json ergänzen.", "For Claude Desktop add the same entry under \"mcpServers\" in claude_desktop_config.json.")),
+            U.Field(Loc.L("Programm", "Program"), client),
+            Section(Loc.L("Einrichtung", "Setup"), project, null), fileHint,
+            U.Text(Loc.L("Danach stehen im Agenten auch Slash-Befehle bereit: analyze_bug, write_ui_test, write_guide, verify_fix.", "Afterwards the agent also offers slash commands: analyze_bug, write_ui_test, write_guide, verify_fix."), 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0)),
             Section(Loc.L("Oder in der Eingabeaufforderung (Claude Code)", "Or on the command line (Claude Code)"), cmd, null),
             Section(Loc.L("Aufruf des Servers", "Server command"), cli, null));
         U.Dialog(w, Loc.L("Mit KI verbinden", "Connect to AI"), new ScrollViewer { Content = body, MaxHeight = 640, VerticalScrollBarVisibility = ScrollBarVisibility.Auto }, U.Primary(Loc.L("Schließen", "Close"), () => w.Close()));

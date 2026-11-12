@@ -63,7 +63,7 @@ static class AgentRequests
         UiApp.ApplyProfile(o, AppSettings.Load().LastProfile);
         o.Scope = ScopeMode.Screen;
         o.Title = rq.Title ?? "";
-        o.GoalDescription = rq.Goal; o.GoalExpected = rq.Expected; o.GoalStatedBy = "agent";
+        o.GoalDescription = rq.Goal; o.GoalExpected = rq.Expected; o.GoalStatedBy = "agent"; o.GoalRetestOf = rq.RetestOf;
         if (rq.Root is { Length: > 0 } root && Directory.Exists(root)) o.OutputFolder = root;
         UiApp.Instance.StartRecording(o, folder =>
         {

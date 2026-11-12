@@ -7,6 +7,12 @@ namespace StepRecorder.Mcp;
 /// <summary>Ein MCP-Tool: Name, Beschreibung, JSON-Schema der Parameter, Ausführung.</summary>
 public sealed record McpTool(string Name, string Description, JsonObject InputSchema, Func<JsonObject, McpToolResult> Handler, bool ReadOnly = true);
 
+/// <summary>
+/// Ein MCP-Prompt (in Claude Code als Slash-Befehl): Name, Beschreibung, Argumente und der erzeugte Auftragstext.
+/// Prompts enthalten nur Arbeitsanweisungen und Kennungen – nie aufgezeichnete Inhalte (12, Paket 8).
+/// </summary>
+public sealed record McpPrompt(string Name, string Description, (string name, string description, bool required)[] Arguments, Func<JsonObject, string> Build);
+
 /// <summary>Ergebnis eines Tool-Aufrufs: Inhaltsblöcke (Text/Bild) und optional strukturierte Daten.</summary>
 public sealed class McpToolResult
 {
@@ -39,6 +45,7 @@ public sealed class McpStdioServer
 {
     static readonly string[] SupportedVersions = { "2025-06-18", "2025-03-26", "2024-11-05" };
     readonly Dictionary<string, McpTool> _tools = new();
+    readonly Dictionary<string, McpPrompt> _prompts = new();
     readonly string _name, _version, _instructions;
     readonly TextReader _in;
     readonly TextWriter _out;
@@ -51,6 +58,8 @@ public sealed class McpStdioServer
 
     public void Register(McpTool tool) => _tools[tool.Name] = tool;
     public IReadOnlyCollection<McpTool> Tools => _tools.Values;
+    public void RegisterPrompt(McpPrompt prompt) => _prompts[prompt.Name] = prompt;
+    public IReadOnlyCollection<McpPrompt> Prompts => _prompts.Values;
 
     public void Run(CancellationToken ct = default)
     {
@@ -93,7 +102,9 @@ public sealed class McpStdioServer
                     return Result(id, new JsonObject
                     {
                         ["protocolVersion"] = version,
-                        ["capabilities"] = new JsonObject { ["tools"] = new JsonObject { ["listChanged"] = false } },
+                        ["capabilities"] = _prompts.Count > 0
+                            ? new JsonObject { ["tools"] = new JsonObject { ["listChanged"] = false }, ["prompts"] = new JsonObject { ["listChanged"] = false } }
+                            : new JsonObject { ["tools"] = new JsonObject { ["listChanged"] = false } },
                         ["serverInfo"] = new JsonObject { ["name"] = _name, ["version"] = _version },
                         ["instructions"] = _instructions
                     });
@@ -131,7 +142,31 @@ public sealed class McpStdioServer
                     return Result(id, res);
                 }
             case "resources/list": return Result(id, new JsonObject { ["resources"] = new JsonArray() });
-            case "prompts/list": return Result(id, new JsonObject { ["prompts"] = new JsonArray() });
+            case "prompts/list":
+                return Result(id, new JsonObject
+                {
+                    ["prompts"] = new JsonArray(_prompts.Values.Select(p => (JsonNode)new JsonObject
+                    {
+                        ["name"] = p.Name, ["description"] = p.Description,
+                        ["arguments"] = new JsonArray(p.Arguments.Select(a => (JsonNode)new JsonObject { ["name"] = a.name, ["description"] = a.description, ["required"] = a.required }).ToArray())
+                    }).ToArray())
+                });
+            case "prompts/get":
+                {
+                    string name = prm["name"]?.GetValue<string>() ?? "";
+                    if (!_prompts.TryGetValue(name, out var pr)) return ErrorResponse(id, -32602, $"Unknown prompt: {name}");
+                    var args = prm["arguments"] as JsonObject ?? new JsonObject();
+                    foreach (var a in pr.Arguments.Where(a => a.required))
+                        if (string.IsNullOrWhiteSpace(args[a.name]?.ToString())) return ErrorResponse(id, -32602, $"Missing argument: {a.name}");
+                    string text;
+                    try { text = pr.Build(args); }
+                    catch (McpToolException ex) { return ErrorResponse(id, -32602, ex.Message); }
+                    return Result(id, new JsonObject
+                    {
+                        ["description"] = pr.Description,
+                        ["messages"] = new JsonArray(new JsonObject { ["role"] = "user", ["content"] = new JsonObject { ["type"] = "text", ["text"] = text } })
+                    });
+                }
             default:
                 return isNotification ? null : ErrorResponse(id, -32601, $"Method not found: {method}");
         }

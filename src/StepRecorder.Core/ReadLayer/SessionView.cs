@@ -129,6 +129,30 @@ public sealed class SessionView : IDisposable
         Session = s; Headless = headless; Language = lang ?? s.Language;
     }
 
+    /// <summary>
+    /// Kommentararten, die in keiner Ausgabe erscheinen: „internal“ (Autor) und „agent“ (Notiz eines KI-Agenten über MCP,
+    /// sichtbar nur im Editor und in MCP – Entscheidung O-19).
+    /// </summary>
+    public static bool IsInternalKind(string? kind) => kind is "internal" or "agent";
+
+    /// <summary>
+    /// Schrittbereich für Ausgaben (<c>export --from/--to</c>, Nummern wie in der Schrittliste); null = alle.
+    /// Eigene Schritte gehören zum Bereich ihres Bezugsschritts.
+    /// </summary>
+    public (int from, int to)? Range { get; set; }
+
+    public bool InRange(ViewStep s)
+    {
+        if (Range is not { } r) return true;
+        if (s.Manual)
+        {
+            if (s.After == 0) return r.from <= 1;
+            var basis = All.FirstOrDefault(x => x.Anchor == s.After);
+            return basis == null || basis.Number >= r.from && basis.Number <= r.to;
+        }
+        return s.Number >= r.from && s.Number <= r.to;
+    }
+
     public static SessionView Open(string path, bool headless = false, string? lang = null, bool deriveIfMissing = true)
     {
         var s = Session.Open(path);
@@ -344,8 +368,8 @@ public sealed class SessionView : IDisposable
         var list = new List<ViewStep>();
         var stepEdits = (Edits.Arr("steps") ?? new JsonArray()).Where(x => x is JsonObject).ToDictionary(x => x.Long("anchor"), x => x!.AsObject());
         var allComments = (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Where(c => c.Str("origin") != "recording").ToList();
-        var comments = allComments.Where(c => c.Str("kind") != "internal" && !c.Bool("hidden")).ToList();
-        var internalComments = allComments.Where(c => c.Str("kind") == "internal" || c.Bool("hidden")).ToList();
+        var comments = allComments.Where(c => !IsInternalKind(c.Str("kind")) && !c.Bool("hidden")).ToList();
+        var internalComments = allComments.Where(c => IsInternalKind(c.Str("kind")) || c.Bool("hidden")).ToList();
         var anns = (Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().ToList();
         var review = ReviewState();
         foreach (var sNode in Steps.Arr("steps") ?? new JsonArray())
@@ -531,6 +555,7 @@ public sealed class SessionView : IDisposable
             }
             q = list;
         }
+        if (Range != null) q = q.Where(InRange);
         q = importance switch
         {
             "primary" => q.Where(s => s.Importance == "primary" || s.Kind == "gap" || s.Manual),

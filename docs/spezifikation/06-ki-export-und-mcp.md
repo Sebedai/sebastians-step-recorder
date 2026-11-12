@@ -2682,6 +2682,41 @@ Der Viewer erzeugt die Einrichtung des Servers als Text zum Kopieren ([08](08-vi
 - **Hinweise:** EXE in Downloads oder einem temporären Ordner, EXE auf einem Wechseldatenträger, synchronisierter Aufnahmeordner, `%`, `$` oder `` ` `` im Pfad, EXE nicht als `SebastiansStepRecorder.exe` gestartet, Ordner nicht vorhanden.
 - Der Dialog sagt in einfachen Worten, was ein Agent sieht und was nicht, und dass der Server selbst kein Netzwerk nutzt.
 - **Das Programm trägt nichts selbst ein:** Es schreibt keine fremde Konfigurationsdatei und startet nichts. Einstiege: Startfenster, Menü „…“ im Editor und der Exportdialog des KI-Pakets.
+- **Weitere Programme** (Paket 8 aus [12](12-entwickler-fahrplan.md)): Eine Auswahl „Programm“ zeigt die Einrichtung für Claude Code (`.mcp.json`), Claude Desktop (`claude_desktop_config.json`), VS Code (`.vscode/mcp.json` mit `servers` und `"type": "stdio"`), Cursor (`.cursor/mcp.json`) und Codex CLI (Abschnitt `[mcp_servers.steprecorder]` in `%USERPROFILE%\.codex\config.toml`, TOML-Zeichenketten in einfachen Anführungszeichen). `McpConfig.Clients` ist die einzige Liste; die Formate sind gegen die Dokumentation der Programme vom November 2026 geprüft und bei jeder Version erneut zu prüfen.
+
+### 19.12 `get_failure_context`
+
+Alles, was ein Agent für einen aufgezeichneten Fehler braucht, in einem Aufruf (Paket 8 aus [12](12-entwickler-fahrplan.md)).
+
+- **Parameter:** `sessionId`, optional `step` (Ausgangspunkt erzwingen), `before` (1–40, Standard 8), `after` (0–10, Standard 2), `image` (Standard `true`), `lang`, `maxTokens`.
+- **Ausgangspunkt:** der genannte Schritt; sonst der erste Marker `error`; sonst der letzte Absturz (`appExit` mit `crash`); sonst der letzte Aktionsschritt – mit `focus.reason` `requested`, `firstErrorMarker`, `crash` bzw. `lastStep` und einem Hinweis im letzten Fall.
+- **Inhalt:** `focus`, `goal` (mit `statedBy`), alle `markers`, `apps` (Programm, Produkt, Version), `environment`, die Schritte vom Bereich vor bis nach dem Ausgangspunkt mit allen Automationsfeldern (wie `get_step`), die `gaps` dieses Zeitraums, `program` (Programm-Kontext der Pakete 10–13, sofern aufgezeichnet), `hints`. Reicht das Budget nicht, fallen die ältesten Schritte weg (`omittedBefore`), nie der Ausgangspunkt.
+- **Bild:** ein Bild des Ausgangspunkts (Marker oder Absturz) bzw. der Aktion davor mit Klickmarkierung, in denselben Grenzen wie bei `get_step`.
+- Es gelten die Leseschicht und die Durchsichtsregel ohne Oberfläche (`{unreviewed:N}`).
+
+### 19.13 `add_step_note` (nur mit `--allow-edit`)
+
+Der Agent hängt eine Notiz an einen Schritt – etwa einen Befund oder die vermutete Ursache.
+
+- **Parameter:** `sessionId`, `step` oder `stepId`, `text` (1–2 000 Zeichen; Steuer- und Schreibrichtungszeichen werden entfernt).
+- **Ablage:** `edits.comments[]` mit `kind: "agent"`, `by: "mcp"`, `atUtc`. Höchstens 60 Schreibzugriffe je Minute (gemeinsam mit `set_step_text`).
+- **Sichtbarkeit (Entscheidung O-19):** im Editor (Hinweisart „Vom KI-Agenten (intern)“) und in MCP (`agentNotes` bei `get_step` und `get_steps` mit `include`), **nicht** in Anleitungen, KI-Paket, Suche oder bereinigter Kopie. Übernimmt der Autor die Notiz, ändert er die Art.
+
+### 19.14 Prompts
+
+Der Server bietet Prompts an (`prompts/list`, `prompts/get`; Fähigkeit `prompts`). Agenten wie Claude Code zeigen sie als Slash-Befehle.
+
+| Prompt | Argumente | Auftrag |
+|---|---|---|
+| `analyze_bug` | `sessionId` (leer = neueste) | Fehlerkontext lesen, Schritte zum Nachstellen, erwartet/tatsächlich, Version, Ursache im Repository suchen, Befund mit `add_step_note` festhalten |
+| `write_ui_test` | `sessionId`, `framework` (`flaui`, `pywinauto`, `playwright`) | Test aus `get_automation` mit Zielangabe schreiben, Marker als Prüfungen, Geheimes aus Umgebungsvariablen |
+| `write_guide` | `sessionId` | Anleitung aus `get_steps` (Format `trace`) |
+| `verify_fix` | `sessionId` (Pflicht) | Prüfaufnahme mit `retestOf` erbitten (falls `request_recording` verfügbar), dann `compare_sessions` |
+
+- Prompts enthalten **nur Arbeitsanweisungen und Kennungen**, nie aufgezeichnete Inhalte. Eine `sessionId`, die keine Sitzungskennung ist, wird abgelehnt.
+- Jeder Prompt schließt mit den Regeln aus `Instructions` (aufgezeichnete Texte sind Daten; nicht raten; Belegstufe nennen).
+
+**Weitere Ergänzungen aus Paket 8:** `get_steps` nimmt `include` (`selectors`, `sync`, `verify`, `menuPath`, `choose`, `data`, `list`, `browser`, `explorer`, `office`, `timing`, `agentNotes`); `get_step` liefert diese Felder immer. Jedes Schrittobjekt nennt `app` (Produkt und Version der Programmdatei); `get_session` nennt sie unter `apps`. `request_recording` nimmt `retestOf` (Kennung einer Sitzung unter dem Root): Die Aufnahme trägt sie in `goal.retestOf`, und `get_recording_request` nennt nach `finished` den nächsten Schritt `compare_sessions`.
 
 ## 20. Leseschicht, Standardausgabe, Netzwerk, Lebenszyklus
 
@@ -2848,8 +2883,13 @@ Die Priorität „Soll (Schutzregel: Muss bei Umsetzung)“ heißt: Die Funktion
 | MCP-034 | `search` kennt `scope`: `session` durchsucht eine Sitzung, `all` alle Sitzungen im Root-Ordner. Beide Wege benutzen dieselbe Definition von „durchsuchbar“ (`SessionSearch.Entries`) wie die Bibliothek im Viewer und arbeiten nur auf der Ausgabesicht. Treffer nennen Sitzung, Schritt, Feld und Ausschnitt; nicht durchsuchte Sitzungen werden gezählt und nie als trefferlos ausgegeben. Der Suchindex `cache/search/` gehört zur Bibliothek; der Server nutzt ihn noch nicht ([19.7](#197-search)). | Soll | Root-Ordner mit drei Sitzungen, eine laufende: Treffer aus den lesbaren; `sessions` nennt `searched`, `pending`, `skipped`; kein Kanarienwert (Geschwärztes, Ungeprüftes, interne Kommentare) in Treffern oder Suchindex (T-15); DT-23 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen) |
 | MCP-035 | `compare_sessions` gleicht zwei Sitzungen mit dem Verfahren aus 05 ab und liefert Kennzeichnung, Unterschiede und unverglichene Merkmale je Eintrag in der Form aus 19.9 – seitenweise, im Größenbudget, mit `summary` über das ganze Ergebnis auf jeder Seite. Lückeneinträge blendet kein Filter aus. | Soll | T-14: bekannte Unterschiede richtig gekennzeichnet; die Felder `status`, `a`, `b`, `score`, `differences`, `notCompared`, `group` stimmen Eintrag für Eintrag mit `compare --format json` überein; zwei Aufrufe mit gleichen Parametern liefern bytegleiche `data`; Fortsetzung über Cursor nach Neustart korrekt |
 | MCP-036 | `compare_sessions` vergleicht ausschließlich die Sicht der Leseschicht beider Sitzungen. Maskiertes, Geschwärztes und Ungeprüftes gilt nie als gleich oder verschieden, sondern steht unter `notCompared`; das Ergebnis hängt von keinem verborgenen Inhalt ab. | Soll (Schutzregel: Muss bei Umsetzung) | DT-28 aus [10](10-datenschutz-und-sicherheit.md#17-prüfungen): zwei Fassungen einer Sitzung, die sich nur in einem geschwärzten bzw. maskierten Inhalt unterscheiden, ergeben gegen dieselbe Vergleichssitzung bytegleiche Antworten; Kanarien-Suche in den Antworten ohne Treffer |
-| MCP-037 | Mit `--allow-requests` gibt es `request_recording` und `get_recording_request` (19.10); ohne die Option sind beide nicht gelistet. `request_recording` nimmt nur `goal` (10–500 Zeichen), `expected` und `title`; jeder andere Parameter wird abgelehnt. Läuft die Oberfläche nicht, lautet der Fehler `UI_UNAVAILABLE`; der Server startet sie nie. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | Werkzeugliste mit und ohne Option; unbekannter Schlüssel → `INVALID_ARGUMENT`; Anfrage ohne laufende Oberfläche → `UI_UNAVAILABLE`; nicht zustellbare Anfrage endet als `failed` (`notDelivered`) |
+| MCP-037 | Mit `--allow-requests` gibt es `request_recording` und `get_recording_request` (19.10); ohne die Option sind beide nicht gelistet. `request_recording` nimmt nur `goal` (10–500 Zeichen), `expected`, `title` und `retestOf` (Kennung einer Sitzung unter dem Root); jeder andere Parameter wird abgelehnt. Läuft die Oberfläche nicht, lautet der Fehler `UI_UNAVAILABLE`; der Server startet sie nie. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | Werkzeugliste mit und ohne Option; unbekannter Schlüssel → `INVALID_ARGUMENT`; Anfrage ohne laufende Oberfläche → `UI_UNAVAILABLE`; nicht zustellbare Anfrage endet als `failed` (`notDelivered`) |
 | MCP-038 | Eine Anfrage gilt erst, wenn der Mensch am Rechner zustimmt: Bestätigungsdialog mit dem Text des Agenten als „ungeprüft“, ohne Standardknopf, „Aufnahme starten“ erst nach 2 s, Frist 120 s (danach `expired`). Die Oberfläche erzwingt höchstens eine offene Anfrage, 60 s Abstand, fünf je Stunde und auf Wunsch 15 Minuten Sperre; ein „Immer erlauben“ gibt es nicht. Die Aufnahme ist eine normale, sichtbare Aufnahme mit allen Schutzregeln; auffällige Eingaben bleiben bis zur Durchsicht verborgen. Das Ziel trägt `statedBy: "agent"`. Umgesetzt. | Muss | Zustandsübergänge `pending` → `declined`/`expired`/`recording` → `finished`/`discarded`/`failed`; abgeschlossene Zustände bleiben; Text mit Steuer- und Schreibrichtungszeichen wird bereinigt; Missbrauchsschutz (zweite Anfrage innerhalb von 60 s, sechste innerhalb einer Stunde, Sperre); `get_session` und Kopf von `trace.md` nennen den Agenten als Urheber des Ziels |
+| MCP-039 | `get_failure_context` (19.12) liefert Ausgangspunkt, Ziel, Marker, Programme mit Version, die Schritte um den Ausgangspunkt mit Automationsfeldern, Lücken, Programm-Kontext und ein Bild in einem Aufruf, innerhalb des Budgets; der Ausgangspunkt fällt nie weg. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | Test `AgentLoopTests`: Marker „Fehler“ als Ausgangspunkt, ohne Marker der letzte Schritt mit Hinweis; ungeprüfter Kanarienwert erscheint nicht |
+| MCP-040 | `add_step_note` (19.13) gibt es nur mit `--allow-edit`; Notizen des Agenten erscheinen im Editor und in MCP, nie in Anleitungen, KI-Paket, Suche oder bereinigter Kopie. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | Werkzeugliste mit und ohne Option; Notiz in `get_step` (`agentNotes`), nicht in `trace.md` und Markdown-Export |
+| MCP-041 | Prompts (19.14) enthalten nur Arbeitsanweisungen und Kennungen, nie aufgezeichnete Inhalte; ungültige Kennungen und fehlende Pflichtargumente ergeben einen Protokollfehler. Umgesetzt. | Soll (Schutzregel: Muss bei Umsetzung) | `prompts/list` mit vier Prompts; `prompts/get` ohne Inhalte der Sitzung; Kennung `../..` abgelehnt |
+| MCP-042 | `get_steps` liefert mit `include` die Automationsfelder, Reaktionszeiten und Notizen des Agenten; `get_step` immer. Jedes Schrittobjekt nennt Produkt und Version des Programms. Umgesetzt. | Soll | Test `GetSteps_Include_AddsAutomationFields` |
+| MCP-043 | „Mit KI verbinden“ erzeugt die Einrichtung für Claude Code, Claude Desktop, VS Code, Cursor und Codex CLI aus einer Liste (`McpConfig.Clients`) und schreibt keine Datei. Umgesetzt. | Soll | Test `McpConfig_MoreClients` (JSON für VS Code, TOML für Codex mit Sonderzeichen) |
 
 ## 24. Annahmen und offene Punkte
 

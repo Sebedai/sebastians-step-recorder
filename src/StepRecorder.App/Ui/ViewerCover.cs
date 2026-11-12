@@ -27,6 +27,7 @@ sealed partial class ViewerWindow
     {
         ("note", Loc.L("Hinweis", "Note"), Theme.IComment), ("tip", Loc.L("Tipp", "Tip"), Theme.IInfo), ("warning", Loc.L("Achtung", "Caution"), Theme.IWarn),
         ("important", Loc.L("Wichtig", "Important"), Theme.IImportant), ("result", Loc.L("Ergebnis", "Result"), Theme.ICheck), ("internal", Loc.L("Intern", "Internal"), Theme.ILock),
+        ("agent", Loc.L("Vom KI-Agenten (intern)", "From AI agent (internal)"), Theme.IRobot),
     };
 
     // =====================================================================================
@@ -184,7 +185,7 @@ sealed partial class ViewerWindow
         {
             string? cid = c.Str("id");
             string kind = c.Str("kind") ?? "note";
-            var barBrush = kind == "internal" ? Theme.Muted : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + GuideExport.NoteStyle(kind, "de").bar));
+            var barBrush = kind is "internal" or "agent" ? Theme.Muted : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + GuideExport.NoteStyle(kind, "de").bar));
             var kinds = new ComboBox { MinWidth = 130, IsEnabled = !ro, Margin = new Thickness(0, 0, 6, 0), HorizontalAlignment = HorizontalAlignment.Left };
             foreach (var (_, name, _) in NoteKindsUi) kinds.Items.Add(name);
             kinds.SelectedIndex = Math.Max(0, Array.FindIndex(NoteKindsUi, k => k.kind == kind));

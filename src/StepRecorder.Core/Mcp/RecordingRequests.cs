@@ -13,13 +13,15 @@ public sealed class RecordingRequest
     public string Id = "";
     public string Goal = "";
     public string? Expected, Title;
+    /// <summary>Prüfaufnahme: Kennung der Ausgangsaufnahme (nur eine Sitzungskennung, kein Pfad).</summary>
+    public string? RetestOf;
     /// <summary>Ablageordner des MCP-Servers (vom Benutzer eingerichtet, nie vom Agenten gewählt).</summary>
     public string? Root;
     public DateTime CreatedUtc, ExpiresUtc;
 
     public JsonObject ToJson() => new JsonObject
     {
-        ["id"] = Id, ["goal"] = Goal, ["expected"] = Expected, ["title"] = Title, ["root"] = Root,
+        ["id"] = Id, ["goal"] = Goal, ["expected"] = Expected, ["title"] = Title, ["retestOf"] = RetestOf, ["root"] = Root,
         ["createdUtc"] = CreatedUtc.ToString("o"), ["expiresUtc"] = ExpiresUtc.ToString("o")
     }.Clean();
 
@@ -27,7 +29,7 @@ public sealed class RecordingRequest
     {
         if (o?.Str("id") is not { } id) return null;
         DateTime P(string k) => DateTime.TryParse(o.Str(k), null, System.Globalization.DateTimeStyles.RoundtripKind, out var d) ? d.ToUniversalTime() : DateTime.MinValue;
-        return new RecordingRequest { Id = id, Goal = o.Str("goal") ?? "", Expected = o.Str("expected"), Title = o.Str("title"), Root = o.Str("root"), CreatedUtc = P("createdUtc"), ExpiresUtc = P("expiresUtc") };
+        return new RecordingRequest { Id = id, Goal = o.Str("goal") ?? "", Expected = o.Str("expected"), Title = o.Str("title"), RetestOf = o.Str("retestOf"), Root = o.Str("root"), CreatedUtc = P("createdUtc"), ExpiresUtc = P("expiresUtc") };
     }
 }
 
@@ -66,8 +68,9 @@ public static class RecordingRequests
         return t.Length > max ? t[..max] : t;
     }
 
-    public static RecordingRequest Create(string goal, string? expected, string? title, string? root, DateTime? nowUtc = null)
+    public static RecordingRequest Create(string goal, string? expected, string? title, string? root, DateTime? nowUtc = null, string? retestOf = null)
     {
+        if (retestOf != null && !Regex.IsMatch(retestOf, "^[0-9a-f-]{36}$")) throw new ArgumentException("retestOf must be a session id from list_sessions.");
         string g = Sanitize(goal, GoalMax + 1);
         if (g.Length < GoalMin || g.Length > GoalMax) throw new ArgumentException($"goal must be {GoalMin}–{GoalMax} characters.");
         string? e = expected == null ? null : Sanitize(expected, ExpectedMax + 1);
@@ -79,7 +82,7 @@ public static class RecordingRequests
         {
             Id = "rq-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(6)).ToLowerInvariant(), Goal = g,
             Expected = string.IsNullOrEmpty(e) ? null : e, Title = string.IsNullOrEmpty(t) ? null : t, Root = root,
-            CreatedUtc = now, ExpiresUtc = now.AddSeconds(TimeoutSeconds)
+            CreatedUtc = now, ExpiresUtc = now.AddSeconds(TimeoutSeconds), RetestOf = retestOf
         };
         Directory.CreateDirectory(Dir);
         Json.WriteAtomic(RequestFile(rq.Id), Json.Pretty(rq.ToJson()));

@@ -29,7 +29,7 @@ public sealed class McpOptions
 /// MCP-Werkzeuge (06 §15–20): nur Kennungen, nie Pfade; alles über die Leseschicht (headless:
 /// ungeprüfte Eingaben als {unreviewed:N}); Antworten im Umschlag mit notice, page und budget.
 /// </summary>
-public sealed class StepRecorderMcp
+public sealed partial class StepRecorderMcp
 {
     readonly McpOptions _o;
     readonly string _root;
@@ -60,7 +60,7 @@ public sealed class StepRecorderMcp
             Schema(("sessionId", Str(), true), ("include", StrArr(), false), ("limit", Int(1, 500), false), ("cursor", Str(), false)), GetSession));
         server.Register(new McpTool("get_steps", "Steps of a session in time order, paged. Includes idle periods, gap notices and evidence levels. format=trace returns trace.md-style text.",
             Schema(("sessionId", Str(), true), ("from", Int(1, 100000), false), ("to", Int(1, 100000), false), ("detail", Enum("outline", "standard", "full"), false), ("importance", Enum("primary", "secondary", "all"), false),
-                   ("kinds", StrArr(), false), ("format", Enum("json", "trace"), false), ("includeIdle", Bool(), false), ("limit", Int(1, 100), false), ("cursor", Str(), false), ("lang", Enum("de", "en"), false), ("maxTokens", Int(1000, 24000), false)), GetSteps));
+                   ("kinds", StrArr(), false), ("format", Enum("json", "trace"), false), ("includeIdle", Bool(), false), ("limit", Int(1, 100), false), ("cursor", Str(), false), ("lang", Enum("de", "en"), false), ("maxTokens", Int(1000, 24000), false), ("include", StrArr(), false)), GetSteps));
         server.Register(new McpTool("get_step", "Full detail of one step (by number or id) with target element, effect, comments and images (crop/before/after/marker) with scale and source rectangle.",
             Schema(("sessionId", Str(), true), ("step", Int(1, 100000), false), ("stepId", Str(), false), ("images", StrArr(), false), ("annotate", Bool(), false), ("view", Enum("monitor", "window"), false), ("imageProfile", Enum("compatible", "highres"), false), ("lang", Enum("de", "en"), false)), GetStep));
         server.Register(new McpTool("get_frame", "One screenshot (frame) by id or by step + which (pre/post), optionally a region in monitor pixels and a scale. Redacted periods are unavailable.",
@@ -78,13 +78,15 @@ public sealed class StepRecorderMcp
             server.Register(new McpTool("request_recording", "Ask the person at this PC to demonstrate something while StepRecorder records it (a normal, visible recording). Works only if StepRecorder is already running – it is never started for you. The person sees your text marked as unverified and decides; flagged input stays hidden until they review it. Returns a requestId; poll get_recording_request. At most one open request, 60 s apart, 5 per hour.",
                 Schema(("goal", new JsonObject { ["type"] = "string", ["minLength"] = RecordingRequests.GoalMin, ["maxLength"] = RecordingRequests.GoalMax }, true),
                        ("expected", new JsonObject { ["type"] = "string", ["maxLength"] = RecordingRequests.ExpectedMax }, false),
-                       ("title", new JsonObject { ["type"] = "string", ["maxLength"] = RecordingRequests.TitleMax }, false)), RequestRecording, ReadOnly: false));
+                       ("title", new JsonObject { ["type"] = "string", ["maxLength"] = RecordingRequests.TitleMax }, false),
+                       ("retestOf", Str(), false)), RequestRecording, ReadOnly: false));
             server.Register(new McpTool("get_recording_request", "State of a recording request: pending, declined, expired, recording, finished (with sessionId – read it with get_session), discarded or failed. waitSeconds (0–60) waits for a change.",
                 Schema(("requestId", Str(), true), ("waitSeconds", Int(0, 60), false)), GetRecordingRequest));
         }
         if (_o.AllowEdit)
             server.Register(new McpTool("set_step_text", "Set the author title/description of a step (stored in edits.json, by: mcp). Requires baseRevision from get_session/get_steps.",
                 Schema(("sessionId", Str(), true), ("step", Int(1, 100000), false), ("stepId", Str(), false), ("title", Str(), false), ("description", Str(), false), ("lang", Enum("de", "en"), false), ("baseRevision", Str(), true), ("dryRun", Bool(), false)), SetStepText, ReadOnly: false));
+        RegisterDeveloper(server);
     }
 
     // =====================================================================================
@@ -272,7 +274,7 @@ public sealed class StepRecorderMcp
             }.Clean();
         }
         if (All("scope")) d["scope"] = s.Manifest.Obj("settings")?.Obj("scope")?.DeepClone();
-        if (All("apps")) d["apps"] = new JsonArray(v.All.Where(x => x.Json.Obj("ctx").Str("process") != null).GroupBy(x => x.Json.Obj("ctx").Str("process")!).Select(gr => (JsonNode)new JsonObject { ["process"] = gr.Key, ["windows"] = new JsonArray(gr.Select(x => x.Json.Obj("ctx").Str("title")).Where(t => t != null).Distinct().Take(10).Select(t => (JsonNode)t!).ToArray()) }).ToArray());
+        if (All("apps")) d["apps"] = AppsJson(v);
         if (All("completeness")) { var c = (JsonObject)v.Steps.Obj("completeness")!.DeepClone(); c.Remove("journal"); d["completeness"] = c; }
         if (All("review")) d["review"] = new JsonObject { ["unreviewedInputs"] = v.UnreviewedCount };
         if (All("gaps")) d["gaps"] = new JsonArray((v.Steps.Arr("gaps") ?? new JsonArray()).Select(gp => (JsonNode)new JsonObject
@@ -293,7 +295,7 @@ public sealed class StepRecorderMcp
         return McpToolResult.Text(Json.Line(Envelope(v, d, page, est)));
     }
 
-    JsonObject StepObject(SessionView v, ViewStep s, string detail)
+    JsonObject StepObject(SessionView v, ViewStep s, string detail, ICollection<string>? include = null)
     {
         var o = new JsonObject { ["type"] = "step", ["number"] = s.Number, ["id"] = s.Id, ["t"] = Fmt.Time(s.TFrom, "en"), ["tMs"] = s.TFrom / 1000, ["kind"] = s.Kind, ["importance"] = s.Importance, ["state"] = s.State, ["title"] = s.Title, ["text"] = s.Protocol, ["evidence"] = s.Json.Obj("evidence")?.DeepClone() };
         if (s.Redacted) { o["redacted"] = true; return o; }
@@ -304,6 +306,7 @@ public sealed class StepRecorderMcp
             if (s.Json[k] != null) o[k] = s.Json[k]!.DeepClone();
         if (detail == "full") { if (s.Json["approach"] != null) o["approach"] = s.Json["approach"]!.DeepClone(); o["seq"] = s.Json["seq"]?.DeepClone(); }
         if (s.Comments.Count > 0) o["comments"] = new JsonArray(s.Comments.Select(c => (JsonNode)new JsonObject { ["kind"] = c.Str("kind"), ["text"] = c.Str("text") }).ToArray());
+        AddDeveloperFields(v, s, o, include);
         o["images"] = new JsonArray(AvailableImages(s).Select(x => (JsonNode)x).ToArray());
         return o;
     }
@@ -336,7 +339,7 @@ public sealed class StepRecorderMcp
             bool keep = s.Kind == "gap" || imp switch { "primary" => s.Importance == "primary", "all" => true, _ => s.Importance != "trace" };
             if (keep && kinds.Count > 0 && !kinds.Contains(s.Kind) && s.Kind != "gap") keep = false;
             if (!keep) { filtered++; continue; }
-            items.Add(StepObject(v, s, detail));
+            items.Add(StepObject(v, s, detail, a.StrList("include")));
         }
         int start = FromCursor("get_steps", v.Session.SessionId, v.Revision, a);
         var (arr, page, est, tr) = Page(items, start, a.Int("limit", 20), Budget(a), p => Cursor("get_steps", v.Session.SessionId, v.Revision, p, a));
@@ -360,7 +363,7 @@ public sealed class StepRecorderMcp
     {
         var v = View(a.Str("sessionId"));
         var s = FindStep(v, a);
-        var o = StepObject(v, s, "full");
+        var o = StepObject(v, s, "full", AutomationKeys);
         var wanted = a.Arr("images") != null ? a.StrList("images") : new List<string> { s.Kind is "comment" or "marker" or "snapshot" ? "marker" : "crop" };
         var meta = new JsonArray();
         var rendered = new List<(RenderedImage img, byte[] data)>();
@@ -524,11 +527,12 @@ public sealed class StepRecorderMcp
 
     McpToolResult RequestRecording(JsonObject a)
     {
-        OnlyKeys(a, "goal", "expected", "title");
+        OnlyKeys(a, "goal", "expected", "title", "retestOf");
+        if (a.Str("retestOf") is { } rt) View(rt);   // nur bekannte Sitzungen unter dem Root
         if (!(_o.UiRunning ?? Native.InstanceChannel.IsUiRunning)())
             throw new McpToolException("UI_UNAVAILABLE", "StepRecorder is not running. Ask the person to start StepRecorder, then try again. It is never started automatically.");
         RecordingRequest rq;
-        try { rq = RecordingRequests.Create(a.Str("goal") ?? "", a.Str("expected"), a.Str("title"), _root); }
+        try { rq = RecordingRequests.Create(a.Str("goal") ?? "", a.Str("expected"), a.Str("title"), _root, retestOf: a.Str("retestOf")); }
         catch (ArgumentException ex) { throw new McpToolException("INVALID_ARGUMENT", ex.Message); }
         bool delivered = (_o.Notify ?? (args => Native.InstanceChannel.Send(args, out _)))(new[] { "--recording-request", rq.Id });
         if (!delivered)
@@ -550,6 +554,11 @@ public sealed class StepRecorderMcp
         string first = st.state;
         while (st.state == first && st.state is "pending" or "recording" && sw.Elapsed.TotalSeconds < wait) { Thread.Sleep(400); st = RecordingRequests.Status(id); }
         var d = new JsonObject { ["requestId"] = id, ["state"] = st.state, ["sessionId"] = st.sessionId, ["reason"] = st.reason }.Clean();
+        if (RecordingRequests.Load(id)?.RetestOf is { } rto)
+        {
+            d["retestOf"] = rto;
+            if (st.state == "finished") d["next"] = "compare_sessions(session_a: retestOf, session_b: sessionId)";
+        }
         return McpToolResult.Text(Json.Line(Envelope(null, d)));
     }
 

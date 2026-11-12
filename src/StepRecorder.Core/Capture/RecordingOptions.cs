@@ -29,6 +29,8 @@ public sealed class RecordingOptions
     /// <summary>Name des Detailgrads für Protokoll und Anzeige (Schlank, Ausführlich, Vollständig, Eigene).</summary>
     public string DetailLevel { get; set; } = "";
     public string? GoalDescription { get; set; }
+    /// <summary>Prüfaufnahme zu dieser Sitzung (Kennung, Paket 8).</summary>
+    public string? GoalRetestOf { get; set; }
     public string? GoalExpected { get; set; }
     public string? GoalReference { get; set; }
     /// <summary>Nur Oberfläche: der Bereich passt nicht mehr genau und muss vor dem Start bestätigt werden.</summary>
@@ -129,6 +131,7 @@ public sealed class RecordingOptions
         if (!string.IsNullOrWhiteSpace(GoalDescription)) g["description"] = Trunc(GoalDescription.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalExpected)) g["expected"] = Trunc(GoalExpected.Trim(), 2000);
         if (!string.IsNullOrWhiteSpace(GoalReference)) g["reference"] = Trunc(GoalReference.Replace("\r", " ").Replace("\n", " ").Trim(), 200);
+        if (!string.IsNullOrWhiteSpace(GoalRetestOf)) g["retestOf"] = GoalRetestOf;
         if (g.Count > 0 && GoalStatedBy != "author") g["statedBy"] = GoalStatedBy;
         return g.Count == 0 ? null : g;
     }

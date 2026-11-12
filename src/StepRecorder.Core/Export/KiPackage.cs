@@ -78,7 +78,7 @@ public static class KiPackage
         Directory.CreateDirectory(Path.Combine(outDir, "images"));
         var imagesMeta = new JsonArray();
         var steps = view.Effective(guide: false, importance: o.Detail == "full" ? "all" : "secondary");
-        var allSteps = view.All;
+        var allSteps = view.Range == null ? view.All : view.All.Where(view.InRange).ToList();
         var imageFiles = new Dictionary<string, List<(string file, RenderedImage img)>>();
         int digits = allSteps.Count >= 1000 ? 4 : 3;
         string Suffix(string v) => lang == "de" ? v switch { "before" => "vorher", "crop" => "ausschnitt", "cropEnd" => "ausschnitt-ende", "after" => "nachher", "marker" => "marker", _ => v } : v switch { "crop" => "crop", "cropEnd" => "crop-end", _ => v };

@@ -36,6 +36,34 @@ public static class McpConfig
     /// <summary>Für <c>claude_desktop_config.json</c> (gleiche Form; dort mit vorhandenen Servern zusammenführen).</summary>
     public static string DesktopJson(McpConfigOptions o) => ProjectJson(o);
 
+    /// <summary>Für VS Code: <c>.vscode/mcp.json</c> im Projekt (Schlüssel <c>servers</c>, Art <c>stdio</c>).</summary>
+    public static string VsCodeJson(McpConfigOptions o)
+    {
+        var s = Server(o); s["type"] = "stdio";
+        var ordered = new JsonObject { ["type"] = "stdio", ["command"] = s["command"]!.DeepClone(), ["args"] = s["args"]!.DeepClone() };
+        return Json.Pretty(new JsonObject { ["servers"] = new JsonObject { [ServerName] = ordered } });
+    }
+
+    /// <summary>Für Cursor: <c>.cursor/mcp.json</c> im Projekt (gleiche Form wie <c>.mcp.json</c>).</summary>
+    public static string CursorJson(McpConfigOptions o) => ProjectJson(o);
+
+    /// <summary>Für Codex: Abschnitt in <c>%USERPROFILE%\.codex\config.toml</c>.</summary>
+    public static string CodexToml(McpConfigOptions o)
+    {
+        static string T(string v) => v.Contains('\'') || v.Any(char.IsControl) ? "\"" + v.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"" : "'" + v + "'";
+        return $"[mcp_servers.{ServerName}]\ncommand = {T(o.ExePath)}\nargs = [{string.Join(", ", Args(o).Select(T))}]\n";
+    }
+
+    /// <summary>Unterstützte Programme für „Mit KI verbinden“: Kennung, Anzeigename, Datei, Text.</summary>
+    public static (string id, string name, string file, Func<McpConfigOptions, string> text)[] Clients => new (string, string, string, Func<McpConfigOptions, string>)[]
+    {
+        ("claudeCode", "Claude Code", ".mcp.json", ProjectJson),
+        ("claudeDesktop", "Claude Desktop", "claude_desktop_config.json", DesktopJson),
+        ("vscode", "VS Code (GitHub Copilot)", ".vscode/mcp.json", VsCodeJson),
+        ("cursor", "Cursor", ".cursor/mcp.json", CursorJson),
+        ("codex", "Codex CLI", "%USERPROFILE%\\.codex\\config.toml", CodexToml),
+    };
+
     /// <summary>Befehl für Claude Code: <c>claude mcp add …</c>.</summary>
     public static string ClaudeAddCommand(McpConfigOptions o)
         => "claude mcp add --transport stdio --scope user " + ServerName + " -- " + string.Join(" ", new[] { o.ExePath }.Concat(Args(o)).Select(QuoteArg));

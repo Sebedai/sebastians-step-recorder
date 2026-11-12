@@ -99,7 +99,7 @@ public static class SessionSanitizer
         if (ed["redactions"] is JsonArray reds)
             foreach (var r in reds.OfType<JsonObject>().Where(r => r.Str("kind") != "range").ToList()) reds.Remove(r);
         if (ed["comments"] is JsonArray cs)
-            foreach (var c in cs.OfType<JsonObject>().Where(c => c.Str("origin") != "recording" && (c.Str("kind") == "internal" || c.Bool("hidden"))).ToList()) cs.Remove(c);
+            foreach (var c in cs.OfType<JsonObject>().Where(c => c.Str("origin") != "recording" && (SessionView.IsInternalKind(c.Str("kind")) || c.Bool("hidden"))).ToList()) cs.Remove(c);
         foreach (var a in (ed.Obj("guide")?.Arr("append") ?? new JsonArray()).OfType<JsonObject>()) a.Remove("path");
         ed.Remove("qualityIgnores");
         ed["sessionId"] = newId;
@@ -158,7 +158,7 @@ public static class SessionSanitizer
         {
             if (c.Str("origin") == "recording" && (c.Bool("hidden") || c.Str("kind") == "internal") && c.LongN("sourceSeq") is long src)
                 Add(v.Session.BySeq(src)?.Str("text"));
-            else if (c.Str("kind") == "internal" || c.Bool("hidden")) Add(c.Str("text"));
+            else if (SessionView.IsInternalKind(c.Str("kind")) || c.Bool("hidden")) Add(c.Str("text"));
         }
         return list.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
     }

@@ -90,7 +90,7 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 | Nr. | Paket | Vorgabe | Aufwand | Greift ein in | Hängt ab von | Regelversion | Stand |
 |---|---|---|---|---|---|---|---|
 | V | Vorarbeiten und Abgleich | – | S–M | Kern, Kommandozeile, Spezifikation | – | nein | erledigt |
-| 8 | Agenten-Schleife | V-40 | M | MCP, Kommandozeile | – | nein | geplant |
+| 8 | Agenten-Schleife | V-40 | M | MCP, Kommandozeile | – | nein | erledigt |
 | 9 | Reaktionszeiten | V-45 | S | Editor, Vergleich, Ausgaben | – | nein | geplant |
 | 10 | Kontext I: Programmende, Hänger, Build-Stand | V-41 | M | Aufzeichnungskern, Schritte | V | ja (1.7) | geplant |
 | 11 | Kontext II: Fehlertext | V-41 | M (L bei zweitem UIA-Arbeiter) | Aufzeichnungskern, Schritte | 10 | ja | geplant |
