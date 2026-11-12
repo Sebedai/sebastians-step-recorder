@@ -124,7 +124,7 @@ sealed class RecordingController
     {
         "instantPause" => TogglePause, "stop" => Stop, "snapshot" => () => Marker("snapshot"), "comment" => Comment, "privacy" => TogglePrivacy,
         "marker" => () => Marker("note"), "discard" => DiscardPrevious, "bar" => ToggleBar, "markerError" => () => Marker("error"),
-        "markerExpected" => () => Marker("expected"), _ => () => { }
+        "markerExpected" => () => Marker("expected"), "dictation" => ToggleDictation, _ => () => { }
     };
 
     void RegisterHotkeys()
@@ -216,6 +216,7 @@ sealed class RecordingController
         Add(Loc.L("Marker „Erwartet“", "Marker \"expected\""), "markerExpected", () => Marker("expected"));
         Add(Loc.L("Marker setzen", "Set marker"), "marker", () => Marker("note"));
         Add(Loc.L("Kommentar …", "Comment …"), "comment", Comment);
+        Add(_dict.Active ? Loc.L("Diktat beenden", "Stop dictation") : Loc.L("Diktat starten (Mikrofon)", "Start dictation (microphone)"), "dictation", ToggleDictation);
         Add(Loc.L("Schnappschuss", "Snapshot"), "snapshot", () => Marker("snapshot"));
         Add(_rec.PrivacyMode ? Loc.L("Privattaste aus", "Privacy key off") : Loc.L("Privattaste ein", "Privacy key on"), "privacy", TogglePrivacy);
         Add(Loc.L("Letzten Schritt verwerfen", "Discard last step"), "discard", DiscardPrevious);
@@ -234,7 +235,7 @@ sealed class RecordingController
 
     void OnState(RecorderState s)
     {
-        if (s == RecorderState.Paused) { _pausedAt ??= DateTime.Now; _frame?.SetStyle(Brushes.Gray, dashed: true); }
+        if (s == RecorderState.Paused) { _pausedAt ??= DateTime.Now; _frame?.SetStyle(Theme.Night.Muted, dashed: true); }
         else if (s == RecorderState.Recording)
         {
             if (_pausedAt != null) { _pausedTotal += DateTime.Now - _pausedAt.Value; _pausedAt = null; }
@@ -279,10 +280,44 @@ sealed class RecordingController
         if (prevFg != 0) SetForegroundWindow(prevFg);
     }
 
+    // ---------------- Diktat ----------------
+    readonly Dictation _dict = new();
+    long _dictT = -1;
+    public bool Dictating => _dict.Active;
+
+    /// <summary>Diktat ein/aus: Gesprochenes wird offline erkannt und als Kommentar an der Stelle gespeichert, an der der Satz begann.</summary>
+    public void ToggleDictation()
+    {
+        if (_dict.Active)
+        {
+            _dict.Stop();
+            _bar?.Message(Loc.L("Diktat beendet – Mikrofon aus.", "Dictation stopped – microphone off."));
+            _bar?.SetDictation(false);
+            return;
+        }
+        var disp = Application.Current.Dispatcher;
+        var err = _dict.Start(AppSettings.Load().Language,
+            onStart: () => disp.BeginInvoke(() => { if (_dictT < 0) _dictT = _rec.Clock; }),
+            onText: text => disp.BeginInvoke(() =>
+            {
+                long t = _dictT >= 0 ? _dictT : _rec.Clock; _dictT = -1;
+                if (_rec.State != RecorderState.Recording) return;
+                if (_rec.PrivacyMode) { _bar?.Message(Loc.L("Privattaste aktiv – Diktat nicht gespeichert.", "Privacy key active – dictation not saved."), true); return; }
+                _rec.AddComment(text, t, null);
+                _bar?.Message(Loc.L("Diktiert: ", "Dictated: ") + (text.Length > 70 ? text[..69] + "…" : text));
+            }));
+        if (err != null) { _bar?.Message(err, true); Msg.Show(Loc.L("Diktat nicht möglich\n\n", "Dictation not possible\n\n") + err, Loc.L("Diktat", "Dictation"), MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        if (_sounds) Tones.Tick();
+        _bar?.SetDictation(true);
+        _bar?.Message(Key("dictation") is { Length: > 0 } k
+            ? Loc.F("Diktat läuft ({0}) – sprechen Sie; jeder Satz wird ein Kommentar. {1} beendet.", "Dictation running ({0}) – speak; each sentence becomes a comment. {1} stops.", _dict.Culture, k)
+            : Loc.F("Diktat läuft ({0}) – sprechen Sie; jeder Satz wird ein Kommentar.", "Dictation running ({0}) – speak; each sentence becomes a comment.", _dict.Culture));
+    }
+
     public void ShowRunningNotice() => _bar?.Message(Loc.L("Es läuft bereits eine Aufnahme.", "A recording is already in progress."), true);
 
     /// <summary>Fataler Programmfehler: Aufnahme so weit wie möglich abschließen (Recorder.Dispose stoppt mit Grund „error“).</summary>
-    public void EmergencyStop() { try { _rec?.Dispose(); } catch { } }
+    public void EmergencyStop() { try { _dict.Stop(); } catch { } try { _rec?.Dispose(); } catch { } }
 
     public void ShowShortcuts() => Msg.Show(
         Loc.L("Tastenkürzel während der Aufnahme\n\n", "Shortcuts during recording\n\n") +
@@ -312,6 +347,7 @@ sealed class RecordingController
         if (_sounds) Tones.Stop();
         _tick.Stop();
         _hk?.Dispose();
+        _dict.Stop();
         _bar?.Message(Loc.L("Wird verarbeitet …", "Processing …"), sticky: true);
         var rec = _rec;
         bool discard = _discard, allowPermanent = _allowPermanent;
@@ -353,18 +389,27 @@ sealed class RecordingController
 /// <summary>Aufnahmeleiste: schwebende Leiste oben mittig, immer im Vordergrund, nimmt nie den Fokus.</summary>
 sealed class RecordingBar : Window
 {
-    static Brush F(byte r, byte g, byte b) { var x = new SolidColorBrush(Color.FromRgb(r, g, b)); x.Freeze(); return x; }
-    static readonly Brush BarBg = F(0x17, 0x16, 0x14), BarLine = F(0x33, 0x32, 0x2E), BarFg = F(0xED, 0xEC, 0xE8), BarMuted = F(0x9A, 0x98, 0x90),
-        RecRed = F(0xFF, 0x4D, 0x55), WarnFg = F(0xFF, 0xC5, 0x3D), PrivBg = F(0x45, 0x34, 0x0C), StopBg = F(0xE5, 0x3E, 0x4F), ChipBg = F(0x26, 0x25, 0x22);
+    // Immer dunkel – Farben aus Theme.Night (Stopp: weiße Schrift 5,3 : 1, gedämpfter Text 7,9 : 1)
+    static readonly Brush BarBg = Theme.Night.Bg, BarLine = Theme.Night.Line, BarFg = Theme.Night.Fg, BarMuted = Theme.Night.Muted,
+        RecRed = Theme.Night.Rec, WarnFg = Theme.Night.Warn, PrivBg = Theme.Night.PrivBg, StopBg = Theme.Night.StopBg, ChipBg = Theme.Night.Chip;
     readonly RecordingController _c;
-    readonly TextBlock _time = new() { FontSize = 14.5, FontFamily = Theme.Mono, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 44 };
-    readonly TextBlock _state = new() { FontSize = 10.5, FontFamily = Theme.Mono, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
-    readonly TextBlock _count = new() { FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+    readonly TextBlock _time = new() { FontSize = 15, FontFamily = Theme.Mono, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, MinWidth = 46 };
+    readonly TextBlock _state = new() { FontSize = Theme.FsCaption, FontFamily = Theme.Mono, FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(7, 1, 10, 0), Text = "REC" };
+    readonly TextBlock _count = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center };
     readonly Ellipse _dot = new() { Width = 10, Height = 10, VerticalAlignment = VerticalAlignment.Center };
-    readonly TextBlock _msg = new() { FontSize = 12, TextWrapping = TextWrapping.Wrap };
+    readonly TextBlock _msg = new() { FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, LineHeight = 19 };
     readonly Border _msgRow;
     readonly Button _privacy;
-    readonly TextBlock _pauseIcon = new(), _privacyIcon = new();
+    readonly TextBlock _pauseIcon = new(), _privacyIcon = new(), _dictIcon = new();
+    readonly Button _dictBtn;
+
+    /// <summary>Diktat-Anzeige: Mikrofon-Symbol rot, solange das Mikrofon offen ist.</summary>
+    public void SetDictation(bool on)
+    {
+        _dictIcon.Foreground = on ? RecRed : BarFg;
+        _dictBtn.ToolTip = on ? K(Loc.L("Diktat läuft – klicken zum Beenden", "Dictation running – click to stop"), "dictation")
+                              : K(Loc.L("Diktat: Gesprochenes wird offline zu Kommentaren", "Dictation: speech is turned into comments offline"), "dictation");
+    }
     readonly DispatcherTimer _msgTimer = new() { Interval = TimeSpan.FromSeconds(6) };
     bool _dragged, _pulsing, _sticky;
 
@@ -382,7 +427,7 @@ sealed class RecordingBar : Window
         Button B(string glyph, string tip, Action a, TextBlock? icon = null, string? text = null)
         {
             icon ??= new TextBlock();
-            icon.Text = glyph; icon.FontFamily = Theme.Icons; icon.FontSize = 15; icon.VerticalAlignment = VerticalAlignment.Center;
+            icon.Text = glyph; icon.FontFamily = Theme.Icons; icon.FontSize = 16; icon.VerticalAlignment = VerticalAlignment.Center;
             var content = new StackPanel { Orientation = Orientation.Horizontal };
             content.Children.Add(icon);
             if (text != null) content.Children.Add(new TextBlock { Text = text, Margin = new Thickness(7, 0, 2, 0), FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center });
@@ -392,15 +437,16 @@ sealed class RecordingBar : Window
         }
         Border Sep() => new() { Width = 1, Height = 20, Background = BarLine, Margin = new Thickness(6, 0, 6, 0), VerticalAlignment = VerticalAlignment.Center };
 
-        var grip = new TextBlock { Text = Theme.IGrip, FontFamily = Theme.Icons, FontSize = 13, Foreground = BarMuted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0), Cursor = Cursors.SizeAll, ToolTip = Loc.L("Leiste verschieben", "Move bar") };
+        var grip = new TextBlock { Text = Theme.IGrip, FontFamily = Theme.Icons, FontSize = 14, Foreground = BarMuted, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(6, 0, 8, 0), Cursor = Cursors.SizeAll, ToolTip = Loc.L("Leiste verschieben", "Move bar") };
         grip.MouseLeftButtonDown += (_, _) => { _dragged = true; DragMove(); };
         var status = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Children = { _dot, _state, _time } };
-        var countChip = new Border { Background = ChipBg, CornerRadius = new CornerRadius(3), Padding = new Thickness(8, 2, 8, 3), Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
+        var countChip = new Border { Background = ChipBg, CornerRadius = new CornerRadius(999), Padding = new Thickness(10, 3, 10, 4), Margin = new Thickness(10, 0, 4, 0), VerticalAlignment = VerticalAlignment.Center, Child = _count };
 
         var pause = B(Theme.IPause, K(Loc.L("Pause / Fortsetzen", "Pause / resume"), "instantPause"), c.TogglePause, _pauseIcon);
         var stop = B(Theme.IStop, K(Loc.L("Aufnahme beenden", "Stop recording"), "stop"), c.Stop, text: Loc.L("Stopp", "Stop"));
         stop.Background = StopBg; stop.Foreground = Brushes.White; stop.Padding = new Thickness(10, 6, 12, 6); stop.Margin = new Thickness(3, 0, 1, 0);
         var comment = B(Theme.IComment, K(Loc.L("Kommentar", "Comment"), "comment"), c.Comment);
+        _dictBtn = B("\uE720", K(Loc.L("Diktat: Gesprochenes wird offline zu Kommentaren", "Dictation: speech is turned into comments offline"), "dictation"), c.ToggleDictation, _dictIcon);
         var marker = B(Theme.IFlag, K(Loc.L("Marker setzen", "Set marker"), "marker") + Loc.L(" – Rechtsklick: Art wählen", " – right-click: choose type"), () => c.Marker("note"));
         var mm = new ContextMenu();
         foreach (var (k, n, id) in new[] { ("note", Loc.L("Notiz", "Note"), "marker"), ("error", Loc.L("Fehler", "Error"), "markerError"), ("expected", Loc.L("Erwartet", "Expected"), "markerExpected"), ("important", Loc.L("Wichtig", "Important"), "") })
@@ -422,12 +468,12 @@ sealed class RecordingBar : Window
         more.Click += (_, _) => { menu.PlacementTarget = more; menu.Placement = PlacementMode.Bottom; menu.IsOpen = true; };
 
         var row = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var e in new UIElement[] { grip, status, countChip, Sep(), pause, stop, Sep(), comment, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
+        foreach (var e in new UIElement[] { grip, status, countChip, Sep(), pause, stop, Sep(), comment, _dictBtn, marker, photo, _privacy, discard, more, minimize }) row.Children.Add(e);
         _msgRow = new Border { Child = _msg, Padding = new Thickness(10, 4, 10, 4), Visibility = Visibility.Collapsed };
         _msg.SetBinding(MaxWidthProperty, new System.Windows.Data.Binding("ActualWidth") { Source = row });
         Content = new Border
         {
-            Margin = new Thickness(14), CornerRadius = new CornerRadius(9), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
+            Margin = new Thickness(14), CornerRadius = new CornerRadius(Theme.RInset + 2), Background = BarBg, BorderBrush = BarLine, BorderThickness = new Thickness(1), Padding = new Thickness(6),
             Effect = Theme.Shadow(24, 4, 0.45), Child = new StackPanel { Children = { row, _msgRow } }
         };
         _msgTimer.Tick += (_, _) => { if (_sticky) return; _msg.Text = ""; _msgRow.Visibility = Visibility.Collapsed; _msgTimer.Stop(); };
@@ -460,7 +506,8 @@ sealed class RecordingBar : Window
     {
         if (on == _pulsing) return;
         _pulsing = on;
-        if (on) _dot.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(900)) { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
+        // Pulsieren nur, wenn Windows Animationen zeigen soll (Barrierefreiheit, STEPRECORDER_NOANIM)
+        if (on && Anim.On) _dot.BeginAnimation(OpacityProperty, new System.Windows.Media.Animation.DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(900)) { AutoReverse = true, RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever });
         else { _dot.BeginAnimation(OpacityProperty, null); _dot.Opacity = 1; }
     }
 
@@ -495,7 +542,7 @@ sealed class RecordingBar : Window
 /// <summary>Durchklickbarer Rahmen um den Aufnahmebereich (nie im Bild).</summary>
 sealed class FrameWindow : Window
 {
-    public static readonly Brush RecBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x4D, 0x55));
+    public static Brush RecBrush => Theme.Night.Rec;
     readonly Border _b;
     readonly Border _tag;
     readonly TextBlock _tagText = new() { Foreground = Brushes.White, FontSize = 13, TextWrapping = TextWrapping.Wrap, MaxWidth = 520 };
@@ -546,7 +593,7 @@ sealed class CommentWindow : Window
     {
         title ??= Loc.L("Kommentar", "Comment");
         _box.Tag = Loc.L("Was passiert hier? Was ist wichtig?", "What is happening here? What matters?");
-        Title = title; Width = 500; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterScreen; Topmost = true; ShowInTaskbar = false; ResizeMode = ResizeMode.NoResize;
+        Title = title; Width = 540; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterScreen; Topmost = true; ShowInTaskbar = false; ResizeMode = ResizeMode.NoResize;
         Theme.Prepare(this, Theme.Surface);
         _box.PreviewKeyDown += (_, e) =>
         {
@@ -555,7 +602,7 @@ sealed class CommentWindow : Window
             else if (e.Key == System.Windows.Input.Key.Escape) { DialogResult = false; e.Handled = true; }
         };
         var hints = new WrapPanel { Margin = new Thickness(0, 10, 0, 0) };
-        void H(string k, string t) { hints.Children.Add(U.Kbd(k)); hints.Children.Add(U.Text(t, 12, fg: Theme.Muted, margin: new Thickness(2, 1, 14, 4))); }
+        void H(string k, string t) { hints.Children.Add(U.Kbd(k)); var ht = U.Text(t, Theme.FsHint, fg: Theme.Muted, margin: new Thickness(2, 0, 16, 6)); ht.VerticalAlignment = VerticalAlignment.Center; hints.Children.Add(ht); }
         H(Loc.Keys("Enter"), Loc.L("speichert", "saves")); H(Loc.Keys("Shift+Enter"), Loc.L("neue Zeile", "new line")); H("Esc", Loc.L("verwirft", "discards"));
         U.Dialog(this, title, U.Col(_box, hints), U.Primary(Loc.L("Speichern", "Save"), () => DialogResult = true), U.Btn(Loc.L("Verwerfen", "Discard"), () => DialogResult = false));
         Loaded += (_, _) => { Activate(); _box.Focus(); };
@@ -574,14 +621,15 @@ sealed class HiddenModeDialog : Window
     public HiddenModeDialog()
     {
         _remember.Content = Loc.L("Künftig ohne Nachfrage mit ausgeblendeter Anzeige starten", "From now on start with hidden display without asking");
-        Title = Loc.L("Aufnahme ohne sichtbare Anzeige", "Recording without visible display"); Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
+        Title = Loc.L("Aufnahme ohne sichtbare Anzeige", "Recording without visible display"); Width = 600; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterScreen; Topmost = true;
         Theme.Prepare(this, Theme.Surface);
 
         var body = new StackPanel();
         body.Children.Add(U.Text(Loc.L("Dieses Windows kann die Leiste und den roten Rahmen nicht aus den Bildschirmfotos ausschließen – sie wären auf jedem Bild zu sehen. Das betrifft z. B. Windows Server 2019 und Windows 10 vor Version 2004.",
-            "This Windows cannot exclude the bar and the red frame from screenshots – they would appear in every image. This affects e.g. Windows Server 2019 and Windows 10 before version 2004."), 13, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)));
-        body.Children.Add(U.Text(Loc.L("Empfohlen: mit ausgeblendeter Anzeige aufnehmen. Die Bilder bleiben sauber; gesteuert wird über Tastenkürzel:", "Recommended: record with hidden display. The images stay clean; control via shortcuts:"), 13, true, margin: new Thickness(0, 0, 0, 8)));
+            "This Windows cannot exclude the bar and the red frame from screenshots – they would appear in every image. This affects e.g. Windows Server 2019 and Windows 10 before version 2004."), Theme.FsBody, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 12)));
+        U.Spaced((TextBlock)body.Children[^1]);
+        body.Children.Add(U.Text(Loc.L("Empfohlen: mit ausgeblendeter Anzeige aufnehmen. Die Bilder bleiben sauber; gesteuert wird über Tastenkürzel:", "Recommended: record with hidden display. The images stay clean; control via shortcuts:"), Theme.FsBody, true, margin: new Thickness(0, 0, 0, 10)));
         var keys = new Grid { Margin = new Thickness(0, 0, 0, 4) };
         keys.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); keys.ColumnDefinitions.Add(new ColumnDefinition());
         int r = 0;
@@ -591,7 +639,7 @@ sealed class HiddenModeDialog : Window
             if (combo.Length == 0) return;
             keys.RowDefinitions.Add(new RowDefinition());
             var k = U.Kbd(combo); k.Margin = new Thickness(0, 3, 14, 3);
-            var t = U.Text(what, 12.5, fg: Theme.Fg2); t.VerticalAlignment = VerticalAlignment.Center;
+            var t = U.Text(what, Theme.FsHint, fg: Theme.Fg2); t.VerticalAlignment = VerticalAlignment.Center;
             Grid.SetRow(k, r); Grid.SetRow(t, r); Grid.SetColumn(t, 1);
             keys.Children.Add(k); keys.Children.Add(t); r++;
         }
@@ -601,8 +649,9 @@ sealed class HiddenModeDialog : Window
         Row("privacy", Loc.L("Privattaste – Eingaben nicht speichern", "Privacy key – do not store input"));
         Row("markerError", Loc.L("Fehlerstelle markieren", "Mark error"));
         Row("comment", Loc.L("Kommentar", "Comment"));
+        Row("dictation", Loc.L("Diktat ein/aus (Mikrofon, offline)", "Dictation on/off (microphone, offline)"));
         body.Children.Add(keys);
-        body.Children.Add(U.Text(Loc.L("Alternativ: Rechtsklick auf das Aufnahme-Symbol unten rechts im Infobereich der Taskleiste – dort gibt es alle Befehle als Menü.", "Alternatively: right-click the recording icon in the notification area – all commands are available there."), 12.5, fg: Theme.Fg2, margin: new Thickness(0, 10, 0, 0)));
+        body.Children.Add(U.Text(Loc.L("Alternativ: Rechtsklick auf das Aufnahme-Symbol unten rechts im Infobereich der Taskleiste – dort gibt es alle Befehle als Menü.", "Alternatively: right-click the recording icon in the notification area – all commands are available there."), Theme.FsHint, fg: Theme.Fg2, margin: new Thickness(0, 12, 0, 0)));
         body.Children.Add(_remember);
 
         var hidden = U.Primary(Loc.L("Ausgeblendet starten", "Start hidden"), () => { Hidden = true; Save(); DialogResult = true; }, Theme.IEye);

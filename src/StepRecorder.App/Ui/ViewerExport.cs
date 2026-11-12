@@ -99,6 +99,11 @@ sealed partial class ViewerWindow
         if (d.ShowDialog() != true) return;
         var req = d.Request;
         Remember(req, d.FolderChoice);
+        if (req.Format is "ki" or "ahk" or "ahk-ki")
+        {
+            var prefs = AppSettings.Load();
+            if (prefs.ExportReadable != req.Readable) { prefs.ExportReadable = req.Readable; prefs.Save(); }
+        }
         RunExport(req);
     }
 

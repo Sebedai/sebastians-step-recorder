@@ -12,7 +12,8 @@ namespace StepRecorder.Capture.Host;
 /// </summary>
 public sealed unsafe class HookHost
 {
-    const uint WM_APP_COMMAND = 0x8001;
+    const uint WM_APP_COMMAND = 0x8001, WM_APP_REINSTALL = 0x8002;
+    volatile bool _installed;
     readonly InputRing _ring;
     readonly nint _dataEvent;
     nint _kbHook, _msHook;
@@ -52,6 +53,7 @@ public sealed unsafe class HookHost
                 int target = _ring.Target;
                 if (target != last) { last = target; PostThreadMessage(_threadId, WM_APP_COMMAND, target, 0); }
                 if (target == InputRing.TargetQuit) return;
+                if (HookLost()) PostThreadMessage(_threadId, WM_APP_REINSTALL, 0, 0);
             }
         }) { IsBackground = true, Name = "HookHost.Command" };
         watcher.Start();
@@ -60,6 +62,11 @@ public sealed unsafe class HookHost
         Ready = true;
         while (GetMessage(out var msg, 0, 0, 0) > 0)
         {
+            if (msg.message == WM_APP_REINSTALL)
+            {
+                if (_installed) { Uninstall(); Install(); _ring.CountReinstall(); }
+                continue;
+            }
             if (msg.message == WM_APP_COMMAND)
             {
                 int target = (int)msg.wParam;
@@ -80,10 +87,35 @@ public sealed unsafe class HookHost
         nint mod = GetModuleHandle(null);
         if (_kbHook == 0) _kbHook = SetWindowsHookEx(WH_KEYBOARD_LL, _kbProc, mod, 0);
         if (_msHook == 0) _msHook = SetWindowsHookEx(WH_MOUSE_LL, _msProc, mod, 0);
+        _ring.LastHookTick = (uint)Environment.TickCount;
+        _installed = true;
     }
+
+    int _lostChecks;
+    /// <summary>
+    /// Wächter: Windows meldet über GetLastInputInfo jede Eingabe der Sitzung. Kommt dort seit über einer Sekunde Eingabe an,
+    /// die keiner der Hooks gesehen hat, wurden sie vermutlich entfernt (Zeitüberschreitung) – dann neu setzen.
+    /// </summary>
+    bool HookLost()
+    {
+        if (!_installed) { _lostChecks = 0; return false; }
+        var lii = new LASTINPUTINFO { cbSize = (uint)sizeof(LASTINPUTINFO) };
+        if (!GetLastInputInfo(ref lii)) return false;
+        uint now = (uint)Environment.TickCount, hook = _ring.LastHookTick;
+        bool unseen = unchecked((int)(lii.dwTime - hook)) > 1000 && unchecked((int)(now - lii.dwTime)) < 5000;
+        _lostChecks = unseen ? _lostChecks + 1 : 0;
+        if (_lostChecks < 3) return false;
+        _lostChecks = 0;
+        _ring.LastHookTick = lii.dwTime;   // nicht sofort erneut auslösen
+        return true;
+    }
+
+    [StructLayout(LayoutKind.Sequential)] struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+    [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
 
     void Uninstall()
     {
+        _installed = false;
         if (_kbHook != 0) { UnhookWindowsHookEx(_kbHook); _kbHook = 0; }
         if (_msHook != 0) { UnhookWindowsHookEx(_msHook); _msHook = 0; }
     }
@@ -100,6 +132,7 @@ public sealed unsafe class HookHost
                 Flags = k->flags, Time = k->time, ExtraInfo = k->dwExtraInfo, Foreground = GetForegroundWindow()
             };
             _ring.TryWrite(rec);
+            _ring.LastHookTick = k->time;
             InputRing.SetEvent(_dataEvent);
             _ring.RecordHookDuration(Stopwatch.GetTimestamp() - q, _oneMs);
         }
@@ -118,6 +151,7 @@ public sealed unsafe class HookHost
                 Flags = m->flags, Time = m->time, ExtraInfo = m->dwExtraInfo, Foreground = GetForegroundWindow()
             };
             _ring.TryWrite(rec);
+            _ring.LastHookTick = m->time;
             if ((int)wParam != WM_MOUSEMOVE) InputRing.SetEvent(_dataEvent);
             _ring.RecordHookDuration(Stopwatch.GetTimestamp() - q, _oneMs);
         }

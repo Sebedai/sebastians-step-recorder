@@ -42,6 +42,17 @@ public static class StepImages
 
     public static int LongEdgeFor(string profile) => profile switch { "original" => int.MaxValue, "highres" or "hochaufloesend" or "hochauflösend" => 2576, _ => 1568 };
 
+    /// <summary>
+    /// Hat der Schritt den Bildschirm sichtbar verändert – ab <paramref name="minRatio"/> der Fläche (KI-Paket 0,5 %, Anleitungen 2 %)
+    /// oder weil ein Fenster geöffnet oder geschlossen wurde?
+    /// </summary>
+    public static bool ScreenChanged(ViewStep s, double minRatio = 0.005)
+        => (s.Json.Obj("effect")?.Obj("screen")?.Dbl("changedRatio") ?? 0) >= minRatio || s.Json.Obj("effect")?.Arr("windowsOpened") != null || s.Json.Obj("effect")?.Arr("windowsClosed") != null;
+
+    /// <summary>Monitor eines Bildes (Kennung wie „M1“; bei ersetzten Bildern die Bild-Kennung selbst).</summary>
+    public static string? MonitorOf(SessionView view, string? frameId)
+        => frameId == null ? null : frameId.StartsWith("u:") ? frameId : view.Session.Frame(frameId)?.Str("m");
+
     /// <summary>Lage eines Schrittbilds ohne Pixel: Bildgröße, gezeigter Ausschnitt, Klickpunkt und Zielrechteck (Monitorkoordinaten).</summary>
     public sealed record ImageGeometry(string FrameId, string Monitor, Size Full, Rectangle Source, Point? Click, Rectangle? Target);
 

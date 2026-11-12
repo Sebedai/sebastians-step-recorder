@@ -19,6 +19,17 @@ public sealed class KiOptions
     public bool IncludeEvents { get; set; } = true;
     public string View { get; set; } = "screen";
     public int SplitTokens { get; set; } = 60000;
+    /// <summary>Für Menschen lesbar: alle Angaben erklärt, „In Worten“ je Schritt, LIESMICH.md, Kommentare in JSON (mehr Tokens).</summary>
+    public bool Readable { get; set; }
+    /// <summary>
+    /// Vorher-Bild (Übersicht vor der Aktion): <c>auto</c> = nur, wenn der Bildschirm davor nicht schon im Paket zu sehen ist
+    /// (sonst Verweis auf das frühere Bild), <c>always</c> = wie die Detailstufe vorsieht, <c>never</c> = nie.
+    /// </summary>
+    public string Before { get; set; } = "auto";
+    /// <summary>Ausschnitt um die Aktion (mit Klickmarke und Zielrahmen) beilegen, wo die Detailstufe einen vorsieht.</summary>
+    public bool Crop { get; set; } = true;
+    /// <summary>Nachher-Bild beilegen, wo die Detailstufe eines vorsieht.</summary>
+    public bool After { get; set; } = true;
 }
 
 /// <summary>Geschätzte Größe eines KI-Pakets.</summary>
@@ -73,12 +84,22 @@ public static class KiPackage
         string Suffix(string v) => lang == "de" ? v switch { "before" => "vorher", "crop" => "ausschnitt", "cropEnd" => "ausschnitt-ende", "after" => "nachher", "marker" => "marker", _ => v } : v switch { "crop" => "crop", "cropEnd" => "crop-end", _ => v };
         string Prefix(ViewStep s) => (lang == "de" ? "schritt" : "step") + s.Number.ToString().PadLeft(digits, '0');
 
+        // Bildauswahl: Bildarten filtern; Vorher-Bilder im Modus „auto“ nur, wenn der Bildschirm davor nicht schon im Paket zu sehen ist.
+        // screenFile = jüngstes Übersichtsbild im Paket, das den aktuellen Bildschirmzustand zeigt (null = unbekannt).
+        var beforeRefs = new Dictionary<string, string>();
+        string? screenFile = null, screenKey = null;
+        string KeyOf(ViewStep s, string? frame) => StepImages.MonitorOf(view, frame) + (o.View == "window" ? "|" + s.Json.Obj("ctx")?.Str("win") : "");
         int tick = 0;
         foreach (var s in steps)
         {
             ExportJob.Tick(++tick, steps.Count, "Bilder");
-            if (s.Redacted) continue;
-            var variants = ImageVariants(s, o.Detail);
+            if (s.Redacted) { screenFile = null; continue; }
+            var variants = SelectedVariants(s, o);
+            if (variants.Contains("before") && o.Before != "always")
+            {
+                string? refFile = screenFile != null && screenKey == KeyOf(s, s.PreFrame) ? screenFile : null;
+                if (o.Before == "never" || refFile != null) { variants.Remove("before"); if (refFile != null) beforeRefs[s.Id] = refFile; }
+            }
             var list = new List<(string, RenderedImage)>();
             foreach (var v in variants)
             {
@@ -93,21 +114,35 @@ public static class KiPackage
                 list.Add((file, img));
             }
             imageFiles[s.Id] = list;
+            // Bildschirmzustand nach diesem Schritt fortschreiben
+            var after = list.FirstOrDefault(x => x.Item2.Variant == "after");
+            var before = list.FirstOrDefault(x => x.Item2.Variant == "before");
+            if (after.Item1 != null) { screenFile = after.Item1; screenKey = KeyOf(s, s.PostFrame); }
+            else if (s.Kind is "gap" or "system" or "wait" || StepImages.ScreenChanged(s)) screenFile = null;
+            else if (before.Item1 != null) { screenFile = before.Item1; screenKey = KeyOf(s, s.PreFrame); }
         }
-        var trace = Trace(view, steps, imageFiles, lang, o.Detail);
+        string imageNote = ImageNote(o, beforeRefs.Count, lang);
+        var trace = Trace(view, steps, imageFiles, lang, o.Detail, o.Readable, beforeRefs, imageNote);
+        if (o.Readable) trace = KiExplain.Annotate(trace, lang);
         foreach (var l in imageFiles.Values) foreach (var (_, img) in l) img.Dispose();
         File.WriteAllText(Path.Combine(outDir, "trace.md"), trace, new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(outDir, "README_AI.md"), ReadmeText(lang), new UTF8Encoding(false));
+        if (o.Readable)
+        {
+            var (rf, rt) = KiExplain.Readme(lang, view.Title, steps.Count, imagesMeta.Count, o.IncludeEvents && o.Detail == "full");
+            File.WriteAllText(Path.Combine(outDir, rf), rt, new UTF8Encoding(false));
+        }
         res.TextTokens = (trace.Length + ReadmeText(lang).Length) / 3;
         // steps.json über die Leseschicht (mit number/state)
         var sj = new JsonObject
         {
+            ["$comment"] = o.Readable ? KiExplain.StepsComment(lang) : null, ["$fields"] = o.Readable ? KiExplain.StepFields(lang) : null,
             ["format"] = "steprec.steps", ["schemaVersion"] = "1.0", ["sessionId"] = view.Session.SessionId,
             ["stepBuilderVersion"] = view.Steps.Str("stepBuilderVersion"), ["params"] = view.Steps.Obj("params")?.DeepClone(),
             ["steps"] = new JsonArray(allSteps.Select(s => { var c = (JsonObject)s.Json.DeepClone(); c["number"] = s.Number; c["state"] = s.State; c["title"] = s.Title; return (JsonNode)c; }).ToArray()),
             ["timeline"] = view.CleanNode(view.Steps.Arr("timeline")), ["gaps"] = view.CleanNode(view.Steps.Arr("gaps")), ["completeness"] = view.Steps.Obj("completeness")?.DeepClone()
         };
-        File.WriteAllText(Path.Combine(outDir, "steps.json"), Json.Pretty(sj), new UTF8Encoding(false));
+        File.WriteAllText(Path.Combine(outDir, "steps.json"), Json.Pretty(o.Readable ? sj : Without(sj, "$comment", "$fields")), new UTF8Encoding(false));
         if (o.IncludeEvents && o.Detail == "full")
         {
             var sb = new StringBuilder();
@@ -120,9 +155,11 @@ public static class KiPackage
             checks[Path.GetRelativePath(outDir, f).Replace('\\', '/')] = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(f))).ToLowerInvariant();
         var pkg = new JsonObject
         {
-            ["format"] = "steprecorder-ai-package", ["formatVersion"] = FormatVersion,
+            ["$comment"] = o.Readable ? KiExplain.PackageComment(lang) : null,
+            ["format"] = "steprecorder-ai-package", ["formatVersion"] = FormatVersion, ["readable"] = o.Readable ? true : null,
             ["generator"] = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version },
             ["createdAt"] = Json.UtcNow(), ["language"] = lang, ["detailLevel"] = o.Detail, ["imageProfile"] = o.ImageProfile,
+            ["imageSelection"] = new JsonObject { ["before"] = o.Before, ["crop"] = o.Crop, ["after"] = o.After, ["beforeByReference"] = beforeRefs.Count },
             ["session"] = new JsonObject { ["id"] = view.Session.SessionId, ["title"] = view.Title, ["stepBuilderVersion"] = view.Steps.Str("stepBuilderVersion"), ["revision"] = view.Revision, ["goal"] = view.Goal() },
             ["parts"] = new JsonArray(new JsonObject { ["file"] = "trace.md", ["steps"] = new JsonArray(1, allSteps.Count), ["estimatedTokens"] = new JsonObject { ["text"] = trace.Length / 3, ["images"] = res.ImageTokens } }),
             ["images"] = imagesMeta,
@@ -157,9 +194,14 @@ public static class KiPackage
         return l;
     }
 
+    /// <summary>Bildarten eines Schritts nach Detailstufe und Bildauswahl (Ausschnitt/Nachher abwählbar; „Vorher“ entscheidet der Export).</summary>
+    static List<string> SelectedVariants(ViewStep s, KiOptions o)
+        => ImageVariants(s, o.Detail).Where(v => v switch { "crop" or "cropEnd" => o.Crop, "after" => o.After, _ => true }).ToList();
+
     /// <summary>
     /// Schätzung wie <see cref="Export"/>, ohne etwas zu schreiben oder Bilder zu dekodieren: Bildanzahl, Bild-Tokens
-    /// (aus <see cref="StepImages.Measure"/>), Text-Tokens (Protokoll plus Lesehilfe).
+    /// (aus <see cref="StepImages.Measure"/>), Text-Tokens (Protokoll plus Lesehilfe). Vorher-Bilder im Modus „auto“
+    /// zählen als beigelegt (obere Schätzung) – ob der Bildschirm schon im Paket zu sehen ist, entscheidet erst der Export.
     /// </summary>
     public static KiEstimate Estimate(SessionView view, KiOptions o, CancellationToken ct = default)
     {
@@ -168,20 +210,51 @@ public static class KiPackage
         view.Rebuild();
         var steps = view.Effective(guide: false, importance: o.Detail == "full" ? "all" : "secondary");
         int images = 0, imgTokens = 0;
+        // dieselbe Verweislogik wie im Export: Vorher-Bild entfällt, wenn der Bildschirm davor schon im Paket zu sehen ist
+        bool screenKnown = false; string? screenKey = null;
+        string KeyOf(ViewStep s, string? frame) => StepImages.MonitorOf(view, frame) + (o.View == "window" ? "|" + s.Json.Obj("ctx")?.Str("win") : "");
         foreach (var s in steps)
         {
             ct.ThrowIfCancellationRequested();
-            if (s.Redacted) continue;
-            foreach (var v in ImageVariants(s, o.Detail))
+            if (s.Redacted) { screenKnown = false; continue; }
+            var variants = SelectedVariants(s, o);
+            if (variants.Contains("before") && o.Before != "always" && (o.Before == "never" || screenKnown && screenKey == KeyOf(s, s.PreFrame)))
+                variants.Remove("before");
+            bool gotAfter = false, gotBefore = false;
+            foreach (var v in variants)
             {
                 var m = StepImages.Measure(view, s, v == "marker" ? "before" : v, o.ImageProfile, o.View, annotate: true, respectMarks: false);
                 if (m == null) continue;
                 images++; imgTokens += m.VisualTokens;
+                if (v == "after") gotAfter = true; else if (v == "before") gotBefore = true;
             }
+            if (gotAfter) { screenKnown = true; screenKey = KeyOf(s, s.PostFrame); }
+            else if (s.Kind is "gap" or "system" or "wait" || StepImages.ScreenChanged(s)) screenKnown = false;
+            else if (gotBefore) { screenKnown = true; screenKey = KeyOf(s, s.PreFrame); }
         }
         var trace = Trace(view, steps, new(), lang, o.Detail);
         int text = (trace.Length + images * 140 + ReadmeText(lang).Length) / 3;   // je Bild eine Verweiszeile
         return new KiEstimate(images, imgTokens, text, SizeHints(images, imgTokens + text, lang));
+    }
+
+    static JsonObject Without(JsonObject o, params string[] keys) { foreach (var k in keys) o.Remove(k); return o; }
+
+    /// <summary>Kurzbeschreibung der Bildauswahl für den Kopf von trace.md.</summary>
+    static string ImageNote(KiOptions o, int byRef, string lang)
+    {
+        bool de = lang == "de";
+        var parts = new List<string>
+        {
+            o.Before switch
+            {
+                "always" => de ? "Vorher-Bilder: immer" : "before images: always",
+                "never" => de ? "Vorher-Bilder: nie" : "before images: never",
+                _ => de ? $"Vorher-Bilder: nur wenn der Bildschirm davor nicht schon im Paket zu sehen ist ({byRef} durch Verweis ersetzt)" : $"before images: only if the screen before is not already shown in the package ({byRef} replaced by a reference)"
+            }
+        };
+        if (!o.Crop) parts.Add(de ? "ohne Ausschnitte" : "no crops");
+        if (!o.After) parts.Add(de ? "ohne Nachher-Bilder" : "no after images");
+        return string.Join(" · ", parts);
     }
 
     static JsonObject CountRedactions(JsonObject edits)
@@ -198,7 +271,7 @@ public static class KiPackage
     static List<string> ImageVariants(ViewStep s, string detail)
     {
         bool mouse = s.Kind is "click" or "doubleClick" or "tripleClick" or "rightClick" or "drag" or "scroll" or "hover";
-        bool changed = (s.Json.Obj("effect")?.Obj("screen")?.Dbl("changedRatio") ?? 0) >= 0.005 || s.Json.Obj("effect")?.Arr("windowsOpened") != null || s.Json.Obj("effect")?.Arr("windowsClosed") != null;
+        bool changed = StepImages.ScreenChanged(s);
         var v = new List<string>();
         if (s.Kind is "comment" or "snapshot" or "marker") { if (detail != "compact" || s.Importance == "primary") v.Add("marker"); return v; }
         if (s.Kind is "gap" or "move" or "system" or "wait") { if (detail == "full" && s.PostFrame != null) v.Add("after"); return v; }
@@ -255,7 +328,10 @@ public static class KiPackage
         "recoveredInput" => "input supplemented from the second channel", "injectedInput" => "synthetic input", "causeUnobserved" => "cause not observed", _ => r
     };
 
-    public static string Trace(SessionView view, List<ViewStep> steps, Dictionary<string, List<(string file, RenderedImage img)>> images, string lang, string detail)
+    /// <param name="beforeRefs">Schritte, deren Vorher-Bild weggelassen wurde, mit dem Bild im Paket, das denselben Bildschirm zeigt.</param>
+    /// <param name="imageNote">Beschreibung der Bildauswahl für den Kopf (null = keine).</param>
+    public static string Trace(SessionView view, List<ViewStep> steps, Dictionary<string, List<(string file, RenderedImage img)>> images, string lang, string detail, bool readable = false,
+        IReadOnlyDictionary<string, string>? beforeRefs = null, string? imageNote = null)
     {
         bool de = lang == "de";
         var sb = new StringBuilder();
@@ -297,7 +373,7 @@ public static class KiPackage
         var subs = view.Edits.Arr("substitutions");
         if (subs is { Count: > 0 }) L((de ? "- Verallgemeinerte Werte: " : "- Generalized values: ") + string.Join(", ", subs.Select(x => "`{" + x.Str("placeholder") + "}`")));
         int imgCount = images.Values.Sum(v => v.Count);
-        L((de ? "- Bilder im Paket: " : "- Images in package: ") + $"{(de ? "Profil" : "profile")} {images.Values.SelectMany(v => v).Select(v => v.img.Scale).DefaultIfEmpty(1).Min():0.##} · {imgCount} {(de ? "Dateien (Auswahl nach Detailstufe)" : "files (selection by detail level)")}");
+        L((de ? "- Bilder im Paket: " : "- Images in package: ") + $"{(de ? "Profil" : "profile")} {images.Values.SelectMany(v => v).Select(v => v.img.Scale).DefaultIfEmpty(1).Min():0.##} · {imgCount} {(de ? "Dateien (Auswahl nach Detailstufe)" : "files (selection by detail level)")}" + (imageNote != null ? " · " + imageNote : ""));
         L();
         // Angaben des Autors
         L(de ? "## Angaben des Autors zur Aufnahme" : "## Author's statements about the recording");
@@ -363,7 +439,7 @@ public static class KiPackage
                 L();
             }
             if (st.Importance == "trace" && detail != "full") { traceSkipped++; continue; }
-            Block(sb, view, st, prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail);
+            Block(sb, view, st, prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail, readable, beforeRefs?.GetValueOrDefault(st.Id));
             prev = st;
         }
         while (idleIdx < idles.Count) { var (a, b) = idles[idleIdx++]; L(de ? $"> Leerlauf {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – keine Eingaben." : $"> Idle {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – no input."); L(); }
@@ -376,7 +452,7 @@ public static class KiPackage
     static string Kind(string k, string lang) => KindNames.TryGetValue(k, out var n) ? (lang == "de" ? n.de : n.en) : k;
     static string OneLine(string s) => s.Replace("\n", " ").Replace("\r", "");
 
-    static void Block(StringBuilder sb, SessionView view, ViewStep st, ViewStep? prev, List<(string file, RenderedImage img)> images, string lang, string detail)
+    static void Block(StringBuilder sb, SessionView view, ViewStep st, ViewStep? prev, List<(string file, RenderedImage img)> images, string lang, string detail, bool readable = false, string? beforeRef = null)
     {
         bool de = lang == "de";
         void L(string line = "") => sb.Append(line).Append('\n');
@@ -392,6 +468,7 @@ public static class KiPackage
         string head = st.Kind == "gap" ? $"{Fmt.Time(st.TFrom, lang)} – {Fmt.Time(st.TTo, lang)}" : Fmt.Time(st.TFrom, lang);
         L((de ? $"## Schritt {st.Number} · " : $"## Step {st.Number} · ") + $"{head} · {Kind(st.Kind, lang)}{since}");
         bool compactSecondary = detail == "compact" && st.Importance != "primary";
+        if (readable && st.Kind != "gap" && (st.AuthorBody ?? st.Guide) is { Length: > 0 } words) L((de ? "- In Worten: " : "- In plain words: ") + OneLine(words));
         L((de ? "- Aktion: " : "- Action: ") + OneLine(st.Protocol));
         if (j.Obj("action") is { } act && !compactSecondary) L((de ? "- Kanonisch: " : "- Canonical: ") + "`" + Canonical(act) + "`");
         L((de ? "- Kennung: " : "- Id: ") + st.Id + (j.Str("gapId") is { } gid ? (de ? $" · Lücke {gid}" : $" · gap {gid}") : ""));
@@ -416,12 +493,12 @@ public static class KiPackage
             var parts = new List<string> { TextTemplates.TargetLabel(j, lang, false) };
             if (el.Str("aid") is { } aid) parts.Add("AutomationId " + Cd(lang, aid, 80));
             if (tg.Arr("path") is { Count: > 0 } path) parts.Add((de ? "Pfad: " : "Path: ") + string.Join(" › ", path.Select(p => p.Str("ct") + (p.Str("name") is { } pn ? " " + Fmt.Quote(pn, lang, 60) : ""))));
-            if (el.Obj("rect") is { } r) parts.Add((de ? "Rechteck" : "Rectangle") + $" ({r.Int("x")}, {r.Int("y")}, {r.Int("w")}×{r.Int("h")})" + (images.FirstOrDefault(i => i.img.Variant == "before").file is { } bf ? (de ? " in " : " in ") + bf : ""));
+            if (el.Obj("rect") is { } r) parts.Add((de ? "Rechteck" : "Rectangle") + $" ({r.Int("x")}, {r.Int("y")}, {r.Int("w")}×{r.Int("h")})" + ((images.FirstOrDefault(i => i.img.Variant == "before").file ?? beforeRef) is { } bf ? (de ? " in " : " in ") + bf : ""));
             L((de ? "- Ziel: " : "- Target: ") + string.Join(" · ", parts));
         }
         if (j.Obj("position") is { } pos)
         {
-            var parts = new List<string> { $"({pos.Int("x")}, {pos.Int("y")})" + (images.FirstOrDefault(i => i.img.Variant == "before").file is { } bf ? " in " + bf : "") };
+            var parts = new List<string> { $"({pos.Int("x")}, {pos.Int("y")})" + ((images.FirstOrDefault(i => i.img.Variant == "before").file ?? beforeRef) is { } bf ? " in " + bf : "") };
             foreach (var (file, img) in images.Where(i => i.img.Variant == "crop" && i.img.Marker != null)) parts.Add($"({img.Marker!.Value.X}, {img.Marker.Value.Y}) in {file}");
             if (pos.Arr("inElement") is { Count: 2 } ie) parts.Add((de ? "im Element" : "in element") + $" ({Fmt.Num(ie[0]!.GetValue<double>(), lang, "0.00")} / {Fmt.Num(ie[1]!.GetValue<double>(), lang, "0.00")})");
             L((de ? "- Position: " : "- Position: ") + string.Join(" · ", parts));
@@ -471,9 +548,11 @@ public static class KiPackage
         var evd = j.Obj("evidence");
         var reasons = evd?.StrList("reasons").Select(r => Reason(r, lang)).ToList() ?? new();
         L((de ? "- Beleg: " : "- Evidence: ") + Lvl(st.EvidenceLevel, lang) + (reasons.Count > 0 ? $" ({string.Join("; ", reasons)})" : ""));
-        if (j.StrList("flags") is { Count: > 0 } flags) L((de ? "- Hinweis: " : "- Note: ") + string.Join(", ", flags));
+        if (j.StrList("flags") is { Count: > 0 } flags) L((de ? "- Hinweis: " : "- Note: ") + string.Join(readable ? "; " : ", ", readable ? flags.Select(f => KiExplain.Flag(f, lang)) : flags));
         foreach (var cm in st.Comments) L((de ? "- Kommentar des Autors: " : "- Author comment: ") + Fmt.Quote(cm.Str("text"), lang, 2000));
         if (st.Annotations.Count > 0) L((de ? "- Markierung des Autors (nur in Anleitungen eingezeichnet): " : "- Author annotation (drawn in guides only): ") + string.Join("; ", st.Annotations.Select(a => AnnotationGeometry.Describe((JsonObject)view.CleanNode(a)!, lang))));
+        if (beforeRef != null)
+            L((de ? "- Vorher: " : "- Before: ") + beforeRef + (de ? " zeigt den Bildschirm vor diesem Schritt (kein eigenes Vorher-Bild)" : " shows the screen before this step (no separate before image)"));
         if (images.Count > 0)
             L((de ? "- Bilder: " : "- Images: ") + string.Join(" · ", images.Select(i => $"{i.file} ({i.img.Bitmap.Width}×{i.img.Bitmap.Height}, {(de ? "Maßstab" : "scale")} {Fmt.Num(i.img.Scale, lang, "0.###")}{(i.img.Variant is "crop" or "cropEnd" ? (de ? $", Ursprung {i.img.SourceRect.X}, {i.img.SourceRect.Y}" : $", origin {i.img.SourceRect.X}, {i.img.SourceRect.Y}") : "")} {(de ? "auf" : "on")} {i.img.Monitor})")));
         L();

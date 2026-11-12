@@ -49,6 +49,8 @@ public sealed class ViewStep
     /// <summary>Zusammengefasster Schritt (nur in Anleitungen): Kennung und Mitglieder in Aufnahmereihenfolge.</summary>
     public string? MergeId;
     public List<ViewStep>? Members;
+    /// <summary>Beim Aufräumen ausgeblendet: Grund (null = nicht aufgeräumt).</summary>
+    public string? CleanupReason;
 
     public ViewStep Clone() => (ViewStep)MemberwiseClone();
 }
@@ -360,6 +362,7 @@ public sealed class SessionView : IDisposable
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
                 if (se["discarded"] != null) vs.Discarded = se.Bool("discarded");
+                if (vs.Hidden && se.Obj("cleanup")?.Str("reason") is { } cr) vs.CleanupReason = StepCleanup.ReasonFor(se.Obj("cleanup")?.Str("rule")) ?? cr;
                 if (se.Str("importance") is { } imp) vs.Importance = imp;
                 ApplyAuthorText(vs, se.Obj("text"));
                 if (se.Obj("frameChoice") is { } fc) { vs.PreFrame = fc.Str("pre"); vs.PostFrame = fc.Str("post"); }
@@ -393,9 +396,10 @@ public sealed class SessionView : IDisposable
                 string? commentText = vs.Kind != "comment" ? null : vs.CommentHidden ? RedactedText : Clean(Session.BySeq(s.Obj("input").Long("refSeq"))?.Str("text"));
                 var forText = vs.Json;
                 if (vs.Unreviewed && Headless) forText = WithUnreviewed(vs.Json);
-                vs.Title = Clean(TextTemplates.Title(forText, Language));
+                _glossary ??= Glossary.FromSettings();
+                vs.Title = _glossary.Apply(Clean(TextTemplates.Title(forText, Language)));
                 vs.Protocol = Clean(TextTemplates.Body(forText, Language, "protocol", "formal", commentText));
-                vs.Guide = Clean(TextTemplates.Body(forText, Language, "guide", AppAddress(), commentText));
+                vs.Guide = _glossary.Apply(Clean(TextTemplates.Body(forText, Language, "guide", AppAddress(), commentText)));
                 if (vs.Unreviewed && Headless) vs.Json = forText;
             }
             list.Add(vs);
@@ -456,6 +460,9 @@ public sealed class SessionView : IDisposable
         vs.ChapterText = Clean(loc?.Str("text") is { Length: > 0 } ltx ? ltx : ch.Str("text"));
     }
 
+    Glossary? _glossary;
+    /// <summary>Begriffsliste neu laden (nach Änderung in den Einstellungen).</summary>
+    public void ReloadGlossary() { _glossary = null; Rebuild(); }
     string AppAddress() => Edits.Obj("guide").Str("address") ?? "formal";
 
     /// <summary>Ersetzt den getippten Text einer ungeprüften Eingabe durch {unreviewed:N}.</summary>

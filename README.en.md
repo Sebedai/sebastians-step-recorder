@@ -81,10 +81,13 @@ A small **recording bar** floats at the top of the screen, showing the time, the
 | **Ctrl+Shift+F2** | "Expected" marker |
 | **Ctrl+Shift+F7** | Set a marker |
 | **Ctrl+Shift+F12** | Enter a comment |
+| **Ctrl+Shift+F5** | Dictation on/off: spoken words become comments |
 | **Ctrl+Shift+F11** | Snapshot |
 | **Ctrl+Shift+F8** | Private key: inputs are only counted, not stored |
 | **Ctrl+Shift+F6** | Discard the last step |
 | **Ctrl+Shift+F4** | Show / hide the bar (minimize to the notification area) |
+
+**Dictation:** Instead of typing, simply speak your explanations. Each sentence is saved as a comment at the point where you started it. Recognition runs offline via Windows speech recognition; the microphone is only open while dictation is running (red microphone on the bar), and only the text is stored.
 
 **Countdown and signal tones:** If you like, the program counts down before starting and plays short tones on start, stop, pause and markers – handy when no bar is visible.
 
@@ -101,12 +104,15 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Insert your own steps:** text-only steps or image steps from a file, the clipboard or a new screenshot.
 - **Replace or re-capture an image** when the interface has changed – the original can be restored at any time.
 - **Find and replace** (Ctrl+H) across all headings, texts, notes and chapters.
+- **Automatically cleaned up:** When first opened, the editor hides superfluous steps – the click into a field right before typing, duplicate clicks on the same element, a window switch away and straight back, and entries that were deleted again. Nothing is deleted: Ctrl+Z undoes it, and under *⋯ → Clean up* you can see every suggestion with its reason.
+- **Better texts:** Menus appear as a path ("File › Save as"), ribbon buttons with their group. A **glossary** in the settings replaces technical names with your own (e.g. "SAP Easy Access=SAP start page").
 
 **Images**
 - Before/after image, whole screen, only the application window, or a section around the action (with a small overview of the whole screen).
 - Drawing tools: arrow, frame, ellipse, highlight, text, numbered markers, redact, pixelate, crop – in six colors and three line widths.
 - Automatic markup: click point, drag path, clicked element, and pressed keys as small keycaps in the image – each can be switched off individually.
 - Zoom (Ctrl+mouse wheel), large view (F11 or double-click), copy image (Ctrl+C).
+- **Short clip per step:** *Copy → Save short clip (GIF)* shows the step as a small animation – from the before image through the intermediate images to the result.
 
 **More features**
 - **Play:** the steps as a slide show.
@@ -146,6 +152,10 @@ On the **"Document"** tab, the steps become a proper user guide:
 | **AutoHotkey** | AutoHotkey v2 script that repeats the procedure | automating recurring procedures |
 | **Support package** | ZIP with HTML guide and AI package | passing errors to the help desk |
 
+**Readable for people:** For the AI package and AutoHotkey there is the option *"Readable for people – fully commented"*. Every detail – including system info, screens, evidence quality, coordinates and gaps – is then explained in plain language, each step gets an "In words" sentence, and a `LIESMICH.md` plus explanations in the JSON files are added; the script explains its structure and every step. Without the option the export stays concise and saves tokens when only an AI reads it.
+
+**Which images are included:** In the export dialog, for the AI package you choose the *before image* (*Automatic*, *Always*, *Never*) as well as the *close-up around the action* and the *after image*. *Automatic* (default) only includes a before image if the screen before it is not already visible in the package – otherwise the trace refers to the previous step's after image. For guides (HTML, Markdown, Word, PDF) the image after the step can additionally appear as the *result* (*Never*, *On change*, *Always*; default *Never*).
+
 All exports are created without additional software. The program sends nothing – you pass the files on yourself.
 
 ---
@@ -158,7 +168,7 @@ All exports are created without additional software. The program sends nothing �
 - **Review before export:** conspicuous inputs (keys, IBANs, card numbers, passwords in commands) must be checked before sharing.
 - **Redact:** redact or pixelate areas in the image, redact texts everywhere, replace personal values (e.g. user name) with placeholders.
 - **Finding personal data in images:** the Windows text recognition searches all images for e-mail addresses, IBANs, card numbers, phone numbers and keys, and offers them for redaction.
-- Everything stays on your computer. The program needs no internet and sends no data.
+- Everything stays on your computer. The program needs no internet and sends no data (exception: the optional update check, which is switched off by default).
 
 ---
 
@@ -194,8 +204,12 @@ All exports are created without additional software. The program sends nothing �
 - **Windows Server and older Windows 10 versions** (e.g. Windows Server 2019) cannot exclude their own windows from screenshots. The program detects this and offers to record **with the display hidden:** bar and frame stay invisible, and operation works via shortcuts and the notification-area icon.
 - **Text recognition** (for the search for personal data) uses the OCR built into Windows. If the language pack is missing, you can install it under *Settings → Time & language → Language*.
 - **Where is the data?** If the EXE's folder is writable, settings and recordings are stored next to it (folder `Sessions`) – ideal for a USB stick. Otherwise they are under `%APPDATA%\StepRecorder` and `%LOCALAPPDATA%\StepRecorder`. The recordings folder can be changed in the settings.
+- **Screen capture:** the program uses the fast Windows desktop duplication (DXGI) and automatically falls back to classic capture if there are problems. Portrait-orientation monitors are captured the classic way.
+- **Screen readers:** all buttons – including the icon-only ones – have names for speech output, NVDA and JAWS.
+- **Updates:** the program only checks for new versions on request (*Settings → General*); it queries only the public release page, without any identifier or personal data. Nothing is downloaded automatically.
+- **Inputs:** dead keys (^, ´, `), the on-screen keyboard, and input from remote-support and password tools are recognized correctly. If Windows removes the input monitoring (e.g. under high load), the program re-installs it immediately and notes the possible gap.
 - **Dark or light:** the program starts in the dark theme; under *Settings → Appearance* you can choose "Light" or "Like Windows".
-- **Interface language:** Like Windows / Deutsch / English (*Settings → General*); applies from the next start. The language of the guide texts is independent of this.
+- **Interface language (including English):** Like Windows / Deutsch / English (*Settings → General → Interface language*); applies from the next start. The guide texts can be generated in German or English independently of this.
 
 ---
 

@@ -97,13 +97,13 @@ sealed class ZoomPanel : Grid
     /// <summary>Zoomleiste: − · Prozent · + · Einpassen · 100 %.</summary>
     public FrameworkElement Toolbar(Brush? fg = null)
     {
-        var pct = new TextBlock { MinWidth = 46, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = 12.5 };
+        var pct = new TextBlock { MinWidth = 52, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center, FontSize = Theme.FsHint, FontFamily = Theme.Mono };
         if (fg != null) pct.Foreground = fg; else pct.Foreground = Theme.Fg2;
         void Upd() => pct.Text = $"{Math.Round(Zoom * 100)} %";
         ZoomChanged += Upd; Upd();
         Button B(string glyph, string? text, Action a, string tip)
         {
-            var b = U.Ghost(glyph, text, a, tip); b.Margin = new Thickness(1, 0, 1, 0); b.Padding = new Thickness(7, 5, 7, 5);
+            var b = U.Ghost(glyph, text, a, tip); b.Margin = new Thickness(1, 0, 1, 0); b.Padding = new Thickness(8, 6, 8, 6);
             if (fg != null) b.Foreground = fg;
             return b;
         }
@@ -133,7 +133,7 @@ sealed class ImageLightbox : Window
     readonly int _count;
     int _index;
     readonly Image _img = new() { Stretch = Stretch.None };
-    readonly TextBlock _caption = new() { Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
+    readonly TextBlock _caption = new() { Foreground = Theme.Night.Fg, FontSize = Theme.FsBody, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
     readonly ZoomPanel _zoom;
     public event Action<int>? IndexChanged;
 
@@ -141,14 +141,14 @@ sealed class ImageLightbox : Window
     {
         _get = get; _index = index; _count = count;
         Title = Loc.L("Großansicht", "Full view"); WindowState = WindowState.Maximized; ShowInTaskbar = false;
-        var dark = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x11));
+        var dark = Theme.Night.Bg;
         Theme.Prepare(this, dark);
         Background = dark;
         RenderOptions.SetBitmapScalingMode(_img, BitmapScalingMode.HighQuality);
         var host = new Border { Child = _img, Effect = Theme.Shadow(40, 6, 0.6) };
         _zoom = new ZoomPanel(host, () => _img.Source is BitmapSource b ? new Size(b.PixelWidth, b.PixelHeight) : new Size(0, 0), new Thickness(40, 24, 40, 24));
 
-        var light = new SolidColorBrush(Color.FromRgb(0xED, 0xEC, 0xE8));
+        var light = Theme.Night.Fg;
         Button Nav(string glyph, int dir, string tip)
         {
             var b = U.Ghost(glyph, null, () => Go(_index + dir), tip); b.Foreground = light; b.Padding = new Thickness(10, 8, 10, 8);
@@ -156,11 +156,11 @@ sealed class ImageLightbox : Window
         }
         var close = U.Ghost(Theme.IClose, Loc.L("Schließen", "Close"), Close, Loc.L("Schließen (Esc)", "Close (Esc)")); close.Foreground = light;
         var bar = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
-        var right = U.Row(_zoom.Toolbar(light), new Border { Width = 1, Height = 22, Background = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255)), Margin = new Thickness(10, 0, 10, 0) }, Nav(Theme.IPrev, -1, Loc.L("Vorheriges Bild (←)", "Previous image (←)")), Nav(Theme.INext, +1, Loc.L("Nächstes Bild (→)", "Next image (→)")), close);
+        var right = U.Row(_zoom.Toolbar(light), U.VSep(22, Theme.Night.Line), Nav(Theme.IPrev, -1, Loc.L("Vorheriges Bild (←)", "Previous image (←)")), Nav(Theme.INext, +1, Loc.L("Nächstes Bild (→)", "Next image (→)")), close);
         right.VerticalAlignment = VerticalAlignment.Center;
         DockPanel.SetDock(right, Dock.Right); bar.Children.Add(right); bar.Children.Add(_caption);
-        var top = new Border { Background = new SolidColorBrush(Color.FromArgb(210, 0x17, 0x16, 0x14)), Child = bar };
-        var hint = new TextBlock { Text = Loc.L("Strg+Mausrad zoomen · Leertaste oder mittlere Maustaste + Ziehen verschieben · Doppelklick: Einpassen / 100 % · ← → blättern · Esc schließt", "Ctrl+mouse wheel to zoom · Space or middle mouse button + drag to pan · Double-click: Fit / 100 % · ← → to browse · Esc to close"), Foreground = new SolidColorBrush(Color.FromArgb(150, 255, 255, 255)), FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 6, 0, 10) };
+        var top = new Border { Background = Theme.Night.Pill, BorderBrush = Theme.Night.Line, BorderThickness = new Thickness(0, 0, 0, 1), Child = bar };
+        var hint = new TextBlock { Text = Loc.L("Strg+Mausrad zoomen · Leertaste oder mittlere Maustaste + Ziehen verschieben · Doppelklick: Einpassen / 100 % · ← → blättern · Esc schließt", "Ctrl+mouse wheel to zoom · Space or middle mouse button + drag to pan · Double-click: Fit / 100 % · ← → to browse · Esc to close"), Foreground = Theme.Night.Muted, FontSize = Theme.FsCaption, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 12) };
         var root = new DockPanel();
         DockPanel.SetDock(top, Dock.Top); root.Children.Add(top);
         DockPanel.SetDock(hint, Dock.Bottom); root.Children.Add(hint);
@@ -190,7 +190,7 @@ sealed class ImageLightbox : Window
         if (_get(i) is not { } r) return;
         _index = i;
         _img.Source = r.img; _img.Width = r.img.PixelWidth; _img.Height = r.img.PixelHeight;
-        _caption.Text = r.caption;
+        _caption.Text = r.caption; _caption.ToolTip = r.caption;
         _zoom.FitNow(); _zoom.Refresh();
         IndexChanged?.Invoke(i);
     }

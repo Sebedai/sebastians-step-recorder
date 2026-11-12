@@ -28,8 +28,11 @@ Aufruf:
   SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
       [--out <Pfad>] [--lang de|en] [--json] [--strict]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
+                   [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
       KI-Paket:    [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original] [--zip] [--no-events]
+                   Bilder: [--before auto|immer|nie] [--no-crop] [--no-after]
       AutoHotkey:  [--real-timing] [--no-images]      AHK für KI: [--with <Aufnahme>]… [--no-ocr]
+      KI-Paket und AutoHotkey: [--readable]   für Menschen lesbar, ausführlich kommentiert
   SebastiansStepRecorder.exe check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
   SebastiansStepRecorder.exe validate <Aufnahme> [--json] [--thorough]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>]
@@ -61,8 +64,11 @@ Usage:
   SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
       [--out <path>] [--lang de|en] [--json] [--strict]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
+                  [--after never|changed|always]   also the after image as "Result"
       AI package: [--detail compact|standard|full] [--image-profile compatible|highres|original] [--zip] [--no-events]
+                  images: [--before auto|always|never] [--no-crop] [--no-after]
       AutoHotkey: [--real-timing] [--no-images]      AHK for AI: [--with <recording>]… [--no-ocr]
+      AI package and AutoHotkey: [--readable]   readable for people, extensively commented
   SebastiansStepRecorder.exe check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
   SebastiansStepRecorder.exe validate <recording> [--json] [--thorough]
   SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>]
@@ -148,15 +154,21 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile" },
-            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr" }, "--with");
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after" },
+            new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after" }, "--with");
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
+        // Bilder im KI-Paket (Vorher-Bild) und in Anleitungen (Nachher-Bild als „Ergebnis“) – deutsche und englische Werte
+        string? before = (c["--before"] ?? "auto").ToLowerInvariant() switch { "immer" or "always" => "always", "nie" or "never" => "never", "auto" or "automatisch" => "auto", _ => null };
+        if (before == null) return Usage(Loc.F("--before: auto, immer oder nie (nicht „{0}“)", "--before: auto, always or never (not \"{0}\")", c["--before"]));
+        string? guideAfter = (c["--after"] ?? "never").ToLowerInvariant() switch { "nie" or "never" or "as-edited" => "never", "aenderung" or "changed" => "changed", "immer" or "always" => "always", _ => null };
+        if (guideAfter == null) return Usage(Loc.F("--after: nie, aenderung oder immer (nicht „{0}“)", "--after: never, changed or always (not \"{0}\")", c["--after"]));
         var req = new ExportRequest
         {
             Format = (c["--format"] ?? "html").ToLowerInvariant(), Target = c["--out"], Language = c["--lang"],
-            Importance = c["--importance"] ?? "primary", View = c["--view"], Template = c["--template"],
+            Importance = c["--importance"] ?? "primary", View = c["--view"], Template = c["--template"], GuideAfter = guideAfter,
             Detail = c["--detail"], ImageProfile = c["--image-profile"], Zip = c.Has("--zip"), IncludeEvents = !c.Has("--no-events"),
+            Before = before, Crop = !c.Has("--no-crop"), After = !c.Has("--no-after"), Readable = c.Has("--readable"),
             RealTiming = c.Has("--real-timing"), Images = !c.Has("--no-images"), Ocr = !c.Has("--no-ocr"), With = c.All("--with")
         };
         if (!Exporter.IsKnownFormat(req.Format)) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", req.Format));

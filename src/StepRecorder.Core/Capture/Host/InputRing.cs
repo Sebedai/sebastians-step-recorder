@@ -39,6 +39,7 @@ public sealed unsafe class InputRing : IDisposable
     const int OffWrite = 64, OffRead = 128, OffOverflow = 192;
     const int OffTarget = 256, OffAck = 260, OffReady = 264, OffHostPid = 268;
     const int OffHeartbeat = 320, OffHookCalls = 328, OffHookMaxTicks = 336, OffHookOver1ms = 344, OffHookSumTicks = 352;
+    const int OffReinstalls = 360, OffLastHookTick = 368;
 
     public const int TargetIdle = 0, TargetRun = 1, TargetPause = 2, TargetQuit = 3;
 
@@ -87,6 +88,11 @@ public sealed unsafe class InputRing : IDisposable
     public long HookMaxTicks => Volatile.Read(ref *(long*)(_base + OffHookMaxTicks));
     public long HookOver1ms => Volatile.Read(ref *(long*)(_base + OffHookOver1ms));
     public long HookSumTicks => Volatile.Read(ref *(long*)(_base + OffHookSumTicks));
+    /// <summary>Wie oft der Wächter die Hooks neu setzen musste (Windows entfernt zu langsame Hooks stillschweigend).</summary>
+    public long Reinstalls => Volatile.Read(ref *(long*)(_base + OffReinstalls));
+    public void CountReinstall() => Interlocked.Increment(ref *(long*)(_base + OffReinstalls));
+    /// <summary>Systemzeit (GetTickCount) der letzten vom Hook gesehenen Eingabe.</summary>
+    public uint LastHookTick { get => Volatile.Read(ref *(uint*)(_base + OffLastHookTick)); set => Volatile.Write(ref *(uint*)(_base + OffLastHookTick), value); }
 
     /// <summary>Vom Hook aufgerufen: schreibt ohne Allokation, wartet nie.</summary>
     public bool TryWrite(in RingRecord rec)

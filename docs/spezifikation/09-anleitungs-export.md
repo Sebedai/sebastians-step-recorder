@@ -183,6 +183,7 @@ Lücken der Aufzeichnung erscheinen in der Anleitung nicht, mit zwei Ausnahmen:
 - Bei Sitzungen, die nur eine Anwendung oder einen Bereich aufgenommen haben, heißt „ganzer Bildschirm“ „gesamte Aufnahme“ und zeigt alles Gespeicherte.
 - **Je Schritt erscheint ein Bild**, das Standardbild seiner Schrittart ([08](08-viewer.md#51-bild)) oder das vom Autor gewählte.
 - **Nachher-Bild „bei Änderung“:** Zusätzlich erscheint das Nachher-Bild, wenn das erste Bild das Vorher-Bild ist und sich im gezeigten Bereich mindestens 2 % der Fläche geändert haben oder ein Fenster geöffnet oder geschlossen wurde.
+- **Stand der Umsetzung:** Der Exportdialog bietet „Nachher-Bild: Nie · Bei Änderung · Immer“ (Standard „Nie“; HTML, Markdown, Word, PDF – nicht GIF). Das zusätzliche Bild steht unter dem Schrittbild mit der Beschriftung „Ergebnis“; in Markdown heißt es `schritt-001-nachher.png`. Die Änderung wird über den ganzen Bildschirm gemessen. Ist das Schrittbild schon das Nachher-Bild (Tastaturschritte), kommt keins hinzu.
 - Schritte ohne Bild (etwa reine Hinweisschritte) erscheinen als Text.
 
 ### 4.3 Texte

@@ -91,6 +91,7 @@ public static class HotkeyActions
         new("markerExpected", "Marker „Erwartet“", "Marker \"expected\"", "Ctrl+Shift+F2", false),
         new("marker", "Marker setzen", "Set marker", "Ctrl+Shift+F7", false),
         new("comment", "Kommentar eingeben", "Enter comment", "Ctrl+Shift+F12", false),
+        new("dictation", "Diktat ein/aus (Mikrofon, offline)", "Dictation on/off (microphone, offline)", "Ctrl+Shift+F5", false),
         new("snapshot", "Schnappschuss", "Snapshot", "Ctrl+Shift+F11", false),
         new("privacy", "Privattaste (Eingaben nur zählen)", "Privacy key (count input only)", "Ctrl+Shift+F8", false),
         new("discard", "Letzten Schritt verwerfen", "Discard last step", "Ctrl+Shift+F6", false),

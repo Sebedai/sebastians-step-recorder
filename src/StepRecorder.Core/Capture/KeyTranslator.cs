@@ -83,6 +83,10 @@ public sealed class KeyTranslator
     public (string? ch, bool dead) Translate(uint vk, uint scan, nint hkl)
     {
         if (vk is 0x0D or 0x09 or 0x08 or 0x1B) return (null, false);
+        // VK_PACKET: Unicode-Zeichen direkt im Scancode (Bildschirmtastatur, Fernwartung, Passwortmanager, SendInput mit KEYEVENTF_UNICODE)
+        if (vk == 0xE7) return scan is > 0 and <= 0xFFFF && !char.IsControl((char)scan) ? (((char)scan).ToString(), false) : (null, false);
+        // VK_PROCESSKEY: Taste geht an die Eingabemethode (IME) – das Ergebnis kommt erst über den Feldwert
+        if (vk == 0xE5) return (null, false);
         // Bei Strg/Alt ohne AltGr entsteht kein Textzeichen
         if ((Ctrl || Alt) && !AltGr) return (null, false);
         var sb = new StringBuilder(8);
@@ -95,6 +99,13 @@ public sealed class KeyTranslator
         }
         if (n == 0) return (null, false);
         string s = sb.ToString(0, n);
+        // Das Zielprogramm hat die Tottaste schon verarbeitet (der Tottasten-Zustand ist geteilt): Windows liefert dann
+        // das Zeichen doppelt („^^“). Ist die Taste laut Layout eine Tottaste, gilt sie trotzdem als Tottaste.
+        if (n == 2 && s[0] == s[1] && (MapVirtualKeyEx(vk, 2, hkl) & 0x80000000) != 0)
+        {
+            _dead = s[..1];
+            return (null, true);
+        }
         if (s.Length == 1 && char.IsControl(s[0])) return (null, false);
         if (_dead != null)
         {
@@ -105,7 +116,8 @@ public sealed class KeyTranslator
         return (s, false);
     }
 
-    static string Compose(string dead, string ch)
+    /// <summary>Tottaste und folgendes Zeichen zusammensetzen (^ + e = ê, ´ + Leertaste = ´, ^ + x = ^x).</summary>
+    public static string Compose(string dead, string ch)
     {
         string? comb = dead switch
         {
@@ -115,6 +127,8 @@ public sealed class KeyTranslator
         if (ch == " ") return dead;
         if (comb != null)
         {
+            // Windows hat bereits zusammengesetzt (ê statt e): unverändert übernehmen
+            if (ch.Length == 1 && ch.Normalize(NormalizationForm.FormD).Contains(comb)) return ch;
             var c = (ch + comb).Normalize(NormalizationForm.FormC);
             if (c.Length == 1) return c;
         }

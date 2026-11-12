@@ -17,6 +17,8 @@ public sealed class AhkKiOptions
     public bool ContextImages { get; set; } = true;
     /// <summary>Sprache von Anleitung und Skriptentwurf (de/en); null = Sprache der Aufnahme.</summary>
     public string? Language { get; set; }
+    /// <summary>Für Menschen lesbar: Skriptentwurf ausführlich kommentiert, Erklärung in ablauf.json.</summary>
+    public bool Readable { get; set; }
 }
 
 /// <summary>
@@ -43,7 +45,7 @@ public static class AhkKiPackage
         string imgDir = Path.Combine(dir, "bilder");
 
         // Skriptentwurf (schreibt auch die 48×48-Ausschnitte für ImageSearch)
-        var ahkOpt = new AhkOptions { ImageDir = imgDir, Language = lang };
+        var ahkOpt = new AhkOptions { ImageDir = imgDir, Language = lang, Readable = o.Readable };
         File.WriteAllText(Path.Combine(dir, "entwurf.ahk"), AhkExport.Build(view, ahkOpt, res), new UTF8Encoding(true));
 
         var doc = Document(view, o, imgDir, title, lang);
@@ -65,6 +67,14 @@ public static class AhkKiPackage
             catch (Exception ex) { res.Warnings.Add(Loc.For(lang, $"Vergleich mit {other} nicht möglich: {ex.Message}", $"Comparison with {other} not possible: {ex.Message}")); }
         }
         if (comparisons.Count > 0) doc["comparisons"] = comparisons;
+        if (o.Readable)
+            doc["$comment"] = Loc.For(lang,
+                "Ablauf für ein AutoHotkey-Skript: Fenster (wie sie gefunden werden), je Schritt die Wege zum Element nach Zuverlässigkeit (score 1–5), " +
+                "Eingaben, Wartesignale (wann die Anwendung bereit war), Erwartungen (was danach sichtbar sein soll), erkannte Parameter und Wiederholungen. " +
+                "Zeiten in Millisekunden, Koordinaten in physischen Pixeln ab der linken oberen Fensterecke. entwurf.ahk ist ein daraus erzeugter, kommentierter Skriptentwurf.",
+                "Workflow for an AutoHotkey script: windows (how they are found), per step the ways to the element by reliability (score 1–5), " +
+                "inputs, wait signals (when the application was ready), expectations (what should be visible afterwards), detected parameters and repetitions. " +
+                "Times in milliseconds, coordinates in physical pixels from the top left corner of the window. entwurf.ahk is a commented script draft generated from it.");
         File.WriteAllText(Path.Combine(dir, "ablauf.json"), Json.Pretty(doc), new UTF8Encoding(false));
         File.WriteAllText(Path.Combine(dir, "README_AHK_KI.md"), Readme(title, steps.Count, comparisons.Count > 0, lang), new UTF8Encoding(false));
         res.Files.AddRange(Directory.EnumerateFiles(dir, "*", SearchOption.AllDirectories));

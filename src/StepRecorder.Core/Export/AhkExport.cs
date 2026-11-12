@@ -19,6 +19,8 @@ public sealed class AhkOptions
     public bool Overwrite { get; set; } = true;
     /// <summary>Sprache der Kommentare und Meldungen im Skript (de/en); null = Sprache der Aufnahme.</summary>
     public string? Language { get; set; }
+    /// <summary>Für Menschen lesbar: Aufbau des Skripts erklärt und je Schritt ein Satz „Was hier passiert“.</summary>
+    public bool Readable { get; set; }
 }
 
 /// <summary>
@@ -120,6 +122,7 @@ public static class AhkExport
                     c.L(T(c, $";   wechselnd an Position {vv.Int("position")}: ", $";   varying at position {vv.Int("position")}: ") + string.Join(" | ", (vv.Arr("values") ?? new JsonArray()).Select(x => OneLine(x?.GetValue<string>() ?? "", 30))));
             }
             c.L(head + $" ({KindLabel(c, s.Kind)})");
+            if (o.Readable && (s.AuthorBody ?? s.Guide) is { Length: > 0 } words) c.L(T(c, "; Was hier passiert: ", "; What happens here: ") + OneLine(words));
             foreach (var cm in s.Comments) c.L(T(c, "; Hinweis: ", "; Note: ") + OneLine(cm.Str("text") ?? ""));
             if (j.Obj("ctx") is { } cx) c.L(T(c, "; Fenster: ", "; Window: ") + $"{OneLine(cx.Str("title") ?? "")} ({cx.Str("process")})");
             if (Uia(c, j.Obj("target")) is { } uia) c.L("; Element: " + uia);
@@ -180,6 +183,39 @@ public static class AhkExport
             $"; {nActions} automated steps. Please check before use – windows, positions and wait times may differ."));
         H(T(c, "; Abbrechen jederzeit mit Strg+Esc.", "; Abort at any time with Ctrl+Esc."));
         H(";");
+        if (o.Readable)
+        {
+            H("; ---------------------------------------------------------------------------------------------");
+            H(T(c, "; So ist dieses Skript aufgebaut", "; How this script is structured"));
+            H(";");
+            H(T(c, "; 1. Einstellungen (gleich unten): Tempo verlangsamt oder beschleunigt alle Pausen, Wartezeit legt fest,",
+                   "; 1. Settings (right below): Tempo slows down or speeds up all pauses, Wartezeit sets"));
+            H(T(c, ";    wie viele Sekunden auf ein Fenster gewartet wird, Streng = true bricht ab, wenn etwas anders aussieht als in der Aufnahme.",
+                   ";    how many seconds to wait for a window, Streng = true aborts if something looks different than in the recording."));
+            H(T(c, "; 2. Ablauf(): die aufgezeichneten Schritte der Reihe nach. Jeder Schritt beginnt mit „; --- Schritt N“,",
+                   "; 2. Ablauf(): the recorded steps in order. Each step starts with \"; --- Step N\";"));
+            H(T(c, ";    darunter steht in Worten, was passiert, in welchem Fenster und auf welchem Element.",
+                   ";    below it, in words, what happens, in which window and on which element."));
+            H(T(c, "; 3. Hilfsfunktionen am Ende:", "; 3. Helper functions at the end:"));
+            H(T(c, ";    Fenster(…)    wartet auf ein Fenster, holt es nach vorn und liefert sein Handle (hwnd).",
+                   ";    Fenster(…)    waits for a window, brings it to the front and returns its handle (hwnd)."));
+            H(T(c, ";    Warte(ms)     kurze Pause, skaliert mit Tempo.", ";    Warte(ms)     short pause, scaled by Tempo."));
+            H(T(c, ";    WarteBereit() wartet, bis die Anwendung nicht mehr beschäftigt ist (Sanduhr/Ladezeiger).",
+                   ";    WarteBereit() waits until the application is no longer busy (hourglass/loading pointer)."));
+            H(T(c, ";    Erwarte(…)    prüft, ob nach einem Schritt das Erwartete eingetreten ist (z. B. ein Fenster erschien).",
+                   ";    Erwarte(…)    checks whether the expected result occurred after a step (e.g. a window appeared)."));
+            H(";");
+            H(T(c, "; Begriffe: WinTitle beschreibt, wie AutoHotkey ein Fenster findet (Titel, ahk_exe = Programm, ahk_class = Fensterklasse).",
+                   "; Terms: WinTitle describes how AutoHotkey finds a window (title, ahk_exe = program, ahk_class = window class)."));
+            H(T(c, "; ClassNN ist der interne Name eines Steuerelements (z. B. Edit1 = erstes Eingabefeld). ControlClick/ControlSetText bedienen",
+                   "; ClassNN is the internal name of a control (e.g. Edit1 = first input field). ControlClick/ControlSetText operate"));
+            H(T(c, "; Elemente direkt, ohne die Maus zu bewegen – das ist robuster als Klicks auf Koordinaten. Koordinaten (x, y) zählen ab der",
+                   "; elements directly without moving the mouse – more robust than clicks on coordinates. Coordinates (x, y) count from the"));
+            H(T(c, "; linken oberen Ecke des Fensters in physischen Pixeln. Zeilen mit „;“ am Anfang sind Kommentare und werden nicht ausgeführt.",
+                   "; top left corner of the window in physical pixels. Lines starting with \";\" are comments and are not executed."));
+            H("; ---------------------------------------------------------------------------------------------");
+            H(";");
+        }
         H(T(c, "; Koordinaten sind physische Pixel wie in der Aufnahme (Per-Monitor-DPI):", "; Coordinates are physical pixels as in the recording (per-monitor DPI):"));
         H("DllCall(\"SetThreadDpiAwarenessContext\", \"ptr\", -4, \"ptr\")");
         H("SetTitleMatchMode 2");

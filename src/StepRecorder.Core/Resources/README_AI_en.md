@@ -269,6 +269,8 @@ Do not ask for these contents and do not try to reconstruct them from other plac
 - Gaps: no image at this level.
 - Markers and comments: the image for the marker.
 
+**Before image by reference.** By default a before image is only included if the screen before is not already shown in the package. Otherwise the step has the line `- Before: step006-after.png shows the screen before this step (no separate before image)` – that earlier image shows the same screen; rectangle and position details then refer to it. The crop still shows the click point and target frame. Which image kinds the author chose is listed in the header under “Images in package” and in `ai-package.json` under `imageSelection` (`before`: `auto`, `always` or `never`; `crop`, `after`: included yes/no). If an image kind is missing because the author deselected it, that does not mean nothing changed.
+
 “Compact” includes fewer; “Full” includes before, crop (mouse steps) and after images for every step, including minor ones. If an image is missing from the package, that does not mean it is missing from the recording (header: “Session images”).
 
 **Coordinates.** Every coordinate in `trace.md` applies **in the pixel space of the image named in the same line**: origin top left, x to the right, y downward.

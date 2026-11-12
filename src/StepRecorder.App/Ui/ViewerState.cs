@@ -12,7 +12,7 @@ namespace StepRecorder.App.Ui;
 /// </summary>
 sealed partial class ViewerWindow
 {
-    double _prefLeft = 320, _prefRight = 370;
+    double _prefLeft = LeftWide, _prefRight = RightWide;
 
     string SessionKey => _view.Session.SessionId is { Length: > 0 } id ? id : _path;
 

@@ -126,6 +126,18 @@ sealed partial class ViewerWindow
         return string.Format(header, startHtml, endHtml, startFrag, endFrag) + pre + fragment + post;
     }
 
+    /// <summary>Kurzer Clip (GIF) aus den gespeicherten Bildern des Schritts.</summary>
+    void SaveClip()
+    {
+        var s = Sel; if (s == null) return;
+        var ids = StepRecorder.Export.StepClip.FrameIds(_view, s);
+        if (ids.Count < 2) { Msg.Show(Loc.L("Für diesen Schritt gibt es nur ein Bild – ein Clip lohnt sich hier nicht. Mit dem Modus „KI-Spur“ oder vielen Zusatzbildern entstehen mehr Zwischenbilder.", "There is only one image for this step – a clip is not worthwhile here. The \"AI trace\" mode or many extra images produce more intermediate images."), "Clip", MessageBoxButton.OK, MessageBoxImage.Information); return; }
+        var dlg = new Microsoft.Win32.SaveFileDialog { FileName = Loc.For(_view.Language, "Schritt", "Step") + $"-{s.Number:00}-{Fmt.FileSafe(s.AuthorTitle ?? s.Title, 30)}.gif", Filter = Loc.L("Animiertes GIF", "Animated GIF") + "|*.gif" };
+        if (dlg.ShowDialog(this) != true) return;
+        int n = StepRecorder.Export.StepClip.Write(_view, s, dlg.FileName);
+        _status.Text = n > 0 ? Loc.F("Clip mit {0} Bildern gespeichert", "Clip with {0} images saved", n) : Loc.L("Kein Clip möglich", "No clip possible");
+    }
+
     void SaveImage()
     {
         var s = Sel; if (s == null) return;
@@ -212,7 +224,7 @@ sealed partial class ViewerWindow
         var r = StepCompare.Compare(me, other);
         var w = new Window { Title = Loc.L("Vergleich", "Comparison"),Width = 960, Height = 720, Owner = this };
         Theme.Prepare(w, Theme.Surface);
-        w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = 12.5, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(20, 16, 20, 16), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
+        w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = Theme.FsHint, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(28, 24, 28, 24), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
         w.Show();
     }
 }
@@ -220,10 +232,10 @@ sealed partial class ViewerWindow
 /// <summary>Einfacher Eingabedialog (Text, optional Titel und Kommentarart).</summary>
 sealed class InputDialog : Window
 {
-    readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxHeight = 260, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
+    readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 100, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     readonly TextBox? _title;
     readonly RadioButton[]? _kinds;
-    readonly TextBlock _titleLabel = U.Text(Loc.L("Titel", "Title"), 12.5, true, Theme.Fg2, new Thickness(0, 0, 0, 5));
+    readonly TextBlock _titleLabel = U.Text(Loc.L("Titel", "Title"), Theme.FsHint, true, Theme.Fg2, new Thickness(0, 0, 0, 6));
     public string Value => _value.Text;
     public string TitleValue => _title?.Text ?? "";
     public string Kind => _kinds == null ? "note" : Array.FindIndex(_kinds, k => k.IsChecked == true) switch { 1 => "tip", 2 => "warning", 3 => "internal", _ => "note" };
@@ -231,7 +243,7 @@ sealed class InputDialog : Window
 
     public InputDialog(string prompt, string value, string? title = null, bool kinds = false)
     {
-        Title = AppInfo.DisplayName; Width = 560; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        Title = AppInfo.DisplayName; Width = 600; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
         var p = new StackPanel();
         if (kinds)
@@ -239,14 +251,15 @@ sealed class InputDialog : Window
             var (track, items) = U.Segmented("kind", 0, (Theme.IComment, Loc.L("Hinweis", "Note")), (Theme.ICheck, Loc.L("Tipp", "Tip")), (Theme.IWarn, Loc.L("Achtung", "Warning")), (Theme.ILock, Loc.L("Intern", "Internal")));
             _kinds = items;
             items[3].ToolTip = Loc.L("Erscheint in keiner Ausgabe", "Does not appear in any output");
-            track.Margin = new Thickness(0, 0, 0, 14);
+            track.Margin = new Thickness(0, 0, 0, 16);
             p.Children.Add(track);
         }
-        if (title != null) { _title = new TextBox { Text = title }; p.Children.Add(new StackPanel { Margin = new Thickness(0, 0, 0, 14), Children = { _titleLabel, _title } }); }
+        if (title != null) { _title = new TextBox { Text = title }; p.Children.Add(new StackPanel { Margin = new Thickness(0, 0, 0, 16), Children = { _titleLabel, _title } }); }
         _value.Text = value;
         p.Children.Add(title != null ? U.Field(Loc.L("Text", "Text"), _value, margin: new Thickness(0)) : _value);
-        var hint = U.Row(U.Kbd(Loc.Keys("Ctrl+Enter")), U.Text(Loc.L("übernimmt", "applies"), 12, fg: Theme.Muted, margin: new Thickness(4, 1, 0, 0)));
-        hint.Margin = new Thickness(0, 10, 0, 0);
+        var hint = U.Row(U.Kbd(Loc.Keys("Ctrl+Enter")), U.Text(Loc.L("übernimmt", "applies"), Theme.FsHint, fg: Theme.Muted, margin: new Thickness(4, 0, 0, 0)));
+        ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
+        hint.Margin = new Thickness(0, 12, 0, 0);
         p.Children.Add(hint);
         U.Dialog(this, prompt, p, U.Primary(Loc.L("Übernehmen", "Apply"), () => DialogResult = true), U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) =>
@@ -265,13 +278,13 @@ sealed class ReviewWindow : Window
 
     public ReviewWindow(SessionView view)
     {
-        Title = Loc.L("Durchsicht der Eingaben", "Input review"); Width = 760; Height = 620; MinHeight = 400; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
+        Title = Loc.L("Durchsicht der Eingaben", "Input review"); Width = 800; Height = 660; MinHeight = 420; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Bg);
         var flagged = view.All.Where(s => s.Unreviewed).ToList();
         var others = view.All.Where(s => s.Kind == "type" && !s.Unreviewed && !s.Json.Obj("input")!.Bool("masked")).ToList();
-        var list = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
-        list.Children.Add(U.Text(Loc.L("Durchsicht der Eingaben", "Input review"), 18, true, margin: new Thickness(0, 0, 0, 4)));
-        list.Children.Add(U.Text(flagged.Count == 0 ? Loc.L("Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen.", "No conspicuous inputs. Please briefly check the remaining inputs.") : Loc.N(flagged.Count, "1 auffällige Eingabe – bitte entscheiden, ob sie bleiben darf.", "{0} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", "1 conspicuous input – please decide whether it may stay.", "{0} conspicuous inputs – please decide for each whether it may stay."), 13, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 16)));
+        var list = new StackPanel { Margin = new Thickness(28, 24, 28, 24) };
+        list.Children.Add(U.Heading(Loc.L("Durchsicht der Eingaben", "Input review"), Theme.FsTitle, new Thickness(0, 0, 0, 4)));
+        list.Children.Add(U.Text(flagged.Count == 0 ? Loc.L("Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen.", "No conspicuous inputs. Please briefly check the remaining inputs.") : Loc.N(flagged.Count, "1 auffällige Eingabe – bitte entscheiden, ob sie bleiben darf.", "{0} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", "1 conspicuous input – please decide whether it may stay.", "{0} conspicuous inputs – please decide for each whether it may stay."), Theme.FsBody, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 18)));
         var choices = new List<(ViewStep, RadioButton[])>();
         foreach (var s in flagged)
         {
@@ -280,13 +293,13 @@ sealed class ReviewWindow : Window
             choices.Add((s, items));
             var dock = new DockPanel();
             DockPanel.SetDock(track, Dock.Right); dock.Children.Add(track);
-            var badge = U.IconBadge(Theme.IWarn, 34, Theme.WarnSoft, Theme.Warn, 14); badge.Margin = new Thickness(0, 0, 14, 0); badge.VerticalAlignment = VerticalAlignment.Top;
+            var badge = U.IconBadge(Theme.IWarn, 36, Theme.WarnSoft, Theme.Warn, 16); badge.Margin = new Thickness(0, 0, 14, 0); badge.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(badge, Dock.Left); dock.Children.Add(badge);
             dock.Children.Add(U.Col(
-                U.Text(Loc.F("Schritt {0} · {1}", "Step {0} · {1}", s.Number, s.Json.Obj("ctx")?.Str("title")), 12, fg: Theme.Muted),
-                new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 12, 3) },
-                U.Text(Loc.L("Grund: ", "Reason: ") + Patterns.KindName(s.FlagReason ?? "", Loc.Lang), 12, fg: Theme.Warn)));
-            list.Children.Add(U.Card(dock, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 10)));
+                U.Text(Loc.F("Schritt {0} · {1}", "Step {0} · {1}", s.Number, s.Json.Obj("ctx")?.Str("title")), Theme.FsHint, fg: Theme.Muted),
+                new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = Theme.FsBody, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 12, 4) },
+                U.Text(Loc.L("Grund: ", "Reason: ") + Patterns.KindName(s.FlagReason ?? "", Loc.Lang), Theme.FsHint, fg: Theme.Warn)));
+            list.Children.Add(U.Card(dock, new Thickness(18, 16, 18, 16), new Thickness(0, 0, 0, 12)));
         }
         // Viele Terminal-Befehle: übrige Klartext-Eingaben gesammelt freigeben (Musterfunde brauchen weiter eine Einzelentscheidung)
         var plain = choices.Where(c => c.Item1.FlagReason == "plaintextWindow").ToList();
@@ -299,16 +312,16 @@ sealed class ReviewWindow : Window
         }
         if (others.Count > 0)
         {
-            list.Children.Add(U.Overline(Loc.F("Unauffällige Eingaben ({0})", "Inconspicuous inputs ({0})", others.Count), new Thickness(0, 14, 0, 8)));
+            list.Children.Add(U.SectionLabel(Loc.F("Unauffällige Eingaben ({0})", "Inconspicuous inputs ({0})", others.Count), new Thickness(0, 16, 0, 10)));
             var box = new StackPanel();
             foreach (var s in others.Take(50))
             {
-                var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
-                var n = U.Text(Loc.F("Schritt {0}", "Step {0}", s.Number), 12, fg: Theme.Muted); n.Width = 76; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
-                row.Children.Add(new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 12.5, TextWrapping = TextWrapping.Wrap });
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
+                var n = U.Text(Loc.F("Schritt {0}", "Step {0}", s.Number), Theme.FsHint, fg: Theme.Muted); n.Width = 88; DockPanel.SetDock(n, Dock.Left); row.Children.Add(n);
+                row.Children.Add(new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap });
                 box.Children.Add(row);
             }
-            list.Children.Add(U.Card(box, new Thickness(16, 10, 16, 10)));
+            list.Children.Add(U.Card(box, new Thickness(18, 12, 18, 12)));
         }
         var ok = U.Primary(Loc.L("Fertig", "Done"), () =>
         {
@@ -317,9 +330,7 @@ sealed class ReviewWindow : Window
             DialogResult = true;
         });
         var cancel = U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false);
-        var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Children = { ok, cancel } };
-        ok.Margin = new Thickness(8, 0, 0, 0); cancel.Margin = new Thickness(8, 0, 0, 0); cancel.MinWidth = 96;
-        var foot = new Border { Background = Theme.Surface, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(20, 12, 20, 12), Child = footer };
+        var foot = U.Footer(ok, cancel);
         var root = new DockPanel();
         DockPanel.SetDock(foot, Dock.Bottom);
         root.Children.Add(foot);

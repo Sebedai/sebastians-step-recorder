@@ -50,6 +50,17 @@ sealed class ExportDialog : Window
     readonly CheckBox _overview = new() { Content = Loc.L("Kleine Übersicht des ganzen Bildschirms einblenden", "Show a small overview of the whole screen"), IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
     readonly CheckBox _markMouse = new() { Content = Loc.L("Mausaktionen: Klickpunkt, Zugweg, Zielrahmen, Scrollrichtung", "Mouse actions: click point, drag path, target frame, scroll direction"), IsChecked = true, Margin = new Thickness(0, 2, 0, 6) };
     readonly CheckBox _markKeys = new() { Content = Loc.L("Tastatur: gedrückte Tasten und getippten Text als Tasten", "Keyboard: pressed keys and typed text as key caps"), IsChecked = true };
+    // Bildauswahl: KI-Paket (Vorher/Ausschnitt/Nachher) und Anleitungen (Nachher-Bild als „Ergebnis“)
+    readonly RadioButton[] _before, _guideAfter;
+    readonly FrameworkElement _beforeTrack, _guideAfterTrack;
+    readonly CheckBox _crop = new() { Content = Loc.L("Ausschnitt um die Aktion", "Close-up around the action"), IsChecked = true, Margin = new Thickness(0, 0, 0, 8) };
+    readonly CheckBox _afterImg = new() { Content = Loc.L("Nachher-Bild", "After image"), IsChecked = true };
+    readonly CheckBox _readable = new() { Content = Loc.L("Für Menschen lesbar – ausführlich kommentiert", "Readable for people – fully commented") };
+    readonly TextBlock _beforeHint = Hint(), _guideAfterHint = Hint(), _readableHint = Hint();
+    string Before => Array.FindIndex(_before, r => r.IsChecked == true) switch { 1 => "always", 2 => "never", _ => "auto" };
+    string GuideAfter => Array.FindIndex(_guideAfter, r => r.IsChecked == true) switch { 1 => "changed", 2 => "always", _ => "never" };
+    /// <summary>Formate mit „Ergebnis“-Bild (Nachher-Bild zusätzlich).</summary>
+    bool HasGuideAfter => Format is "html" or "md" or "docx" or "pdf";
 
     readonly StackPanel _info = new();
     readonly TextBlock _estimate = U.Text("", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 0));
@@ -122,6 +133,9 @@ sealed class ExportDialog : Window
         Detail = _detail.SelectedIndex switch { 0 => "compact", 2 => "full", _ => "standard" },
         ImageProfile = _profile.SelectedIndex switch { 1 => "highres", 2 => "original", _ => "compatible" }, Zip = _zip.IsChecked == true,
         RealTiming = _timing.IsChecked == true,
+        GuideAfter = HasGuideAfter ? GuideAfter : "never",
+        Before = Before, Crop = _crop.IsChecked == true, After = _afterImg.IsChecked == true,
+        Readable = (Format is "ki" or "ahk" or "ahk-ki") && _readable.IsChecked == true,
     };
 
     /// <param name="initial">Vorbelegung (gemerkte Optionen).</param>
@@ -147,6 +161,9 @@ sealed class ExportDialog : Window
         }
         _formatBtns = btns.ToArray();
         foreach (var (id, de, en, _, _) in GuidePresets.All) _preset.Items.Add(Loc.L(de, en));
+        var (beforeTrack, before) = U.Segmented("before", initial.Before switch { "always" => 1, "never" => 2, _ => 0 }, (null, Loc.L("Automatisch", "Automatic")), (null, Loc.L("Immer", "Always")), (null, Loc.L("Nie", "Never")));
+        var (guideAfterTrack, guideAfter) = U.Segmented("gafter", initial.GuideAfter switch { "changed" => 1, "always" => 2, _ => 0 }, (null, Loc.L("Nie", "Never")), (null, Loc.L("Bei Änderung", "On change")), (null, Loc.L("Immer", "Always")));
+        _before = before; _guideAfter = guideAfter; _beforeTrack = beforeTrack; _guideAfterTrack = guideAfterTrack;
 
         // Vorbelegung
         _lang.SelectedIndex = initial.Language == "en" ? 1 : 0;
@@ -161,6 +178,8 @@ sealed class ExportDialog : Window
         _profile.SelectedIndex = initial.ImageProfile switch { "highres" => 1, "original" => 2, _ => 0 };
         _zip.IsChecked = initial.Zip; _timing.IsChecked = initial.RealTiming;
         _ahkKi.IsChecked = Exporter.Normalize(initial.Format) == "ahk-ki" || initial.AhkKi;
+        _crop.IsChecked = initial.Crop; _afterImg.IsChecked = initial.After;
+        _readable.IsChecked = initial.Readable || AppSettings.Load().ExportReadable;
 
         // Speichern unter
         var browse = U.Btn(Theme.IFolder, Loc.L("Durchsuchen …", "Browse …"), Browse, null, "Ghost");
@@ -198,6 +217,14 @@ sealed class ExportDialog : Window
         G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
         var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), _gifSec, Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift.", "The GIF shows a title image, then every step with number and heading."));
         var ahkOpts = U.Col(_timing, _ahkKi); ahkOpts.Margin = new Thickness(0, 0, 0, 12);
+        var fBefore = U.Field(Loc.L("Vorher-Bild", "Before image"), U.Col(_beforeTrack, _beforeHint));
+        var fMore = U.Field(Loc.L("Weitere Bilder", "More images"), U.Col(_crop, _afterImg));
+        var fGuideAfter = U.Field(Loc.L("Nachher-Bild", "After image"), U.Col(_guideAfterTrack, _guideAfterHint));
+        var imageOpts = new Grid { Margin = new Thickness(0, 12, 0, 4) };
+        imageOpts.ColumnDefinitions.Add(new ColumnDefinition()); imageOpts.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); imageOpts.ColumnDefinitions.Add(new ColumnDefinition());
+        Grid.SetColumn(fBefore, 0); Grid.SetColumn(fGuideAfter, 0); Grid.SetColumn(fMore, 2);
+        imageOpts.Children.Add(fBefore); imageOpts.Children.Add(fGuideAfter); imageOpts.Children.Add(fMore);
+        var readableOpts = U.Col(_readable, _readableHint); readableOpts.Margin = new Thickness(0, 0, 0, 12);
         var marksOpts = U.Field(Loc.L("Im Bild markieren", "Mark in the image"), U.Col(_markMouse, _markKeys), Loc.L("Wie im Editor unter „Markierungen“; dort lässt sich das auch je Schritt ein- und ausschalten.", "As under \"Markers\" in the editor, where it can also be switched per step."));
 
         void Upd()
@@ -213,6 +240,33 @@ sealed class ExportDialog : Window
             fMissing.Visibility = guide && Format != "gif" ? Visibility.Visible : Visibility.Collapsed;
             fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             kiExtra.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            fBefore.Visibility = fMore.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            fGuideAfter.Visibility = HasGuideAfter && Preset == "standard" ? Visibility.Visible : Visibility.Collapsed;
+            imageOpts.Visibility = ki || fGuideAfter.Visibility == Visibility.Visible ? Visibility.Visible : Visibility.Collapsed;
+            readableOpts.Visibility = ki || ahk ? Visibility.Visible : Visibility.Collapsed;
+            _readableHint.Text = ki
+                ? (_readable.IsChecked == true
+                    ? Loc.L("Jede Angabe – auch Systeminfos, Belegqualität, Koordinaten und Lücken – wird in Klartext erklärt, jeder Schritt bekommt einen Satz „In Worten“, dazu LIESMICH.md und Kommentare in den JSON-Dateien. Etwa ein Drittel mehr Text – für eine KI unnötig.",
+                            "Every detail – including system info, evidence quality, coordinates and gaps – is explained in plain language, every step gets an \"In words\" sentence, plus LIESMICH.md and comments in the JSON files. About a third more text – unnecessary for an AI.")
+                    : Loc.L("Aus: knapp und tokensparend für KI-Assistenten. Einschalten, wenn Menschen das Paket lesen sollen (Helpdesk, Entwickler, Prüfung).",
+                            "Off: concise and token-saving for AI assistants. Switch on if people will read the package (helpdesk, developers, review)."))
+                : (_readable.IsChecked == true
+                    ? Loc.L("Das Skript erklärt seinen Aufbau, die Begriffe (WinTitle, ClassNN …) und bei jedem Schritt in Worten, was passiert.",
+                            "The script explains its structure, the terms (WinTitle, ClassNN …) and in words what happens at each step.")
+                    : Loc.L("Aus: nur die technischen Kommentare. Einschalten, wenn jemand das Skript verstehen oder anpassen soll.",
+                            "Off: only the technical comments. Switch on if someone needs to understand or adapt the script."));
+            _beforeHint.Text = Before switch
+            {
+                "always" => Loc.L("Jeder Mausschritt bekommt eine eigene Übersicht vor der Aktion – auch wenn sie dem Nachher-Bild des vorigen Schritts gleicht.", "Every mouse step gets its own overview before the action – even if it matches the previous step's after image."),
+                "never" => Loc.L("Keine Übersichten vor der Aktion. Klickpunkt und Zielrahmen zeigt weiterhin der Ausschnitt.", "No overviews before the action. The close-up still shows click point and target frame."),
+                _ => Loc.L("Nur wenn der Bildschirm davor nicht schon im Paket zu sehen ist – sonst verweist das Protokoll auf das frühere Bild.", "Only if the screen before is not already shown in the package – otherwise the trace refers to the earlier image.")
+            };
+            _guideAfterHint.Text = GuideAfter switch
+            {
+                "changed" => Loc.L("Zusätzlich das Bild nach dem Schritt („Ergebnis“), wenn sich mindestens 2 % des Bildschirms geändert haben oder ein Fenster auf- oder zuging.", "Additionally the image after the step (\"Result\") if at least 2 % of the screen changed or a window opened or closed."),
+                "always" => Loc.L("Zusätzlich das Bild nach jedem Schritt („Ergebnis“), sofern eines vorliegt.", "Additionally the image after every step (\"Result\"), if there is one."),
+                _ => Loc.L("Ein Bild je Schritt – wie im Editor.", "One image per step – as in the editor.")
+            };
             if (ki) ScheduleEstimate();
             _qualityRow.Visibility = _hasQuality && guide ? Visibility.Visible : Visibility.Collapsed;
             _impHint.Text = _imp.SelectedIndex switch
@@ -256,9 +310,11 @@ sealed class ExportDialog : Window
         foreach (var cb in new[] { _imp, _view, _detail, _profile, _gifSec, _missing }) cb.SelectionChanged += (_, _) => Upd();
         _ahkKi.Checked += (_, _) => Renamed(); _ahkKi.Unchecked += (_, _) => Renamed();
         _zip.Checked += (_, _) => Upd(); _zip.Unchecked += (_, _) => Upd();
+        foreach (var r in _before.Concat(_guideAfter)) r.Checked += (_, _) => Upd();
+        foreach (var chk in new[] { _crop, _afterImg, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, kiExtra, gifOpts, marksOpts, ahkOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, marksOpts, ahkOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 
@@ -366,6 +422,17 @@ sealed class ExportDialog : Window
         }
     }
 
+    /// <summary>Gewählte Bildarten als Aufzählung, z. B. „Vorher-Bild, Ausschnitt um den Klick und Nachher-Bild.“</summary>
+    string ImageKinds(bool full)
+    {
+        var kinds = new List<string>();
+        if (Before != "never") kinds.Add(Before == "auto" ? Loc.L("Vorher-Bild, wo es nicht schon im Paket steckt", "before image where the package does not already show that screen") : Loc.L("Vorher-Bild", "before image"));
+        if (_crop.IsChecked == true) kinds.Add(full ? Loc.L("Ausschnitt um die Aktion", "close-up around the action") : Loc.L("Ausschnitt um den Klick", "close-up around the click"));
+        if (_afterImg.IsChecked == true) kinds.Add(Loc.L("Nachher-Bild", "after image"));
+        if (kinds.Count == 0) return Loc.L("keinen Bildern (nur Bilder zu Markern).", "no images (only images for markers).");
+        return string.Join(", ", kinds.Take(kinds.Count - 1)) + (kinds.Count > 1 ? Loc.L(" und ", " and ") : "") + kinds[^1] + ".";
+    }
+
     (string, string)[] KiFiles()
     {
         string detail = _detail.SelectedIndex switch { 0 => "compact", 2 => "full", _ => "standard" };
@@ -378,10 +445,15 @@ sealed class ExportDialog : Window
             ("images\\", detail switch
             {
                 "compact" => Loc.L("nur Hauptschritte bekommen ein Bild: Ausschnitt um den Klick oder das Nachher-Bild.", "only main steps get an image: detail around the click or the after image."),
-                "full" => Loc.L("jeder Schritt mit Vorher-Bild, Ausschnitt um die Aktion und Nachher-Bild.", "every step with before image, detail around the action and after image."),
-                _ => Loc.L("Hauptschritte mit Vorher-Bild, Ausschnitt um den Klick und Nachher-Bild.", "main steps with before image, detail around the click and after image.")
+                "full" => Loc.F("jeder Schritt mit {0}", "every step with {0}", ImageKinds(full: true)),
+                _ => Loc.F("Hauptschritte mit {0}", "main steps with {0}", ImageKinds(full: false))
             })
         };
+        if (_readable.IsChecked == true)
+        {
+            l.Insert(0, ("LIESMICH.md", Loc.L("für Menschen: was im Paket steckt, wofür jede Datei ist und wie man es nutzt.", "for people: what the package contains, what each file is for and how to use it.")));
+            l[2] = ("trace.md", Loc.L("das Protokoll mit Erklärungen: jede Angabe in Klartext erläutert, jeder Schritt zusätzlich „In Worten“.", "the trace with explanations: every detail explained in plain language, every step also \"In words\"."));
+        }
         if (detail == "full") l.Add(("events.jsonl", Loc.L("alle Rohereignisse der Aufnahme (Maus, Tastatur, Fenster) – Passwörter und Schwärzungen bleiben ausgeblendet.", "all raw events of the recording (mouse, keyboard, windows) – passwords and redactions stay hidden.")));
         return l.ToArray();
     }

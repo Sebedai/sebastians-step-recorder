@@ -597,6 +597,7 @@ public sealed partial class Recorder
         ev2["hkl"] = KeyTranslator.HklHex(hkl);
         if (ch != null) ev2["ch"] = ch;
         if (dead) ev2["dead"] = true;
+        if (vk == 0xE5) ev2["ime"] = true;
         if (rep) ev2["rep"] = true;
         if (mods.Count > 0) ev2["mods"] = new JsonArray(mods.Select(s => (JsonNode)s).ToArray());
         ev2["locks"] = new JsonArray(_keys.Locks().Select(s => (JsonNode)s).ToArray());
@@ -682,9 +683,21 @@ public sealed partial class Recorder
 
     // ---------------- Wächter ----------------
 
-    long _lastHostBeat; int _missedBeats;
+    long _lastHostBeat, _lastReinstalls, _lastReinstallGap = long.MinValue / 2; int _missedBeats;
     void Watch()
     {
+        // Hooks wurden neu gesetzt: dazwischen können Eingaben fehlen
+        long re = _host.Ring.Reinstalls;
+        if (re != _lastReinstalls)
+        {
+            _lastReinstalls = re;
+            long now = Now();
+            if (State == RecorderState.Recording && now - _lastReinstallGap > 30_000_000)   // höchstens eine Lücke je 30 s (z. B. Remotedesktop mit eigenem Tastatur-Hook)
+            {
+                _lastReinstallGap = now;
+                SingleGap("hookLost", Math.Max(0, now - 1_500_000), now, "possible", new JsonObject { ["channel"] = "keyboard", ["reinstalled"] = true }, "keyboard", "mouse");
+            }
+        }
         long beat = _host.Ring.Heartbeat;
         if (beat == _lastHostBeat && State == RecorderState.Recording && !_host.InProcess)
         {

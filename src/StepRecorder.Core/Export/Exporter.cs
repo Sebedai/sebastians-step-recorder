@@ -24,7 +24,15 @@ public sealed class ExportRequest
     public string? MissingTranslation { get; set; }
     public string? TourHints { get; set; }
     public bool PptxNotes { get; set; } = true;
+    /// <summary>Anleitungen: Nachher-Bild zusätzlich als „Ergebnis“: never | changed (ab 2 % Änderung) | always.</summary>
+    public string GuideAfter { get; set; } = "never";
     // KI-Paket
+    /// <summary>Vorher-Bilder im KI-Paket: auto (nur wenn der Bildschirm davor nicht schon im Paket ist) | always | never.</summary>
+    public string Before { get; set; } = "auto";
+    public bool Crop { get; set; } = true;
+    public bool After { get; set; } = true;
+    /// <summary>KI-Paket und AutoHotkey für Menschen lesbar (ausführlich kommentiert).</summary>
+    public bool Readable { get; set; }
     public string? Detail { get; set; }
     public string? ImageProfile { get; set; }
     public bool Zip { get; set; }
@@ -42,6 +50,7 @@ public sealed class ExportRequest
         ["gifSeconds"] = GifSeconds, ["mouseMarks"] = MouseMarks, ["keyMarks"] = KeyMarks, ["template"] = Template, ["missingTranslation"] = MissingTranslation,
         ["tourHints"] = TourHints, ["pptxNotes"] = PptxNotes, ["detail"] = Detail, ["imageProfile"] = ImageProfile, ["zip"] = Zip, ["includeEvents"] = IncludeEvents,
         ["realTiming"] = RealTiming, ["images"] = Images, ["ahkKi"] = AhkKi, ["ocr"] = Ocr,
+        ["guideAfter"] = GuideAfter, ["before"] = Before, ["crop"] = Crop, ["after"] = After, ["readable"] = Readable,
     }.Clean();
 
     public static ExportRequest FromJson(JsonObject? o)
@@ -54,6 +63,9 @@ public sealed class ExportRequest
         r.Template = o.Str("template"); r.MissingTranslation = o.Str("missingTranslation"); r.TourHints = o.Str("tourHints"); if (o["pptxNotes"] != null) r.PptxNotes = o.Bool("pptxNotes");
         r.Detail = o.Str("detail"); r.ImageProfile = o.Str("imageProfile"); r.Zip = o.Bool("zip"); if (o["includeEvents"] != null) r.IncludeEvents = o.Bool("includeEvents");
         r.RealTiming = o.Bool("realTiming"); if (o["images"] != null) r.Images = o.Bool("images"); r.AhkKi = o.Bool("ahkKi"); if (o["ocr"] != null) r.Ocr = o.Bool("ocr");
+        r.GuideAfter = o.Str("guideAfter") is "changed" or "always" ? o.Str("guideAfter")! : "never";
+        r.Before = o.Str("before") is "always" or "never" ? o.Str("before")! : "auto";
+        if (o["crop"] != null) r.Crop = o.Bool("crop"); if (o["after"] != null) r.After = o.Bool("after"); r.Readable = o.Bool("readable");
         return r;
     }
 
@@ -165,19 +177,20 @@ public static class Exporter
                 {
                     Detail = r.Detail switch { "kompakt" or "compact" => "compact", "vollstaendig" or "vollständig" or "full" => "full", _ => "standard" },
                     ImageProfile = r.ImageProfile switch { "hochaufloesend" or "hochauflösend" or "highres" => "highres", "original" => "original", _ => "compatible" },
-                    OutDir = work, Zip = r.Zip, IncludeEvents = r.IncludeEvents, Language = r.Language, View = r.View ?? "screen"
+                    OutDir = work, Zip = r.Zip, IncludeEvents = r.IncludeEvents, Language = r.Language, View = r.View ?? "screen",
+                    Before = r.Before, Crop = r.Crop, After = r.After, Readable = r.Readable
                 });
             case "ahk" when r.AhkKi:
             case "ahk-ki":
-                return AhkKiPackage.Export(view, new AhkKiOptions { OutDir = work, With = r.With, Ocr = r.Ocr, Language = r.Language });
+                return AhkKiPackage.Export(view, new AhkKiOptions { OutDir = work, With = r.With, Ocr = r.Ocr, Language = r.Language, Readable = r.Readable });
             case "ahk":
-                return AhkExport.Export(view, new AhkOptions { OutPath = work, RealTiming = r.RealTiming, Images = r.Images, Language = r.Language });
+                return AhkExport.Export(view, new AhkOptions { OutPath = work, RealTiming = r.RealTiming, Images = r.Images, Language = r.Language, Readable = r.Readable });
             default:
                 return GuideExport.Export(view, new GuideOptions
                 {
                     Format = f, OutPath = work, Language = r.Language, Importance = r.Importance, View = r.View, Overview = r.Overview,
                     GifSeconds = r.GifSeconds, MouseMarks = r.MouseMarks, KeyMarks = r.KeyMarks, Preset = r.Template, MissingTranslation = r.MissingTranslation,
-                    TourHints = r.TourHints, PptxNotes = r.PptxNotes
+                    TourHints = r.TourHints, PptxNotes = r.PptxNotes, After = r.GuideAfter
                 });
         }
     }

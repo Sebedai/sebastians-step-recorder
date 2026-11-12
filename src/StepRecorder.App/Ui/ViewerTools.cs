@@ -40,29 +40,28 @@ sealed partial class ViewerWindow
         _details.Children.Clear();
         _editTitle = _editBody = null; _editAnchor = null;
         bool ro = _view.Session.ReadOnly;
-        var head = U.Text(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), 17, true, margin: new Thickness(0, 0, 0, 2)); head.FontFamily = Theme.Display;
-        _details.Children.Add(head);
-        _details.Children.Add(U.Text(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click selects a range. Everything here applies to all selected steps."), 12, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 6)));
+        _details.Children.Add(U.Heading(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), Theme.FsTitle, new Thickness(0, 0, 0, 4)));
+        _details.Children.Add(U.Hint(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click selects a range. Everything here applies to all selected steps.")));
 
-        WrapPanel Row() { var w = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) }; _details.Children.Add(w); return w; }
+        WrapPanel Row() { var w = new WrapPanel { Margin = new Thickness(-3, -3, 0, 0) }; _details.Children.Add(w); return w; }
         Button B(string? glyph, string text, Action a, string? tip = null) { var b = U.Btn(glyph, text, a, tip); b.IsEnabled = !ro; return b; }
 
-        _details.Children.Add(U.Overline(Loc.L("Sichtbarkeit", "Visibility"), new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.SectionLabel(Loc.L("Sichtbarkeit", "Visibility"), new Thickness(0, 20, 0, 10)));
         var r1 = Row();
         r1.Children.Add(B(Theme.IEye, Loc.L("Ausblenden", "Hide"), () => BulkEdit(steps, se => se["hidden"] = true)));
         r1.Children.Add(B(Theme.IEye, Loc.L("Einblenden", "Show"), () => BulkEdit(steps, se => se["hidden"] = false)));
 
-        _details.Children.Add(U.Overline(Loc.L("Wichtigkeit", "Importance"), new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.SectionLabel(Loc.L("Wichtigkeit", "Importance"), new Thickness(0, 20, 0, 10)));
         var r2 = Row();
         foreach (var (imp, name) in new[] { ("primary", Loc.L("Hauptschritt", "Main step")), ("secondary", Loc.L("Nebenschritt", "Secondary step")), ("trace", Loc.L("Spur", "Trace")) })
             r2.Children.Add(B(null, name, () => BulkEdit(steps.Where(s => !s.Manual), se => se["importance"] = imp)));
 
-        _details.Children.Add(U.Overline(Loc.L("Im Dokument", "In the document"), new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.SectionLabel(Loc.L("Im Dokument", "In the document"), new Thickness(0, 20, 0, 10)));
         var r3 = Row();
         r3.Children.Add(B(Theme.IDoc, Loc.L("Kapitel davor beginnen", "Start chapter before"), () => ToggleChapter(steps[0].Anchor, true), Loc.L("Vor dem ersten ausgewählten Schritt beginnt ein neues Kapitel", "A new chapter starts before the first selected step")));
         r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder zeigen", "Show images"), () => BulkEdit(steps, se => se.Remove("showImage"))));
         r3.Children.Add(B(Theme.ICamera, Loc.L("Bilder weglassen", "Omit images"), () => BulkEdit(steps, se => se["showImage"] = false)));
-        var size = new ComboBox { MinWidth = 200, IsEnabled = !ro, Margin = new Thickness(3, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
+        var size = new ComboBox { MinWidth = 220, IsEnabled = !ro, Margin = new Thickness(0, 6, 0, 0), HorizontalAlignment = HorizontalAlignment.Left };
         size.Items.Add(Loc.L("Bildgröße für alle …", "Image size for all …"));
         size.Items.Add(Loc.L("wie im Dokument", "as in the document"));
         foreach (var (_, name) in DocSettings.Sizes) size.Items.Add(name);
@@ -74,7 +73,7 @@ sealed partial class ViewerWindow
         };
         _details.Children.Add(size);
 
-        _details.Children.Add(U.Overline(Loc.L("Hinweiskasten", "Note"), new Thickness(0, 14, 0, 6)));
+        _details.Children.Add(U.SectionLabel(Loc.L("Hinweiskasten", "Note"), new Thickness(0, 20, 0, 10)));
         var r4 = Row();
         foreach (var (k, name) in NoteKinds)
             r4.Children.Add(B(Theme.IAdd, name, () =>
@@ -91,7 +90,7 @@ sealed partial class ViewerWindow
         var manual = steps.Where(s => s.Manual).ToList();
         if (manual.Count > 0)
         {
-            _details.Children.Add(U.Overline(Loc.L("Eingefügte Schritte", "Inserted steps"), new Thickness(0, 14, 0, 6)));
+            _details.Children.Add(U.SectionLabel(Loc.L("Eingefügte Schritte", "Inserted steps"), new Thickness(0, 20, 0, 10)));
             Row().Children.Add(B(Theme.IDelete, Loc.N(manual.Count, "{0} eingefügte löschen", "{0} eingefügte löschen", "Delete {0} inserted step", "Delete {0} inserted steps"), () => DeleteManual(manual)));
         }
     }
@@ -353,7 +352,7 @@ sealed partial class ViewerWindow
 /// <summary>Großer Countdown mitten auf dem Bildschirm (vor Bildschirmfotos und Aufnahmen).</summary>
 sealed class CountdownWindow : Window
 {
-    readonly TextBlock _num = new() { FontSize = 64, FontWeight = FontWeights.SemiBold, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center };
+    readonly TextBlock _num = new() { FontSize = 64, FontWeight = FontWeights.SemiBold, Foreground = Theme.Night.Fg, HorizontalAlignment = HorizontalAlignment.Center };
     int _left;
     public event Action? Finished;
 
@@ -363,11 +362,11 @@ sealed class CountdownWindow : Window
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent; Topmost = true; ShowInTaskbar = false; ShowActivated = false;
         SizeToContent = SizeToContent.WidthAndHeight; WindowStartupLocation = WindowStartupLocation.CenterScreen; ResizeMode = ResizeMode.NoResize;
         _num.FontFamily = Theme.Display;
-        var col = new StackPanel { Margin = new Thickness(36, 22, 36, 24) };
-        col.Children.Add(new TextBlock { Text = caption, Foreground = new SolidColorBrush(Color.FromRgb(0xBA, 0xB8, 0xB1)), FontSize = 14, HorizontalAlignment = HorizontalAlignment.Center });
+        var col = new StackPanel { Margin = new Thickness(40, 24, 40, 26) };
+        col.Children.Add(new TextBlock { Text = caption, Foreground = Theme.Night.Muted, FontSize = Theme.FsBody, HorizontalAlignment = HorizontalAlignment.Center });
         col.Children.Add(_num);
-        if (hint != null) col.Children.Add(new TextBlock { Text = hint, Foreground = new SolidColorBrush(Color.FromRgb(0xBA, 0xB8, 0xB1)), FontSize = 12.5, TextAlignment = TextAlignment.Center, MaxWidth = 360, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center });
-        Content = new Border { Background = new SolidColorBrush(Color.FromArgb(235, 0x17, 0x16, 0x14)), CornerRadius = new CornerRadius(12), BorderBrush = new SolidColorBrush(Color.FromRgb(0xFF, 0x6A, 0x2B)), BorderThickness = new Thickness(2), Child = col };
+        if (hint != null) col.Children.Add(new TextBlock { Text = hint, Foreground = Theme.Night.Muted, FontSize = Theme.FsHint, LineHeight = 19, TextAlignment = TextAlignment.Center, MaxWidth = 360, TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center });
+        Content = new Border { Background = Theme.Night.Pill, CornerRadius = new CornerRadius(Theme.RCard), BorderBrush = Theme.Night.Accent, BorderThickness = new Thickness(2), Child = col };
         _num.Text = _left.ToString();
         var t = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         t.Tick += (_, _) =>
@@ -387,21 +386,21 @@ sealed class CountdownWindow : Window
 sealed class SearchReplaceWindow : Window
 {
     readonly TextBox _find = new() { Tag = Loc.L("Suchen nach …", "Find …") }, _repl = new() { Tag = Loc.L("Ersetzen durch …", "Replace with …") };
-    readonly CheckBox _case = new() { Content = Loc.L("Groß-/Kleinschreibung beachten", "Match case"), Margin = new Thickness(0, 0, 18, 6) }, _word = new() { Content = Loc.L("Nur ganze Wörter", "Whole words only"), Margin = new Thickness(0, 0, 18, 6) };
-    readonly CheckBox _steps = new() { Content = Loc.L("Überschriften und Texte", "Headings and texts"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _notes = new() { Content = Loc.L("Hinweiskästen", "Notes"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) },
-        _chapters = new() { Content = Loc.L("Kapitel", "Chapters"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) }, _doc = new() { Content = Loc.L("Titel und Dokumenttexte", "Title and document texts"), IsChecked = true, Margin = new Thickness(0, 0, 18, 6) };
-    readonly TextBlock _count = new() { FontSize = 12.5, Margin = new Thickness(0, 8, 0, 0) };
+    readonly CheckBox _case = new() { Content = Loc.L("Groß-/Kleinschreibung beachten", "Match case"), Margin = new Thickness(0, 0, 20, 8) }, _word = new() { Content = Loc.L("Nur ganze Wörter", "Whole words only"), Margin = new Thickness(0, 0, 20, 8) };
+    readonly CheckBox _steps = new() { Content = Loc.L("Überschriften und Texte", "Headings and texts"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _notes = new() { Content = Loc.L("Hinweiskästen", "Notes"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) },
+        _chapters = new() { Content = Loc.L("Kapitel", "Chapters"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) }, _doc = new() { Content = Loc.L("Titel und Dokumenttexte", "Title and document texts"), IsChecked = true, Margin = new Thickness(0, 0, 20, 8) };
+    readonly TextBlock _count = new() { FontSize = Theme.FsBody, FontWeight = FontWeights.SemiBold, Margin = new Thickness(0, 8, 0, 0) };
     readonly ViewerWindow _v;
 
     public SearchReplaceWindow(ViewerWindow v)
     {
         _v = v;
-        Title = Loc.L("Suchen und Ersetzen", "Find and replace"); Width = 560; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = Loc.L("Suchen und Ersetzen", "Find and replace"); Width = 600; SizeToContent = SizeToContent.Height; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         var opts = new WrapPanel(); foreach (var c in new[] { _case, _word }) opts.Children.Add(c);
         var scope = new WrapPanel(); foreach (var c in new[] { _steps, _notes, _chapters, _doc }) scope.Children.Add(c);
-        var body = U.Col(U.Field(Loc.L("Suchen", "Find"), _find), U.Field(Loc.L("Ersetzen durch", "Replace with"), _repl), opts, U.Overline(Loc.L("Wo", "Where"), new Thickness(0, 10, 0, 6)), scope, _count,
-            U.Text(Loc.L("Ersetzt wird in der aktuellen Textsprache. Automatisch erzeugte Texte werden dabei zu Ihren eigenen Texten.", "Replacements apply to the current text language. Automatically generated texts become your own texts."), 11.5, fg: Theme.Muted, margin: new Thickness(0, 6, 0, 0)));
+        var body = U.Col(U.Field(Loc.L("Suchen", "Find"), _find), U.Field(Loc.L("Ersetzen durch", "Replace with"), _repl), opts, U.SectionLabel(Loc.L("Wo", "Where"), new Thickness(0, 12, 0, 10)), scope, _count,
+            U.Hint(Loc.L("Ersetzt wird in der aktuellen Textsprache. Automatisch erzeugte Texte werden dabei zu Ihren eigenen Texten.", "Replacements apply to the current text language. Automatically generated texts become your own texts."), new Thickness(0, 8, 0, 0)));
         var go = U.Primary(Loc.L("Alle ersetzen", "Replace all"), Apply);
         U.Dialog(this, Loc.L("Suchen und Ersetzen", "Find and replace"), body, go, U.Btn(Loc.L("Schließen", "Close"), Close));
         foreach (var t in new[] { _find, _repl }) t.TextChanged += (_, _) => Count();
@@ -443,8 +442,8 @@ sealed class PiiScanWindow : Window
     readonly ViewerWindow _v;
     readonly SessionView _view;
     readonly StackPanel _list = new();
-    readonly TextBlock _status = new() { FontSize = 12.5, Margin = new Thickness(0, 0, 0, 8) };
-    readonly ComboBox _style = new() { Items = { Loc.L("Schwärzen", "Redact"), Loc.L("Verpixeln", "Pixelate") }, SelectedIndex = 0, MinWidth = 140 };
+    readonly TextBlock _status = new() { FontSize = Theme.FsHint, Foreground = Theme.Fg2, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10) };
+    readonly ComboBox _style = new() { Items = { Loc.L("Schwärzen", "Redact"), Loc.L("Verpixeln", "Pixelate") }, SelectedIndex = 0, MinWidth = 150 };
     readonly List<(CheckBox cb, string frame, string m, System.Drawing.Rectangle rect)> _hits = new();
     readonly Button _apply;
     bool _cancel;
@@ -452,23 +451,29 @@ sealed class PiiScanWindow : Window
     public PiiScanWindow(ViewerWindow v, SessionView view)
     {
         _v = v; _view = view;
-        Title = Loc.L("Persönliche Daten in Bildern", "Personal data in images"); Width = 640; Height = 560; ResizeMode = ResizeMode.CanResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Title = Loc.L("Persönliche Daten in Bildern", "Personal data in images"); Width = 680; Height = 600; ResizeMode = ResizeMode.CanResize; ShowInTaskbar = false; WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Theme.Prepare(this, Theme.Surface);
         var body = new DockPanel();
-        var top = U.Col(U.Text(Loc.L("Die Texterkennung von Windows sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln. Gefundene Stellen werden nur im jeweiligen Bild geschwärzt.", "Windows text recognition searches all images for email addresses, IBANs, card numbers, phone numbers and keys. Matches are redacted only in the image where they were found."), 12.5, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)), _status);
+        var top = U.Col(U.Para(Loc.L("Die Texterkennung von Windows sucht in allen Bildern nach E-Mail-Adressen, IBANs, Kartennummern, Telefonnummern und Schlüsseln. Gefundene Stellen werden nur im jeweiligen Bild geschwärzt.", "Windows text recognition searches all images for email addresses, IBANs, card numbers, phone numbers and keys. Matches are redacted only in the image where they were found."), Theme.FsBody, Theme.Fg2, new Thickness(0, 0, 0, 12)), _status);
         DockPanel.SetDock(top, Dock.Top); body.Children.Add(top);
-        body.Children.Add(new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, MaxHeight = 330 });
+        // Liste füllt die (vergrößerbare) Fensterhöhe
+        body.Children.Add(new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
         _apply = U.Primary(Loc.L("Ausgewählte schwärzen", "Redact selected"), Apply, Theme.IShield);
         _apply.IsEnabled = false;
         var root = new DockPanel();
-        var footer = new DockPanel { Margin = new Thickness(20, 12, 20, 12) };
-        var right = U.Row(_apply, U.Btn(Loc.L("Schließen", "Close"), () => { _cancel = true; Close(); }));
-        DockPanel.SetDock(right, Dock.Right); footer.Children.Add(right);
-        footer.Children.Add(U.Row(U.Text(Loc.L("Art", "Style"), 12.5, fg: Theme.Muted, margin: new Thickness(0, 7, 8, 0)), _style));
-        var foot = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Child = footer };
+        var foot = U.Footer(_apply, U.Btn(Loc.L("Schließen", "Close"), () => { _cancel = true; Close(); }));
+        var art = U.Row(U.Text(Loc.L("Art", "Style"), Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 10, 0)), _style);
+        ((FrameworkElement)art.Children[0]).VerticalAlignment = VerticalAlignment.Center;
+        var footRow = new DockPanel();
+        var buttons = (UIElement)foot.Child; foot.Child = null;
+        DockPanel.SetDock(buttons, Dock.Right); footRow.Children.Add(buttons); footRow.Children.Add(art);
+        foot.Child = footRow;
         DockPanel.SetDock(foot, Dock.Bottom); root.Children.Add(foot);
-        var head = U.Text(Loc.L("Persönliche Daten in Bildern suchen", "Find personal data in images"), 18, true, margin: new Thickness(0, 0, 0, 10)); head.FontFamily = Theme.Display;
-        root.Children.Add(new Border { Padding = new Thickness(24, 20, 24, 12), Child = U.Col(head, body) });
+        var head = U.Heading(Loc.L("Persönliche Daten in Bildern suchen", "Find personal data in images"), Theme.FsTitle, new Thickness(0, 0, 0, 12));
+        DockPanel.SetDock(head, Dock.Top);
+        var main = new DockPanel { Margin = new Thickness(28, 24, 28, 16) };
+        main.Children.Add(head); main.Children.Add(body);
+        root.Children.Add(main);
         Content = root;
         Closed += (_, _) => _cancel = true;
         Loaded += async (_, _) => await Scan();
@@ -495,9 +500,9 @@ sealed class PiiScanWindow : Window
             {
                 found++;
                 var cb = new CheckBox { IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 10, 0) };
-                var row = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
+                var row = new DockPanel { Margin = new Thickness(0, 4, 0, 4) };
                 DockPanel.SetDock(cb, Dock.Left); row.Children.Add(cb);
-                var label = new TextBlock { FontSize = 12.5, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+                var label = new TextBlock { FontSize = Theme.FsHint, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
                 label.Inlines.Add(new System.Windows.Documents.Run(Loc.F("Schritt {0}  ", "Step {0}  ", step.Manual ? Loc.L("eingefügt", "inserted") : step.Number.ToString())) { FontFamily = Theme.Mono, Foreground = Theme.Muted });
                 label.Inlines.Add(new System.Windows.Documents.Run(Patterns.KindName(kind) + ": ") { FontWeight = FontWeights.SemiBold });
                 label.Inlines.Add(new System.Windows.Documents.Run(text));

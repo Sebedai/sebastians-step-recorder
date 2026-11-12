@@ -47,7 +47,8 @@ public sealed partial class StepBuilder
         long vk = e.Long("vk");
         var mods = e.StrList("mods");
         string? ch = e.Str("ch");
-        bool dead = e.Bool("dead");
+        bool dead = e.Bool("dead") || e.Bool("ime");   // IME-Tasten gehören zur Eingabe, ergeben aber selbst kein Zeichen
+        if (e.Bool("ime")) _runIme = true;
         bool isMod = KeyNames.IsModifier(key) || KeyNames.IsLock(key) || e.Bool("altGrPart");
         if (isMod)
         {
@@ -247,6 +248,8 @@ public sealed partial class StepBuilder
         _tokens.Add(tok);
     }
 
+    bool _runIme;
+
     void EndRun()
     {
         var st = _run;
@@ -257,7 +260,8 @@ public sealed partial class StepBuilder
         st.InputObj["masked"] = false;
         st.InputObj["count"] = _runKeys;
         if (_replayValid && _replay.Length > 0) st.InputObj["text"] = _replay.ToString();
-        st.InputObj["inputMethod"] = "keyboard";
+        st.InputObj["inputMethod"] = _runIme ? "ime" : "keyboard";
+        _runIme = false;
         st.InputObj["durationUs"] = Math.Max(0, _runLastT - _runFirstT);
         if (_pauses.Count > 0) st.InputObj["pauses"] = _pauses.DeepClone();
         if (_runCtx == "opaque") st.Flags.Add("plaintext");

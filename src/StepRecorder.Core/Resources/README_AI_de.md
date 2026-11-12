@@ -241,6 +241,8 @@ Frage nicht nach diesen Inhalten und versuche nicht, sie aus anderen Stellen zu 
 - Lücken, Systemschritte und Mausbewegungen: kein Bild.
 - Marker, Kommentare und Schnappschüsse: das Bild zum Zeitpunkt (in „Kompakt“ nur bei Hauptschritten).
 
+**Vorher-Bild per Verweis.** Standardmäßig liegt ein Vorher-Bild nur bei, wenn der Bildschirm davor nicht schon im Paket zu sehen ist. Sonst steht beim Schritt die Zeile `- Vorher: schritt006-nachher.png zeigt den Bildschirm vor diesem Schritt` – dieses frühere Bild zeigt denselben Bildschirm; Rechteck- und Positionsangaben beziehen sich dann darauf. Klickpunkt und Zielrahmen zeigt weiterhin der Ausschnitt. Welche Bildarten der Autor gewählt hat, steht im Kopf unter „Bilder im Paket“ und in `ai-package.json` unter `imageSelection` (`before`: `auto`, `always` oder `never`; `crop`, `after`: beigelegt ja/nein). Fehlt eine Bildart, weil der Autor sie abgewählt hat, heißt das nicht, dass sich nichts geändert hat.
+
 „Kompakt“ legt weniger bei. „Vollständig“ legt zu jedem Schritt Vorher-Bild, Ausschnitt (bei Mausschritten) und Nachher-Bild bei, beim Ziehen zusätzlich den Ausschnitt am Ende, und zu Lücken und Systemschritten das erste Bild danach. Fehlt im Paket ein Bild, heißt das nicht, dass es in der Aufnahme fehlt (Kopf: „Bilder der Sitzung“).
 
 **Koordinaten.** Jede Koordinate in `trace.md` gilt **im Pixelraum des Bildes, das in derselben Zeile genannt ist**: Ursprung oben links, x nach rechts, y nach unten.
