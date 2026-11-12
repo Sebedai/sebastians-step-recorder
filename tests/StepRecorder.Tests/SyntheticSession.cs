@@ -1,0 +1,131 @@
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Text.Json.Nodes;
+using StepRecorder.Data;
+
+namespace StepRecorder.Tests;
+
+/// <summary>Erzeugt eine künstliche Sitzung („Datei im Editor speichern“) für Regressionstests.</summary>
+public static class SyntheticSession
+{
+    /// <summary>Win32-Kontext eines Klicks in die Menüleiste des Editors (wie Win32Detail.AtPoint).</summary>
+    static JsonObject W32Click() => new()
+    {
+        ["src"] = "win32",
+        ["window"] = new JsonObject { ["hwnd"] = "0x00001000", ["title"] = "Unbenannt – Editor", ["class"] = "Notepad", ["pid"] = 10, ["exe"] = "notepad.exe", ["rect"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["w"] = 800, ["h"] = 600 }, ["state"] = "normal" },
+        ["point"] = new JsonObject { ["screen"] = new JsonArray(20, 14), ["window"] = new JsonArray(20, 14), ["client"] = new JsonArray(12, -16) },
+        ["pixel"] = "0xF0F0F0",
+        ["texts"] = new JsonArray(new JsonObject { ["c"] = "Static1", ["t"] = "Bereit" }),
+        ["ahk"] = new JsonObject { ["winTitle"] = "ahk_class Notepad ahk_exe notepad.exe", ["winTitleFull"] = "Unbenannt – Editor ahk_class Notepad ahk_exe notepad.exe" }
+    };
+
+    /// <summary>Win32-Kontext des Fokus im Dialog „Speichern unter“.</summary>
+    static JsonObject W32Focus() => new()
+    {
+        ["src"] = "win32",
+        ["window"] = new JsonObject { ["hwnd"] = "0x00002000", ["title"] = "Speichern unter", ["class"] = "#32770", ["pid"] = 10, ["exe"] = "notepad.exe" },
+        ["control"] = new JsonObject { ["hwnd"] = "0x00002010", ["class"] = "Edit", ["classNN"] = "Edit1", ["id"] = 1001, ["textWithheld"] = "editable" },
+        ["ahk"] = new JsonObject { ["winTitle"] = "ahk_class #32770 ahk_exe notepad.exe", ["winTitleFull"] = "Speichern unter ahk_class #32770 ahk_exe notepad.exe", ["control"] = "Edit1" }
+    };
+
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false)
+    {
+        folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
+        if (Directory.Exists(folder)) Directory.Delete(folder, true);
+        var manifest = new JsonObject
+        {
+            ["format"] = "steprec", ["schemaVersion"] = "1.0", ["sessionId"] = Json.NewUuid7(), ["title"] = "Datei im Editor speichern",
+            ["state"] = "recording", ["createdUtc"] = "2026-11-11T13:30:05.123456Z", ["timeZone"] = new JsonObject { ["id"] = "W. Europe Standard Time", ["offsetMin"] = 60 },
+            ["parts"] = new JsonArray(new JsonObject { ["part"] = 0, ["startUtc"] = "2026-11-11T13:30:05.123456Z", ["tStart"] = 0, ["qpcFrequency"] = 10000000, ["qpcAtStart"] = 1, ["tickCountAtStart"] = 1 }),
+            ["recorder"] = new JsonObject { ["name"] = AppInfo.Name, ["version"] = "test", ["arch"] = "x64", ["elevated"] = false, ["captureHost"] = "process" },
+            ["environment"] = new JsonObject { ["inputSettings"] = new JsonObject { ["doubleClickTimeMs"] = 500, ["doubleClickWidth"] = 4, ["doubleClickHeight"] = 4, ["dragWidth"] = 4, ["dragHeight"] = 4, ["wheelScrollLines"] = 3, ["hoverTimeMs"] = 400 } },
+            ["topology"] = new JsonObject(), ["settings"] = new JsonObject { ["language"] = "de" },
+            ["history"] = new JsonArray()
+        };
+        using var w = SessionWriter.Create(folder, manifest);
+        long inSeq = 0;
+        void E(JsonObject o) => w.Append(o);
+        E(new JsonObject { ["t"] = 0, ["type"] = "session.start", ["part"] = 0, ["schemaVersion"] = "1.0", ["sessionId"] = manifest["sessionId"]!.GetValue<string>(), ["utc"] = "2026-11-11T13:30:05.123456Z" });
+        E(new JsonObject { ["t"] = 0, ["type"] = "system", ["kind"] = "environment" });
+        E(new JsonObject { ["t"] = 0, ["type"] = "display.topology", ["epoch"] = 0, ["reason"] = "initial", ["virtual"] = new JsonObject { ["x"] = 0, ["y"] = 0, ["w"] = 200, ["h"] = 100 }, ["monitors"] = new JsonArray(new JsonObject { ["id"] = "M1", ["name"] = "\\\\.\\DISPLAY1", ["primary"] = true, ["vx"] = 0, ["vy"] = 0, ["w"] = 200, ["h"] = 100, ["dpi"] = 96, ["scale"] = 1.0, ["rotation"] = 0, ["backend"] = "gdi" }) });
+        E(new JsonObject { ["t"] = 0, ["type"] = "keystate.sync", ["reason"] = "initial", ["down"] = new JsonArray(), ["mouseDown"] = new JsonArray(), ["locks"] = new JsonArray() });
+        E(new JsonObject { ["t"] = 0, ["type"] = "scope.change", ["mode"] = "screen", ["monitors"] = "all", ["reason"] = "initial" });
+        E(new JsonObject { ["t"] = 0, ["type"] = "window.info", ["win"] = "w1", ["hwnd"] = "0x00001000", ["pid"] = 10, ["process"] = "notepad.exe", ["title"] = "Unbenannt – Editor", ["kind"] = "window", ["ep"] = 0, ["rect"] = new JsonObject { ["m"] = "M1", ["x"] = 0, ["y"] = 0, ["w"] = 200, ["h"] = 100 } });
+        E(new JsonObject { ["t"] = 0, ["type"] = "window.foreground", ["win"] = "w1" });
+        string Frame(long t, string id, string trigger, long? refSeq, Color c, string? baseId = null)
+        {
+            using var bmp = new Bitmap(200, 100, PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(bmp)) { g.Clear(Color.White); g.FillRectangle(new SolidBrush(c), 50, 30, 60, 20); }
+            using var ms = new MemoryStream(); bmp.Save(ms, ImageFormat.Png);
+            var blob = w.WriteBlob(ms.ToArray());
+            var f = new JsonObject { ["t"] = t, ["type"] = "frame", ["id"] = id, ["ep"] = 0, ["m"] = "M1", ["w"] = 200, ["h"] = 100, ["trigger"] = trigger, ["store"] = new JsonObject { ["kind"] = "key", ["blob"] = blob, ["bytes"] = ms.Length } };
+            if (refSeq != null) f["ref"] = refSeq;
+            if (trigger == "preInput") f["guarantee"] = "beforeInput";
+            if (trigger == "settle") f["settle"] = new JsonObject { ["reason"] = "quiet", ["quietMs"] = 300 };
+            E(f);
+            return id;
+        }
+        Frame(0, "f000001", "sessionStart", null, Color.Gray);
+        // Mausweg + Klick auf „Datei“
+        long mv = w.Append(new JsonObject { ["t"] = 1_000_000, ["inSeq"] = ++inSeq, ["type"] = "mouse.move", ["ep"] = 0, ["m"] = "M1", ["x"] = 10, ["y"] = 10, ["n"] = 3, ["d"] = new JsonArray(new JsonArray(10000, 5, 2), new JsonArray(10000, 5, 2)), ["tEnd"] = 1_020_000, ["xEnd"] = 20, ["yEnd"] = 14 });
+        inSeq += 2;
+        long dwell = w.Append(new JsonObject { ["t"] = 1_100_000, ["tObs"] = 1_130_000, ["type"] = "element", ["trigger"] = "dwell", ["ref"] = mv, ["status"] = "ok", ["src"] = "uia", ["ms"] = 30, ["ep"] = 0, ["m"] = "M1", ["x"] = 20, ["y"] = 14, ["win"] = "w1", ["el"] = new JsonObject { ["rid"] = "42.1", ["ct"] = "MenuItem", ["name"] = "Datei", ["rect"] = new JsonObject { ["m"] = "M1", ["x"] = 10, ["y"] = 8, ["w"] = 30, ["h"] = 12 } } });
+        long down = w.LastSeq + 1;
+        E(new JsonObject { ["t"] = 1_500_000, ["inSeq"] = ++inSeq, ["type"] = "mouse.down", ["ep"] = 0, ["m"] = "M1", ["x"] = 20, ["y"] = 14, ["button"] = "primary", ["physButton"] = "left", ["win"] = "w1", ["fg"] = "w1" });
+        Frame(1_450_000, "f000002", "preInput", down, Color.Gray);
+        E(new JsonObject { ["t"] = 1_510_000, ["tObs"] = 1_540_000, ["type"] = "element", ["trigger"] = "buttonDown", ["ref"] = down, ["status"] = "ok", ["src"] = "uia", ["ms"] = 30, ["ep"] = 0, ["m"] = "M1", ["x"] = 20, ["y"] = 14, ["win"] = "w1", ["win32"] = W32Click(), ["dwellRef"] = dwell, ["dwellValid"] = true, ["el"] = new JsonObject { ["rid"] = "42.1", ["ct"] = "MenuItem", ["name"] = "Datei", ["rect"] = new JsonObject { ["m"] = "M1", ["x"] = 10, ["y"] = 8, ["w"] = 30, ["h"] = 12 } } });
+        long up = w.LastSeq + 1;
+        E(new JsonObject { ["t"] = 1_580_000, ["inSeq"] = ++inSeq, ["type"] = "mouse.up", ["ep"] = 0, ["m"] = "M1", ["x"] = 20, ["y"] = 14, ["button"] = "primary", ["physButton"] = "left", ["win"] = "w1", ["fg"] = "w1" });
+        E(new JsonObject { ["t"] = 1_600_000, ["type"] = "window.info", ["win"] = "w2", ["hwnd"] = "0x00002000", ["pid"] = 10, ["process"] = "notepad.exe", ["title"] = "Speichern unter", ["kind"] = "dialog", ["owner"] = "w1" });
+        E(new JsonObject { ["t"] = 1_600_000, ["type"] = "window.open", ["win"] = "w2", ["kind"] = "dialog", ["first"] = true });
+        Frame(1_900_000, "f000003", "settle", up, Color.Red);
+        // Fokus im Dialog, Tippen „notiz.txt“ + Enter
+        long focus = w.Append(new JsonObject { ["t"] = 2_000_000, ["type"] = "focus", ["win"] = "w2", ["ctx"] = "textField", ["ctxSrc"] = "uia", ["el"] = new JsonObject { ["rid"] = "42.2", ["ct"] = "Edit", ["name"] = "Dateiname:" } });
+        w.Append(new JsonObject { ["t"] = 2_000_000, ["type"] = "element", ["trigger"] = "focus", ["ref"] = focus, ["win32"] = W32Focus(), ["status"] = "ok", ["src"] = "uia", ["ms"] = 10, ["win"] = "w2", ["el"] = new JsonObject { ["rid"] = "42.2", ["ct"] = "Edit", ["name"] = "Dateiname:", ["value"] = "" } });
+        w.Append(new JsonObject { ["t"] = 2_000_100, ["type"] = "ui.value", ["el"] = new JsonObject { ["rid"] = "42.2", ["ct"] = "Edit", ["name"] = "Dateiname:" }, ["win"] = "w2", ["phase"] = "focusIn", ["value"] = "" });
+        long t = 3_000_000;
+        string text = withSecret ? "sk-abcdefghijklmnopqrstuvwxyz" : "notiz.txt";
+        long firstKey = 0;
+        foreach (char c in text)
+        {
+            uint vk = char.IsLetter(c) ? char.ToUpperInvariant(c) : (uint)0xBE;
+            long s = w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = vk, ["sc"] = 1, ["key"] = char.IsLetter(c) ? char.ToUpperInvariant(c).ToString() : "OemPeriod", ["hkl"] = "04070407", ["ch"] = c.ToString(), ["locks"] = new JsonArray(), ["fg"] = "w2", ["focus"] = focus, ["ctx"] = "textField" });
+            if (firstKey == 0) { firstKey = s; Frame(t - 50_000, "f000004", "preInput", s, Color.Red); }
+            w.Append(new JsonObject { ["t"] = t + 40_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = vk, ["sc"] = 1, ["key"] = char.IsLetter(c) ? char.ToUpperInvariant(c).ToString() : "OemPeriod", ["fg"] = "w2" });
+            t += 100_000;
+        }
+        w.Append(new JsonObject { ["t"] = t + 300_000, ["type"] = "ui.value", ["el"] = new JsonObject { ["rid"] = "42.2", ["ct"] = "Edit", ["name"] = "Dateiname:" }, ["win"] = "w2", ["phase"] = "poll", ["value"] = text });
+        t += 500_000;
+        long enter = w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w2", ["focus"] = focus, ["ctx"] = "textField" });
+        w.Append(new JsonObject { ["t"] = t + 50_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w2" });
+        w.Append(new JsonObject { ["t"] = t + 100_000, ["type"] = "window.close", ["win"] = "w2", ["destroyed"] = true });
+        w.Append(new JsonObject { ["t"] = t + 120_000, ["type"] = "window.title", ["win"] = "w1", ["title"] = "notiz.txt – Editor" });
+        Frame(t + 400_000, "f000005", "settle", enter, Color.Green);
+        if (withPassword)
+        {
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["tEnd"] = t + 800_000, ["type"] = "text.masked", ["count"] = 8, ["inSeq"] = ++inSeq, ["inSeqEnd"] = inSeq + 15, ["events"] = 16, ["reason"] = "passwordField", ["fg"] = "w1" });
+            inSeq += 15;
+        }
+        if (withHotkey)
+        {
+            // Strg+1 im Editor
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 0xA2, ["sc"] = 29, ["key"] = "LeftCtrl", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w1", ["ctx"] = "textField" });
+            w.Append(new JsonObject { ["t"] = t + 100_000, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 0x31, ["sc"] = 2, ["key"] = "1", ["hkl"] = "04070407", ["mods"] = new JsonArray("ctrl"), ["locks"] = new JsonArray(), ["fg"] = "w1", ["ctx"] = "textField" });
+            w.Append(new JsonObject { ["t"] = t + 150_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 0x31, ["sc"] = 2, ["key"] = "1", ["fg"] = "w1" });
+            w.Append(new JsonObject { ["t"] = t + 200_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 0xA2, ["sc"] = 29, ["key"] = "LeftCtrl", ["fg"] = "w1" });
+        }
+        // Lücke (Pause)
+        t += 1_000_000;
+        w.Append(new JsonObject { ["t"] = t, ["type"] = "gap", ["gapId"] = "g1", ["phase"] = "begin", ["cause"] = "paused", ["tFrom"] = t, ["channels"] = new JsonArray("all"), ["inputLost"] = "possible" });
+        w.Append(new JsonObject { ["t"] = t, ["type"] = "session.pause", ["reason"] = "user", ["gapId"] = "g1" });
+        w.Append(new JsonObject { ["t"] = t + 2_000_000, ["type"] = "gap", ["gapId"] = "g1", ["phase"] = "end", ["cause"] = "paused", ["tFrom"] = t, ["tTo"] = t + 2_000_000, ["channels"] = new JsonArray("all"), ["inputLost"] = "possible" });
+        w.Append(new JsonObject { ["t"] = t + 2_000_000, ["type"] = "session.resume", ["gapId"] = "g1" });
+        long end = t + 5_000_000;
+        w.Append(new JsonObject { ["t"] = end - 1_000_000, ["type"] = "marker", ["id"] = "mk1", ["kind"] = "expected", ["label"] = "So soll es sein", ["frame"] = "f000005" });
+        w.Append(new JsonObject { ["t"] = end, ["type"] = "session.stop", ["reason"] = "user", ["utc"] = "2026-11-11T13:30:20.000000Z" });
+        w.Close(end, m => { m["state"] = "complete"; m["durationUs"] = end; m["endedUtc"] = "2026-11-11T13:30:20.000000Z"; });
+        return folder;
+    }
+}

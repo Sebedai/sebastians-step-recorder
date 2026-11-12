@@ -1,0 +1,10 @@
+bin/
+obj/
+artifacts/
+*.user
+.vs/
+Sessions/
+StepRecorder.settings.json
+StepRecorder.state.json
+StepRecorder.log
+dist/

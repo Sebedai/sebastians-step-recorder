@@ -1,0 +1,915 @@
+# 09 – Anleitungs-Export
+
+Status: Entwurf 0.1 · Stand: 2026-11-11
+
+Dieses Dokument legt fest, wie aus einer Sitzung eine Anleitung für Menschen wird: als HTML, Markdown, Word-Dokument oder PDF. Es beschreibt den Exportdialog, die Optionen, die Eigenschaften jedes Formats, Vorlagen, die Entschärfung aufgezeichneter Texte, die Prüfung vor dem Export mit dem Regelkatalog der Qualitätsprüfung, das Support-Paket und den Export über die Kommandozeile. Das KI-Paket ist kein Anleitungs-Export und steht in [06](06-ki-export-und-mcp.md).
+
+## Inhalt
+
+1. [Zweck und Abgrenzung](#1-zweck-und-abgrenzung)
+2. [Grundsätze](#2-grundsätze)
+3. [Exportdialog und Ein-Klick-Export](#3-exportdialog-und-ein-klick-export)
+4. [Gemeinsame Optionen](#4-gemeinsame-optionen)
+5. [HTML](#5-html)
+6. [Markdown](#6-markdown)
+7. [DOCX](#7-docx)
+8. [PDF](#8-pdf)
+9. [Vorlagen und Branding](#9-vorlagen-und-branding)
+10. [Sprache der Schritttexte](#10-sprache-der-schritttexte)
+11. [Entschärfung aufgezeichneter Texte](#11-entschärfung-aufgezeichneter-texte)
+12. [Export-Vorprüfung](#12-export-vorprüfung)
+13. [Dateibenennung und Ablage](#13-dateibenennung-und-ablage)
+14. [Kommandozeilen-Export](#14-kommandozeilen-export)
+15. [Qualitätsziele](#15-qualitätsziele)
+16. [Beispiele](#16-beispiele)
+17. [Anforderungen](#17-anforderungen)
+18. [Offene Punkte](#18-offene-punkte)
+
+## 1 Zweck und Abgrenzung
+
+Der Anleitungs-Export erzeugt aus einer Sitzung ein Dokument, das ein Leser ohne das Programm öffnen kann. Er übernimmt, was der Autor im [Viewer](08-viewer.md) festgelegt hat: Texte, Reihenfolge, Kapitel, Kommentare, Markierungen, Darstellung und Schwärzungen.
+
+| Thema | Steht in |
+|---|---|
+| Bearbeiten der Sitzung, schnelles Kopieren einzelner Bilder und Schritte | [08 Viewer](08-viewer.md) |
+| KI-Paket und MCP-Server | [06 KI-Export und MCP](06-ki-export-und-mcp.md) |
+| Schrittarten, Wichtigkeitsstufen, Textvorlagen und Tastennamen je Sprache | [05 Schritterkennung](05-schritterkennung.md) |
+| Regeln für Schwärzung, sensible Muster und die Durchsicht der Eingaben | [10 Datenschutz und Sicherheit](10-datenschutz-und-sicherheit.md) |
+| Datenbestand und `edits.json` | [04 Datenformat](04-datenformat.md) |
+| Allgemeine Regeln der Kommandozeile, verwendete Bibliotheken | [02 Architektur](02-architektur.md) |
+
+## 2 Grundsätze
+
+1. **Eine Quelle.** Der Export liest dieselbe Sitzung über dieselbe Leseschicht wie der Viewer und zeichnet Bilder in derselben Reihenfolge ([08](08-viewer.md#71-grundsätze)). Ein exportiertes Bild gleicht dem im Viewer angezeigten.
+2. **Schwärzungen sind erzwungen.** Es gibt keine Exportoption, die sie abschaltet.
+3. **In sich geschlossen.** Die Ausgabe enthält keine Verweise nach außen und lädt nichts nach. Erzeugt wird sie ohne Netzwerk, ohne Browser und ohne installiertes Office.
+4. **Aufgezeichnete Texte sind Daten.** Fenstertitel, Elementnamen und Eingaben werden so ausgegeben, dass sie nie als Auszeichnung, Verweis oder Skript wirken ([Abschnitt 11](#11-entschärfung-aufgezeichneter-texte)).
+5. **Ohne das Programm lesbar.** Der Leser braucht nur einen Browser, eine Textverarbeitung oder einen PDF-Betrachter.
+6. **Wiederholbar.** Dieselbe Sitzung mit denselben Einstellungen ergibt denselben Inhalt.
+7. **Zugänglich.** Jedes Bild hat einen Alternativtext, die Dokumente haben eine Überschriftenstruktur und eine Sprachangabe.
+
+## 3 Exportdialog und Ein-Klick-Export
+
+### 3.1 Exportdialog
+
+Aufruf mit `Strg+E` oder „Export“ im Viewer.
+
+```
+┌─ Anleitung exportieren ─────────────────────────────────────────────────────────┐
+│ Format:    (•) HTML   ( ) Markdown   ( ) Word (DOCX)   ( ) PDF   ( ) KI-Paket   │
+│ Vorlage:   [Standard                  v]                                        │
+│                                                                                 │
+│ Schritte:  (•) Hauptschritte   ( ) Alle   ( ) Auswahl (7)                       │
+│ Bilder:    [Wie im Viewer festgelegt  v]    Nachher-Bild: [Wie im Viewer    v]  │
+│ Sprache:   [Deutsch v]                      Anrede:       [Sie              v]  │
+│ Umfang:    [x] Titelblatt   [x] Inhaltsverzeichnis   [x] Kommentare             │
+│                                                           [Mehr Optionen v]     │
+│ ─────────────────────────────────────────────────────────────────────────────── │
+│ Prüfung:   (!) 1 auffällige Eingabe ungeprüft                   [Jetzt prüfen]  │
+│            (i) 2 Schwärzungen werden angewendet · 23 Schritte · etwa 4 MB       │
+│ ─────────────────────────────────────────────────────────────────────────────── │
+│ Ziel:      C:\...\export\Editor – notiz.txt.html                    [Ändern]    │
+│                                                                                 │
+│ [Vorschau]                                         [Exportieren]  [Abbrechen]   │
+└─────────────────────────────────────────────────────────────────────────────────┘
+```
+
+- Der Dialog öffnet mit den Einstellungen des letzten Exports dieser Sitzung ([4.5](#45-gespeicherte-export-einstellungen)); gibt es keinen, mit denen des letzten Exports überhaupt, sonst mit der Vorlage „Standard“.
+- **Aufnahmeprofil (Soll):** Hat das Profil der Sitzung ein Format mit Vorlage festgelegt ([07](07-aufnahme-bedienung.md#47-aufnahmeprofile)), öffnet sich der Dialog nach dem Stopp von selbst über dem Viewer und ist damit ausgefüllt – solange die Sitzung noch keinen eigenen Export hat. Exportiert wird erst mit „Exportieren“; Vorprüfung und Durchsicht gelten wie immer.
+- „Exportieren“ ist die Standardschaltfläche. Der häufigste Weg ist damit `Strg+E`, Eingabetaste.
+- Die Zeile **Prüfung** zeigt das Ergebnis der [Vorprüfung](#12-export-vorprüfung) und aktualisiert sich bei jeder Änderung.
+- **Vorschau** (Soll) erzeugt die Ausgabe im Ordner `export/.tmp/` der Sitzung – nie in `%TEMP%` – und öffnet sie im Standardprogramm für das Format. Die Vorschaudatei wird beim Schließen der Sitzung entfernt.
+- Der Export läuft im Hintergrund mit Fortschrittsanzeige und lässt sich abbrechen. Ein abgebrochener Export hinterlässt keine unvollständige Datei.
+
+### 3.2 Ein-Klick-Export
+
+`Strg+Umschalt+E` exportiert ohne Dialog im zuletzt genutzten Format mit den zuletzt genutzten Einstellungen.
+
+- Meldet die Vorprüfung eine Sperre oder Warnung, öffnet sich stattdessen der Dialog mit dem Befund.
+- Hinweise ohne Handlungsbedarf erscheinen in der Erfolgsmeldung.
+
+### 3.3 Nach dem Export
+
+Eine Meldung im Viewer nennt die erzeugte Datei und bietet an: **Öffnen**, **Ordner zeigen**, **Pfad kopieren**, **Datei kopieren** (zum Einfügen als E-Mail-Anhang).
+
+### 3.4 KI-Paket im selben Dialog
+
+Der Exportdialog bietet als fünftes Ziel das **KI-Paket** an. Statt der Optionen aus [Abschnitt 4](#4-gemeinsame-optionen) zeigt er dann die des KI-Pakets – Detailstufe, Bildprofil, Darstellung, Sprache, Umgang mit ausgeblendeten Schritten – und, bevor etwas geschrieben wird, die Token-Abschätzung. Inhalt, Optionen und Abschätzung legt [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile) fest. Vorprüfung, Fortschritt, Ablage und die Aktionen nach dem Export sind dieselben wie bei den Anleitungsformaten. Auf der Kommandozeile entsteht das KI-Paket mit `export <Sitzung> --format ki` ([Abschnitt 14](#14-kommandozeilen-export)).
+
+### 3.5 Support-Paket
+
+Das Support-Paket ist eine ZIP-Datei zum Weitergeben an jemanden, der helfen soll (Soll). Es entsteht nur aus dem geführten Ablauf im Viewer ([08](08-viewer.md#122-support-paket-geführter-ablauf)), weil dort die Durchsicht stattfindet. Wie es gebaut wird, legt [02](02-architektur.md#support-paket) fest, die Schutzregeln [10](10-datenschutz-und-sicherheit.md#113-support-paket), das KI-Paket darin [06](06-ki-export-und-mcp.md#32-das-ki-paket-im-support-paket); hier stehen Inhalt, Benennung und Ablage.
+
+```
+Support-2026-11-11-Editor – notiz.txt.zip
+├── Editor – notiz.txt.html          Anleitung als eine Datei
+└── Editor – notiz.txt.ki-paket/     KI-Paket
+    ├── README_AI.md
+    ├── trace.md
+    ├── steps.json
+    └── …                            Bilder
+```
+
+| Bestandteil | Inhalt | Festlegung |
+|---|---|---|
+| Anleitung | HTML als eine Datei nach [Abschnitt 5](#5-html) | Vorlage „Standard“, Hauptschritte, Darstellung wie im Viewer festgelegt, Sprache der Sitzung. Am Anfang stehen Ziel, erwartetes Ergebnis, Bezug und der Hinweis für den Empfänger ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)). |
+| KI-Paket | Ordner `<Titel>.ki-paket/` neben der HTML-Datei, nicht noch einmal gepackt; Aufbau nach [06](06-ki-export-und-mcp.md#32-das-ki-paket-im-support-paket) | Detailstufe „Standard“, Bildprofil „kompatibel“, Sprache der Sitzung; ohne Rohereignisse, Text-Schnappschüsse und PDF-Variante. Es ist dasselbe Paket, das `export --format ki` mit Standardoptionen aus der bereinigten Kopie erzeugt. Der Hinweis für den Empfänger steht nicht darin. |
+
+- **Nur diese beiden Ausgaben.** Die Sitzung selbst – Rohprotokoll, Bildspeicher, `edits.json` – ist nicht im Paket.
+- **Aus einer bereinigten Kopie.** Beide Ausgaben entstehen aus einer Kopie der Sitzung, in der Schwärzungen und Verallgemeinerungen endgültig angewendet sind. Eine Gegenprobe sucht darin nach den geschwärzten und verallgemeinerten Inhalten, bevor etwas erzeugt wird; schlägt sie fehl, entsteht kein Paket. Die Kopie liegt während des Erstellens unter `export/.tmp/` und wird danach gelöscht.
+- **Nur nach vollständiger Durchsicht.** Jede auffällige Eingabe ist entschieden, die übrigen sind bestätigt – einschließlich der Texte des Autors.
+- **Benennung:** `Support-<Datum>-<Titel>.zip`. `<Datum>` ist das Datum der Aufnahme als `JJJJ-MM-TT`. `<Titel>` ist der Titel der Sitzung ohne das Datum und die Uhrzeit, die der automatische Name voranstellt, als gültiger Dateiname nach [Abschnitt 11](#11-entschärfung-aufgezeichneter-texte). Die Dateien im Paket heißen nach denselben Regeln wie einzeln exportiert.
+- **Auch der Dateiname ist eine Ausgabe.** Der Titel ist Text des Autors; er steht im Namen so, wie die Leseschicht ihn ausgibt – mit Platzhaltern statt verallgemeinerter Werte und ohne Geschwärztes. Der letzte Schritt des Ablaufs zeigt den Namen, bevor die Datei entsteht, und lässt den Titel darin ändern.
+- **Hinweis für den Empfänger:** Er ist als Einleitung der Anleitung gespeichert (`edits.guide.intro`, [04](04-datenformat.md#edits-json)) und steht am Anfang der HTML-Datei – im KI-Paket steht er nicht.
+- **Nie überschreiben:** Gibt es eine Datei dieses Namens schon, erhält die neue eine laufende Nummer – anders als bei gewöhnlichen Ausgaben im Ordner `export/`.
+- **Ablage:** Standardziel ist der Ordner `export/` der Sitzung; der Ablauf zeigt den Ort und lässt ihn ändern. Die fertige Datei wird in einem Schritt an ihr Ziel gesetzt; danach öffnet der Explorer den Ordner.
+- **Gewöhnliches ZIP ohne Kennwort.** Wer das Paket vertraulich übermitteln muss, wählt den Weg dafür selbst.
+- **Das Programm versendet nichts.** Es ruft kein Mailprogramm, keinen Teilen-Dialog und keinen Upload auf.
+- **Nicht über die Kommandozeile:** `export` kennt kein Format „Support-Paket“, weil die Kommandozeile die Durchsicht nicht zeigen kann. Der Befehl `support` öffnet die Oberfläche für den Ablauf ([07](07-aufnahme-bedienung.md#32-support-aufnahme-über-die-kommandozeile)).
+- Ältere Pakete im Ordner `export/` listet der Viewer nach einer neuen Schwärzung wie andere Ausgaben auf ([Abschnitt 13](#13-dateibenennung-und-ablage)).
+
+## 4 Gemeinsame Optionen
+
+Diese Optionen gelten für alle Formate, soweit nicht anders vermerkt. Jede Vorlage belegt sie vor ([Abschnitt 9](#9-vorlagen-und-branding)).
+
+### 4.1 Umfang
+
+| Option | Werte | Standard |
+|---|---|---|
+| Schritte | Hauptschritte · alle Schritte · Auswahl aus dem Viewer · Bereich von–bis | Hauptschritte |
+| Kapitel | als Überschriften ausgeben · ignorieren | als Überschriften |
+| Kommentare | einschließen · weglassen | einschließen |
+| Hinweis auf nicht aufgezeichnete Sicherheitsdialoge | an · aus | an |
+| Ziel der Aufnahme voranstellen (Soll) | an · aus | aus; im Support-Paket an |
+| Technischer Anhang (Kann) | an · aus | aus |
+
+Nie enthalten sind ausgeblendete Schritte, verworfene Schritte, geschwärzte Inhalte sowie interne und ausgeblendete Kommentare. Das ist keine Option. Ebenso fehlen Schritte, die der Autor durch eine Neuaufnahme ersetzt hat; an ihrer Stelle steht die neue Fassung ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)).
+
+Geschwärztes erscheint so ([08](08-viewer.md#76-schwärzen-und-verpixeln), [10](10-datenschutz-und-sicherheit.md#10-schwärzungsmodell)):
+
+| Schwärzung | In der Anleitung |
+|---|---|
+| Bereich im Bild | schwarz gefüllte Fläche |
+| Textstelle | `[geschwärzt]`, in englischen Anleitungen `[redacted]` |
+| Ganzer Schritt | Platzhalter „Schritt geschwärzt“ bzw. „Step redacted“ an seiner Stelle; ist der Schritt zugleich ausgeblendet, fehlt er |
+| Zeitraum | neutraler Hinweis „vom Autor entfernt“, englisch „removed by the author“, an der Stelle des Zeitraums |
+
+Lücken der Aufzeichnung erscheinen in der Anleitung nicht, mit zwei Ausnahmen:
+
+- Ein **vom Autor geschwärzter Zeitraum** erscheint immer als neutraler Hinweis „vom Autor entfernt“ mit Zeitpunkt und Dauer, sofern seine Stelle im gewählten Umfang liegt ([10](10-datenschutz-und-sicherheit.md#105-darstellung)). Dass etwas fehlt, wird nie verschwiegen; was fehlt und warum, steht nirgends.
+- Wo ein **Windows-Sicherheitsdialog** oder ein Fenster mit Adminrechten nicht aufgezeichnet werden konnte, steht ein neutraler Hinweis („An dieser Stelle erschien ein Windows-Sicherheitsdialog, der nicht aufgezeichnet werden konnte.“), damit dem Leser kein Schritt fehlt. Der Autor ersetzt ihn im Viewer durch einen eigenen Hinweisschritt oder schaltet die Option ab.
+
+### 4.2 Bilder
+
+| Option | Werte | Standard |
+|---|---|---|
+| Darstellung | wie im Viewer festgelegt · ganzer Bildschirm · Anwendungsfenster · Ausschnitt um die Aktion | wie im Viewer festgelegt |
+| Einzelfestlegungen überschreiben | an · aus (nur wenn eine Darstellung vorgegeben ist) | aus |
+| Nachher-Bild | wie im Viewer festgelegt · nie · bei Änderung · immer | wie im Viewer festgelegt (dort Standard: nie) |
+| Automatische Markierungen | wie im Viewer · alle an · alle aus | wie im Viewer |
+| Bildformat | PNG · JPEG (Qualität 85 bis 95) | PNG |
+| Größte Bildbreite | Originalgröße · Wert in Pixeln | Originalgröße |
+
+- **Darstellung:** Die Begriffe und die Regel für den Ausschnitt stehen in [08](08-viewer.md#52-darstellung). Eine vorgegebene Darstellung gilt für alle Schritte ohne eigene Festlegung; mit „Einzelfestlegungen überschreiben“ gilt sie für alle.
+- Bei Sitzungen, die nur eine Anwendung oder einen Bereich aufgenommen haben, heißt „ganzer Bildschirm“ „gesamte Aufnahme“ und zeigt alles Gespeicherte.
+- **Je Schritt erscheint ein Bild**, das Standardbild seiner Schrittart ([08](08-viewer.md#51-bild)) oder das vom Autor gewählte.
+- **Nachher-Bild „bei Änderung“:** Zusätzlich erscheint das Nachher-Bild, wenn das erste Bild das Vorher-Bild ist und sich im gezeigten Bereich mindestens 2 % der Fläche geändert haben oder ein Fenster geöffnet oder geschlossen wurde.
+- Schritte ohne Bild (etwa reine Hinweisschritte) erscheinen als Text.
+
+### 4.3 Texte
+
+| Option | Werte | Standard |
+|---|---|---|
+| Sprache der Schritttexte | Deutsch · Englisch | Sprache der Sitzung |
+| Anrede (Soll, nur Deutsch) | Sie · du · neutral | Sie |
+| Schrittnummern | fortlaufend · je Kapitel neu | fortlaufend |
+| Getippter Text | zeigen · als Beispielwert kennzeichnen (Kann) | zeigen |
+
+Einzelheiten zur Sprache in [Abschnitt 10](#10-sprache-der-schritttexte).
+
+### 4.4 Dokumentrahmen
+
+| Option | Werte | Standard | Formate |
+|---|---|---|---|
+| Titelblatt | an · aus; Felder Titel, Untertitel, Autor, Datum, Version, Logo | aus bei HTML und Markdown (dort Titelblock), an bei DOCX und PDF | alle |
+| Einleitung und Voraussetzungen | Text aus der Sitzungsübersicht, falls vorhanden | an | alle |
+| Inhaltsverzeichnis | automatisch (bei Kapiteln oder mehr als 15 Schritten) · immer · nie | automatisch | alle |
+| Kopf- und Fußzeile | Titel, Seitenzahl „Seite X von Y“, Datum, freier Text | Titel links, Seitenzahl rechts | DOCX, PDF |
+| Seitenformat | A4 · Letter; Hoch · Quer | A4 hoch | DOCX, PDF |
+| Ein Schritt je Seite | an · aus | aus | DOCX, PDF |
+| Zeile „Erstellt mit …“ | an · aus | aus | alle |
+| Hinweis auf Platzhalter (Soll) | an · aus | an, sobald die Anleitung Platzhalter enthält ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)) | alle |
+
+**Metadaten:** Titel, Sprache und Erstellungsdatum werden in das Dokument geschrieben. Das Feld **Autor** bleibt leer, solange der Autor es nicht selbst ausfüllt; der Windows-Benutzername, der Rechnername und Pfade des Aufnahmerechners werden nie von selbst eingetragen.
+
+### 4.5 Gespeicherte Export-Einstellungen
+
+Die Einstellungen des letzten Exports stehen je Sitzung im Objekt `exports` von `edits.json` ([04](04-datenformat.md#edits-json)). So wird eine Sitzung beim nächsten Mal genauso ausgegeben.
+
+```json
+"exports": {
+  "last": "pdf",
+  "formats": {
+    "pdf":  { "template": "Schulung", "options": { "after": "changed", "toc": "always" } },
+    "html": { "template": "Standard", "options": { "view": "window" } }
+  }
+}
+```
+
+| Feld | Bedeutung |
+|---|---|
+| `last` | Zuletzt verwendetes Format: `html`, `md`, `docx` oder `pdf` |
+| `formats.<Format>.template` | Name der Vorlage |
+| `formats.<Format>.options` | Nur die Optionen, die von der Vorlage abweichen. Schlüssel wie die Optionen der Kommandozeile ohne `--` (`steps`, `view`, `after`, `lang` …), dazu `titlePage`, `toc`, `comments`, `chapters`, `numbering`, `address`, `pageSize`, `orientation`, `oneStepPerPage`, `imageFormat`, `maxImageWidth` |
+
+- **Zielpfade stehen nicht in der Sitzung.** Sie würden Ordnernamen des Rechners verraten, wenn die Sitzung weitergegeben wird. Das zuletzt gewählte Ziel merkt sich das Programm in seinem eigenen Zustand ([02](02-architektur.md#konfiguration)).
+- Unbekannte Schlüssel bleiben beim Speichern erhalten.
+- **Vorgabe aus dem Aufnahmeprofil (Soll):** Ein Profil kann den Export nach dem Stopp vorbelegen. Es nennt dazu unter `afterStop.export` dieselben Angaben wie ein Eintrag oben, ergänzt um das Format – `{ "format": "pdf", "template": "Schulung", "options": { "after": "changed" } }`. `format` ist `html`, `md`, `docx`, `pdf` oder `ki`; für `ki` gelten die Optionen aus [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Die Vorlage ist nach ihrem Namen genannt, ein Pfad steht dort nie. Die Sitzung hält die Vorgabe in `manifest.profile` fest ([04](04-datenformat.md#manifest-profile)); mit dem ersten eigenen Export gilt `exports`.
+
+### 4.6 Ziel, Marker, Neuaufnahmen und Platzhalter
+
+Vier Angaben des Autors verändern, was die Anleitung zeigt (alle Soll). Sie stammen aus Aufnahme und Viewer; hier steht, wie sie ausgegeben werden.
+
+**Ziel der Aufnahme.** Mit der Option „Ziel der Aufnahme voranstellen“ ([4.1](#41-umfang)) beginnt die Anleitung nach dem Titel mit einem Block aus bis zu drei Zeilen. Den Wortlaut liefern die Textvorlagen ([05](05-schritterkennung.md#ziel-vorlagen)):
+
+| Angabe | Deutsch | Englisch |
+|---|---|---|
+| `description` | Ziel: … | Purpose: … |
+| `expected` | Erwartetes Ergebnis: … | Expected result: … |
+| `reference` | Bezug: … | Reference: … |
+
+- Gezeigt werden die wirksamen Angaben – der Stand aus dem Viewer vor dem der Aufnahme ([04](04-datenformat.md#edits-goal)). Fehlt eine Angabe, entfällt ihre Zeile; fehlen alle, entfällt der Block.
+- Der Block steht im Kopf der Anleitung, getrennt von den Schritten. Er gibt wieder, was der Autor zeigen wollte – eine Absicht, keine Beobachtung; ob das erwartete Ergebnis eintrat, zeigen allein die Schritte.
+- Für die Texte gelten Durchsicht, Schwärzung, Verallgemeinerung und Entschärfung wie für Kommentare.
+- Der **Hinweis für den Empfänger** eines Support-Pakets ([3.5](#35-support-paket)) steht als Einleitung unter dem Block; gespeichert ist er in `edits.guide.intro`.
+- Im KI-Paket stehen dieselben Angaben im Kopf von `trace.md`, dort im Protokollstil mit dem Zusatz „Angabe des Autors“ ([06](06-ki-export-und-mcp.md#76-angaben-des-autors-ziel-der-aufnahme-und-marker)).
+
+**Marker.** Marker sind Schritte der Aufzeichnung ([05](05-schritterkennung.md#schrittarten)) und erscheinen wie Kommentare aus der Aufnahme: als nicht nummerierter Absatz mit dem Bild des Augenblicks.
+
+| Typ | In der Anleitung | Satz aus der Textvorlage ([05](05-schritterkennung.md#textvorlagen)) | Form |
+|---|---|---|---|
+| `error` | ja – Hauptschritt | „Hinweis: Hier tritt der Fehler auf.“ | wie eine Warnung |
+| `expected` | ja – Hauptschritt | „Hinweis: So sollte es aussehen.“ | wie ein Hinweis |
+| `important` | ja – Hauptschritt | „Wichtig: Beachten Sie diese Stelle.“ | wie ein Hinweis |
+| `note` | nur mit „Alle Schritte“ – Nebenschritt | die Bezeichnung des Markers, falls er eine hat | wie ein Hinweis |
+
+- Eine Bezeichnung des Markers hängt die Textvorlage an den Satz an. Ein Kommentar, den der Autor am Marker angelegt hat, steht darunter wie jeder Kommentar.
+- Es gilt der wirksame Typ – also der im Viewer geänderte, wenn es einen gibt.
+- Wie jeder Schritt lässt sich ein Marker ausblenden; dann fehlt er.
+
+**Neuaufnahmen.** Hat der Autor Schritte neu aufgenommen und ersetzt ([08](08-viewer.md#93-abschnitt-neu-aufnehmen-und-ersetzen)), zeigt die Anleitung nur die neue Fassung.
+
+- Maßgeblich ist die wirksame Schrittfolge aus [05](05-schritterkennung.md#wirksame-schrittfolge): Die neuen Schritte stehen an der Stelle des ersten ersetzten, und die Nummerierung läuft fortlaufend durch.
+- Ersetzte Schritte und Schritte einer nicht verwendeten Neuaufnahme erscheinen in keiner der vier Ausgaben, auch nicht mit „Alle Schritte“. Dasselbe gilt für verworfene Abschnitte ([07](07-aufnahme-bedienung.md#12-stopp-und-übergang-zum-viewer)).
+- Ein Vermerk „neu aufgenommen“ erscheint nicht: Die Anleitung zeigt den Ablauf, wie er sein soll. Wer beide Fassungen braucht, nimmt das KI-Paket in seiner ausführlichsten Detailstufe ([06](06-ki-export-und-mcp.md#77-aufnahmeabschnitte-nahtstellen-und-ersetzte-schritte)).
+- Kommentare des Autors, die eine Schrittnummer nennen, passt das Programm nicht an; die Qualitätsprüfung weist darauf hin (Q20).
+
+**Platzhalter für verallgemeinerte Werte.** Regeln aus `edits.substitutions` ([08](08-viewer.md#94-werte-verallgemeinern), [04](04-datenformat.md#edits-substitutions)) wirken in allen vier Formaten. Einen Schalter dafür gibt es nicht – wie bei Schwärzungen; die Schutzregeln stehen in [10](10-datenschutz-und-sicherheit.md#109-verallgemeinerung-von-werten), die Darstellung im KI-Paket in [06](06-ki-export-und-mcp.md#78-verallgemeinerte-werte).
+
+| Stelle | Ausgabe |
+|---|---|
+| Schritttext, getippter Text, Fenstertitel, Elementnamen, Pfade, Kommentare, Ziel | `{Name}` an der Stelle des Werts; der übrige Text bleibt |
+| Bild | gefüllte Fläche mit dem Platzhalter an den Stellen, die der Viewer zeigt – das exportierte Bild gleicht dem angezeigten |
+| Alternativtext, Dateiname, Titel und übrige Metadaten | ebenfalls mit Platzhalter; der Wert steht an keiner Stelle der Datei |
+
+| Format | Auszeichnung des Platzhalters |
+|---|---|
+| HTML | `<var class="placeholder">` |
+| Markdown | keine eigene Auszeichnung; die Klammern werden wie jedes Satzzeichen maskiert und erscheinen als `{Name}` |
+| DOCX | Zeichenvorlage `SR Platzhalter` |
+| PDF | wie in DOCX: kursiv in der Schrift für getippten Text |
+
+- **Platzhalter sind Text.** Der Name stammt aus einer Regel, die auch aus einer fremden Sitzung kommen kann; er wird entschärft wie jeder aufgezeichnete Text ([Abschnitt 11](#11-entschärfung-aufgezeichneter-texte)). Trifft die Leseschicht auf einen unzulässigen Namen, liefert sie an der Stelle `[geschwärzt]` – nie den Wert.
+- **Hinweis auf Platzhalter:** Enthält die Anleitung Platzhalter, steht vor dem ersten Schritt ein Satz – „In dieser Anleitung stehen Platzhalter in geschweiften Klammern für Werte, die bei Ihnen anders lauten:“ – mit der Liste der verwendeten Namen. Die Werte selbst nennt er nie. Die Option im Dokumentrahmen schaltet ihn ab ([4.4](#44-dokumentrahmen)).
+- Wo eine Regel den Wert im Bild nicht erreichen konnte, meldet das die Vorprüfung als Warnung (Q15); der Export hält deswegen nicht an.
+- Geschwärztes, Maskiertes und Ungeprüftes bleibt, was es ist: Ein Platzhalter ersetzt nur, was sonst im Klartext stünde.
+
+## 5 HTML
+
+### 5.1 Eigenschaften
+
+- **Eine Datei**, UTF-8. Alle Bilder sind als `data:`-Adressen eingebettet.
+- **Keine Skripte:** kein `<script>`, keine Ereignis-Attribute, keine `javascript:`-Adressen.
+- **Keine Verweise nach außen:** keine fremden Schriften, Stylesheets, Bilder oder Rahmen; kein `<iframe>`, `<object>`, `<embed>`, `<form>`.
+- **Content Security Policy** als erstes Element im Kopf:
+
+```html
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src data:; style-src 'sha256-…'; base-uri 'none'; form-action 'none'">
+```
+
+- Das einzige Stylesheet ist eingebettet und über seinen Hashwert zugelassen; `'unsafe-inline'` wird nicht verwendet. Es gibt keine `style`-Attribute; gestaltet wird über Klassen.
+- Die Policy ist eine zweite Verteidigungslinie: Selbst wenn ein aufgezeichneter Text trotz [Entschärfung](#11-entschärfung-aufgezeichneter-texte) als Auszeichnung in die Datei geriete, würde der Browser weder ein Skript ausführen noch etwas nachladen.
+
+### 5.2 Aufbau
+
+| Teil | Auszeichnung |
+|---|---|
+| Titelblock | `<header>` mit `<h1>`, Untertitel, Angaben |
+| Inhaltsverzeichnis | `<nav>` mit Sprungmarken |
+| Kapitel | `<section>` mit `<h2>` |
+| Schritte | `<ol class="steps">`; jeder Schritt ein `<li id="schritt-N">` |
+| Schritttext | `<p>`; Elementnamen in `<b>`, Tasten und getippter Text in `<kbd>`; Platzhalter für verallgemeinerte Werte in `<var class="placeholder">` (Soll) |
+| Bild | `<figure>` mit `<img alt width height>` |
+| Kommentar | `<aside class="note">`, `tip`, `warning` |
+| Nachher-Bild, Zusatzangaben | `<details>` mit `<summary>` |
+
+- `width` und `height` stehen an jedem Bild, damit die Seite beim Laden nicht springt.
+- Die Seite hat eine einspaltige Lesebreite von höchstens 900 Pixeln und passt sich schmalen Bildschirmen an.
+- Bilder skalieren auf die Seitenbreite und sind in Exportauflösung eingebettet; der Leser vergrößert mit dem Browser. Eine Vergrößerung per Klick ohne Skript ist Kann.
+- **Druck:** Ein Druck-Stylesheet verhindert Umbrüche innerhalb eines Schritts und blendet das Inhaltsverzeichnis aus.
+- **Dunkel:** Die Seite folgt der Einstellung des Lesers (Soll); Bilder bleiben unverändert.
+- **Zugänglichkeit:** Überschriften in richtiger Folge, `lang` am Wurzelelement, Alternativtext je Bild (der Schritttext), Kontrast von mindestens 4,5 : 1.
+
+### 5.3 Größe
+
+- Die geschätzte Dateigröße steht im Exportdialog.
+- Ab 25 MB weist der Dialog auf Abhilfen hin: JPEG, kleinere Bildbreite, engere Darstellung.
+- **Kann:** Variante „HTML mit Bilderordner“ – eine HTML-Datei und ein Ordner mit Bilddateien.
+
+## 6 Markdown
+
+### 6.1 Dateien
+
+- Eine Datei `Titel.md` und ein Ordner `Titel-bilder/` mit den Bilddateien.
+- UTF-8 ohne Byte-Order-Mark, Zeilenenden LF, abschließender Zeilenumbruch.
+- Bilder heißen `schritt-001.png`, ein zusätzliches Nachher-Bild `schritt-001-nachher.png`. Die Nummer ist die der Anleitung, dreistellig mit führenden Nullen.
+- Bildverweise sind relativ und verwenden `/`.
+- Datei- und Ordnername enthalten für Markdown standardmäßig nur ASCII-Zeichen, Ziffern und Bindestriche (Umlaute umschrieben), damit sie in Versionsverwaltung und Wikis keine Schwierigkeiten machen.
+- **Kann:** Ausgabe als ein ZIP-Archiv; Kopfdaten als YAML-Block am Dateianfang.
+
+### 6.2 Aufbau
+
+| Teil | Markdown |
+|---|---|
+| Titel | `# Titel` |
+| Kapitel | `## Kapitel` |
+| Schritte | Nummerierte Liste; das Bild als eingerückter Absatz im Listenpunkt |
+| Elementnamen | `**„Name“**` |
+| Tasten und getippter Text | Code-Spanne |
+| Kommentar | Zitatblock mit fett gesetzter Kennzeichnung |
+| Bild | `![Alternativtext](Titel-bilder/schritt-001.png)` |
+
+- Grundlage ist **CommonMark**. Die Ausgabe enthält kein rohes HTML.
+- **Dialekte** (Soll) für Kommentare:
+
+| Dialekt | Kommentar erscheint als |
+|---|---|
+| Allgemein (Standard) | `> **Hinweis:** Text` |
+| GitHub | `> [!NOTE]` und Text in der Folgezeile; entsprechend `[!TIP]`, `[!WARNING]` |
+| Obsidian | `> [!note] Hinweis` und Text in der Folgezeile |
+
+- Die Liste beginnt mit der richtigen Nummer, auch wenn Kapitelüberschriften sie unterbrechen.
+- Erzeugt wird Markdown durch einen eigenen Schreiber. Markdig dient dazu, die einfache Auszeichnung in Kommentaren zu lesen, und in den Tests als Gegenprobe: Die erzeugte Datei muss sich ohne Abweichung einlesen lassen und darf weder HTML-Knoten noch unerwartete Verweise enthalten.
+
+## 7 DOCX
+
+### 7.1 Eigenschaften
+
+- Erzeugt mit dem Open-XML-SDK, ohne installiertes Word.
+- Dateityp `.docx`: keine Makros, keine eingebetteten Objekte, keine externen Bezüge. Verweise entstehen nur aus Links, die der Autor selbst in einen Kommentar geschrieben hat.
+- Das Dokument öffnet in Word ab 2016, Word im Web und LibreOffice ab 7 ohne Reparaturhinweis.
+
+### 7.2 Aufbau und Formatvorlagen
+
+Der Inhalt verwendet durchgehend benannte Formatvorlagen. Wer das Dokument in Word weiterbearbeitet, ändert das Aussehen an einer Stelle.
+
+| Inhalt | Formatvorlage | Anmerkung |
+|---|---|---|
+| Titel, Untertitel | `Title`, `Subtitle` | |
+| Kapitel | `Heading 1` | Unterkapitel `Heading 2` |
+| Schritttext | `SR Schritt` | Absatzvorlage mit echter Word-Nummerierung; bleibt mit dem folgenden Bild auf einer Seite |
+| Bild | `SR Bild` | Bild in der Zeile, Alternativtext gesetzt |
+| Kommentar | `SR Hinweis`, `SR Tipp`, `SR Warnung` | Absatz mit Rand und Schattierung |
+| Taste | `SR Taste` | Zeichenvorlage |
+| Getippter Text | `SR Eingabe` | Zeichenvorlage, dicktengleiche Schrift |
+| Platzhalter (Soll) | `SR Platzhalter` | Zeichenvorlage für verallgemeinerte Werte ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)) |
+| Einleitung, übriger Text | `Normal` | |
+
+- **Nummerierung:** Schritte sind über eine Listendefinition nummeriert, nicht über getippte Zahlen. Löscht oder verschiebt der Leser in Word einen Schritt, stimmt die Nummerierung weiter.
+- **Bilder:** auf die Satzspiegelbreite eingepasst, nie über ihre natürliche Größe hinaus vergrößert, und so begrenzt, dass Schritttext und Bild auf eine Seite passen.
+- **Inhaltsverzeichnis:** als Word-Feld, bereits gefüllt. Die Seitenzahlen aktualisiert Word beim Drucken oder mit `F9`.
+- **Sprache:** Die Dokumentsprache ist gesetzt, damit Rechtschreibprüfung und Silbentrennung stimmen.
+
+### 7.3 Eigene Formatvorlage
+
+Der Autor kann eine eigene Word-Vorlage (`.dotx` oder `.docx`) angeben, etwa mit Firmenlayout.
+
+- Der Export übernimmt aus ihr Formatvorlagen, Design, Schriften, Seiteneinrichtung, Kopf- und Fußzeilen.
+- Der Inhalt wird an der Stelle eingefügt, die mit dem Inhaltssteuerelement oder der Textmarke `StepRecorderContent` gekennzeichnet ist; fehlt beides, am Ende.
+- Inhaltssteuerelemente mit den Kennungen `SR.Title`, `SR.Subtitle`, `SR.Author`, `SR.Date`, `SR.Version` werden gefüllt.
+- Formatvorlagen werden über ihre Kennung gesucht, dann über ihren Namen. Fehlt eine `SR`-Vorlage, wird sie mit den Standardwerten angelegt.
+- Die mitgelieferte Standardvorlage lässt sich als Datei speichern und als Ausgangspunkt anpassen.
+- Enthält die Vorlage Makros (`.dotm`), wird sie abgelehnt.
+
+## 8 PDF
+
+### 8.1 Eigenschaften
+
+- Erzeugt mit SkiaSharp durch ein eigenes Seitenlayout – ohne Browser, ohne Word, ohne Druckertreiber.
+- **Echter Text:** Der Text ist markierbar, durchsuchbar und kopierbar. Nur Screenshots sind Bilder.
+- **Eingebettete Schriften:** Das Programm bringt frei lizenzierte Schriften für Fließtext und für dicktengleichen Text mit und bettet die verwendeten Zeichen ein. Die Ausgabe sieht so auf jedem Rechner gleich aus. Fehlt ein Zeichen, wird eine Systemschrift herangezogen.
+- **Metadaten:** Titel, Autor (falls angegeben), Sprache, erzeugendes Programm, Erstellungsdatum.
+
+### 8.2 Seitenlayout
+
+| Regel | Festlegung |
+|---|---|
+| Seite | A4 oder Letter, Ränder 20 mm, einstellbar über die Vorlage |
+| Schritt | Nummer, Text, Bild, Kommentare bilden einen Block |
+| Seitenumbruch | Ein Bild wird nie geteilt. Passt ein Schritt nicht mehr auf die Seite, beginnt er auf der nächsten. Schritttext und Bild bleiben zusammen. |
+| Bildgröße | Auf die Satzspiegelbreite eingepasst, nie über die natürliche Größe vergrößert, höchstens so hoch wie der Satzspiegel abzüglich des Schritttexts |
+| Kopf- und Fußzeile | Titel und „Seite X von Y“; das Layout wird dafür zweimal durchlaufen |
+| Titelblatt | Eigene Seite mit Titel, Untertitel, Angaben, Logo |
+| Inhaltsverzeichnis | Mit Seitenzahlen; Einträge sind Sprungziele (Soll) |
+| Kommentare | Kasten mit Kennzeichnung; wird bei Platzmangel zusammen mit seinem Schritt umbrochen |
+
+- **Bilder** werden verlustfrei oder als JPEG eingebettet, in Originalauflösung. Eine Obergrenze für die Auflösung ist einstellbar; Standard ist keine, weil kleine Schrift in Screenshots sonst unleserlich wird.
+- **Verweise:** Nur Links aus Kommentaren des Autors werden anklickbar, und nur mit den Schemata `http`, `https` und `mailto`.
+- **Kann:** PDF/A, Lesezeichenleiste mit den Kapiteln, Strukturmarkierung für Bildschirmleser. Ob SkiaSharp das bereitstellt, ist offen ([Abschnitt 18](#18-offene-punkte)).
+
+## 9 Vorlagen und Branding
+
+Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate.
+
+### 9.1 Mitgelieferte Vorlagen
+
+| Vorlage | Gedacht für | Kennzeichen |
+|---|---|---|
+| Standard | Allgemeine Anleitungen | Hauptschritte, Darstellung wie im Viewer, ein Bild je Schritt, Kommentare an |
+| Kompakt | Kurzanleitungen, Wissensdatenbanken | Ausschnitt um die Aktion, kleinere Bilder, kein Titelblatt, kein Inhaltsverzeichnis |
+| Schulung | Unterlagen zum Durcharbeiten | Anwendungsfenster, große Bilder, Nachher-Bild bei Änderung, ein Schritt je Seite in DOCX und PDF |
+| Ticket | Fehlerberichte, Anfragen an den Support | Alle Schritte statt nur Hauptschritte, ganzer Bildschirm, technischer Anhang, kein Titelblatt |
+
+### 9.2 Eigene Vorlagen
+
+- „Als Vorlage speichern“ im Exportdialog sichert die aktuellen Einstellungen unter einem Namen.
+- Vorlagen liegen als lesbare Dateien beim Programm, portabel wie die Einstellungen ([02](02-architektur.md)). Zugehörige Dateien (Logo, Word-Vorlage) werden in den Ordner der Vorlage kopiert.
+- Vorlagen lassen sich als Datei weitergeben und einlesen (Kann). Beim Einlesen zeigt das Programm, was die Vorlage enthält.
+- **Vorlagen enthalten nie ausführbaren Inhalt:** keine Skripte, keine Makros, keine Verweise nach außen.
+
+### 9.3 Branding
+
+| Element | Festlegung |
+|---|---|
+| Logo | PNG, erscheint auf Titelblatt bzw. im Titelblock und wahlweise in der Kopfzeile |
+| Akzentfarbe | Für Überschriften, Schrittnummern und Kommentarkästen |
+| Schrift | Für PDF aus den mitgelieferten Schriften; für DOCX aus der Word-Vorlage; HTML nutzt Systemschriften |
+| Firmenname, Fußzeilentext | Freier Text, etwa „Vertraulich“ |
+| Word-Vorlage | Siehe [7.3](#73-eigene-formatvorlage) |
+| Eigenes Stylesheet für HTML (Kann) | In Version 1 nur über die vorgesehenen Stellgrößen Akzentfarbe, Schriftfamilie und Lesebreite |
+
+Die Stilvorlage für Markierungen in den Bildern gehört zur Sitzung und wird im Viewer gewählt ([08](08-viewer.md#73-eigenschaften-und-stilvorlagen)); der Export übernimmt sie.
+
+## 10 Sprache der Schritttexte
+
+- Automatische Schritttexte entstehen beim Export aus den Textvorlagen im Anleitungsstil, in der gewählten Sprache ([05](05-schritterkennung.md#textvorlagen)). Eine Sitzung lässt sich so auf Deutsch und auf Englisch ausgeben, ohne neu aufzunehmen.
+- **Eigene Texte des Autors** liegen in der Sprache vor, in der sie geschrieben wurden; sie werden nicht übersetzt. Fehlt ein eigener Text in der Exportsprache, gilt dort der automatische Text. Die Vorprüfung meldet die betroffenen Schritte und bietet an:
+  - den automatischen Text der Exportsprache verwenden (Standard),
+  - stattdessen den vorhandenen Text unverändert übernehmen,
+  - abbrechen und im Viewer übersetzen.
+- **Namen aus der aufgenommenen Anwendung** (Schaltflächen, Menüs, Fenstertitel) bleiben, wie sie aufgezeichnet wurden. Eine englische Anleitung zu einer deutschen Oberfläche nennt die deutschen Beschriftungen in Anführungszeichen.
+- **Tastennamen** folgen der Exportsprache („Strg“ oder „Ctrl“); die Zuordnung steht in [05](05-schritterkennung.md#textvorlagen).
+- **Anführungszeichen, Datums- und Zahlenformat** folgen der Exportsprache.
+- **Anrede** (Soll, nur Deutsch): „Klicken Sie auf …“, „Klicke auf …“ oder neutral „Auf … klicken“ – die Formen `formal`, `informal` und `neutral` der Textvorlagen. Englische Texte kennen nur die Befehlsform; die Wahl ist dann ausgegraut.
+
+## 11 Entschärfung aufgezeichneter Texte
+
+Aufgezeichnete Texte stammen aus fremden Programmen, Webseiten und Dateien. Ein Fenstertitel oder ein Elementname kann Zeichen enthalten, die in einem Ausgabeformat eine Bedeutung haben, oder absichtlich so gebaut sein. Deshalb gilt:
+
+**Nicht vertrauenswürdig** sind Fenstertitel, Elementnamen und -werte, getippter Text, Feldinhalte, Inhalte der Zwischenablage, Adressen und Pfade, Text-Schnappschüsse, Prozess- und Dateinamen sowie der Sitzungstitel, soweit er aus solchen Angaben gebildet wurde. Texte, die der Autor im Viewer schreibt, sind seine eigenen; für sie gilt die eingeschränkte Auszeichnung aus [08](08-viewer.md#8-kommentieren).
+
+| Format | Regel |
+|---|---|
+| HTML | Die Zeichen `&`, `<`, `>`, `"` und `'` werden als Zeichenverweise geschrieben. Aufgezeichnete Texte stehen nur als Textinhalt und in den Attributen `alt` und `title`, nie in Adressen, Kennungen oder Klassennamen. |
+| Markdown | In Fließtext wird jedes Satzzeichen, das CommonMark als maskierbar kennt, mit einem Rückstrich versehen. Getippter Text, Adressen und Pfade stehen in Code-Spannen, deren Begrenzung länger ist als jede Folge von Gravis-Zeichen im Inhalt. Zeilenumbrüche im Inhalt werden durch ein sichtbares Zeichen ersetzt. |
+| DOCX | Texte werden ausschließlich als Textknoten geschrieben; daraus entstehen keine Felder, Verweise oder Formeln. In XML unzulässige Steuerzeichen werden entfernt. |
+| PDF | Texte werden als Text gezeichnet; daraus entstehen keine Verweise oder Aktionen. |
+| Dateinamen | Unzulässige Zeichen (`< > : " / \ \| ? *`) und Steuerzeichen werden ersetzt, in Windows reservierte Namen (`CON`, `PRN`, `AUX`, `NUL`, `COM1`–`COM9`, `LPT1`–`LPT9`) umbenannt, abschließende Punkte und Leerzeichen entfernt, die Länge auf 100 Zeichen begrenzt. |
+
+Für alle Formate:
+
+- **Aufgezeichnete Adressen werden nie zu anklickbaren Verweisen.** Sie erscheinen als Text. Anklickbar sind nur Links, die der Autor selbst in einen Kommentar geschrieben hat, und nur mit den Schemata `http`, `https` und `mailto`.
+- **Richtungs- und unsichtbare Steuerzeichen** (etwa U+202A bis U+202E und U+2066 bis U+2069) werden entfernt oder sichtbar gemacht (Soll), damit ein Text nicht anders aussieht, als er ist.
+- **Überlange Texte:** Namen kürzt bereits die Textvorlage nach 60 Zeichen ([05](05-schritterkennung.md#textvorlagen)). Getippter Text und Feldinhalte werden im Schritttext nach 300 Zeichen gekürzt und mit „…“ gekennzeichnet.
+- Die Entschärfung geschieht an einer einzigen Stelle je Format, unmittelbar beim Schreiben. Kein Baustein setzt aufgezeichnete Texte selbst in die Ausgabe.
+- **Platzhalternamen, Marker-Bezeichnungen und Profilnamen** gelten ebenfalls als nicht vertrauenswürdig: Sie können aus einer fremden Sitzung oder einer importierten Einstellungsdatei stammen und werden entschärft wie aufgezeichnete Texte (Soll).
+
+**Prüftexte für die Abnahme** – jeder dieser Texte wird als Fenstertitel, Elementname und getippter Text in eine Testsitzung gesetzt und muss in allen vier Formaten wörtlich lesbar erscheinen, ohne als Auszeichnung zu wirken:
+
+| Prüftext | Darf nicht bewirken |
+|---|---|
+| `<script>alert(1)</script>` | Skript, HTML-Element |
+| `<img src=x onerror=alert(1)>` | Bild, Ereignis-Attribut |
+| `"><b>fett</b>` | Ausbruch aus einem Attribut |
+| `[Klick](https://example.com)` und `![x](https://example.com/x.png)` | Verweis, nachgeladenes Bild |
+| `https://example.com` und `www.example.com` | Anklickbarer Verweis |
+| `**fett** _kursiv_ # Titel` | Auszeichnung in Markdown |
+| `` a`b```c `` (Gravis-Zeichen einzeln und dreifach) | Abbruch der Code-Spanne |
+| Zeilenumbruch, Tabulator, Zeichen U+0000 bis U+001F | Zerstörte Struktur, ungültiges XML |
+| Text mit U+202E | Umgekehrte Darstellung ohne Kennzeichnung |
+| `CON`, `a/b\c:d*?` (als Sitzungstitel) | Ungültiger oder gefährlicher Dateiname |
+
+## 12 Export-Vorprüfung
+
+Vor jedem Export – im Dialog laufend, beim Ein-Klick-Export und auf der Kommandozeile einmalig – prüft das Programm die Sitzung. Die Regeln zu Eingaben und sensiblen Mustern legt [10](10-datenschutz-und-sicherheit.md#11-prüfung-vor-dem-export) fest; hier steht, wie der Export damit umgeht.
+
+| Stufe | Bedeutung |
+|---|---|
+| Sperre | Der Export beginnt erst, wenn der Befund behoben ist. |
+| Warnung | Wird vor dem Export gezeigt; der Klick auf „Exportieren“ gilt als Kenntnisnahme. Eine Warnung hält den Export nicht auf. |
+| Hinweis | Wird angezeigt, braucht keine Bestätigung. |
+
+| Prüfung | Stufe | Angebotene Aktion |
+|---|---|---|
+| Auffällige Eingabe ungeprüft – aus einem Klartext-Fenster oder mit treffsicherem Mustertreffer, auch in einem Kommentar des Autors –, die im Export erscheinen würde | Sperre | „Jetzt prüfen“ öffnet die Durchsicht der Eingaben ([08](08-viewer.md#13-durchsicht-der-eingaben)) |
+| Unauffällige Eingaben ungeprüft | Hinweis | Prüfen · alle als geprüft markieren |
+| Treffer der Musterprüfung in Bildschirmtexten (Elementnamen, Fenstertitel, Text-Schnappschüsse) | Hinweis | Zur Stelle springen · schwärzen · überall schwärzen |
+| Treffer mit bekanntem Elementrechteck: zugehöriger Bildbereich | Hinweis | Bildbereich mitschwärzen |
+| Eigene Texte fehlen in der Exportsprache | Warnung | Auswahl nach [Abschnitt 10](#10-sprache-der-schritttexte) |
+| Schritte ohne Text | Warnung | Zur Stelle springen |
+| Bilder fehlen oder sind beschädigt | Warnung | Zur Stelle springen · ohne Bild exportieren |
+| Schritte mit Belegstufe „nur Eingabe“ oder „unbekannt“ im Umfang | Hinweis | Liste zeigen |
+| Lücken der Aufzeichnung im Umfang | Hinweis | Liste zeigen |
+| Reihenfolge wurde geändert | Hinweis | – |
+| Schwärzungen werden angewendet (Anzahl) | Hinweis | – |
+| Ausgabe größer als 25 MB | Hinweis | Abhilfen nach [5.3](#53-größe) |
+| Zieldatei existiert außerhalb des Ordners `export/` der Sitzung | Sperre | Überschreiben bestätigen · anderen Namen wählen |
+| Ziel nicht beschreibbar | Sperre | Anderes Ziel wählen |
+| Qualitätsprüfung nach dem Regelkatalog ([12.1](#121-qualitätsprüfung-regelkatalog)) (Soll) | Hinweis oder Warnung, je Regel | Sprung zum Schritt · Abhilfe der Regel · Ignorieren |
+
+Mehrere Zeilen dieser Tabelle sind zugleich Regeln des Katalogs: fehlende Übersetzung (Q13), Schritte ohne Text (Q10), fehlende Bilder (Q16), Belegstufen (Q02, Q03) und Lücken (Q04). Sie werden auch ohne die Qualitätsprüfung geprüft; mit ihr tragen ihre Fundstellen die Regelnummer und lassen sich einzeln ignorieren.
+
+Die Musterprüfung ist eine Hilfe, keine Garantie: Sie liest keine Bildinhalte und entscheidet nie selbst. Welche Muster eine Eingabe auffällig machen und welche nur gemeldet werden, steht in [10](10-datenschutz-und-sicherheit.md#11-prüfung-vor-dem-export). In der Schutzstufe „Streng“ gibt es keine Klartext-Fenster; auffällig sind dort nur Mustertreffer.
+
+Die Vorprüfung ändert nichts an der Sitzung. Bestätigungen gelten für diesen Export, nicht dauerhaft; der Stand der Eingaben-Durchsicht dagegen bleibt gespeichert, ebenso ignorierte Fundstellen der Qualitätsprüfung. Für die Kommandozeile gilt [Abschnitt 14](#14-kommandozeilen-export).
+
+### 12.1 Qualitätsprüfung: Regelkatalog
+
+Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt, sondern nach Verständlichkeit: Kommt ein Leser mit dieser Anleitung zurecht? (Soll) Sie läuft vor jedem Export und steht im Viewer jederzeit als Hinweisliste bereit ([08](08-viewer.md#121-qualitätshinweise)).
+
+- Jede Regel hat eine feste **Nummer**, eine **Schwere** – Hinweis oder Warnung –, einen **Meldetext** und eine **Prüfregel**.
+- Die Prüfregel stützt sich auf ein Kriterium aus [05](05-schritterkennung.md#qualitaetskriterien). Dort steht, aus welchen Daten es gelesen wird; hier stehen Schwere, Schwellen und Wortlaut.
+- Geprüft werden die Schritte im Umfang des Exports – in der wirksamen Schrittfolge, in der Sprache und Darstellung dieses Exports und in der Sicht der Leseschicht.
+- Jede Fundstelle bietet den **Sprung zum Schritt** und **Ignorieren**. Bestimmt ist sie durch Regel, Schritt und den Schlüssel der letzten Spalte; so steht sie in `edits.qualityIgnores` ([04](04-datenformat.md#edits-quality)). Der Schlüssel enthält nie aufgezeichneten Inhalt.
+- Ignorierte Fundstellen erscheinen nicht und zählen nicht – weder im Dialog noch beim Ein-Klick-Export noch für `--strict`.
+
+| Nr. | Schwere | Meldetext | Prüfregel (Kriterium aus 05) | Abhilfe | Schlüssel |
+|---|---|---|---|---|---|
+| Q01 | Hinweis | „Das Ziel dieses Schritts hat keinen Namen.“ | `targetUnnamed` – und der Autor hat den Schritttext nicht selbst geschrieben | Text schreiben · Stelle im Bild markieren | – |
+| Q02 | Hinweis | „Dieser Schritt ist nur durch die Eingabe belegt.“ | `evidenceInputOnly` | Bild und Text prüfen | – |
+| Q03 | Hinweis | „Dieser Schritt ist nicht belegt.“ | `evidenceUnknown` an einem Hauptschritt | Prüfen · ausblenden · neu aufnehmen | – |
+| Q04 | Hinweis | „Hier fehlt ein Stück der Aufzeichnung.“ | `gapInFlow` zwischen dem ersten und dem letzten Schritt des Umfangs | Hinweisschritt einfügen · neu aufnehmen | Ursache der Lücke |
+| Q05 | Hinweis | „Dieser Schritt dauert sehr lange.“ | `longStep`: Eingabe länger als 30 s | Teilen · Hinweis einfügen | – |
+| Q06 | Hinweis | „Vor diesem Schritt vergeht viel Zeit.“ | `longIdle`: Leerlauf länger als 60 s, ohne dass davor ein Schritt „Warten“ oder ein Kommentar steht | Hinweisschritt einfügen | – |
+| Q07 | Hinweis | „Das Bild ist sehr klein.“ bzw. „Das Ziel ist im Bild schwer zu finden.“ | `viewSize`: zu klein unter 400 × 225 Pixeln; zu groß, wenn der gezeigte Ausschnitt breiter ist als 2 560 Pixel oder das Ziel weniger als 0,05 % seiner Fläche einnimmt | Darstellung ändern · Größe des Ausschnitts ändern | `tooSmall` oder `tooLarge` |
+| Q08 | Warnung | „Das Bild zeigt das Ziel nicht vollständig.“ | `targetCutOff` | Ausschnitt anpassen | Bild (`pre` oder `post`) |
+| Q09 | Warnung | „Die Klickmarke liegt außerhalb des Bildes.“ | `clickOutsideView` | Ausschnitt anpassen | Bild |
+| Q10 | Warnung | „Dieser Schritt hat keinen Text.“ | `textEmpty` | Text schreiben · automatischen Text wiederherstellen | Sprache |
+| Q11 | Hinweis | „Dieser Schritt hat denselben Text wie der vorige.“ | `textDuplicate` | Zusammenfassen · Text ändern | Sprache |
+| Q12 | Warnung | „Eine auffällige Eingabe ist ungeprüft.“ | `unreviewedInput` | Durchsicht öffnen | Art der Eingabe |
+| Q13 | Warnung | „Ein eigener Text fehlt in der Exportsprache.“ | `translationMissing` | Auswahl nach [Abschnitt 10](#10-sprache-der-schritttexte) | Sprache |
+| Q14 | Hinweis | „Ein persönlicher Wert ist nicht verallgemeinert.“ | `personalValue` | Regel anlegen | Art des Vorschlags (`userName`, `machineName`, `domain`, `profilePath`) |
+| Q15 | Warnung | „Ein verallgemeinerter Wert kann im Bild noch zu sehen sein.“ | `substitutionImagesStale` | Stelle von Hand markieren · Bildflächen neu ermitteln | Kennung der Regel |
+| Q16 | Warnung | „Zu diesem Schritt fehlt ein Bild.“ | `frameMissing` mit `preMissing` oder `postMissing`, wenn das fehlende Bild das gezeigte wäre | Anderes Bild wählen · ohne Bild exportieren | Eintrag aus `issues` |
+| Q17 | Hinweis | „Das Bild dieses Schritts ist nicht verlässlich.“ | `frameMissing` mit `preNotGuaranteed`, `postTimeout` oder `masked` | Bild prüfen · anderes Bild wählen | Eintrag aus `issues` |
+| Q18 | Hinweis | „Vor diesem Schritt passt der Zustand nicht nahtlos.“ | `seam` – etwa nach einer Neuaufnahme oder einer angehängten Aufnahme | Bilder vergleichen · Hinweisschritt einfügen | Art der Nahtstelle |
+| Q19 | Hinweis | „Für diesen Schritt wurde keine Wirkung beobachtet.“ | `noEffect` | Prüfen, ob der Schritt nötig ist · ausblenden | – |
+| Q20 | Hinweis | „Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.“ | `stepNumberInComment` | Kommentar prüfen | – |
+
+Wirkung der Schwere – dieselbe wie in der Tabelle oben:
+
+| Weg | Hinweis | Warnung |
+|---|---|---|
+| Exportdialog | wird in der Zeile „Prüfung“ gezählt | wird gezeigt; „Exportieren“ gilt als Kenntnisnahme |
+| Ein-Klick-Export | erscheint in der Erfolgsmeldung | statt des Exports öffnet sich der Dialog |
+| Kommandozeile | steht unter `notices` | steht unter `warnings`; mit `--strict` endet der Aufruf mit Exit-Code 9 |
+
+Festlegungen:
+
+- **Q12 ersetzt keine Sperre.** Im Viewer hält eine ungeprüfte auffällige Eingabe den Export ohnehin auf (erste Zeile der Tabelle oben). Die Regel sorgt dafür, dass der Befund in der Hinweisliste und in der Ausgabe der Kommandozeile steht. Wird sie ignoriert, verschwindet der Hinweis; die Sperre und der Zähler `{unreviewed:N}` bleiben.
+- **Q14 und Q15 gehören zusammen:** Q14 nennt Werte, für die es noch keine Regel gibt; Q15 nennt Regeln, die das Bild nicht vollständig erreichen. Q14 vergleicht mit den Werten des Rechners, auf dem geprüft wird, und speichert sie nie ([10](10-datenschutz-und-sicherheit.md#109-verallgemeinerung-von-werten)).
+- **Schwellen** stehen in dieser Tabelle; die Vorgaben aus 05 gelten, wo keine genannt ist.
+- **Die Nummern sind fest.** Eine Regel behält ihre Nummer; entfällt sie, bleibt die Nummer frei; neue Regeln kommen ans Ende. Ein Eintrag in `qualityIgnores` mit einer unbekannten Regel bleibt erhalten und wirkt nicht.
+- In der Ausgabe der Kommandozeile trägt jede Meldung der Qualitätsprüfung ihre Regelnummer und die Kennung des Schritts ([Abschnitt 14](#14-kommandozeilen-export)).
+
+## 13 Dateibenennung und Ablage
+
+- **Standardziel** ist der Ordner `export/` in der Sitzung ([04](04-datenformat.md)). Bei gepackten Sitzungen ist es ein Ordner `Name-export/` neben der `.steprec`-Datei.
+- **Dateiname:** `{Titel}.{Endung}`. Die Vorlage kann `{Datum}`, `{Sprache}` und `{Vorlage}` hinzufügen, etwa `Datei im Editor speichern (en).pdf`.
+- Der Titel wird nach den Regeln aus [Abschnitt 11](#11-entschärfung-aufgezeichneter-texte) zu einem gültigen Dateinamen gemacht.
+- **Markdown:** `{Titel}.md` und `{Titel}-bilder/`, beide in der ASCII-Schreibweise aus [6.1](#61-dateien).
+- **Vorhandene Dateien:** Im Ordner `export/` der Sitzung wird ohne Rückfrage überschrieben, denn dort liegen nur erzeugte Ausgaben. An jedem anderen Ort fragt das Programm nach.
+- Das zuletzt gewählte Ziel wird je Format gemerkt.
+- **Support-Paket** (Soll): `Support-<Datum>-<Titel>.zip` im Ordner `export/` der Sitzung. Es wird nie überschrieben; ein vergebener Name erhält eine laufende Nummer ([3.5](#35-support-paket)).
+- **Vergleich zweier Sitzungen** (Soll): Der Viewer legt einen gespeicherten Vergleich im Ordner `export/` der Sitzung A ab ([08](08-viewer.md#59-zwei-aufnahmen-vergleichen)).
+- **Zwischendateien** des Exports und der Vorschau liegen im Sitzungsordner unter `export/.tmp/`, nie in `%TEMP%`, und werden entfernt, sobald sie nicht mehr gebraucht werden; Reste eines Absturzes räumt das nächste Öffnen der Sitzung auf.
+- **Ältere Ausgaben nach einer Schwärzung:** Liegen im Ordner `export/` Ausgaben, die vor einer Schwärzung entstanden sind, listet der Viewer sie auf und bietet an, sie zu löschen ([10](10-datenschutz-und-sicherheit.md#106-abgeleitete-daten-und-frühere-exporte)). Ausgaben an anderen Orten kennt das Programm nicht.
+- Ein abgebrochener oder fehlgeschlagener Export hinterlässt keine Datei: Geschrieben wird in eine Zwischendatei unter `export/.tmp/`, und erst die fertige Ausgabe gelangt an ihr Ziel. Liegt das Ziel auf einem anderen Datenträger, entsteht sie dort zunächst unter einem vorläufigen Namen und wird zuletzt umbenannt.
+
+## 14 Kommandozeilen-Export
+
+Der Befehl `export` erzeugt eine Anleitung ohne Oberfläche, etwa in Skripten. Rahmen, Standardströme und Exit-Codes der Kommandozeile legt [02](02-architektur.md#betriebsarten) fest; hier stehen die Optionen für die vier Anleitungsformate. Das KI-Paket entsteht mit demselben Befehl und `--format ki`; seine Optionen stehen in [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile) – darunter die Detailstufe (`--detail`) und das Bildprofil (`--image-profile`).
+
+**Ein Name, eine Bedeutung:** `--profile` gibt es bei `export` nicht. Der Name ist dem Aufnahmeprofil vorbehalten (`record --profile`, `support --profile`, [07](07-aufnahme-bedienung.md#31-aufnahme-über-die-kommandozeile)); das Bildprofil des KI-Pakets heißt auf der Kommandozeile `--image-profile`. Optionen, die nur für Anleitungen gelten – etwa `--template`, `--address`, `--after`, `--steps` –, sind zusammen mit `--format ki` ein Aufruffehler, ebenso die Optionen des KI-Pakets zusammen mit einem Anleitungsformat.
+
+```
+StepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|ki> [Optionen]
+```
+
+| Option | Bedeutung | Standard |
+|---|---|---|
+| `--format` | Ausgabeformat; `ki` erzeugt das KI-Paket | Pflicht |
+| `--out <Pfad>` | Zieldatei oder Zielordner | Ordner `export/` der Sitzung |
+| `--template <Name oder Datei>` | Vorlage | Standard |
+| `--lang <de\|en>` | Sprache der Schritttexte | Sprache der Sitzung |
+| `--address <formal\|informal\|neutral>` | Anrede in deutschen Schritttexten | `formal` |
+| `--view <as-edited\|screen\|window\|focus>` | Darstellung der Bilder | `as-edited` |
+| `--override-step-views` | Vorgabe gilt auch für Schritte mit eigener Festlegung | aus |
+| `--after <as-edited\|never\|changed\|always>` | Nachher-Bild | `as-edited` |
+| `--steps <main\|all>` | Umfang | `main` |
+| `--from <N>`, `--to <M>` | Bereich nach Schrittnummern der Anleitung | alle |
+| `--no-comments` | Kommentare weglassen | aus |
+| `--title <Text>` | Titel überschreiben | Titel der Sitzung |
+| `--docx-template <Datei>` | Word-Vorlage | aus der Vorlage |
+| `--image-format <png\|jpeg>`, `--jpeg-quality <85–95>` | Bildformat | `png` |
+| `--max-image-width <Pixel>` | Größte Bildbreite | Originalgröße |
+| `--overwrite` | Vorhandene Zieldatei außerhalb des Ordners `export/` der Sitzung ersetzen; innerhalb dieses Ordners wird immer überschrieben | aus |
+| `--strict` | Warnungen der Vorprüfung und zurückgehaltene Eingaben führen zum Abbruch | aus |
+| `--json` | Ergebnis als JSON auf der Standardausgabe | aus |
+| `--quiet` | Keine Fortschrittsmeldungen | aus |
+
+Verhalten:
+
+- Es erscheint nie ein Fenster und nie eine Rückfrage.
+- Auf der **Standardausgabe** steht je erzeugter Datei eine Zeile mit ihrem Pfad, oder mit `--json` ein Objekt mit den Feldern `files`, `warnings`, `notices` und `unreviewed`. Fortschritt und Meldungen gehen auf die Fehlerausgabe.
+- Schwärzungen werden immer angewendet; dafür gibt es keinen Schalter. Dasselbe gilt für Verallgemeinerungen und Neuaufnahmen ([4.6](#46-ziel-marker-neuaufnahmen-und-platzhalter)): Die Kommandozeile gibt Platzhalter aus und nur die wirksame Schrittfolge.
+- **Qualitätsprüfung:** Ihre Fundstellen stehen als Hinweise und Warnungen in der Ausgabe ([12.1](#121-qualitätsprüfung-regelkatalog)). Im JSON-Objekt trägt jede davon die Regelnummer (`rule`), die Kennung des Schritts (`step`) und, wo die Regel einen hat, den Schlüssel (`key`). Ignorierte Fundstellen fehlen.
+- **Ungeprüfte auffällige Eingaben:** Die Kommandozeile kann die Durchsicht nicht zeigen. Solche Eingaben erscheinen in der Ausgabe deshalb als `{unreviewed:N}`, bis der Autor sie im Viewer geprüft hat. N zählt bei getippten Läufen die Tastenanschläge, bei Feldinhalten, Zwischenablage-Inhalten, Kommentaren, Ziel-Angaben und Marker-Texten die Zeichen ([10](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben)). Das JSON-Objekt nennt im Feld `unreviewed`, wie viele es sind. Einen Schalter, der sie im Klartext ausgibt, gibt es nicht.
+- **Warnungen** halten den Export nicht auf. Sie stehen auf der Fehlerausgabe und im JSON-Objekt; mit `--strict` endet der Aufruf stattdessen mit einem eigenen Exit-Code, ebenso bei zurückgehaltenen Eingaben.
+- Exportiert werden nur abgeschlossene Sitzungen.
+
+Die Exit-Codes legt [02](02-architektur.md#betriebsarten) fest:
+
+| Exit-Code | Bedeutung für `export` |
+|---|---|
+| 0 | Erfolg – auch mit Warnungen und `{unreviewed:N}`; beides steht in der Ausgabe |
+| 1 | Allgemeiner Fehler |
+| 2 | Aufruffehler: unbekannte Option, unbekannte Vorlage, vorhandene Zieldatei außerhalb des Ordners `export/` ohne `--overwrite` |
+| 3 | Sitzung nicht gefunden, nicht lesbar oder noch nicht abgeschlossen |
+| 8 | Ziel nicht beschreibbar |
+| 9 | Abbruch durch `--strict`: Die Vorprüfung meldete Warnungen oder zurückgehaltene Eingaben; es wurde nichts geschrieben |
+
+Verwandte Befehle, die dieses Dokument nicht beschreibt:
+
+| Befehl | Zweck | Beschrieben in |
+|---|---|---|
+| `compare <A> <B>` | Zwei Sitzungen abgleichen und den Bericht als Markdown oder JSON ausgeben | Aufruf in [02](02-architektur.md#befehle-nachgelagert), Verfahren in [05](05-schritterkennung.md#schrittabgleich), Ansicht in [08](08-viewer.md#59-zwei-aufnahmen-vergleichen), dasselbe Ergebnis für Agenten in [06](06-ki-export-und-mcp.md#199-compare_sessions) |
+| `support` | Oberfläche für Support-Aufnahme und Support-Paket öffnen | [07](07-aufnahme-bedienung.md#32-support-aufnahme-über-die-kommandozeile) |
+
+Ein Support-Paket erzeugt `export` nicht ([3.5](#35-support-paket)).
+
+Beispiel:
+
+```
+StepRecorder.exe export "C:\Aufnahmen\2026-11-11 14.30 – Editor – notiz.txt" ^
+    --format pdf --template Schulung --lang de --out "D:\Doku\Datei-speichern.pdf"
+```
+
+## 14a AutoHotkey-Skript
+
+Format `ahk`: Aus den Schritten entsteht ein lauffähiges **AutoHotkey-v2**-Skript (`export/ahk/<Titel>.ahk`, UTF-8 mit BOM). Grundlage ist der Win32-Kontext je Schritt ([04 §12.6](04-datenformat.md)).
+
+| Schrittart | Erzeugter Code |
+|---|---|
+| Klick, Doppel-, Dreifach-, Rechtsklick | Fenster aktivieren (`Fenster(WinTitle)` = `WinWait` + `WinActivate` + `WinWaitActive`), dann `ControlClick ClassNN, hwnd,, Taste, Anzahl, "NA xN yN"` bei klassischen Steuerelementen, sonst `Click "x y"` in Fensterkoordinaten. Die jeweils andere Variante steht als Kommentar daneben, ebenso UIA-Name, AutomationId, Klasse und Pfad. |
+| Ziehen | `MouseClickDrag` in Fensterkoordinaten. |
+| Scrollen | `Click "x y WheelDown n"` bzw. mit Modifikatoren `Send`. |
+| Eingabe | `ControlFocus ClassNN` (falls bekannt), `SendText "…"` für Text, `Send "{Taste}"` für Sondertasten und den Abschluss. Maskierte Eingaben werden beim Start mit `InputBox(…, "Password")` abgefragt und nie ins Skript geschrieben; Platzhalter werden zu Variablen. |
+| Tastenkürzel, Taste | `Send "^s"`, `Send "{Tab 3}"` usw. |
+| Fensterwechsel | `Fenster(WinTitle)`. |
+| Wirkung „Fenster erschien“ | `WinWait Titel` nach dem Schritt. |
+| Kommentar, Marker | Kommentarzeilen. |
+
+WinTitle: `ahk_class … ahk_exe …`; für Dialoge (`#32770`) mit Titel. Klassennamen mit Laufzeitanteil (WinForms `WindowsForms10.…`, WPF `HwndWrapper[…]`, MFC `Afx:…`) werden durch Titel bzw. Steuerelement-Text ersetzt. Das Skript setzt Per-Monitor-DPI (physische Pixel wie die Aufnahme), übernimmt die echten Pausen (150–3000 ms, abschaltbar mit `--fixed-timing`), skaliert sie über `Tempo` und bricht mit Strg+Esc ab. Wie bei Anleitungen ist die Durchsicht auffälliger Eingaben Voraussetzung. Im Viewer kopiert „Code kopieren“ im Abschnitt *AutoHotkey* den Code eines einzelnen Schritts.
+
+### 14b AHK-KI-Paket
+
+Format `ahk-ki` (`export/ahk-ki/<Titel>/`; im Exportdialog: AutoHotkey → „Als KI-Paket“): Grundlage für einen KI-Assistenten, der das Skript schreibt oder verbessert.
+
+| Datei | Inhalt |
+|---|---|
+| `README_AHK_KI.md` | Regeln für die KI: AutoHotkey v2, DPI-Kontext, WinTitle, Wege nach Stabilität, Tastatur vor Maus, Wartesignale statt fester Pausen, Erfolgsprüfungen, Parameter, Passwörter nie im Skript, Wiederholungen als Schleife, Gedrückthalten und Ziehen, Administratorrechte, Programmstart |
+| `ablauf.json` | Format `steprec.ahk-ki`: Umgebung (Monitore, Tastaturlayouts, Programme mit Version, Startbefehl, Rechten und Fensterklassen), `parameters`, `repetitions`, je Schritt `window`, `selectors`, `point`, `control`, `element`, `elementPath`, `input`, `sync`, `verify`, `menuPath`, `choose`, `data`, `effect`, `images`, `ocr`, `windowTexts` |
+| `entwurf.ahk` | Skript wie Format `ahk` |
+| `bilder/schritt-NN.png`, `bilder/schritt-NN-kontext.png` | 48×48-Ausschnitt für `ImageSearch`; markierter Ausschnitt für Bildverständnis |
+| `vergleich-N.md` | Mit `--with <Sitzung>`: Unterschiede zu weiteren Aufnahmen desselben Ablaufs (Parameter, Sonderfälle) |
+
+Texterkennung: Windows-OCR (offline, Sprachen des Benutzerprofils) um den Klickpunkt – Wort unter dem Zeiger und nächstgelegene Zeilen mit Abstand (`ocr.underCursor`, `ocr.nearby`). Der MCP-Server liefert denselben Inhalt mit `get_automation`.
+
+Ergänzungen im Format `ahk`: Eingaben werden zu Parametern oben im Skript; nach jedem Schritt wird gewartet, bis die Anwendung in der Aufnahme bereit war (`sync.readyMs`), bei beschäftigtem Zeiger mit `WarteBereit()`, bei neuen Fenstern mit `Erwarte(() => WinExist(…))`; beobachtete Änderungen (Texte, Häkchen, Titel) werden zu `Erwarte(…)`-Prüfungen (`Streng := true` bricht bei Abweichung ab). Menüpfade, Listenauswahl, Datenquellen, Tastenkürzel, Beschriftungen und Wiederholungen stehen als Kommentar, Bildsuche (`KlickBild`) als Alternative. Denkpausen nur mit `--real-timing`.
+
+## 15 Qualitätsziele
+
+Die Referenzsysteme A und B stehen in [03](03-aufzeichnungskern.md#leistungsbudgets), die Sitzungsgrößen S, M und L in [08](08-viewer.md#14-geschwindigkeitsziele).
+
+| Ziel | Festlegung |
+|---|---|
+| Dauer, Sitzung S (50 Schritte) auf System A | HTML und Markdown ≤ 3 s, DOCX und PDF ≤ 5 s |
+| Dauer, Sitzung M (1 000 Schritte) auf System A | Jedes Format ≤ 60 s, mit Fortschrittsanzeige |
+| Dauer auf System B (Bilder in 4K) | Höchstens das Doppelte der Werte für System A |
+| Bedienbarkeit | Der Viewer bleibt während des Exports bedienbar; der Export ist abbrechbar |
+| Arbeitsspeicher | Höchstens 600 MB zusätzlich; Bilder werden nacheinander verarbeitet, nicht alle zugleich gehalten |
+| Bildtreue | Ein als PNG exportiertes Bild ist pixelgleich mit dem im Viewer angezeigten |
+| Wiederholbarkeit | Zwei Exporte mit gleichen Einstellungen ergeben bei HTML und Markdown bytegleiche Dateien; bei DOCX und PDF mit der Option „festes Datum“ ebenfalls |
+| Gültigkeit | HTML ohne Fehler im W3C-Prüfer; DOCX ohne Fehler im Open-XML-Prüfer; Markdown ohne Abweichung in der Gegenprobe |
+
+## 16 Beispiele
+
+Dieselbe kurze Anleitung in zwei Formaten. Die Bilddaten sind gekürzt.
+
+### 16.1 HTML
+
+```html
+<!doctype html>
+<html lang="de">
+<head>
+<meta http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src data:; style-src 'sha256-…'; base-uri 'none'; form-action 'none'">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datei im Editor speichern</title>
+<style>/* eingebettetes Stylesheet, über seinen Hashwert zugelassen */</style>
+</head>
+<body>
+<header>
+  <h1>Datei im Editor speichern</h1>
+  <p class="meta">3 Schritte · Stand 11.11.2026</p>
+</header>
+<main>
+<ol class="steps">
+  <li id="schritt-1">
+    <p>Wählen Sie den Menüpunkt <b>„Datei“</b>.</p>
+    <figure><img alt="Editor, Menüpunkt „Datei“ markiert" width="960" height="540"
+                 src="data:image/png;base64,iVBORw0KGgo…"></figure>
+  </li>
+  <li id="schritt-2">
+    <p>Wählen Sie den Menüpunkt <b>„Speichern unter“</b>.</p>
+    <figure><img alt="Menü „Datei“, Menüpunkt „Speichern unter“ markiert" width="960" height="540"
+                 src="data:image/png;base64,iVBORw0KGgo…"></figure>
+    <aside class="note"><p><b>Hinweis:</b> Bei einer neuen Datei öffnet auch „Speichern“ diesen Dialog.</p></aside>
+  </li>
+  <li id="schritt-3">
+    <p>Geben Sie in das Feld <b>„Dateiname“</b> „<kbd>notiz.txt</kbd>“ ein und drücken Sie die Eingabetaste.</p>
+    <figure><img alt="Dialog „Speichern unter“, Feld „Dateiname“ ausgefüllt" width="960" height="540"
+                 src="data:image/png;base64,iVBORw0KGgo…"></figure>
+  </li>
+</ol>
+</main>
+</body>
+</html>
+```
+
+### 16.2 Markdown
+
+```markdown
+# Datei im Editor speichern
+
+3 Schritte · Stand 11.11.2026
+
+1. Wählen Sie den Menüpunkt **„Datei“**.
+
+   ![Editor, Menüpunkt „Datei“ markiert](Datei-im-Editor-speichern-bilder/schritt-001.png)
+
+2. Wählen Sie den Menüpunkt **„Speichern unter“**.
+
+   ![Menü „Datei“, Menüpunkt „Speichern unter“ markiert](Datei-im-Editor-speichern-bilder/schritt-002.png)
+
+   > **Hinweis:** Bei einer neuen Datei öffnet auch „Speichern“ diesen Dialog.
+
+3. Geben Sie in das Feld **„Dateiname“** „`notiz.txt`“ ein und drücken Sie die Eingabetaste.
+
+   ![Dialog „Speichern unter“, Feld „Dateiname“ ausgefüllt](Datei-im-Editor-speichern-bilder/schritt-003.png)
+```
+
+### 16.3 Entschärfung am Beispiel
+
+Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext erscheint er so:
+
+| Format | Ausgabe im Quelltext | Der Leser sieht |
+|---|---|---|
+| HTML | `&lt;b&gt;Rechnung&lt;/b&gt; [neu]_2026` | `<b>Rechnung</b> [neu]_2026` |
+| Markdown | `\<b\>Rechnung\</b\> \[neu\]\_2026` | `<b>Rechnung</b> [neu]_2026` |
+| DOCX, PDF | Textknoten bzw. gezeichneter Text | `<b>Rechnung</b> [neu]_2026` |
+
+## 17 Anforderungen
+
+| ID | Anforderung | Priorität | Abnahmekriterium |
+|---|---|---|---|
+| EXP-001 | Export als HTML und Markdown | Muss | Beide Formate lassen sich aus Dialog und Kommandozeile erzeugen. |
+| EXP-002 | Export als DOCX und PDF | Muss | Beide Formate lassen sich aus Dialog und Kommandozeile erzeugen. |
+| EXP-003 | Schwärzungen im Export erzwungen | Muss | Ein Testmuster unter einer Schwärzung und ein geschwärzter Text sind in keiner der vier Ausgaben auffindbar; es gibt keine Option, die das ändert. |
+| EXP-004 | Bildgleichheit mit dem Viewer | Muss | Ein als PNG exportiertes Bild ist pixelgleich mit der Kopie desselben Schritts aus dem Viewer. |
+| EXP-005 | In sich geschlossene Ausgabe | Muss | Keine der vier Ausgaben enthält einen Verweis auf eine fremde Quelle; beim Öffnen der HTML-Datei entsteht kein Netzwerkzugriff. |
+| EXP-006 | Erzeugung ohne Fremdprogramme | Muss | Der Export gelingt auf einem System ohne Office und mit gesperrtem Netzwerk. |
+| EXP-007 | Wiederholbarkeit | Soll | Zwei Exporte mit gleichen Einstellungen sind nach den Regeln aus Abschnitt 15 bytegleich. |
+| EXP-008 | Platzhalter für Geschwärztes | Muss | In allen vier Formaten erscheint eine geschwärzte Textstelle als `[geschwärzt]` bzw. `[redacted]`, ein geschwärzter Schritt als „Schritt geschwärzt“ bzw. „Step redacted“ (er fehlt nur, wenn er zugleich ausgeblendet ist), ein geschwärzter Zeitraum als Hinweis „vom Autor entfernt“ mit Zeitpunkt und Dauer und ein geschwärzter Bildbereich als schwarz gefüllte Fläche. |
+| EXP-010 | Exportdialog | Muss | Der Dialog bietet Format, Vorlage, Umfang, Darstellung, Nachher-Bild, Sprache und Ziel; er zeigt das Ergebnis der Vorprüfung. |
+| EXP-011 | Vorbelegung und kurzer Weg | Muss | Der Dialog öffnet mit den Einstellungen des letzten Exports; `Strg+E`, Eingabetaste erzeugt die Ausgabe. |
+| EXP-012 | Ein-Klick-Export | Soll | `Strg+Umschalt+E` exportiert ohne Dialog; bei Sperre oder Warnung öffnet sich der Dialog mit dem Befund. |
+| EXP-013 | Aktionen nach dem Export | Soll | Die Meldung bietet Öffnen, Ordner zeigen, Pfad kopieren und Datei kopieren. |
+| EXP-014 | Vorschau | Soll | „Vorschau“ öffnet die Ausgabe im Standardprogramm, ohne die Zieldatei anzulegen; die Vorschaudatei liegt in `export/.tmp/` der Sitzung, nicht in `%TEMP%`, und ist nach dem Schließen der Sitzung entfernt. |
+| EXP-015 | Fortschritt und Abbruch | Muss | Ab 1 s Dauer erscheint ein Fortschritt; ein Abbruch hinterlässt keine Datei am Ziel. |
+| EXP-016 | Export-Einstellungen je Sitzung | Soll | Nach einem Export öffnet der Dialog derselben Sitzung mit denselben Einstellungen; `edits.json` enthält dafür das Objekt `exports` nach 4.5 und keinen Zielpfad. |
+| EXP-017 | KI-Paket im Exportdialog | Muss | Der Dialog bietet „KI-Paket“ als Ziel, zeigt dessen Optionen und die Token-Abschätzung aus [06](06-ki-export-und-mcp.md#10-token-abschätzung-und-paketteilung) und verwendet dieselbe Vorprüfung wie die Anleitungsformate. |
+| EXP-020 | Umfang wählbar | Muss | Hauptschritte, alle Schritte, Auswahl und Bereich ergeben jeweils genau die erwarteten Schritte. |
+| EXP-021 | Nie Enthaltenes | Muss | Ausgeblendete und verworfene Schritte, geschwärzte Inhalte sowie interne und ausgeblendete Kommentare erscheinen in keiner Ausgabe, bei keiner Kombination von Optionen. |
+| EXP-022 | Darstellung je Export | Muss | Jede der vier Einstellungen ergibt die erwarteten Bildausschnitte; „Einzelfestlegungen überschreiben“ wirkt wie beschrieben. |
+| EXP-023 | Nachher-Bild | Muss | „nie“, „bei Änderung“ und „immer“ ergeben die erwartete Bildzahl an einer Testsitzung mit bekannten Änderungen. |
+| EXP-024 | Bildformat und Bildbreite | Soll | PNG und JPEG sind wählbar; kein Bild überschreitet die eingestellte Breite. |
+| EXP-025 | Kommentare | Muss | Kommentare erscheinen mit ihrer Kennzeichnung am richtigen Schritt; mit der Option „weglassen“ fehlen sie. |
+| EXP-026 | Kapitel, Titelblatt, Inhaltsverzeichnis | Soll | Kapitel erscheinen als Überschriften; Titelblatt und Inhaltsverzeichnis folgen den Optionen. |
+| EXP-027 | Kopf- und Fußzeile, Seitenformat | Soll | DOCX und PDF zeigen Titel und „Seite X von Y“; A4 und Letter, Hoch und Quer sind wählbar. |
+| EXP-028 | Hinweis auf Sicherheitsdialoge | Soll | An der Stelle einer solchen Lücke steht der neutrale Hinweis; mit abgeschalteter Option fehlt er. |
+| EXP-029 | Keine unbeabsichtigten Personenangaben | Muss | Eine Ausgabe ohne ausgefülltes Autorfeld enthält weder Benutzernamen noch Rechnernamen noch Pfade des Aufnahmerechners in den Metadaten. |
+| EXP-030 | HTML als eine Datei | Muss | Die Ausgabe besteht aus genau einer Datei; alle Bilder sind eingebettet. |
+| EXP-031 | HTML ohne Skripte, mit Policy | Muss | Die Datei enthält kein `<script>`, kein Ereignis-Attribut, kein `style`-Attribut; die Policy aus 5.1 steht als erstes Element im Kopf; das Stylesheet ist über seinen Hashwert zugelassen. |
+| EXP-032 | HTML gültig und zugänglich | Soll | Keine Fehler im W3C-Prüfer; jedes Bild hat einen Alternativtext; Kontrast mindestens 4,5 : 1. |
+| EXP-033 | HTML für Druck, schmale Bildschirme, Dunkel | Soll | Der Druck teilt keinen Schritt; die Seite ist bei 360 Pixeln Breite ohne Querrollen lesbar; sie folgt der Dunkel-Einstellung. |
+| EXP-034 | HTML mit Bilderordner | Kann | Die Variante erzeugt eine HTML-Datei und einen Bilderordner mit relativen Verweisen. |
+| EXP-040 | Markdown mit Bilderordner | Muss | Die Ausgabe besteht aus einer `.md`-Datei und einem Ordner; alle Bildverweise lösen auf. |
+| EXP-041 | Markdown nach CommonMark, ohne HTML | Muss | Die Gegenprobe mit Markdig findet weder HTML-Knoten noch Verweise außer den eigenen Bildverweisen und den Links des Autors. |
+| EXP-042 | Dialekte | Soll | „GitHub“ und „Obsidian“ erzeugen die Kommentarformen aus 6.2. |
+| EXP-043 | Sichere Dateinamen für Markdown | Muss | Datei-, Ordner- und Bildnamen enthalten nur ASCII-Buchstaben, Ziffern, Bindestriche und den Punkt vor der Endung. |
+| EXP-044 | ZIP-Ausgabe, Kopfdaten | Kann | Beide Optionen wirken wie beschrieben. |
+| EXP-050 | DOCX gültig | Muss | Keine Fehler im Open-XML-Prüfer; Word ab 2016 und LibreOffice ab 7 öffnen die Datei ohne Reparaturhinweis. |
+| EXP-051 | DOCX mit benannten Formatvorlagen und echter Nummerierung | Muss | Jeder Inhalt trägt die Formatvorlage aus 7.2; nach dem Löschen eines Schritts in Word stimmt die Nummerierung. |
+| EXP-052 | Eigene Word-Vorlage | Muss | Mit einer Vorlage erscheinen deren Kopfzeile, Schriften und Seitenränder; der Inhalt steht an der gekennzeichneten Stelle; eine `.dotm` wird abgelehnt. |
+| EXP-053 | DOCX-Bilder | Muss | Kein Bild überschreitet den Satzspiegel; jedes hat einen Alternativtext; Schritttext und Bild stehen auf derselben Seite. |
+| EXP-054 | DOCX-Inhaltsverzeichnis | Soll | Das Verzeichnis ist beim Öffnen gefüllt und lässt sich in Word aktualisieren. |
+| EXP-055 | DOCX ohne Makros und externe Bezüge | Muss | Das Paket enthält keinen Makro-Teil und keine externe Beziehung außer Links des Autors. |
+| EXP-060 | PDF mit echtem Text | Muss | Der Schritttext lässt sich im PDF-Betrachter markieren, kopieren und suchen. |
+| EXP-061 | PDF-Seitenumbruch | Muss | In einer Testsitzung mit Bildern unterschiedlicher Höhe ist kein Bild geteilt und kein Schritttext von seinem Bild getrennt. |
+| EXP-062 | PDF mit eingebetteten Schriften | Muss | Das PDF verweist auf keine nicht eingebettete Schrift; deutsche und englische Texte zeigen keine Ersatzzeichen. |
+| EXP-063 | PDF-Kopf- und Fußzeile | Soll | Jede Seite zeigt „Seite X von Y“ mit richtiger Gesamtzahl. |
+| EXP-064 | PDF-Inhaltsverzeichnis mit Sprungzielen | Soll | Ein Klick auf einen Eintrag führt zur Seite des Kapitels. |
+| EXP-065 | PDF/A, Lesezeichen, Strukturmarkierung | Kann | Je nach Umsetzung nachweisbar mit einem Prüfprogramm. |
+| EXP-070 | Mitgelieferte Vorlagen | Soll | Die vier Vorlagen aus 9.1 sind vorhanden und ergeben die genannten Kennzeichen. |
+| EXP-071 | Eigene Vorlagen | Soll | Gespeicherte Vorlagen stehen nach Neustart zur Wahl und liegen portabel beim Programm. |
+| EXP-072 | Branding | Soll | Logo, Akzentfarbe und Fußzeilentext erscheinen in allen Formaten, die sie vorsehen. |
+| EXP-073 | Vorlagen ohne ausführbaren Inhalt | Muss | Eine Vorlage mit Skript, Makro oder Verweis nach außen wird beim Einlesen abgelehnt. |
+| EXP-074 | Vorlagen weitergeben | Kann | Eine weitergegebene Vorlage ergibt auf einem zweiten Rechner dieselbe Ausgabe. |
+| EXP-080 | Schritttexte auf Deutsch | Muss | Alle automatischen Texte erscheinen auf Deutsch. |
+| EXP-081 | Schritttexte auf Englisch | Soll | Dieselbe Sitzung ergibt ohne Neuaufnahme eine englische Anleitung; Namen aus der Anwendung bleiben unverändert. |
+| EXP-082 | Fehlende Übersetzung eigener Texte | Soll | Die Vorprüfung meldet betroffene Schritte und bietet die drei Wege aus Abschnitt 10. |
+| EXP-083 | Anredeformen | Soll | Sie, du und neutral ergeben die jeweilige Form in allen automatischen deutschen Texten; für Englisch ist die Wahl ausgegraut. |
+| EXP-090 | Entschärfung in HTML | Muss | Alle Prüftexte aus Abschnitt 11 erscheinen wörtlich und bewirken nichts; geprüft im Browser und im Quelltext. |
+| EXP-091 | Entschärfung in Markdown | Muss | Alle Prüftexte erscheinen nach dem Rendern wörtlich; die Gegenprobe findet keine unerwarteten Knoten. |
+| EXP-092 | Entschärfung in DOCX und PDF | Muss | Alle Prüftexte erscheinen wörtlich; die Dateien sind gültig; es entsteht kein Feld, kein Verweis, keine Aktion. |
+| EXP-093 | Aufgezeichnete Adressen nie anklickbar | Muss | Eine aufgezeichnete Adresse ist in keiner der vier Ausgaben ein Verweis. |
+| EXP-094 | Richtungs- und Steuerzeichen | Soll | Ein Text mit U+202E erscheint in keiner Ausgabe unbemerkt umgekehrt. |
+| EXP-095 | Sichere Dateinamen | Muss | Die Titel-Prüftexte aus Abschnitt 11 ergeben gültige Dateinamen im Zielordner und keinen Pfad außerhalb. |
+| EXP-096 | Entschärfung an einer Stelle | Soll | Je Format gibt es genau einen Baustein, der aufgezeichnete Texte schreibt (Nachweis durch Codeprüfung). |
+| EXP-100 | Vorprüfung vor jedem Export | Muss | Dialog, Ein-Klick-Export und Kommandozeile führen die Prüfungen der Tabelle in Abschnitt 12 aus; die als Soll gekennzeichnete Zeile zur Qualitätsprüfung regelt EXP-140. |
+| EXP-101 | Sperre bei ungeprüften auffälligen Eingaben | Muss | Solange eine auffällige Eingabe ungeprüft ist, die im Export erscheinen würde, beginnt kein Export aus der Oberfläche; nach der Entscheidung in der Durchsicht beginnt er. |
+| EXP-102 | Hinweise zu Belegstufen und Lücken | Soll | Betroffene Schritte und Lücken im Umfang werden gezählt und sind als Liste abrufbar. |
+| EXP-110 | Standardablage und Benennung | Muss | Ohne Angabe liegt die Ausgabe im Ordner `export/` der Sitzung und heißt nach dem Titel. |
+| EXP-111 | Überschreibregel | Soll | Im Ordner `export/` wird ohne Rückfrage überschrieben, an anderen Orten nachgefragt. |
+| EXP-112 | Keine unvollständigen Dateien | Muss | Wird der Export hart beendet, liegt am Ziel keine Datei mit dem Zielnamen. |
+| EXP-113 | Ältere Ausgaben nach einer Schwärzung | Soll | Nach einer neuen Schwärzung sind die Ausgaben im Ordner `export/` der Sitzung aufgelistet und lassen sich mit einem Klick löschen. |
+| EXP-120 | Kommandozeilen-Export | Muss | Der Befehl aus Abschnitt 14 erzeugt alle vier Anleitungsformate mit den Optionen der Tabelle; mit `--format ki` entsteht das KI-Paket nach [06](06-ki-export-und-mcp.md#31-erzeugen-viewer-und-kommandozeile). Im Ordner `export/` der Sitzung wird ohne `--overwrite` überschrieben, außerhalb endet der Aufruf dann mit Exit-Code 2. |
+| EXP-121 | Exit-Codes und Ausgabe | Muss | Jeder Fall der Tabelle in Abschnitt 14 liefert seinen Exit-Code, auch „Ziel nicht beschreibbar“ und „Abbruch durch `--strict`“; die Standardausgabe enthält nur Pfade bzw. das JSON-Objekt. |
+| EXP-122 | Kein Fenster, keine Rückfrage | Muss | Der Befehl läuft in einer Sitzung ohne Desktop-Zugriff durch. |
+| EXP-123 | Ungeprüfte Eingaben auf der Kommandozeile | Muss | Ungeprüfte auffällige Eingaben erscheinen in der Ausgabe als `{unreviewed:N}` und sind im JSON-Objekt gezählt; es gibt keine Option, die sie im Klartext ausgibt. Nach der Durchsicht im Viewer erscheinen sie im Klartext bzw. geschwärzt. |
+| EXP-130 | Dauer des Exports | Soll | Die Zeiten aus Abschnitt 15 sind auf System A und – mit dem dort genannten Faktor – auf System B eingehalten. |
+| EXP-131 | Bedienbarkeit während des Exports | Soll | Während eines Exports der Sitzung M reagiert der Viewer auf Schrittwechsel in höchstens 150 ms. |
+| EXP-140 | Qualitätsprüfung nach Regelkatalog | Soll | An einer Testsitzung mit je einer vorbereiteten Fundstelle meldet jede Regel Q01 bis Q20 genau diese, mit Nummer, Schwere und Meldetext der Tabelle in 12.1; eine Sitzung ohne Fundstellen ergibt keine Meldung. |
+| EXP-141 | Schwere wirkt einheitlich | Soll | Ein Hinweis hält keinen Export auf; eine Warnung öffnet beim Ein-Klick-Export den Dialog und führt mit `--strict` zu Exit-Code 9. Regeln, die schon bisher geprüft wurden (Q02, Q03, Q04, Q10, Q13, Q16), behalten ihre Schwere. |
+| EXP-142 | Ignorierte Fundstellen | Soll | Eine in `edits.qualityIgnores` eingetragene Fundstelle erscheint weder im Dialog noch in der Ausgabe der Kommandozeile und zählt nicht für `--strict`; nach dem Entfernen des Eintrags erscheint sie wieder. Das Ignorieren von Q12 hebt weder die Sperre im Viewer noch `{unreviewed:N}` auf. |
+| EXP-143 | Regelnummern in der Ausgabe, stabil | Soll | Jede Meldung der Qualitätsprüfung nennt im Dialog die Regelnummer und im JSON-Objekt `rule`, `step` und gegebenenfalls `key`; zwischen zwei Programmversionen ändert keine Regel ihre Nummer. |
+| EXP-150 | Platzhalter in allen Formaten | Soll | Ein verallgemeinerter Kanarienwert ist in keiner der vier Ausgaben auffindbar – weder im Text noch in Alternativtexten, Metadaten oder Dateinamen; an jeder Textfundstelle steht `{Name}`, im Bild an jeder vom Viewer gezeigten Stelle die gefüllte Fläche (T-15). |
+| EXP-151 | Platzhalter ausgezeichnet und entschärft | Soll | Platzhalter tragen die Auszeichnung aus 4.6; ein Platzhaltername aus den Prüftexten aus Abschnitt 11 erscheint wörtlich und bewirkt nichts. |
+| EXP-152 | Hinweis auf Platzhalter | Soll | Eine Anleitung mit Platzhaltern nennt vor dem ersten Schritt die verwendeten Namen und keinen der Werte; mit abgeschalteter Option und ohne Platzhalter fehlt der Hinweis. |
+| EXP-153 | Kein Schalter gegen Verallgemeinerungen | Soll | Weder Dialog noch Kommandozeile bieten eine Option, die Platzhalter durch die Werte ersetzt. |
+| EXP-160 | Neuaufnahmen in der Anleitung | Soll | Nach einer Ersetzung stehen in allen vier Ausgaben die neuen Schritte an der Stelle des ersten ersetzten, fortlaufend nummeriert; ersetzte Schritte, nicht verwendete Neuaufnahmen und verworfene Abschnitte erscheinen bei keiner Wahl des Umfangs. Nach „Ersetzung aufheben“ stehen wieder die früheren Schritte dort. |
+| EXP-161 | Ziel der Aufnahme in der Anleitung | Soll | Mit der Option steht nach dem Titel der Block mit den wirksamen Angaben im Wortlaut der Textvorlagen; eine geleerte Angabe fehlt; ohne Angaben fehlt der Block. Ohne die Option erscheint keine der Angaben. |
+| EXP-162 | Marker in der Anleitung | Soll | Marker der Typen `error`, `expected` und `important` erscheinen als nicht nummerierter Absatz mit dem Satz der Textvorlage und ihrem Bild; `note` erscheint nur mit „Alle Schritte“; ein im Viewer geänderter Typ gilt. |
+| EXP-170 | Inhalt des Support-Pakets | Soll | Die ZIP-Datei enthält genau die HTML-Anleitung als eine Datei und das KI-Paket; sie enthält weder `events.jsonl` noch `edits.json` noch den Bildspeicher der Sitzung (T-16). |
+| EXP-171 | Benennung und Ablage des Support-Pakets | Soll | Die Datei heißt `Support-<Datum>-<Titel>.zip` nach den Regeln aus 3.5 und liegt ohne andere Wahl im Ordner `export/` der Sitzung; ein zweites Paket derselben Sitzung erhält eine laufende Nummer und überschreibt das erste nicht. |
+| EXP-172 | Support-Paket aus bereinigter Kopie | Soll | Ein geschwärzter Kanarienwert und ein verallgemeinerter Wert sind in keinem Byte der ZIP-Datei und ihrer entpackten Inhalte auffindbar; nach dem Erstellen und nach einem Abbruch liegt unter `export/.tmp/` keine bereinigte Kopie mehr. |
+| EXP-173 | Support-Paket nur nach Durchsicht, nur aus dem Viewer | Soll | Ohne vollständige Durchsicht entsteht kein Paket; `export` bietet kein Format dafür an. |
+| EXP-174 | Kein Versand | Soll | Beim Erstellen entsteht kein Netzwerkzugriff, und es wird kein Mailprogramm, Teilen-Dialog oder Upload aufgerufen; geöffnet wird nur der Ordner im Explorer. |
+| EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |
+
+## 18 Offene Punkte
+
+| Nr. | Punkt | Klärung |
+|---|---|---|
+| 1 | Stellt SkiaSharp PDF/A, Lesezeichen und Strukturmarkierung bereit? | Beim Bau des PDF-Exports prüfen; bis dahin Kann. |
+| 2 | Welche frei lizenzierten Schriften werden mitgeliefert? | Auswahl mit [02](02-architektur.md); Lizenzhinweise in die Liste Dritter aufnehmen. |
+| 3 | Schriftsatz für Schriften mit komplexer Formung (etwa Arabisch) im PDF | In Version 1 nicht zugesichert; die Ausgabe darf nicht abbrechen. |
+| 4 | Getippte Werte als Beispielwert kennzeichnen („zum Beispiel …“) | Braucht eine weitere Variante der Textvorlagen in [05](05-schritterkennung.md#textvorlagen); bis dahin Kann. |
+| 5 | Zeile „Erstellt mit …“: Standard an oder aus? | Entscheidung des Projekts; derzeit aus. |
+| 6 | Policy für die Variante „HTML mit Bilderordner“ | Verhalten der Browser bei lokalen Dateien prüfen, bevor die Variante umgesetzt wird. |
+| 7 | Erkennung sensibler Muster in Bildern | Setzt Textstellen mit Rechtecken im Datenbestand voraus ([04](04-datenformat.md)); ohne sie entfällt die Prüfung. |
+| 8 | Schwellen der Regel Q07 | Mit echten Sitzungen prüfen, ob 2 560 Pixel Breite und 0,05 % Flächenanteil zu viele oder zu wenige Hinweise ergeben. |

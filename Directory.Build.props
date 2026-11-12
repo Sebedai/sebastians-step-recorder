@@ -1,0 +1,8 @@
+<Project>
+  <!-- Build-Ausgaben außerhalb des (synchronisierten) Projektordners, ARC-047 -->
+  <PropertyGroup>
+    <UseArtifactsOutput>true</UseArtifactsOutput>
+    <ArtifactsPath>$(LOCALAPPDATA)\StepRecorder-build</ArtifactsPath>
+    <LangVersion>latest</LangVersion>
+  </PropertyGroup>
+</Project>
