@@ -34,8 +34,7 @@ public static class AhkKiPackage
             throw new InvalidOperationException($"{res.Unreviewed} auffällige Eingaben sind noch nicht durchgesehen (Durchsicht der Eingaben).");
         string title = view.Title.Length > 0 ? view.Title : "Ablauf";
         string dir = o.OutDir ?? Path.Combine(view.Session.Path, "export", "ahk-ki", Fmt.FileSafe(title));
-        if (Directory.Exists(dir)) Directory.Delete(dir, true);
-        Directory.CreateDirectory(dir);
+        ExportFolders.PrepareOwned(dir, "ablauf.json");
         string imgDir = Path.Combine(dir, "bilder");
 
         // Skriptentwurf (schreibt auch die 48×48-Ausschnitte für ImageSearch)

@@ -59,7 +59,7 @@ public static class KiPackage
         var res = new ExportResult { Unreviewed = view.UnreviewedCount };
         string stamp = DateTime.Now.ToString("yyyyMMdd-HHmmss");
         string outDir = o.OutDir ?? Path.Combine(view.Session.Path, "export", $"ki-paket-{stamp}");
-        if (Directory.Exists(outDir)) Directory.Delete(outDir, true);
+        ExportFolders.PrepareOwned(outDir, "ai-package.json");
         Directory.CreateDirectory(Path.Combine(outDir, "images"));
         var imagesMeta = new JsonArray();
         var steps = view.Effective(guide: false, importance: o.Detail == "full" ? "all" : "secondary");

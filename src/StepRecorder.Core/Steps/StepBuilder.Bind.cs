@@ -81,7 +81,10 @@ public sealed partial class StepBuilder
             if (st.Monitor != null) { st.Ctx["ep"] = anchor.Int("ep"); st.Ctx["m"] = st.Monitor; }
             st.Ctx.Clean();
             if (w.Str("title") != null) st.Prov.Add(new JsonObject { ["path"] = "ctx.title", ["seq"] = w.Long("seq"), ["field"] = "title", ["copy"] = true });
-            if (w.Str("surface") == "opaque") st.Flags.Add("opaque");
+            var surface = Capture.WindowRegistry.SurfaceOfInfo(w);
+            if (surface == "opaque") st.Flags.Add("opaque");
+            // Getipptes in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, VM): Klartext → Durchsicht nötig
+            if (st.Kind == "type" && !st.InputObj.Bool("masked") && surface != "structured") st.Flags.Add("plaintext");
         }
         switch (st.Kind)
         {

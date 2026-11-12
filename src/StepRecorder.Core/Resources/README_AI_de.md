@@ -34,7 +34,7 @@ Lies zuerst den Kopf von `trace.md` (Abschnitt 3), dann den Ablauf.
 | Bildschirme | Jeder Monitor hat eine Kennung (`M1`, `M2`, …), seine Größe in Pixeln und seine Skalierung |
 | Aufnahmebereich | Was aufgezeichnet wurde. „Ganzer Bildschirm (Monitor mit Aktivität)“: jeweils der Monitor, auf dem gerade gearbeitet wurde. „Anwendung …“: nur die Fenster dieser Anwendungen. „Bereich …“: ein festes Rechteck. Was außerhalb lag, ist in den Bildern schwarz gefüllt; Eingaben dort wurden nur gezählt (Abschnitt 7). |
 | Recorder | Programmversion; die Rechte, mit denen er lief (mit normalen Rechten sieht er keine Eingaben in Fenstern mit Administratorrechten – das ergibt Lücken); Schutzstufe; Regelversion |
-| Schutzstufe | „Schutznetz“: Eingaben in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, virtuelle Maschine) wurden im Klartext aufgezeichnet; erkannte Passwortfelder und erkannte Passwortabfragen wurden zurückgehalten. „Streng“: In solchen Fenstern wurde alles Getippte zurückgehalten. |
+| Schutzstufe | „Schutznetz“: Eingaben in Fenstern ohne erkennbare Passwortfelder (Terminal, Remote-Desktop, virtuelle Maschine) wurden im Klartext aufgezeichnet und gelten als ungeprüft, bis der Autor sie durchgesehen hat; erkannte Passwortfelder wurden zurückgehalten. „Streng“: In solchen Fenstern wurde alles Getippte zurückgehalten. |
 | Regelversion | Version der Regeln, die aus den Rohereignissen die Schritte gebildet haben. Für das Lesen ohne Bedeutung; wichtig nur, wenn zwei Pakete derselben Sitzung verglichen werden. |
 | Bearbeitung durch den Autor | Was die aufzeichnende Person nachträglich getan hat: Kommentare, Schwärzungen, ausgeblendete und verworfene Schritte. „Durchsicht der Eingaben: vollständig“ heißt: Sie hat alle heiklen Eingaben angesehen und freigegeben oder geschwärzt (Abschnitt 8). |
 | Ersetzungen | Nur wenn der Autor Schritte neu aufgenommen und frühere damit ersetzt hat: welche Schritte an die Stelle welcher früheren getreten sind (Abschnitt 7) |
@@ -105,7 +105,6 @@ Felder, die nicht zutreffen, fehlen.
 | Mausweg davor | Wie die Maus zum Ziel kam: Strecke, Dauer, „direkt“ oder „mit Umweg“, Verweilen unterwegs |
 | Start, Ende, Weg | Nur beim Ziehen: wo die Maustaste gedrückt und wo sie losgelassen wurde (jeweils Ziel und Position) und der Weg dazwischen als Punktfolge |
 | Getippt / Tasten | Die Tastenfolge bzw. Taste in der Notation aus Abschnitt 10 |
-| Abfrage | Nur bei einer zurückgehaltenen Eingabe im Terminal: die Zeile, auf die geantwortet wurde, sofern der Recorder sie als Passwortabfrage erkannt hat – mit der Erkennungsregel (Abschnitt 7). Fehlt das Feld, wurde keine Abfrage erkannt, etwa weil die Person den Privatmodus von Hand eingeschaltet hat oder das Fenster keinen Text anbietet. |
 | Eingabeweg | Tastatur, Eingabemethode, Autovervollständigung oder gemischt |
 | Feldinhalt | Inhalt des Eingabefelds vor und nach der Eingabe – die Gegenprobe zur Tastenfolge |
 | Zwischenablage | Herkunft eines kopierten oder eingefügten Inhalts; der Inhalt selbst nur, wenn er aufgezeichnet wurde |
@@ -173,10 +172,7 @@ Hinter der Stufe stehen in Klammern die Gründe, z. B. „Beleg: belegt (Ziel vo
 | Umfang | Nur bei Arbeit außerhalb des Aufnahmebereichs: wie viele Tastendrücke, Klicks und Mausradbewegungen dort gezählt wurden – ohne Inhalt |
 | Ausschlussregel | Nur bei einer ausgeschlossenen Anwendung: der Name der Regel, die sie ausschloss. Mehr ist davon absichtlich nicht festgehalten, auch keine Zahl. |
 
-**Privatmodus:** Solange er gilt, fehlen die Inhalte von Tasteneingaben, Feldinhalte und Zwischenablage; Klicks, Tastenkombinationen und Bilder laufen weiter. Er hat zwei Auslöser, die das Protokoll unterscheidet:
-
-- Die **Privattaste**: Die Person schaltet ihn selbst ein. Er endet erst, wenn sie die Taste erneut drückt – nicht von selbst.
-- Eine **erkannte Passwortabfrage** im Terminal: Der Recorder schaltet ihn selbst ein und mit der Eingabetaste wieder aus (oder wenn die Abfrage abgebrochen wird). „Regel T1“: Die Zeile endet auf ein Abfragemuster wie `password:`. „Regel T2“: Getippte Zeichen erscheinen als Maskenzeichen. „Regel T3“: An einer Abfragezeile erscheint beim Tippen nichts.
+**Privatmodus:** Solange er gilt, fehlen die Inhalte von Tasteneingaben, Feldinhalte und Zwischenablage; Klicks, Tastenkombinationen und Bilder laufen weiter. Die Person schaltet ihn mit der **Privattaste** selbst ein; er endet erst, wenn sie die Taste erneut drückt – nicht von selbst.
 
 Ein- und Ausschalten stehen als Hinweiszeilen im Ablauf (`> Privatmodus eingeschaltet (…) bei …`). Was in dieser Zeit getippt wurde, steht als eigener Schritt mit `{masked:N}` (Abschnitt 8).
 
@@ -211,7 +207,7 @@ Kürzere Pausen stehen nur als Abstand in den Überschriften; ihre Summe nennt d
 
 | Darstellung | Bedeutung |
 |---|---|
-| `{masked:8}` | 8 Tastenanschläge wurden absichtlich nicht gespeichert (Passwortfeld, Privatmodus oder erkannte Passwortabfrage). Der Inhalt existiert nirgends in dieser Aufzeichnung. Gezählt ist jeder Tastendruck außer reinen Umschalttasten (Umschalt, Strg, Alt, Win) – auch Korrekturen mit der Rücktaste; die Zahl ist also nicht unbedingt die Länge des Eingegebenen. Eine abschließende Eingabetaste steht gesondert dahinter: `{masked:8}{Enter}`. `{masked}` ohne Zahl heißt: Auch die Anzahl wurde nicht gespeichert. |
+| `{masked:8}` | 8 Tastenanschläge wurden absichtlich nicht gespeichert (Passwortfeld, Privatmodus oder Schutzstufe „Streng“). Der Inhalt existiert nirgends in dieser Aufzeichnung. Gezählt ist jeder Tastendruck außer reinen Umschalttasten (Umschalt, Strg, Alt, Win) – auch Korrekturen mit der Rücktaste; die Zahl ist also nicht unbedingt die Länge des Eingegebenen. Eine abschließende Eingabetaste steht gesondert dahinter: `{masked:8}{Enter}`. `{masked}` ohne Zahl heißt: Auch die Anzahl wurde nicht gespeichert. |
 | `[geschwärzt]` | Der Autor hat diese Textstelle nachträglich entfernt. Länge und Inhalt sind nicht bekannt. In `steps.json` und `events.jsonl` steht dafür `[redacted]`. |
 | „Schritt geschwärzt“ | Der Autor hat den ganzen Schritt entfernt. Bekannt ist nur, dass und wann dort etwas geschah. |
 | Lücke „Dieser Zeitraum wurde vom Autor entfernt.“ | Der Autor hat alles aus diesem Zeitraum entfernt: Eingaben, Texte und Bilder. |
@@ -362,7 +358,7 @@ Fenster „Speichern unter“
 - den Zustand des Rechners **vor** Aufnahmebeginn und alles **außerhalb** des Aufnahmebereichs,
 - was die Person gedacht, gelesen oder beabsichtigt hat – außer in ihren eigenen Angaben (Ziel der Aufnahme, Marker, Kommentare), und auch die sind ihre Sicht, keine Beobachtung,
 - Vorgänge ohne sichtbare Wirkung (Hintergrundprozesse, Netzwerk),
-- den Text in Fenstern ohne Bedienelemente (Terminal, Remote-Desktop, virtuelle Maschine), soweit er nicht im Bild lesbar ist. Im Terminal liest der Recorder nur das Zeilenende, um Passwortabfragen zu erkennen; gespeichert wird davon allein eine erkannte Abfragezeile (Feld „Abfrage“),
+- den Text in Fenstern ohne Bedienelemente (Terminal, Remote-Desktop, virtuelle Maschine), soweit er nicht im Bild lesbar ist,
 - Eingaben, die kein Aufzeichnungsweg sehen konnte,
 - Eingabearten, die der Autor abgeschaltet hat – die Kopfdaten nennen sie in der Zeile „Nicht aufgezeichnet (Einstellung des Autors)“, z. B. Mausbewegungen oder Texteingaben. Solche Eingaben fehlen vollständig und ohne Lücke; schließe aus ihrem Fehlen nicht, dass es sie nicht gab,
 - alles, was als Lücke, maskiert, geschwärzt oder ungeprüft ausgewiesen ist,

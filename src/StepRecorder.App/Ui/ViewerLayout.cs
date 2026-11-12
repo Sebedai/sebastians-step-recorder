@@ -567,7 +567,19 @@ sealed partial class ViewerWindow
         _details.Children.Add(chips);
 
         if (s.Unreviewed)
-            _details.Children.Add(Callout(Theme.IWarn, Theme.WarnSoft, Theme.Warn, "Auffällige Eingabe", $"{s.FlagReason} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben."));
+            _details.Children.Add(Callout(Theme.IWarn, Theme.WarnSoft, Theme.Warn, "Auffällige Eingabe", $"{Patterns.KindName(s.FlagReason ?? "", "de")} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben."));
+
+        // Während der Aufnahme geschriebener Kommentar: als intern markieren (erscheint dann in keiner Ausgabe)
+        if (s.Kind == "comment" && !s.Manual)
+        {
+            long src = s.Json.Obj("input")?.Long("refSeq") ?? 0;
+            if (s.CommentHidden && _view.OriginalCommentText(s) is { Length: > 0 } orig)
+                _details.Children.Add(Callout(Theme.ILock, Theme.Surface2, Theme.Fg2, "Interner Kommentar (nur hier sichtbar)", orig));
+            var internalBox = new CheckBox { Content = "Interner Kommentar – erscheint in keiner Ausgabe", IsChecked = s.CommentHidden, IsEnabled = !_view.Session.ReadOnly && src > 0, Margin = new Thickness(0, 0, 0, 12), ToolTip = "Der Text dieses Kommentars wird in Anleitung, KI-Paket, MCP und Kommandozeilen-Export durch „[geschwärzt]“ ersetzt; der Schritt wird ausgeblendet." };
+            internalBox.Checked += (_, _) => SetRecordedCommentHidden(src, true);
+            internalBox.Unchecked += (_, _) => SetRecordedCommentHidden(src, false);
+            _details.Children.Add(internalBox);
+        }
 
         // Überschrift und Text direkt bearbeiten
         bool ro = _view.Session.ReadOnly;

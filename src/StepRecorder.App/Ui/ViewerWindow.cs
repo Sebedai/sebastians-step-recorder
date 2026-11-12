@@ -611,7 +611,7 @@ sealed partial class ViewerWindow : Window
 
     void FinalRedact()
     {
-        if (Msg.Show("Alle Text- und Zeitraum-Schwärzungen jetzt endgültig in die Rohdaten schreiben?\n\nDas lässt sich nicht rückgängig machen.", "Endgültig schwärzen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
+        if (Msg.Show("Alle Text- und Zeitraum-Schwärzungen jetzt endgültig in die Rohdaten schreiben?\n\nDas lässt sich nicht rückgängig machen.\n\nHinweis: Bildschwärzungen, Verpixelungen und Verallgemeinerungen bleiben eine Bearbeitung; die Bilder eines geschwärzten Zeitraums bleiben in den Rohdaten, werden aber in keiner Ausgabe gezeigt. Für die Weitergabe der ganzen Aufnahme die bereinigte Kopie verwenden.", "Endgültig schwärzen", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         int n = Redactor.ApplyTextRedactionsDestructive(_view.Session.Path, _view.Edits);
         _view.SaveEdits();
         var anchor = Sel?.Id;

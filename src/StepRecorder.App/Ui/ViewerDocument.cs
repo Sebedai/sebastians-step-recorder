@@ -341,7 +341,8 @@ sealed partial class ViewerWindow
         var old = Cursor; Cursor = Cursors.Wait;
         try
         {
-            string dir = Path.Combine(Path.GetTempPath(), "StepRecorder-Vorschau");
+            // Zwischendateien liegen im Aufnahmeordner, nicht in %TEMP% (E13); nur schreibgeschützte Archive weichen aus
+            string dir = _view.Session.ReadOnly ? Path.Combine(Path.GetTempPath(), "StepRecorder-Vorschau") : Path.Combine(_view.Session.Path, "export", ".tmp", "vorschau");
             Directory.CreateDirectory(dir);
             string file = Path.Combine(dir, Fmt.FileSafe(_view.Title.Length > 0 ? _view.Title : "Anleitung") + ".html");
             var r = GuideExport.Export(_view, new GuideOptions { Format = "html", OutPath = file });
@@ -440,7 +441,36 @@ sealed partial class ViewerWindow
             }
             _details.Children.Add(add);
         }
+        // Interne Notizen: nur im Editor sichtbar, in keiner Ausgabe
+        if (s.InternalComments.Count > 0)
+        {
+            _details.Children.Add(U.Overline($"Interne Notizen ({s.InternalComments.Count}) – in keiner Ausgabe", new Thickness(0, 18, 0, 8)));
+            foreach (var c in s.InternalComments)
+            {
+                string? cid = c.Str("id");
+                var del = U.Ghost(Theme.IDelete, null, () => RemoveComment(cid), "Notiz löschen");
+                del.MinHeight = 28; del.Padding = new Thickness(7, 4, 7, 4); del.Margin = new Thickness(0); del.IsEnabled = !ro;
+                var dock = new DockPanel();
+                DockPanel.SetDock(del, Dock.Right); dock.Children.Add(del);
+                dock.Children.Add(new TextBlock { Text = c.Str("text") ?? "", TextWrapping = TextWrapping.Wrap, Foreground = Theme.Fg2, VerticalAlignment = VerticalAlignment.Center });
+                _details.Children.Add(new Border { BorderBrush = Theme.Line, BorderThickness = new Thickness(3, 0, 0, 0), Background = Theme.Surface2, CornerRadius = new CornerRadius(3), Padding = new Thickness(10, 8, 8, 8), Margin = new Thickness(0, 0, 0, 8), Child = dock });
+            }
+        }
         if (focus != null) { _focusCommentId = null; var f = focus; Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { f.Focus(); f.BringIntoView(); }); }
+    }
+
+    /// <summary>Aufgenommenen Kommentar als intern markieren (04 §edits.comments: origin „recording“, sourceSeq).</summary>
+    void SetRecordedCommentHidden(long sourceSeq, bool hidden)
+    {
+        if (sourceSeq <= 0 || _view.IsHiddenComment(sourceSeq) == hidden) return;
+        Change(e =>
+        {
+            var arr = e["comments"] as JsonArray ?? new JsonArray();
+            foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("origin") == "recording" && x.Long("sourceSeq") == sourceSeq).ToList()) arr.Remove(x);
+            if (hidden) arr.Add(new JsonObject { ["id"] = NextId(e, "comments", "rc"), ["origin"] = "recording", ["sourceSeq"] = sourceSeq, ["kind"] = "internal", ["hidden"] = true, ["createdUtc"] = Json.UtcNow(), ["by"] = "user" });
+            e["comments"] = arr;
+        });
+        _status.Text = hidden ? "Kommentar ist intern – erscheint in keiner Ausgabe." : "Kommentar erscheint wieder in den Ausgaben.";
     }
 
     /// <summary>Kapitelobjekt zum Schreiben: Deutsch direkt, andere Sprachen unter chapter.&lt;lang&gt;.</summary>

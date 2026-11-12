@@ -54,6 +54,7 @@ Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Sitzung nicht gefunden · 4 Prüfu
         catch (FileNotFoundException ex) { Console.Error.WriteLine("Sitzung nicht gefunden: " + ex.Message); return 3; }
         catch (InvalidDataException ex) { Console.Error.WriteLine("Sitzung nicht lesbar: " + ex.Message); return 3; }
         catch (UnauthorizedAccessException ex) { Console.Error.WriteLine("Ziel nicht beschreibbar: " + ex.Message); return 8; }
+        catch (ExportTargetException ex) { Console.Error.WriteLine(ex.Message); return 8; }
         catch (Exception ex) { Console.Error.WriteLine("Fehler: " + ex.Message); if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Console.Error.WriteLine(ex); return 1; }
     }
 

@@ -195,9 +195,11 @@ public sealed class Session : IDisposable
     readonly LinkedList<string> _frameLru = new();
     readonly object _imgLock = new();
 
-    static string BlobPath(string blob)
+    /// <summary>Pfad eines Bild-Blobs; null bei einem ungültigen Namen (schützt vor Pfaden außerhalb der Sitzung).</summary>
+    public static string? BlobPath(string blob)
     {
         var hex = blob.StartsWith("sha256:") ? blob[7..] : blob;
+        if (hex.Length != 64 || !hex.All(c => c is >= '0' and <= '9' or >= 'a' and <= 'f')) return null;
         return $"frames/{hex[..2]}/{hex}.png";
     }
 
@@ -229,7 +231,7 @@ public sealed class Session : IDisposable
         {
             case "key":
                 {
-                    var bytes = ReadFile(BlobPath(store.Str("blob") ?? ""));
+                    var bytes = BlobPath(store.Str("blob") ?? "") is { } bp ? ReadFile(bp) : null;
                     if (bytes == null) return null;
                     using var ms = new MemoryStream(bytes);
                     using var img = new Bitmap(ms);
@@ -247,7 +249,7 @@ public sealed class Session : IDisposable
             case "delta":
                 {
                     var b = RestoreLocked(store.Str("base") ?? "", depth + 1);
-                    var bytes = ReadFile(BlobPath(store.Str("blob") ?? ""));
+                    var bytes = BlobPath(store.Str("blob") ?? "") is { } bp ? ReadFile(bp) : null;
                     if (b == null || bytes == null) return null;
                     result = new Bitmap(b);
                     var rect = store.Obj("rect");

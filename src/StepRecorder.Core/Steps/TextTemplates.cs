@@ -200,7 +200,7 @@ public static class TextTemplates
                 _ => n.Length > 0 ? (de ? $"{Q(n, lang)} ziehen" : $"Drag {Q(n, lang)}") : (de ? "Ziehen" : "Drag")
             },
             "scroll" => input.Str("semantic") == "zoom" ? (de ? "Ansicht zoomen" : "Zoom view") : n.Length > 0 ? (de ? $"In {Q(n, lang)} scrollen" : $"Scroll in {Q(n, lang)}") : (de ? "Scrollen" : "Scroll"),
-            "type" when input.Bool("masked") => input.Str("maskReason") == "privacyMode" ? (de ? "Vertrauliche Eingabe" : "Confidential input") : (de ? "Kennwort eingeben" : "Enter password"),
+            "type" when input.Bool("masked") => input.Str("maskReason") is "privacyMode" or "strictUnknown" or "strictPlaintext" ? (de ? "Vertrauliche Eingabe" : "Confidential input") : (de ? "Kennwort eingeben" : "Enter password"),
             "type" when input.Str("text") is { Length: > 0 and <= 30 } tx && !tx.Contains('\n') => de ? $"{Q(tx, lang)} eingeben" : $"Type {Q(tx, lang)}",
             "type" => n.Length > 0 ? (de ? $"Text in {Q(n, lang)} eingeben" : $"Enter text in {Q(n, lang)}") : (de ? "Text eingeben" : "Enter text"),
             "hotkey" => de ? $"{Key(input.Str("combo") ?? "", lang)} drücken" : $"Press {input.Str("combo")}",
@@ -366,11 +366,14 @@ public static class TextTemplates
     static string MaskedText(JsonObject step, JsonObject input, string lang, bool guide)
     {
         bool de = lang == "de";
-        bool priv = input.Str("maskReason") == "privacyMode";
-        if (guide) return priv ? (de ? "Geben Sie hier Ihre vertraulichen Daten ein." : "Enter your confidential data here.") : (de ? "Geben Sie Ihr Kennwort ein." : "Enter your password.");
+        string reason = input.Str("maskReason") ?? "";
+        bool priv = reason == "privacyMode";
+        bool strict = reason.StartsWith("strict");
+        if (guide) return priv || strict ? (de ? "Geben Sie hier Ihre vertraulichen Daten ein." : "Enter your confidential data here.") : (de ? "Geben Sie Ihr Kennwort ein." : "Enter your password.");
         long? n = input.LongN("count");
         string z = step.Obj("target").Obj("el") != null ? TargetLabel(step, lang, false) : (de ? "Feld" : "field");
         if (priv) return de ? (n != null ? $"Eingabe: {n} Tasten, nicht aufgezeichnet (Privatmodus)" : "Eingabe: nicht aufgezeichnet (Privatmodus)") : (n != null ? $"Input: {n} keys, not recorded (private mode)" : "Input: not recorded (private mode)");
+        if (strict) return de ? (n != null ? $"Eingabe: {n} Tasten, nicht aufgezeichnet (Schutzstufe „Streng“)" : "Eingabe: nicht aufgezeichnet (Schutzstufe „Streng“)") : (n != null ? $"Input: {n} keys, not recorded (protection level \"strict\")" : "Input: not recorded (protection level \"strict\")");
         return de ? (n != null ? $"Eingabe in {z}: {n} Tasten, nicht aufgezeichnet (maskiert)" : $"Eingabe in {z}: nicht aufgezeichnet (maskiert)") : (n != null ? $"Input in {z}: {n} keys, not recorded (masked)" : $"Input in {z}: not recorded (masked)");
     }
 

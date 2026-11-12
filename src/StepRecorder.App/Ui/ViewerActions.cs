@@ -308,8 +308,17 @@ sealed class ReviewWindow : Window
             dock.Children.Add(U.Col(
                 U.Text($"Schritt {s.Number} · {s.Json.Obj("ctx")?.Str("title")}", 12, fg: Theme.Muted),
                 new TextBlock { Text = Steps.TextTemplates.TokensNotation(s.Json.Obj("input")!), FontFamily = Theme.Mono, FontSize = 13.5, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 12, 3) },
-                U.Text("Grund: " + s.FlagReason, 12, fg: Theme.Warn)));
+                U.Text("Grund: " + Patterns.KindName(s.FlagReason ?? "", "de"), 12, fg: Theme.Warn)));
             list.Children.Add(U.Card(dock, new Thickness(16, 14, 16, 14), new Thickness(0, 0, 0, 10)));
+        }
+        // Viele Terminal-Befehle: übrige Klartext-Eingaben gesammelt freigeben (Musterfunde brauchen weiter eine Einzelentscheidung)
+        var plain = choices.Where(c => c.Item1.FlagReason == "plaintextWindow").ToList();
+        if (plain.Count > 1)
+        {
+            var all = U.Btn($"Übrige Klartext-Eingaben ({plain.Count}): in Ordnung", () => { foreach (var (_, items) in plain) if (items.All(r => r.IsChecked != true)) items[0].IsChecked = true; });
+            all.HorizontalAlignment = HorizontalAlignment.Left; all.Margin = new Thickness(0, 0, 0, 12);
+            all.ToolTip = "Setzt alle noch offenen Eingaben aus Terminal-, Remote-Desktop- und VM-Fenstern auf „In Ordnung“. Auffällige Muster (Schlüssel, IBAN …) bleiben einzeln zu entscheiden.";
+            list.Children.Insert(2, all);
         }
         if (others.Count > 0)
         {

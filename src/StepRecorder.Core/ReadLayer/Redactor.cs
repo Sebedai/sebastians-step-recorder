@@ -63,27 +63,33 @@ public static class Redactor
         {
             if (r.Str("kind") == "text" && !r.Bool("applied"))
             {
-                foreach (var tg in r.Arr("targets") ?? new JsonArray())
+                var targets = (r.Arr("targets") ?? new JsonArray()).Where(tg => bySeq.ContainsKey(tg.Long("seq"))).ToList();
+                // zugehörige key.up-Ereignisse tragen Taste und Scancode ebenfalls – vor dem Entschärfen bestimmen
+                var ups = PairedKeyUps(lines, targets.Select(tg => tg.Long("seq")).Where(q => bySeq[q].Str("type") == "key.down").ToHashSet());
+                foreach (var tg in targets)
                 {
-                    if (!bySeq.TryGetValue(tg.Long("seq"), out var e)) continue;
+                    var e = bySeq[tg.Long("seq")];
                     string field = tg.Str("field") ?? "";
-                    if (e.Str("type") is "key.down" or "key.up")
-                    { e["key"] = "Redacted"; e["vk"] = 0; e["sc"] = 0; e.Remove("ch"); }
+                    if (e.Str("type") is "key.down" or "key.up") NeuterKey(e);
                     else SetPath(e, field, "[redacted]");
                     var red = e["redacted"] as JsonArray ?? new JsonArray();
                     red.Add(field); e["redacted"] = red;
                     n++;
                 }
+                foreach (var up in ups.Where(u => u.Str("key") != "Redacted")) { NeuterKey(up); up["redacted"] = new JsonArray("ch"); n++; }
                 r.AsObject()["applied"] = true; r.AsObject()["appliedUtc"] = Json.UtcNow();
             }
             else if (r.Str("kind") == "range" && !r.Bool("applied"))
             {
                 var ranges = (r.Arr("seqRanges") ?? new JsonArray()).Select(a => (a![0]!.GetValue<long>(), a[1]!.GetValue<long>())).ToList();
+                bool In(long q) => ranges.Any(x => q >= x.Item1 && q <= x.Item2);
                 for (int i = 0; i < lines.Count; i++)
                 {
                     long s = lines[i].Long("seq");
                     string type = lines[i].Str("type") ?? "";
-                    if (!ranges.Any(x => s >= x.Item1 && s <= x.Item2) || Structural.Contains(type)) continue;
+                    // auch Ereignisse außerhalb des Bereichs, die sich darauf beziehen (Element, Feldwert, Zustand)
+                    bool hit = In(s) || (lines[i].LongN("ref") is long rf && In(rf));
+                    if (!hit || Structural.Contains(type)) continue;
                     var cut = new JsonObject { ["seq"] = s, ["t"] = lines[i].Long("t"), ["type"] = type };
                     foreach (var k in new[] { "inSeq", "inSeqEnd", "n" }) if (lines[i][k] != null) cut[k] = lines[i][k]!.DeepClone();
                     cut["redacted"] = new JsonArray("*");
@@ -96,6 +102,28 @@ public static class Redactor
         AddHistory(folder, "redactedDestructive", new JsonObject { ["trigger"] = "viewer", ["fields"] = n });
         try { var cache = Path.Combine(folder, "cache"); if (Directory.Exists(cache)) Directory.Delete(cache, true); } catch { }
         return n;
+    }
+
+    static void NeuterKey(JsonObject e) { e["key"] = "Redacted"; e["vk"] = 0; e["sc"] = 0; e.Remove("ch"); }
+
+    /// <summary>Zu jedem key.down das nächste key.up derselben Taste (vor dem Entschärfen aufrufen).</summary>
+    public static List<JsonObject> PairedKeyUps(IReadOnlyList<JsonObject> lines, HashSet<long> downs)
+    {
+        var result = new List<JsonObject>();
+        if (downs.Count == 0) return result;
+        var pending = new Dictionary<long, int>();
+        foreach (var e in lines)
+        {
+            string? type = e.Str("type");
+            long vk = e.Long("vk");
+            if (type == "key.down" && downs.Contains(e.Long("seq"))) pending[vk] = pending.GetValueOrDefault(vk) + 1;
+            else if (type == "key.up" && pending.TryGetValue(vk, out int c) && c > 0)
+            {
+                result.Add(e);
+                if (c == 1) pending.Remove(vk); else pending[vk] = c - 1;
+            }
+        }
+        return result;
     }
 
     static void SetPath(JsonObject e, string path, string value)

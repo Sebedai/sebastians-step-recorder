@@ -50,7 +50,8 @@ sealed class UiApp : Application
 
     void HandleArgs(string[] args)
     {
-        Log("args: " + string.Join(" ", args));
+        // nur Befehl und Optionsnamen protokollieren – Werte (Titel, Ziel, Pfade) können Vertrauliches enthalten
+        Log("args: " + string.Join(" ", args.Select((a, i) => i == 0 && !a.StartsWith('-') && !Session.LooksLikeSession(a) ? a : a.StartsWith("--") ? a : "…")));
         if (args.Length == 0 || args[0] == "--activate")
         {
             if (Recording != null) { Recording.ShowRunningNotice(); return; }
@@ -165,7 +166,7 @@ sealed class UiApp : Application
             switch (o.AfterStop)
             {
                 case "none": MaybeShutdown(); break;
-                case "folder": System.Diagnostics.Process.Start("explorer.exe", folder); ShowStart(); break;
+                case "folder": System.Diagnostics.Process.Start("explorer.exe", $"\"{folder}\""); ShowStart(); break;
                 default:
                     var viewer = OpenViewer(folder);
                     if (o.AfterStop == "supportPackage") viewer.StartSupportFlow();

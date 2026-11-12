@@ -504,7 +504,12 @@ public sealed partial class Recorder
         {
             if (PrivacyMode && !isMod) maskReason = "privacyMode";
             else if (ctx == "passwordField" && !isMod && !combo && !terminatorKey) maskReason = "passwordField";
-            else if (Options.PrivacyLevel == "strict" && ctx == "unknown" && !isMod && !combo && !terminatorKey) maskReason = "strictUnknown";
+            else if (Options.PrivacyLevel == "strict" && !isMod && !combo && !terminatorKey)
+            {
+                // Streng: alles Getippte in nicht einstufbaren Fenstern zurückhalten (Terminal, Remote-Desktop, VM, unbekannter Fokus)
+                if (ctx == "unknown") maskReason = "strictUnknown";
+                else if (ctx == "opaque" || (pk.Fg != null && WindowRegistry.SurfaceOf(pk.Fg) != "structured")) maskReason = "strictPlaintext";
+            }
         }
         if (maskReason != null)
         {

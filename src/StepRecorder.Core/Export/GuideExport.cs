@@ -191,6 +191,8 @@ public static class GuideExport
     public static List<string> AppendedPaths(SessionView view)
     {
         var list = new List<string>();
+        // Aus einem .steprec-Archiv (fremde Herkunft) keine anderen Aufnahmen dieses Rechners in den Export ziehen
+        if (view.Session.ReadOnly) return list;
         string parent = Path.GetDirectoryName(view.Session.Path.TrimEnd('\\', '/')) ?? "";
         foreach (var a in (view.Edits.Obj("guide")?.Arr("append") ?? new JsonArray()).OfType<JsonObject>())
         {

@@ -27,6 +27,10 @@ public sealed class ViewStep
     public string? ImageSize;
     public bool Hidden, Redacted, Discarded;
     public List<JsonObject> Comments = new();
+    /// <summary>Interne und ausgeblendete Hinweise des Autors – nur für den Editor, erscheinen in keiner Ausgabe.</summary>
+    public List<JsonObject> InternalComments = new();
+    /// <summary>Aufgenommener Kommentar, den der Autor als intern markiert hat (Text in allen Ausgaben geschwärzt).</summary>
+    public bool CommentHidden;
     public List<JsonObject> Annotations = new();
     public string? PreFrame, PostFrame;
     public string? Monitor;
@@ -98,6 +102,12 @@ public sealed class SessionView : IDisposable
     readonly HashSet<string> _redactedStrings = new(StringComparer.Ordinal);
     readonly List<(long from, long to, bool images)> _rangeRedactions = new();
     readonly List<(string m, int fromN, int toN, Rectangle rect, bool pixelate)> _imageRedactions = new();
+    /// <summary>Tastenereignisse (key.down samt zugehörigem key.up), deren Zeichen geschwärzt sind.</summary>
+    readonly HashSet<long> _redactedKeySeqs = new();
+    /// <summary>Anker der Tipp-Schritte, deren Eingabe (ganz oder teilweise) geschwärzt ist.</summary>
+    readonly HashSet<long> _redactedInputAnchors = new();
+    /// <summary>seq aufgenommener Kommentare, die der Autor als intern markiert hat.</summary>
+    readonly HashSet<long> _hiddenComments = new();
     public string RedactedText => Language == "de" ? "[geschwärzt]" : "[redacted]";
 
     SessionView(Session s, bool headless, string? lang)
@@ -166,6 +176,7 @@ public sealed class SessionView : IDisposable
     public void Rebuild()
     {
         _subst.Clear(); _redactedStrings.Clear(); _rangeRedactions.Clear(); _imageRedactions.Clear();
+        _redactedKeySeqs.Clear(); _redactedInputAnchors.Clear(); _hiddenComments.Clear();
         foreach (var r in Edits.Arr("redactions") ?? new JsonArray())
         {
             switch (r.Str("kind"))
@@ -178,6 +189,7 @@ public sealed class SessionView : IDisposable
                     foreach (var tg in r.Arr("targets") ?? new JsonArray())
                     {
                         var ev = Session.BySeq(tg.Long("seq"));
+                        if (ev != null && ev.Str("type") is "key.down" or "key.up") { _redactedKeySeqs.Add(tg.Long("seq")); continue; }
                         var val = ev != null ? FieldValue(ev, tg.Str("field") ?? "") : null;
                         if (val == null) continue;
                         if (tg.Arr("range") is { Count: 2 } rg) { int a = rg[0]!.GetValue<int>(), b = rg[1]!.GetValue<int>(); if (a >= 0 && b <= val.Length && b > a) val = val[a..b]; }
@@ -207,7 +219,46 @@ public sealed class SessionView : IDisposable
             }
             catch { }
         }
+        if (_redactedKeySeqs.Count > 0) ApplyKeyRedactions();
+        foreach (var c in (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>())
+            if (c.Str("origin") == "recording" && (c.Bool("hidden") || c.Str("kind") == "internal") && c.LongN("sourceSeq") is long src) _hiddenComments.Add(src);
         BuildSteps();
+    }
+
+    /// <summary>
+    /// Geschwärzte Tastenanschläge: das zugehörige key.up gilt mit, und der getippte Text der betroffenen Schritte
+    /// ist überall geschwärzt (auch in Feldwerten, die ihn wiederholen).
+    /// </summary>
+    void ApplyKeyRedactions()
+    {
+        foreach (var up in Redactor.PairedKeyUps(Session.Events, new HashSet<long>(_redactedKeySeqs))) _redactedKeySeqs.Add(up.Long("seq"));
+        foreach (var s in (Steps.Arr("steps") ?? new JsonArray()).OfType<JsonObject>())
+        {
+            if (s.Str("kind") != "type") continue;
+            bool hit = false;
+            foreach (var rg in s.Obj("seq")?.Arr("input") ?? new JsonArray())
+            {
+                long a = rg![0]!.GetValue<long>(), b = rg[1]!.GetValue<long>();
+                if (_redactedKeySeqs.Any(q => q >= a && q <= b)) { hit = true; break; }
+            }
+            if (!hit) continue;
+            _redactedInputAnchors.Add(s.Long("anchorSeq"));
+            foreach (var f in new[] { "text", "valueAfter" })
+                if (s.Obj("input")?.Str(f) is { Length: >= 2 } v && v.Trim().Length >= 2) _redactedStrings.Add(v);
+        }
+    }
+
+    /// <summary>Getippten Inhalt eines Schritts durch den Schwärzungsplatzhalter ersetzen.</summary>
+    JsonObject WithRedactedInput(JsonObject step)
+    {
+        var c = (JsonObject)step.DeepClone();
+        var input = c.Obj("input");
+        if (input == null) return c;
+        input["tokens"] = new JsonArray(RedactedText);
+        input["text"] = RedactedText;
+        input.Remove("valueAfter"); input.Remove("valueBefore");
+        c["action"] = null;
+        return c;
     }
 
     static int FrameNo(string? id) => id != null && id.Length > 1 && int.TryParse(id[1..], out var n) ? n : 0;
@@ -268,7 +319,9 @@ public sealed class SessionView : IDisposable
     {
         var list = new List<ViewStep>();
         var stepEdits = (Edits.Arr("steps") ?? new JsonArray()).Where(x => x is JsonObject).ToDictionary(x => x.Long("anchor"), x => x!.AsObject());
-        var comments = (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Where(c => c.Str("kind") != "internal" && !c.Bool("hidden")).ToList();
+        var allComments = (Edits.Arr("comments") ?? new JsonArray()).OfType<JsonObject>().Where(c => c.Str("origin") != "recording").ToList();
+        var comments = allComments.Where(c => c.Str("kind") != "internal" && !c.Bool("hidden")).ToList();
+        var internalComments = allComments.Where(c => c.Str("kind") == "internal" || c.Bool("hidden")).ToList();
         var anns = (Edits.Arr("annotations") ?? new JsonArray()).OfType<JsonObject>().ToList();
         var review = ReviewState();
         foreach (var sNode in Steps.Arr("steps") ?? new JsonArray())
@@ -278,7 +331,8 @@ public sealed class SessionView : IDisposable
             vs.Redacted = StepRedacted(s) && vs.Kind != "gap";
             var clean = (JsonObject)CleanNode(s)!;
             clean.Remove("prov");
-            vs.Json = clean;
+            bool inputRedacted = _redactedInputAnchors.Contains(vs.Anchor);
+            vs.Json = inputRedacted ? WithRedactedInput(clean) : clean;
             vs.Discarded = s.StrList("flags").Contains("discarded");
             if (stepEdits.TryGetValue(vs.Anchor, out var se))
             {
@@ -296,9 +350,11 @@ public sealed class SessionView : IDisposable
             vs.PostFrame ??= s.Obj("frames").Str("post");
             vs.Monitor = s.Obj("frames").Str("m");
             vs.Comments = comments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.InternalComments = internalComments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == vs.Anchor || (a.Str("frame") is { } f && (f == vs.PreFrame || f == vs.PostFrame))).ToList();
-            // Durchsicht: auffällige getippte Eingaben
-            if (vs.Kind == "type" && !s.Obj("input").Bool("masked"))
+            if (vs.Kind == "comment" && IsHiddenComment(s.Obj("input").Long("refSeq"))) { vs.CommentHidden = true; vs.Hidden = true; }
+            // Durchsicht: auffällige getippte Eingaben (geschwärzte Eingaben brauchen keine Durchsicht mehr)
+            if (vs.Kind == "type" && !s.Obj("input").Bool("masked") && !inputRedacted)
             {
                 string text = (s.Obj("input").Str("text") ?? TextTemplates.TokensNotation(s.Obj("input")!)) + " " + s.Obj("input").Str("valueAfter");
                 vs.FlagReason = Patterns.Flag(text) ?? (s.StrList("flags").Contains("plaintext") ? "plaintextWindow" : null);
@@ -313,7 +369,7 @@ public sealed class SessionView : IDisposable
             }
             else
             {
-                string? commentText = vs.Kind == "comment" ? Clean(Session.BySeq(s.Obj("input").Long("refSeq"))?.Str("text")) : null;
+                string? commentText = vs.Kind != "comment" ? null : vs.CommentHidden ? RedactedText : Clean(Session.BySeq(s.Obj("input").Long("refSeq"))?.Str("text"));
                 var forText = vs.Json;
                 if (vs.Unreviewed && Headless) forText = WithUnreviewed(vs.Json);
                 vs.Title = Clean(TextTemplates.Title(forText, Language));
@@ -352,6 +408,7 @@ public sealed class SessionView : IDisposable
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.InternalComments = internalComments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == anchor || (a.Str("frame") is { } f && f == vs.PreFrame)).ToList();
             manual.Add(vs);
         }
@@ -588,15 +645,25 @@ public sealed class SessionView : IDisposable
         if (InRedactedRange(seq) || (e.Arr("redacted")?.Any(x => x?.GetValue<string>() == "*") ?? false))
             return new JsonObject { ["seq"] = seq, ["t"] = e.Long("t"), ["type"] = e.Str("type"), ["redacted"] = new JsonArray("*") };
         var c = (JsonObject)CleanNode(e)!;
-        if (c.Str("type") == "comment" && c.Str("text") is { } && IsHiddenComment(seq)) c["text"] = "[redacted]";
-        if (Headless && c.Str("type") is "key.down" && All.FirstOrDefault(s => s.Unreviewed && InStep(s, seq)) is { })
+        if (c.Str("type") == "comment" && c.Str("text") is { } && IsHiddenComment(seq)) c["text"] = RedactedText;
+        bool key = c.Str("type") is "key.down" or "key.up";
+        if (key && _redactedKeySeqs.Contains(seq))
+        {
+            c.Remove("ch"); c["key"] = "Redacted"; c["vk"] = 0; c["sc"] = 0; c["redacted"] = new JsonArray("ch");
+            return c;
+        }
+        if (Headless && key && All.FirstOrDefault(s => s.Unreviewed && InStep(s, seq)) is { })
         { c.Remove("ch"); c["key"] = "Redacted"; c["vk"] = 0; c["sc"] = 0; c["unreviewed"] = true; }
         if (Headless && c.Str("type") is "ui.value" && All.Any(s => s.Unreviewed && s.Json.Obj("target").Obj("el").Str("rid") == c.Obj("el").Str("rid")))
             c["value"] = "{unreviewed}";
         return c;
     }
 
-    bool IsHiddenComment(long seq) => false;
+    /// <summary>Aufgenommener Kommentar, den der Autor als intern markiert hat (erscheint in keiner Ausgabe).</summary>
+    public bool IsHiddenComment(long seq) => _hiddenComments.Contains(seq);
+
+    /// <summary>Originaltext eines aufgenommenen Kommentars – nur für die Anzeige im Editor, nie für Ausgaben.</summary>
+    public string? OriginalCommentText(ViewStep s) => s.Kind == "comment" ? Clean(Session.BySeq(s.Json.Obj("input").Long("refSeq"))?.Str("text")) : null;
 
     static bool InStep(ViewStep s, long seq)
     {

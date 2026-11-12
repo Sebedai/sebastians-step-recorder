@@ -28,7 +28,12 @@ public static class SyntheticSession
         ["ahk"] = new JsonObject { ["winTitle"] = "ahk_class #32770 ahk_exe notepad.exe", ["winTitleFull"] = "Speichern unter ahk_class #32770 ahk_exe notepad.exe", ["control"] = "Edit1" }
     };
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false)
+    /// <summary>Kanarienwert im aufgenommenen Kommentar (withComment).</summary>
+    public const string CommentCanary = "Kanarie-Kommentar-7Q2";
+    /// <summary>Im Terminal getippter Befehl (withTerminal).</summary>
+    public const string TerminalCanary = "echo kanarie42";
+
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -115,6 +120,30 @@ public static class SyntheticSession
             w.Append(new JsonObject { ["t"] = t + 100_000, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 0x31, ["sc"] = 2, ["key"] = "1", ["hkl"] = "04070407", ["mods"] = new JsonArray("ctrl"), ["locks"] = new JsonArray(), ["fg"] = "w1", ["ctx"] = "textField" });
             w.Append(new JsonObject { ["t"] = t + 150_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 0x31, ["sc"] = 2, ["key"] = "1", ["fg"] = "w1" });
             w.Append(new JsonObject { ["t"] = t + 200_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 0xA2, ["sc"] = 29, ["key"] = "LeftCtrl", ["fg"] = "w1" });
+        }
+        if (withComment)
+        {
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["tObs"] = t + 10_000, ["type"] = "comment", ["id"] = "c1", ["text"] = CommentCanary + " – nur intern" });
+        }
+        if (withTerminal)
+        {
+            // Befehl in Windows Terminal (kein Passwortfeld erkennbar → Klartext, Durchsicht nötig)
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "window.info", ["win"] = "w3", ["hwnd"] = "0x00003000", ["pid"] = 30, ["process"] = "WindowsTerminal.exe", ["class"] = "CASCADIA_HOSTING_WINDOW_CLASS", ["title"] = "PowerShell", ["kind"] = "window", ["surface"] = "partial", ["surfaceKind"] = "terminal" });
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "window.foreground", ["win"] = "w3" });
+            long tf = w.Append(new JsonObject { ["t"] = t + 10_000, ["type"] = "focus", ["win"] = "w3", ["ctx"] = "nonText", ["ctxSrc"] = "uia", ["el"] = new JsonObject { ["rid"] = "77.1", ["ct"] = "Text", ["name"] = "PowerShell" } });
+            t += 100_000;
+            foreach (char c in TerminalCanary)
+            {
+                uint vk = char.IsLetterOrDigit(c) ? char.ToUpperInvariant(c) : (uint)0x20;
+                string kname = char.IsLetterOrDigit(c) ? char.ToUpperInvariant(c).ToString() : "Space";
+                w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = vk, ["sc"] = 1, ["key"] = kname, ["hkl"] = "04070407", ["ch"] = c.ToString(), ["locks"] = new JsonArray(), ["fg"] = "w3", ["focus"] = tf, ["ctx"] = "nonText" });
+                w.Append(new JsonObject { ["t"] = t + 30_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = vk, ["sc"] = 1, ["key"] = kname, ["fg"] = "w3" });
+                t += 80_000;
+            }
+            w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w3", ["focus"] = tf, ["ctx"] = "nonText" });
+            w.Append(new JsonObject { ["t"] = t + 30_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w3" });
         }
         // Lücke (Pause)
         t += 1_000_000;

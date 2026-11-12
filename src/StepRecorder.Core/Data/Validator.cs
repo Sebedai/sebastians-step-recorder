@@ -72,9 +72,11 @@ public static class Validator
             string? blob = st.Str("blob");
             if (blob != null)
             {
-                var hex = blob[7..];
-                var data = s.ReadFile($"frames/{hex[..2]}/{hex}.png");
-                if (data == null) Err("F11", $"Blob fehlt für {f.Str("id")}", f.Long("seq"));
+                var hex = blob.StartsWith("sha256:") ? blob[7..] : blob;
+                var blobPath = Session.BlobPath(blob);
+                var data = blobPath != null ? s.ReadFile(blobPath) : null;
+                if (blobPath == null) Err("F11", $"Ungültiger Blob-Name für {f.Str("id")}", f.Long("seq"));
+                else if (data == null) Err("F11", $"Blob fehlt für {f.Str("id")}", f.Long("seq"));
                 else if (thorough && Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant() != hex) Err("F11", $"Blob-Prüfsumme falsch für {f.Str("id")}", f.Long("seq"));
             }
             foreach (var k in new[] { "base", "as" })
