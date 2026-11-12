@@ -32,7 +32,7 @@ public static class AppProbe
             if (top == 0) return;
             if (vx is int x && vy is int y && Msaa(x, y, level, password) is { } msaa) w32["msaa"] = msaa;
             if (level != Win32Detail.TextLevel.All) return;
-            AddApp(w32, top, win!.Str("class") ?? "", win.Str("exe") ?? "", win.Str("title"), win.Obj("app")?.Str("commandLine"), password, withSelection: true);
+            AddApp(w32, top, win!.Str("class") ?? "", win.Str("exe") ?? "", win.Str("title"), win.Obj("app")?.Str("commandLine") ?? (win.Obj("app")?.Bool("privateArgs") == true ? "--private" : null), password, withSelection: true);
         }
         catch { }
     }

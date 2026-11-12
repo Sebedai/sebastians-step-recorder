@@ -21,7 +21,8 @@ Aufruf:
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <prozess.exe>   --region x,y,b,h|last
       --title <Text>   --goal <Text>   --expected <Text>   --reference <Text>
       --protection balanced|strict   --profile anleitung|support|ki-spur|eigene   --out <Ordner>
-      --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys
+      --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
+      gibt am Ende den Aufnahmeordner aus (mit --json als JSON); Exit 5, wenn die Aufnahme verworfen wurde
   SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Aufnahmeordner aus)
   SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
   SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
@@ -57,7 +58,8 @@ Usage:
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <process.exe>   --region x,y,w,h|last
       --title <text>   --goal <text>   --expected <text>   --reference <text>
       --protection balanced|strict   --profile guide|support|aitrace|custom   --out <folder>
-      --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys
+      --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
+      prints the recording folder at the end (JSON with --json); exit 5 if the recording was discarded
   SebastiansStepRecorder.exe record --stop           stop the running recording (prints its folder)
   SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
   SebastiansStepRecorder.exe support                 prepare a support recording in the start window
@@ -127,7 +129,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
     /// <summary>Prüft die Optionen von <c>record</c>; null = in Ordnung.</summary>
     public static string? ValidateRecordArgs(string[] args)
     {
-        var c = CliArgs.Parse(args, 1, RecordValues, Array.Empty<string>());
+        var c = CliArgs.Parse(args, 1, RecordValues, new[] { "--json" });
         if (c.Error != null) return c.Error;
         if (c.Positional.Count > 0) return Loc.F("Unerwartete Angabe: {0}", "Unexpected argument: {0}", c.Positional[0]);
         if (c["--scope"] is { } sc && sc is not ("screen" or "app" or "region")) return Loc.L("--scope muss screen, app oder region sein.", "--scope must be screen, app or region.");

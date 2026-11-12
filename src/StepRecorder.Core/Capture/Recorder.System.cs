@@ -66,7 +66,8 @@ public sealed partial class Recorder
             _focusSeq = Emit(fev);
             var eev = ElementEvent("focus", _focusSeq, res, null, 0, 0, win);
             Emit(eev);
-            if (res.Value != null && !res.IsPassword && !PrivacyMode)
+            // Terminal, Remote-Desktop, VM: Inhalt nie als Feldwert (03 §7.4) – nur Eingaben, die der Durchsicht unterliegen
+            if (res.Value != null && !res.IsPassword && !PrivacyMode && (win == null || WindowRegistry.SurfaceOf(win) == "structured"))
                 Emit(new JsonObject { ["t"] = res.TEnd, ["type"] = "ui.value", ["el"] = ElementRef(res.El), ["win"] = win?.Id, ["phase"] = "focusIn", ["value"] = res.Value }.Clean());
         }
     }
@@ -107,6 +108,7 @@ public sealed partial class Recorder
     void StartSystemObserver()
     {
         // ausgeschlossene Programme: Win32-Zusatzangaben (Listen, Menüs, Schreibmarke, Statusleiste) gar nicht erst lesen
+        Win32Detail.KeepCommandLine = Options.AppContext;
         Win32Detail.ExcludedExe = exe => Options.ExcludedProcesses.Any(p => string.Equals(p, exe, StringComparison.OrdinalIgnoreCase));
         var ready = new ManualResetEventSlim();
         _sysThread = new Thread(() =>

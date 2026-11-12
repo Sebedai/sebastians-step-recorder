@@ -12,8 +12,8 @@ namespace StepRecorder.Capture;
 /// Listen/Auswahlfeldern/ListView/TreeView/Registerkarten (ControlChooseString/-Index), Statusleiste (StatusBarGetText),
 /// Schreibmarke in Eingabefeldern (EM_GETSEL – nie der Inhalt), Ordner und Dateinamenfeld von Dateidialogen.
 /// Alles mit kurzen Zeitlimits (SendMessageTimeout, ABORTIFHUNG) und Größenbeschränkung; im Privatmodus nichts.
-/// Steuerelemente mit Zeigern in Nachrichten (ListView, TreeView, Tab, Statusleiste) werden über einen Puffer im
-/// Zielprozess gelesen; nach einer Zeitüberschreitung wird dieser Puffer bewusst nicht freigegeben.
+/// Texte von ListView, TreeView, Registerkarten und Statusleiste kommen über UI Automation – nie über Speicher des
+/// Zielprozesses (10 §2, P9); Fensternachrichten liefern nur Zahlen (Anzahl, Auswahl).
 /// </summary>
 public static partial class Win32Detail
 {
@@ -250,161 +250,6 @@ public static partial class Win32Detail
         if (count > items.Count) o["itemsTruncated"] = true;
     }
 
-    static JsonObject? ListViewInfo(nint h, TextLevel texts, Win32.POINT? pt, Stopwatch sw)
-    {
-        if (!Send(h, 0x1004 /*LVM_GETITEMCOUNT*/, 0, 0, out var cnt) || (long)cnt < 0) return null;
-        var o = new JsonObject { ["count"] = (long)cnt };
-        if (Send(h, 0x108F /*LVM_GETVIEW*/, 0, 0, out var view)) o["view"] = (long)view switch { 0 => "icon", 1 => "details", 2 => "smallIcon", 3 => "list", 4 => "tile", _ => null };
-        if (Send(h, 0x1032 /*LVM_GETSELECTEDCOUNT*/, 0, 0, out var sc)) o["selCount"] = (long)sc;
-        int cols = 1;
-        if (Send(h, 0x101F /*LVM_GETHEADER*/, 0, 0, out var hdr) && hdr != 0 && Send(hdr, 0x1200 /*HDM_GETITEMCOUNT*/, 0, 0, out var hc) && (long)hc > 0) cols = (int)Math.Min((long)hc, MaxColumns);
-        o["columns"] = cols;
-        using var rm = Remote.Open(h, 4096);
-        var rows = new JsonArray();
-        int first = -1;
-        for (int k = 0, idx = -1; k < MaxSelRows && sw.ElapsedMilliseconds < ListBudgetMs; k++)
-        {
-            if (!Send(h, 0x100C /*LVM_GETNEXTITEM*/, idx, 2 /*LVNI_SELECTED*/, out var next) || (long)next < 0) break;
-            idx = (int)next;
-            if (first < 0) first = idx;
-            if (rm != null) rows.Add(ListViewRow(h, rm, idx, cols));
-        }
-        if (first >= 0) o["selIndex"] = first + 1;
-        if (rows.Count > 0) { o["selRows"] = rows; if (rows[0] is JsonArray r0 && r0.Count > 0) o["selText"] = r0[0]?.GetValue<string>(); }
-        if (pt is { } p && rm != null)
-        {
-            var cp = p; ScreenToClient(h, ref cp);
-            // LVHITTESTINFO: POINT pt; UINT flags; int iItem; int iSubItem; int iGroup
-            var buf = new byte[24];
-            BitConverter.GetBytes(cp.X).CopyTo(buf, 0); BitConverter.GetBytes(cp.Y).CopyTo(buf, 4);
-            if (rm.Write(0, buf) && rm.SendTo(h, 0x1039 /*LVM_SUBITEMHITTEST*/, 0, rm.Addr(0), out var hit) && (long)hit >= 0 && rm.Read(0, 24) is { } back)
-            {
-                int item = BitConverter.ToInt32(back, 12), subItem = BitConverter.ToInt32(back, 16);
-                if (item >= 0)
-                {
-                    var ap = new JsonObject { ["index"] = item + 1 };
-                    if (subItem > 0) ap["column"] = subItem + 1;
-                    var row = ListViewRow(h, rm, item, cols);
-                    ap["row"] = row;
-                    if (row.Count > 0) ap["text"] = row[0]?.GetValue<string>();
-                    o["atPoint"] = ap;
-                }
-            }
-        }
-        return o;
-    }
-
-    /// <summary>Spaltentexte einer ListView-Zeile über LVM_GETITEMTEXTW mit LVITEM im Zielprozess.</summary>
-    static JsonArray ListViewRow(nint h, Remote rm, int item, int cols)
-    {
-        var row = new JsonArray();
-        const int textOff = 512, cch = MaxItemText + 1;
-        for (int c = 0; c < cols; c++)
-        {
-            var lv = new byte[rm.Target32 ? 60 : 88];
-            BitConverter.GetBytes(item).CopyTo(lv, 4);   // iItem
-            BitConverter.GetBytes(c).CopyTo(lv, 8);      // iSubItem
-            if (rm.Target32) { BitConverter.GetBytes((int)(long)rm.Addr(textOff)).CopyTo(lv, 20); BitConverter.GetBytes(cch).CopyTo(lv, 24); }
-            else { BitConverter.GetBytes((long)rm.Addr(textOff)).CopyTo(lv, 24); BitConverter.GetBytes(cch).CopyTo(lv, 32); }
-            if (!rm.Write(0, lv) || !rm.Write(textOff, new byte[2])) break;
-            if (!rm.SendTo(h, 0x1073 /*LVM_GETITEMTEXTW*/, item, rm.Addr(0), out var len)) break;
-            row.Add((JsonNode?)SafeItem(rm.ReadString(textOff, (int)Math.Clamp((long)len, 0, MaxItemText)) ?? ""));
-        }
-        return row;
-    }
-
-    static JsonObject? TreeViewInfo(nint h, TextLevel texts, Win32.POINT? pt)
-    {
-        if (!Send(h, 0x1105 /*TVM_GETCOUNT*/, 0, 0, out var cnt) || (long)cnt < 0) return null;
-        var o = new JsonObject { ["count"] = (long)cnt };
-        using var rm = Remote.Open(h, 2048);
-        if (rm == null) return o;
-        if (Send(h, 0x110A /*TVM_GETNEXTITEM*/, 9 /*TVGN_CARET*/, 0, out var sel) && sel != 0)
-        {
-            if (TreeText(h, rm, sel) is { } st) o["selText"] = SafeItem(st);
-            if (TreePath(h, rm, sel) is { Count: > 1 } sp) o["selPath"] = sp;
-        }
-        if (pt is { } p)
-        {
-            var cp = p; ScreenToClient(h, ref cp);
-            // TVHITTESTINFO: POINT pt; UINT flags; HTREEITEM hItem
-            var buf = new byte[24];
-            BitConverter.GetBytes(cp.X).CopyTo(buf, 0); BitConverter.GetBytes(cp.Y).CopyTo(buf, 4);
-            if (rm.Write(0, buf) && rm.SendTo(h, 0x1111 /*TVM_HITTEST*/, 0, rm.Addr(0), out var hit) && hit != 0)
-            {
-                var ap = new JsonObject();
-                if (TreeText(h, rm, hit) is { } at) ap["text"] = SafeItem(at);
-                if (TreePath(h, rm, hit) is { Count: > 0 } path) ap["path"] = path;
-                if (ap.Count > 0) o["atPoint"] = ap;
-            }
-        }
-        return o;
-    }
-
-    static string? TreeText(nint h, Remote rm, nint item)
-    {
-        const int textOff = 512, cch = MaxItemText + 1;
-        var tv = new byte[rm.Target32 ? 40 : 56];
-        BitConverter.GetBytes(0x0001 | 0x0010).CopyTo(tv, 0);   // TVIF_TEXT | TVIF_HANDLE
-        if (rm.Target32) { BitConverter.GetBytes((int)(long)item).CopyTo(tv, 4); BitConverter.GetBytes((int)(long)rm.Addr(textOff)).CopyTo(tv, 16); BitConverter.GetBytes(cch).CopyTo(tv, 20); }
-        else { BitConverter.GetBytes((long)item).CopyTo(tv, 8); BitConverter.GetBytes((long)rm.Addr(textOff)).CopyTo(tv, 24); BitConverter.GetBytes(cch).CopyTo(tv, 32); }
-        if (!rm.Write(256, tv) || !rm.Write(textOff, new byte[2])) return null;
-        if (!rm.SendTo(h, 0x113E /*TVM_GETITEMW*/, 0, rm.Addr(256), out var ok) || ok == 0) return null;
-        return rm.ReadString(textOff, MaxItemText);
-    }
-
-    /// <summary>Pfad eines TreeView-Eintrags von der Wurzel (höchstens 8 Ebenen).</summary>
-    static JsonArray? TreePath(nint h, Remote rm, nint item)
-    {
-        var list = new List<string>();
-        for (int i = 0; i < 8 && item != 0; i++)
-        {
-            list.Add(SafeItem(TreeText(h, rm, item) ?? "") ?? "");
-            if (!Send(h, 0x110A, 3 /*TVGN_PARENT*/, item, out var parent)) break;
-            item = parent;
-        }
-        list.Reverse();
-        return new JsonArray(list.Select(x => (JsonNode)x).ToArray());
-    }
-
-    static JsonObject? TabInfo(nint h, TextLevel texts, Win32.POINT? pt, Stopwatch sw)
-    {
-        if (!Send(h, 0x1304 /*TCM_GETITEMCOUNT*/, 0, 0, out var cnt) || (long)cnt < 0) return null;
-        var o = new JsonObject { ["count"] = (long)cnt };
-        using var rm = Remote.Open(h, 2048);
-        if (Send(h, 0x130B /*TCM_GETCURSEL*/, 0, 0, out var sel) && (long)sel >= 0)
-        {
-            o["selIndex"] = (long)sel + 1;
-            if (rm != null && TabText(h, rm, (int)sel) is { } st) o["selText"] = SafeItem(st);
-        }
-        if (pt is { } p && rm != null)
-        {
-            var cp = p; ScreenToClient(h, ref cp);
-            var buf = new byte[12];
-            BitConverter.GetBytes(cp.X).CopyTo(buf, 0); BitConverter.GetBytes(cp.Y).CopyTo(buf, 4);
-            if (rm.Write(0, buf) && rm.SendTo(h, 0x130D /*TCM_HITTEST*/, 0, rm.Addr(0), out var hit) && (long)hit >= 0)
-            {
-                var ap = new JsonObject { ["index"] = (long)hit + 1 };
-                if (TabText(h, rm, (int)hit) is { } at) ap["text"] = SafeItem(at);
-                o["atPoint"] = ap;
-            }
-        }
-        if (rm != null && texts == TextLevel.All) AddItems(o, (int)cnt, i => TabText(h, rm, i), sw);
-        return o;
-    }
-
-    static string? TabText(nint h, Remote rm, int i)
-    {
-        const int textOff = 512, cch = MaxItemText + 1;
-        var tc = new byte[rm.Target32 ? 28 : 40];
-        BitConverter.GetBytes(0x0001).CopyTo(tc, 0);   // TCIF_TEXT
-        if (rm.Target32) { BitConverter.GetBytes((int)(long)rm.Addr(textOff)).CopyTo(tc, 12); BitConverter.GetBytes(cch).CopyTo(tc, 16); }
-        else { BitConverter.GetBytes((long)rm.Addr(textOff)).CopyTo(tc, 16); BitConverter.GetBytes(cch).CopyTo(tc, 24); }
-        if (!rm.Write(256, tc) || !rm.Write(textOff, new byte[2])) return null;
-        if (!rm.SendTo(h, 0x133C /*TCM_GETITEMW*/, i, rm.Addr(256), out var ok) || ok == 0) return null;
-        return rm.ReadString(textOff, MaxItemText);
-    }
-
     /// <summary>Aufgeklappte Liste eines Kombinationsfelds (ComboLBox): zugehöriges ComboBox im Vordergrundfenster suchen.</summary>
     internal static JsonObject? ComboListOwner(nint list)
     {
@@ -480,17 +325,9 @@ public static partial class Win32Detail
             if (bar == 0) return null;
             if (!Send(bar, 0x0406 /*SB_GETPARTS*/, 0, 0, out var np) || (long)np <= 0) return null;
             int parts = (int)Math.Min((long)np, MaxParts);
-            using var rm = Remote.Open(bar, 4096);
+            // Texte über UI Automation (P9: kein Puffer im Zielprozess)
             var list = new JsonArray();
-            for (int i = 0; i < parts; i++)
-            {
-                if (!Send(bar, 0x040C /*SB_GETTEXTLENGTHW*/, i, 0, out var lr)) break;
-                int len = (int)((long)lr & 0xFFFF), type = (int)(((long)lr >> 16) & 0xFFFF);
-                string? t = null;
-                if ((type & 0x1000) == 0 /*SBT_OWNERDRAW*/ && len > 0 && len < 2000 && rm != null && rm.Write(0, new byte[2]) && rm.SendTo(bar, 0x040D /*SB_GETTEXTW*/, i, rm.Addr(0), out _))
-                    t = rm.ReadString(0, len);
-                list.Add((JsonNode?)SafeItem(t ?? ""));
-            }
+            foreach (var t in UiaStatusParts(bar, parts)) list.Add((JsonNode?)SafeItem(t ?? ""));
             if (list.All(x => string.IsNullOrEmpty(x?.GetValue<string>()))) return null;
             var o = new JsonObject { ["parts"] = list };
             if (ClassNN(top, bar) is { } nn) o["classNN"] = nn;
@@ -536,58 +373,6 @@ public static partial class Win32Detail
         catch { return null; }
     }
 
-    // ------------------------------------------------------------------------------------------
-    // Puffer im Zielprozess (für Nachrichten mit Zeigern, die Windows nicht selbst überträgt)
-    // ------------------------------------------------------------------------------------------
-
-    internal sealed class Remote : IDisposable
-    {
-        nint _proc, _mem; bool _leak;
-        public bool Target32;
-
-        public static Remote? Open(nint hwnd, int size)
-        {
-            if (!Environment.Is64BitProcess) return null;   // 32-Bit-Recorder: Strukturen eines 64-Bit-Ziels nicht sicher
-            Win32.GetWindowThreadProcessId(hwnd, out uint pid);
-            if (pid == 0) return null;
-            nint p = Win32.OpenProcess(0x0008 | 0x0010 | 0x0020 | 0x1000, false, pid);   // VM_OPERATION | VM_READ | VM_WRITE | QUERY_LIMITED
-            if (p == 0) return null;
-            nint mem = VirtualAllocEx(p, 0, size, 0x3000, 0x04);
-            if (mem == 0) { Win32.CloseHandle(p); return null; }
-            bool wow = IsWow64Process(p, out var w) && w;
-            return new Remote { _proc = p, _mem = mem, Target32 = wow };
-        }
-
-        public nint Addr(int off) => _mem + off;
-        public bool Write(int off, byte[] data) => WriteProcessMemory(_proc, _mem + off, data, data.Length, out _);
-        public byte[]? Read(int off, int len) { var b = new byte[len]; return ReadProcessMemory(_proc, _mem + off, b, len, out _) ? b : null; }
-        public string? ReadString(int off, int maxChars)
-        {
-            var b = Read(off, (maxChars + 1) * 2);
-            if (b == null) return null;
-            var s = Encoding.Unicode.GetString(b);
-            int z = s.IndexOf('\0');
-            return z >= 0 ? s[..z] : s;
-        }
-
-        /// <summary>Nachricht mit Zeiger in diesen Puffer; nach Zeitüberschreitung wird der Puffer nicht freigegeben.</summary>
-        public bool SendTo(nint h, uint msg, nint w, nint l, out nint r)
-        {
-            r = 0;
-            if (_leak) return false;   // nach einer Zeitüberschreitung keine weiteren Nachrichten an diesen Puffer
-            if (SendMessageTimeout(h, msg, w, l, 0x0002, TextTimeoutMs, out r) != 0) return true;
-            _leak = true;
-            return false;
-        }
-
-        public void Dispose()
-        {
-            if (_mem != 0 && !_leak) VirtualFreeEx(_proc, _mem, 0, 0x8000);
-            if (_proc != 0) Win32.CloseHandle(_proc);
-            _mem = _proc = 0;
-        }
-    }
-
     [StructLayout(LayoutKind.Sequential)] struct COMBOBOXINFO { public int cbSize; public RECT rcItem, rcButton; public int stateButton; public nint hwndCombo, hwndItem, hwndList; }
     [DllImport("user32.dll")] static extern bool GetComboBoxInfo(nint h, ref COMBOBOXINFO ci);
     [DllImport("user32.dll")] static extern int MenuItemFromPoint(nint h, nint menu, Win32.POINT pt);
@@ -598,9 +383,4 @@ public static partial class Win32Detail
     [DllImport("user32.dll", CharSet = CharSet.Unicode, EntryPoint = "GetMenuStringW")] static extern int GetMenuString(nint menu, uint id, StringBuilder sb, int max, uint flags);
     [DllImport("user32.dll")] static extern nint GetMenu(nint h);
     [DllImport("user32.dll")] static extern nint GetSystemMenu(nint h, bool revert);
-    [DllImport("kernel32.dll")] static extern nint VirtualAllocEx(nint p, nint addr, nint size, uint type, uint protect);
-    [DllImport("kernel32.dll")] static extern bool VirtualFreeEx(nint p, nint addr, nint size, uint type);
-    [DllImport("kernel32.dll")] static extern bool WriteProcessMemory(nint p, nint addr, byte[] buf, nint size, out nint written);
-    [DllImport("kernel32.dll")] static extern bool ReadProcessMemory(nint p, nint addr, byte[] buf, nint size, out nint read);
-    [DllImport("kernel32.dll")] static extern bool IsWow64Process(nint p, out bool wow);
 }

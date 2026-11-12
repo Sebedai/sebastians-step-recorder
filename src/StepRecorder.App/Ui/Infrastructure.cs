@@ -234,7 +234,8 @@ static class SingleInstance
         var stateFile = Settings.AppPaths.StateFile;
         // Erkennung über den Zeitstempel „atUtc“ des Stopps – andere Zustandsänderungen (Fensterlage …) zählen nicht
         string? before = Data.Json.ReadObject(stateFile).Str("atUtc");
-        if (!Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine(Settings.Loc.L("Keine laufende Aufnahme.", "No recording in progress.")); return 7; }
+        // ohne laufende Aufnahme sofort Exit-Code 7 (02 §8.6) – nicht 30 s warten
+        if (!IsUiRunning() || !IsRecording() || !Forward(new[] { "record", "--stop" })) { Console.Error.WriteLine(Settings.Loc.L("Keine laufende Aufnahme.", "No recording in progress.")); return 7; }
         var sw = Stopwatch.StartNew();
         while (sw.ElapsedMilliseconds < 30000)
         {
@@ -243,6 +244,40 @@ static class SingleInstance
             if (o.Str("atUtc") is { } at && at != before && o.Str("lastStopped") is { } path) { Console.WriteLine(path); return 0; }
         }
         return 1;
+    }
+
+    /// <summary>
+    /// <c>record</c> an eine schon laufende Oberfläche weitergereicht: warten, bis die dort gestartete Aufnahme endet, und
+    /// den Sitzungspfad ausgeben (02 §8.4). Exit 5, wenn sie verworfen wurde oder nie begann.
+    /// </summary>
+    public static int WaitForForwardedRecording(bool json)
+    {
+        var stateFile = Settings.AppPaths.StateFile;
+        string? before = Data.Json.ReadObject(stateFile).Str("atUtc");
+        var sw = Stopwatch.StartNew();
+        bool seen = false;
+        while (IsUiRunning())
+        {
+            bool rec = IsRecording();
+            if (rec) seen = true;
+            else if (seen || sw.ElapsedMilliseconds > 120_000) break;   // Bereichswahl/Countdown dürfen dauern
+            Thread.Sleep(300);
+        }
+        var o = Data.Json.ReadObject(stateFile);
+        if (o.Str("atUtc") is { } at && at != before && o.Str("lastStopped") is { } path) { PrintStopped(path, json); return 0; }
+        return 5;
+    }
+
+    /// <summary>Abschlusszeile von <c>record</c>: Sitzungspfad, mit <c>--json</c> als JSON-Objekt.</summary>
+    public static void PrintStopped(string path, bool json)
+    {
+        try
+        {
+            if (json) Console.WriteLine(Data.Json.Line(new System.Text.Json.Nodes.JsonObject { ["session"] = path, ["sessionId"] = Data.Json.ReadObject(Path.Combine(path, "manifest.json")).Str("sessionId") }));
+            else Console.WriteLine(path);
+            Console.Out.Flush();
+        }
+        catch { }
     }
 
     public static void WriteLastStopped(string path)

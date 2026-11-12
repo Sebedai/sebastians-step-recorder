@@ -666,6 +666,7 @@ public sealed partial class Recorder
                 var root = WindowRegistry.Root((nint)(res.El.Str("hwnd") is { } h ? Convert.ToInt64(h, 16) : 0));
                 var win = root != 0 ? _reg.Peek(root) : _fgWin;
                 if (win is { Excluded: true }) return;
+                if (win != null && WindowRegistry.SurfaceOf(win) != "structured") return;   // Terminalinhalt nie als Feldwert (03 §7.4)
                 var ev = new JsonObject { ["t"] = res.TEnd, ["tSrc"] = "obs", ["type"] = "ui.value", ["el"] = ElementRef(res.El), ["phase"] = phase, ["value"] = res.Value };
                 if (win != null) ev["win"] = win.Id;
                 if (res.ValueLen > res.Value.Length) { ev["len"] = res.ValueLen; ev["truncated"] = true; }

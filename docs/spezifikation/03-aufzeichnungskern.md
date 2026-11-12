@@ -912,6 +912,8 @@ Einstufung eines Fensters als undurchsichtig (`window.info`: `surface`, `surface
 
 Innerhalb eines sonst gegliederten Fensters gilt dasselbe für einzelne Flächen (Zeichenfläche, eingebettetes Video): Das Element trägt `opaqueHint`.
 
+*Stand der Umsetzung:* Die Einstufung geht allein nach Liste (Punkt 1). Terminals erhalten `surface: "partial"` (Elemente gegliedert, Inhalt nicht), Remote-Desktop und VM `surface: "opaque"`. Für beide gilt: Getipptes ist prüfpflichtig, und es entsteht kein `ui.value` – der Inhalt eines Terminals wird nie als Feldwert gespeichert. Die Strukturprobe (Punkte 2 und 3) ist nicht umgesetzt.
+
 Folgen im Kern:
 
 - Für undurchsichtige Fenster entfallen Vorab-Ermittlungen (sie kosten nur). Bei Maustasten wird die Hülle mit Hinweis protokolliert.

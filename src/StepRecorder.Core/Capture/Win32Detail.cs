@@ -143,10 +143,39 @@ public static partial class Win32Detail
 
     static readonly Dictionary<uint, JsonObject?> AppCache = new();
 
+    /// <summary>
+    /// Befehlszeile des Programms speichern (nur mit „Erweitertem Programmkontext“, 10 §3). Vom Recorder je Aufnahme gesetzt;
+    /// ohne sie bleibt nur das Kennzeichen <c>privateArgs</c> für die Erkennung privater Browserfenster.
+    /// </summary>
+    public static bool KeepCommandLine;
+
+    /// <summary>Pfade unter dem Benutzerprofil mit dem Platzhalter <c>%USERPROFILE%</c> (10 §3) – der Benutzername gelangt so nicht ins Protokoll.</summary>
+    public static string ProfilePath(string path) => ProfilePath(path, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+
+    /// <summary>Wie <see cref="ProfilePath(string)"/> mit vorgegebenem Profilordner (für Tests); wirkt auch mitten in Befehlszeilen.</summary>
+    public static string ProfilePath(string path, string? home)
+    {
+        try
+        {
+            home = home?.TrimEnd('\\', '/');
+            if (string.IsNullOrEmpty(path) || home is not { Length: > 3 }) return path;
+            return System.Text.RegularExpressions.Regex.Replace(path, System.Text.RegularExpressions.Regex.Escape(home) + @"(?=[\\/""\s]|$)", "%USERPROFILE%",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase, TimeSpan.FromMilliseconds(100));
+        }
+        catch { return path; }
+    }
+
+    static JsonObject? AppView(JsonObject? cached)
+    {
+        if (cached?.DeepClone() is not JsonObject o) return null;
+        if (!KeepCommandLine) o.Remove("commandLine");
+        return o;
+    }
+
     /// <summary>Programm des Fensters: Produkt, Version, Hersteller, Startbefehl (ohne verdächtige Argumente), Administratorrechte.</summary>
     static JsonObject? AppInfo(uint pid)
     {
-        lock (AppCache) if (AppCache.TryGetValue(pid, out var cached)) return cached?.DeepClone() as JsonObject;
+        lock (AppCache) if (AppCache.TryGetValue(pid, out var cached)) return AppView(cached);
         JsonObject? o = null;
         try
         {
@@ -164,7 +193,11 @@ public static partial class Win32Detail
                     else if (!string.IsNullOrWhiteSpace(vi.FileVersion)) o["version"] = vi.FileVersion.Trim();
                 }
                 catch { }
-                if (CommandLine(pid) is { } cmd) o["commandLine"] = SafeCommandLine(cmd, path);
+                if (CommandLine(pid) is { } cmd)
+                {
+                    o["commandLine"] = ProfilePath(SafeCommandLine(cmd, path));
+                    if (AppProbe.PrivateWindow(null, cmd)) o["privateArgs"] = true;
+                }
                 o["elevated"] = Elevated(pid) is bool e ? e : null;
                 if (o["elevated"] is null) o["elevatedUnknown"] = true;
                 o.Clean();
@@ -172,7 +205,7 @@ public static partial class Win32Detail
         }
         catch { }
         lock (AppCache) AppCache[pid] = o;
-        return o?.DeepClone() as JsonObject;
+        return AppView(o);
     }
 
     /// <summary>Argumente mit Passwörtern, Schlüsseln, Tokens oder E-Mail-Adressen werden ausgelassen.</summary>
@@ -245,7 +278,7 @@ public static partial class Win32Detail
         o["class"] = Win32.GetClassNameOf(top);
         Win32.GetWindowThreadProcessId(top, out uint pid);
         o["pid"] = pid;
-        if (Win32.GetProcessPath(pid) is { } path) { o["exe"] = Path.GetFileName(path); o["path"] = path; }
+        if (Win32.GetProcessPath(pid) is { } path) { o["exe"] = Path.GetFileName(path); o["path"] = ProfilePath(path); }
         GetWindowRectRaw(top, out wr);
         o["rect"] = Rect(wr.Left, wr.Top, wr.Right - wr.Left, wr.Bottom - wr.Top);
         client = null;

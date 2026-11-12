@@ -89,7 +89,7 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 
 | Nr. | Paket | Vorgabe | Aufwand | Greift ein in | Hängt ab von | Regelversion | Stand |
 |---|---|---|---|---|---|---|---|
-| V | Vorarbeiten und Abgleich | – | S–M | Kern, Kommandozeile, Spezifikation | – | nein | geplant |
+| V | Vorarbeiten und Abgleich | – | S–M | Kern, Kommandozeile, Spezifikation | – | nein | erledigt |
 | 8 | Agenten-Schleife | V-40 | M | MCP, Kommandozeile | – | nein | geplant |
 | 9 | Reaktionszeiten | V-45 | S | Editor, Vergleich, Ausgaben | – | nein | geplant |
 | 10 | Kontext I: Programmende, Hänger, Build-Stand | V-41 | M | Aufzeichnungskern, Schritte | V | ja (1.7) | geplant |
@@ -357,18 +357,18 @@ Die Pakete zählen die Ausbaupakete 0–7 aus [11 §2.1](11-roadmap-tests-risike
 
 Beim Durchgang durch den Code sind Abweichungen zwischen Grundsätzen und Umsetzung aufgefallen. Sie betreffen den Schutz und gehören vor die Pakete, die neue Quellen einführen. Je Punkt ist zu entscheiden, ob der Code oder die Spezifikation angepasst wird.
 
-| Nr. | Abweichung | Fundstelle | Spezifikation | Empfehlung | Entscheidung |
+| Nr. | Abweichung | Fundstelle | Spezifikation | Empfehlung | Stand |
 |---|---|---|---|---|---|
-| A-1 | Vollständiger Programmpfad steht im Klartext in jedem Win32-Kontext | `Win32Detail.WindowInfo` (`o["path"]`) | [10 §3](10-datenschutz-und-sicherheit.md#3-dateninventar): Pfade unter dem Profil mit `%USERPROFILE%` | Code: Platzhalter, wie versprochen | O-12 |
-| A-2 | Befehlszeile aufgenommener Programme wird gespeichert (bereinigt) | `Win32Detail.AppInfo` (`commandLine`) | 10 §3: Befehlszeilen fremder Prozesse „bewusst nicht erhoben“ | Code: weglassen oder nur hinter „Erweiterter Programmkontext“ und als schwächer gemeldet | O-12 |
-| A-3 | Listen- und Baumeinträge werden über Speicher des fremden Prozesses gelesen | `Win32Detail.Extra.cs` (`VirtualAllocEx`, `ReadProcessMemory`) | [10 §2](10-datenschutz-und-sicherheit.md#2-grundsätze) P9: kein Lesen fremden Prozessspeichers | Code: auf UI Automation und MSAA umstellen | O-13 |
-| A-4 | Abschaltbare Suche nach Updates (ab Werk aus) | `UpdateCheck.cs` | P2: kein Update-Check | Spezifikation: Ausnahme ausdrücklich beschreiben (ab Werk aus, nur Release-Seite, ohne Kennung) | O-14 |
+| A-1 | Vollständiger Programmpfad steht im Klartext in jedem Win32-Kontext | `Win32Detail.WindowInfo` (`o["path"]`) | [10 §3](10-datenschutz-und-sicherheit.md#3-dateninventar): Pfade unter dem Profil mit `%USERPROFILE%` | Code: Platzhalter, wie versprochen | erledigt (Paket V): `Win32Detail.ProfilePath` |
+| A-2 | Befehlszeile aufgenommener Programme wird gespeichert (bereinigt) | `Win32Detail.AppInfo` (`commandLine`) | 10 §3: Befehlszeilen fremder Prozesse „bewusst nicht erhoben“ | Code: weglassen oder nur hinter „Erweiterter Programmkontext“ und als schwächer gemeldet | erledigt (Paket V): nur mit „Erweitertem Programmkontext“ (`Win32Detail.KeepCommandLine`) |
+| A-3 | Listen- und Baumeinträge werden über Speicher des fremden Prozesses gelesen | `Win32Detail.Extra.cs` (`VirtualAllocEx`, `ReadProcessMemory`) | [10 §2](10-datenschutz-und-sicherheit.md#2-grundsätze) P9: kein Lesen fremden Prozessspeichers | Code: auf UI Automation und MSAA umstellen | erledigt (Paket V): Texte über UI Automation (`Win32Detail.Uia.cs`), Test `Core_DoesNotReadForeignProcessMemory` |
+| A-4 | Abschaltbare Suche nach Updates (ab Werk aus) | `UpdateCheck.cs` | P2: kein Update-Check | Spezifikation: Ausnahme ausdrücklich beschreiben (ab Werk aus, nur Release-Seite, ohne Kennung) | erledigt (Paket V): Ausnahme in P2 beschrieben |
 | A-5 | Durchsicht erfasst nur getippte Eingaben | `SessionView` (Schrittart `type`) | [10 §11.1](10-datenschutz-und-sicherheit.md#111-durchsicht-aller-eingaben): auch Kommentare, Ziel-Angaben, Marker | Code, in Paket 12 | – |
 | A-6 | „Nie unbemerkt schwächer“ nicht gebaut; Einstellung `ClipboardContent` wirkungslos | `RecordingOptions.ProfileJson` (ohne `weakens`) | 10 §4.4 | Code, in Paket 12 | – |
-| A-7 | `ui.value` ist für Terminals nicht eigens gesperrt | `Recorder.System.ApplyFocus`, `Recorder.Input.PollValue` | [03 §7.4](03-aufzeichnungskern.md#74-rückfall-und-undurchsichtige-oberflächen): Terminaltext nie als Feldinhalt | Test belegt, dass kein Konsoleninhalt entsteht; sonst Sperre | – |
-| A-8 | Regelversion: Code 1.6.0, Spezifikation 1.5.0 | `StepModel.cs`, 05 §15.1 | – | Spezifikation nachziehen | – |
-| A-9 | Terminals gelten im Code als `partial`, in 03 als undurchsichtig | `WindowRegistry.SurfaceOf` | 03 §7.4 | Spezifikation nachziehen, Wirkung auf die Durchsicht beschreiben | – |
-| A-10 | `record` gibt am Ende keinen Sitzungspfad aus; `record --stop` wartet ohne laufende Aufnahme 30 s und endet mit 1 | `UiApp`, `SingleInstance.SendStop` | 02 §8.4, §8.6 (Exit-Code 7) | Code, in Paket 8 | – |
+| A-7 | `ui.value` ist für Terminals nicht eigens gesperrt | `Recorder.System.ApplyFocus`, `Recorder.Input.PollValue` | [03 §7.4](03-aufzeichnungskern.md#74-rückfall-und-undurchsichtige-oberflächen): Terminaltext nie als Feldinhalt | Test belegt, dass kein Konsoleninhalt entsteht; sonst Sperre | erledigt (Paket V): kein `ui.value` in Terminal, Remote-Desktop und VM |
+| A-8 | Regelversion: Code 1.6.0, Spezifikation 1.5.0 | `StepModel.cs`, 05 §15.1 | – | Spezifikation nachziehen | erledigt (Paket V) |
+| A-9 | Terminals gelten im Code als `partial`, in 03 als undurchsichtig | `WindowRegistry.SurfaceOf` | 03 §7.4 | Spezifikation nachziehen, Wirkung auf die Durchsicht beschreiben | erledigt (Paket V): 03 §7.4 nennt den Stand |
+| A-10 | `record` gibt am Ende keinen Sitzungspfad aus; `record --stop` wartet ohne laufende Aufnahme 30 s und endet mit 1 | `UiApp`, `SingleInstance.SendStop` | 02 §8.4, §8.6 (Exit-Code 7) | Code, in Paket 8 | erledigt (Paket V): Abschlusszeile, `--json`, Exit 5 und 7 |
 
 Außerdem bleibt offen: der Wechsel auf .NET 10 (O-08); auf dem Entwicklungsrechner ist nur das SDK 8.0.414 installiert.
 

@@ -66,7 +66,7 @@ Die rechte Spalte steht so auch in der Nutzerdokumentation und in Kurzform im St
 | Nr. | Grundsatz | Konsequenz |
 |---|---|---|
 | P1 | **Sichtbar.** Keine Aufnahme ohne ausdrücklichen Start durch die Person am Rechner; während der Aufnahme ist auf jedem aufgenommenen Monitor ein Hinweis zu sehen. | Kein verdeckter Modus, kein Autostart, kein Dienst, kein Fernstart, kein Start in einer nicht interaktiven Sitzung. Auch `record` auf der Kommandozeile zeigt den Hinweis; es gibt keine Option, ihn abzuschalten. Lässt sich kein Hinweis anzeigen, startet die Aufnahme nicht. |
-| P2 | **Offline.** Kein Netzwerkzugriff. | Kein Update-Check, keine Telemetrie, kein Absturzbericht nach außen, keine eingebettete Browser-Komponente ([Abschnitt 12](#12-netzwerkfreiheit)). |
+| P2 | **Offline.** Kein Netzwerkzugriff. | Keine Telemetrie, kein Absturzbericht nach außen, keine eingebettete Browser-Komponente ([Abschnitt 12](#12-netzwerkfreiheit)). Einzige Ausnahme ist die **Suche nach Updates**: ab Werk aus, nur auf ausdrücklichen Wunsch in den Einstellungen; sie fragt allein die öffentliche Release-Seite ab, ohne Kennung und ohne persönliche Daten, und lädt nichts herunter (Entscheidung O-14). |
 | P3 | **Sparsam ab Werk.** Voreinstellungen erheben das Nötige. | Zwischenablage-Inhalt aus; standardmäßig kein Rechner- oder Benutzername im Manifest; Aufnahmebereich wählbar; Ausschlussliste vorbelegt. |
 | P4 | **Im Zweifel maskieren.** Lässt sich ein Eingabeziel nicht rechtzeitig oder nicht widerspruchsfrei einstufen, wird die Eingabe nicht gespeichert. | Zeitüberschreitung, Widerspruch und Fehler führen zu `text.masked`, nie zu Klartext. |
 | P5 | **Ehrlich.** Was maskiert, ausgeschlossen oder geschwärzt wurde, ist als solches markiert. | Lückenmarker und Belegstufe „unbekannt“ statt stillem Weglassen. |
@@ -122,11 +122,11 @@ Ein KI-Agent darf eine Vorführung **erbitten**, nie selbst aufnehmen. Das folgt
 | Bearbeitungsstände | `history/`: automatische Sicherungen von `edits.json` | wie `edits.json` – sie enthalten auch Verallgemeinerungsregeln mit ihren Werten und interne Kommentare | nie in `.steprec` oder bereinigter Kopie; endgültiges Schwärzen löscht alle ([10.8](#108-endgültiges-schwärzen)) |
 | Abgeleitetes | `cache/` (Vorschaubilder, Suchindex unter `cache/search/`), `export/` | wie die Quelle | wird bei jeder Änderung an Schwärzungen, Verallgemeinerungen oder Durchsicht verworfen bzw. gemeldet ([10.6](#106-abgeleitete-daten-und-frühere-exporte)) |
 
-**Bewusst nicht erhoben:** Rechnername, Benutzername, Domäne, Sicherheitskennung des Kontos, Seriennummern, Netzwerkadressen, Standort, Liste installierter Programme, Liste laufender Prozesse (nur Programme, mit deren Fenstern gearbeitet wurde), Befehlszeilen fremder Prozesse, Ton, Kamera, Dateiinhalte, Netzwerkverkehr, Browserverlauf.
+**Bewusst nicht erhoben:** Rechnername, Benutzername, Domäne, Sicherheitskennung des Kontos, Seriennummern, Netzwerkadressen, Standort, Liste installierter Programme, Liste laufender Prozesse (nur Programme, mit deren Fenstern gearbeitet wurde), Befehlszeilen fremder Prozesse (Ausnahme: mit „Erweitertem Programmkontext“ die Befehlszeile der aufgenommenen Programme, Argumente mit Geheimnissen ausgelassen, Profilpfad ersetzt – Entscheidung O-12), Ton, Kamera, Dateiinhalte, Netzwerkverkehr, Browserverlauf.
 
 Einzige Ausnahme: Rechner- und Benutzername lassen sich über die Einstellung `privacy.recordIdentity` ausdrücklich zuschalten ([04](04-datenformat.md#manifest)) – etwa für Support-Fälle, in denen der Rechner zugeordnet werden muss. Standard ist aus; Exporte können die Angaben auch dann weglassen.
 
-**Pfade:** Programmpfade unterhalb des Benutzerprofils werden mit dem Platzhalter `%USERPROFILE%` gespeichert, damit der Benutzername nicht über den Profilpfad ins Protokoll gelangt. Pfade, die im *Bildschirminhalt* vorkommen (Titelzeile, Adressleiste), sind aufgezeichneter Inhalt; die Musterprüfung weist auf Benutzernamen darin hin.
+**Pfade:** Programmpfade unterhalb des Benutzerprofils werden mit dem Platzhalter `%USERPROFILE%` gespeichert (`Win32Detail.ProfilePath`; auch in Befehlszeilen), damit der Benutzername nicht über den Profilpfad ins Protokoll gelangt. Pfade, die im *Bildschirminhalt* vorkommen (Titelzeile, Adressleiste), sind aufgezeichneter Inhalt; die Musterprüfung weist auf Benutzernamen darin hin.
 
 **Außerhalb der Sitzung:** Einstellungen, eigene Aufnahmeprofile (`profiles.json`) und eine auf Befehl erzeugte Austauschdatei (`StepRecorder-Einstellungen.json`) enthalten keine Sitzungsdaten, keine absoluten Pfade und keine Namen von Rechner, Benutzer oder Domäne ([13.4](#134-einstellungen-und-profile-weitergeben)). Sie können aber verraten, was jemand für vertraulich hält – die Ausschlussliste nennt Programme –, und sie können Texte des Autors enthalten: Textbausteine und die Vorbelegungen für das Support-Paket.
 
@@ -806,7 +806,7 @@ Was der Ablauf nicht verhindern kann, sagt sein erster Bildschirm in zwei Sätze
 | Nr. | Regel |
 |---|---|
 | NW1 | Kein Prozess des Tools öffnet eine Netzwerkverbindung, löst einen Namen auf oder lauscht auf einem Port – in keiner Betriebsart. |
-| NW2 | Kein Update-Check, keine Telemetrie, keine Absturzberichte nach außen, keine Online-Hilfe, keine nachgeladenen Schriften oder Bilder. |
+| NW2 | Kein Update-Check ohne ausdrückliches Einschalten (Ausnahme in P2), keine Telemetrie, keine Absturzberichte nach außen, keine Online-Hilfe, keine nachgeladenen Schriften oder Bilder. |
 | NW3 | Keine eingebettete Browser-Komponente. PDF entsteht mit einem eigenen Schreiber ([02](02-architektur.md#technologie)). |
 | NW4 | Exporte enthalten keine Verweise auf fremde Quellen; HTML-Exporte sind in sich geschlossen und sperren Nachladen per Richtlinie ([09](09-anleitungs-export.md#5-html)). |
 | NW5 | Der MCP-Server nutzt nur stdio; Netzwerk-Transporte des SDK werden nicht eingebunden ([06](06-ki-export-und-mcp.md)). |

@@ -635,7 +635,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 
 ### 9.2 Bibliotheken
 
-**Stand der Umsetzung.** Die Tabelle nennt die geplante Auswahl. Umgesetzt ist bisher **keine Fremdbibliothek** außer `System.Speech` (Microsoft, für das Diktat in der App; in die EXE gebündelt): DOCX, PDF (mit eingebetteter TrueType-Teilmenge), PPTX und GIF schreiben eigene Schreiber (`SimpleDocx`, `SimplePdf`, `TrueTypeFont`, `SimplePptx`, `GifWriter`), ZIP kommt aus `System.IO.Compression`, JSON aus `System.Text.Json`, der MCP-Server ist ein eigener stdio-Server (`McpStdioServer`), die Bildbearbeitung nutzt `System.Drawing` (GDI+). Die Abhängigkeitsregeln (Abschnitt [9.4](#technologie)) gelten damit trivial; ob die Bibliotheken später eingeführt werden, ist offen.
+**Stand der Umsetzung.** Die Tabelle nennt die geplante Auswahl. Umgesetzt sind bisher nur zwei Fremdbibliotheken, beide in der App und in die EXE gebündelt: `System.Speech` (Microsoft, für das Diktat) und `WPF-UI` 4.3.0 (MIT, Fluent-Steuerelemente; siehe `THIRD-PARTY-NOTICES.md`). Der Kern hat keine: DOCX, PDF (mit eingebetteter TrueType-Teilmenge), PPTX und GIF schreiben eigene Schreiber (`SimpleDocx`, `SimplePdf`, `TrueTypeFont`, `SimplePptx`, `GifWriter`), ZIP kommt aus `System.IO.Compression`, JSON aus `System.Text.Json`, der MCP-Server ist ein eigener stdio-Server (`McpStdioServer`), die Bildbearbeitung nutzt `System.Drawing` (GDI+). Die Abhängigkeitsregeln (Abschnitt [9.4](#technologie)) gelten damit trivial; ob die Bibliotheken später eingeführt werden, ist offen.
 
 | Bereich | Wahl | Version (11/2026) | Lizenz | Begründung |
 |---|---|---|---|---|

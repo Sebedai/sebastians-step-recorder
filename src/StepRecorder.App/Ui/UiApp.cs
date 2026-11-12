@@ -18,7 +18,10 @@ sealed class UiApp : Application
         if (!SingleInstance.TryAcquire())
         {
             bool fwd = SingleInstance.Forward(args.Length == 0 ? new[] { "--activate" } : args);
-            return fwd ? 0 : 6;
+            if (!fwd) return 6;
+            // record an die laufende Oberfläche: auf das Ende warten und den Pfad ausgeben
+            if (args.Length > 0 && args[0] == "record") return SingleInstance.WaitForForwardedRecording(args.Contains("--json"));
+            return 0;
         }
         Loc.Init(AppSettings.Load().UiLanguage, applyToThreads: true);
         AppLog.InstallCrashHandlers(TryEmergencyStop);
@@ -38,8 +41,14 @@ sealed class UiApp : Application
         SingleInstance.Listen();
         SingleInstance.ArgsReceived += HandleArgs;
         RegisterGlobalHotkeys();
+        _cliRecord = args.Length > 0 && args[0] == "record";
+        _cliJson = args.Contains("--json");
         HandleArgs(args);
     }
+
+    /// <summary>Diese Instanz wurde mit <c>record</c> gestartet: beim Ende der ersten Aufnahme den Pfad ausgeben (02 §8.4).</summary>
+    bool _cliRecord, _cliJson;
+    int _exitCode;
 
     /// <summary>Tastenkürzel, die beim letzten Anmelden belegt waren (für Startfenster und Diagnose).</summary>
     public List<string> HotkeyFailures { get; } = new();
@@ -104,7 +113,7 @@ sealed class UiApp : Application
 
     public void MaybeShutdown()
     {
-        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown();
+        if (Recording == null && !Windows.OfType<Window>().Any(w => w.IsVisible && w is StartWindow or ViewerWindow)) Shutdown(_exitCode);
     }
 
     /// <summary>„Alle Aufnahmen“: Seite „Aufnahmen“ im Startfenster.</summary>
@@ -209,6 +218,7 @@ sealed class UiApp : Application
             Recording = null;
             RegisterGlobalHotkeys();
             foreach (var v in Windows.OfType<ViewerWindow>()) v.Show();
+            if (_cliRecord) { _cliRecord = false; if (folder != null) SingleInstance.PrintStopped(folder, _cliJson); else _exitCode = 5; }
             if (folder == null) { if (onFinished != null) onFinished(null); else ShowStart(); return; }
             SingleInstance.WriteLastStopped(folder);
             if (onFinished != null) { onFinished(folder); return; }
