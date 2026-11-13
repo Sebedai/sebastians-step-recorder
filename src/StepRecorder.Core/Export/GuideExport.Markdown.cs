@@ -162,7 +162,7 @@ public static partial class GuideExport
                 break;
             case "obsidian":
                 string ob = kind switch { "tip" => "tip", "warning" => "warning", "important" => "important", "result" => "success", _ => "note" };
-                sb.Append(ind).Append("> [!").Append(ob).Append("] ").Append(MdText(label.TrimEnd(':'))).Append('\n');
+                sb.Append(ind).Append("> [!").Append(ob).Append("] ").Append(MdText(label.TrimEnd(':').TrimEnd())).Append('\n');
                 break;
             default:
                 lines[0] = "\u0001" + lines[0];   // Platzhalter für die fett gesetzte Kennzeichnung
@@ -198,8 +198,9 @@ public static partial class GuideExport
     // Maskierung: nur wo CommonMark sie braucht
     // -------------------------------------------------------------------------------------
 
-    static readonly Regex KeyCombo = new(@"\b(?:Strg|Ctrl|Alt|AltGr|Umschalt|Shift|Win|Windows)(?:\s*\+\s*(?:Strg|Ctrl|Alt|AltGr|Umschalt|Shift|Win|F\d{1,2}|Entf|Del|Einfg|Eingabe|Enter|Tab|Esc|Pos1|Ende|Bild\S*|[A-Za-z0-9ÄÖÜäöü]))+", RegexOptions.Compiled);
-    static readonly Regex Quoted = new("„([^“\n]{1,200})“|\"([^\"\n]{1,200})\"", RegexOptions.Compiled);
+    static readonly Regex KeyCombo = new(@"\b(?:Strg|Ctrl|Alt|AltGr|Umschalt|Shift|Maj|Mayús|Maiusc|Win|Windows)(?:\s*\+\s*(?:Strg|Ctrl|Alt|AltGr|Umschalt|Shift|Maj|Mayús|Maiusc|Win|F\d{1,2}|Entf|Del|Suppr|Supr|Canc|Einfg|Eingabe|Enter|Entrée|Intro|Invio|Tab|Esc|Échap|Pos1|Ende|Bild\S*|[A-Za-z0-9ÄÖÜäöü]))+", RegexOptions.Compiled);
+    /// <summary>Angeführte Namen: „…“ (Deutsch), "…", « … »/«…» (Französisch, Spanisch, Italienisch), ‘…’ (Niederländisch).</summary>
+    static readonly Regex Quoted = new("„([^“\n]{1,200})“|\"([^\"\n]{1,200})\"|(« ?)([^»\n]{1,200}?)( ?»)|(‘)([^’\n]{1,200})(’)", RegexOptions.Compiled);
 
     /// <summary>Text mit Auszeichnung: Elementnamen fett in Anführungszeichen, getippter Text und Tastenkürzel als Code-Spanne.</summary>
     static string MdInline(string text, ViewStep? step, bool emphasis = true)
@@ -210,9 +211,14 @@ public static partial class GuideExport
         foreach (Match m in Quoted.Matches(text))
         {
             sb.Append(PlainWithKeys(text[pos..m.Index], sb.Length == 0 && pos == 0));
-            string inner = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+            string inner = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Success ? m.Groups[2].Value : m.Groups[4].Success ? m.Groups[4].Value : m.Groups[7].Value;
             if (typed != null && inner == typed && !inner.Contains("{unreviewed:")) sb.Append(Code(inner));
             else if (m.Groups[1].Success) sb.Append(emphasis ? "**„" : "„").Append(MdText(inner, false)).Append(emphasis ? "“**" : "“");
+            else if (m.Groups[4].Success || m.Groups[7].Success)
+            {
+                string open = m.Groups[4].Success ? m.Groups[3].Value : m.Groups[6].Value, close = m.Groups[4].Success ? m.Groups[5].Value : m.Groups[8].Value;
+                sb.Append(emphasis ? "**" + open : open).Append(MdText(inner, false)).Append(emphasis ? close + "**" : close);
+            }
             else sb.Append('"').Append(MdText(inner, false)).Append('"');
             pos = m.Index + m.Length;
         }

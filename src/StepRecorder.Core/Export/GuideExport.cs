@@ -82,7 +82,8 @@ public static partial class GuideExport
         public int StepCount => Blocks.OfType<Item>().Count();
         public bool HasChapters => Blocks.OfType<Chapter>().Any();
         public bool ShowToc => S.Toc && (HasChapters ? Blocks.Count >= 3 : StepCount >= 6);
-        public string L(string de, string en) => Lang == "de" ? de : en;
+        /// <summary>Rahmentext in der Sprache der Anleitung (Französisch, Spanisch, Italienisch, Niederländisch über <see cref="Settings.OutText.Frame"/>).</summary>
+        public string L(string de, string en) => Settings.OutText.T(Lang, de, en);
     }
 
     public static ExportResult Export(SessionView view, GuideOptions o)
@@ -110,7 +111,7 @@ public static partial class GuideExport
         if (fmt == "tour") o.MouseMarks = false;   // die Klickfläche zeigt die Stelle – keine eingezeichneten Mausmarken
         string ext = fmt switch { "md" or "bugreport" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", _ => "html" };
         string sub = fmt switch { "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", _ => ext };
-        string name = fmt == "md" && !o.MdLegacy ? Fmt.AsciiSlug(title, lang == "de" ? "anleitung" : "guide") : Fmt.FileSafe(title.Length > 0 ? title : "Anleitung");
+        string name = fmt == "md" && !o.MdLegacy ? Fmt.AsciiSlug(title, Fmt.AsciiSlug(Settings.OutText.T(lang, "Anleitung", "Guide"), "guide").ToLowerInvariant()) : Fmt.FileSafe(title.Length > 0 ? title : "Anleitung");
         string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", sub, name + "." + ext);
         if (Directory.Exists(outPath) || outPath.EndsWith('\\') || outPath.EndsWith('/')) outPath = Path.Combine(outPath, name + "." + ext);
         Directory.CreateDirectory(Path.GetDirectoryName(outPath)!);
@@ -219,7 +220,7 @@ public static partial class GuideExport
         }
         }
 
-        string date = view.Session.StartUtc.ToLocalTime().ToString(lang == "de" ? "dd.MM.yyyy" : "yyyy-MM-dd");
+        string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
         d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
         if (s.ShowDate) d.Meta.Add((d.L("Stand", "Date"), date));
@@ -232,11 +233,11 @@ public static partial class GuideExport
     /// <summary>Bezeichnung und Farben eines Hinweiskastens: (Label, Balken, Fläche).</summary>
     public static (string label, string bar, string fill) NoteStyle(string kind, string lang) => kind switch
     {
-        "tip" => (lang == "de" ? "Tipp:" : "Tip:", "2F7D4F", "E8F4EC"),
-        "warning" => (lang == "de" ? "Achtung:" : "Warning:", "B26A00", "FFF4DC"),
-        "important" => (lang == "de" ? "Wichtig:" : "Important:", "B4233C", "FBE9EC"),
-        "result" => (lang == "de" ? "Ergebnis:" : "Result:", "3F3D38", "F1F0EC"),
-        _ => (lang == "de" ? "Hinweis:" : "Note:", "2F5C9C", "EAF0F9")
+        "tip" => (Settings.OutText.For(lang, "Tipp:", "Tip:", "Astuce :", "Consejo:", "Suggerimento:", "Tip:"), "2F7D4F", "E8F4EC"),
+        "warning" => (Settings.OutText.For(lang, "Achtung:", "Warning:", "Attention :", "Advertencia:", "Attenzione:", "Waarschuwing:"), "B26A00", "FFF4DC"),
+        "important" => (Settings.OutText.For(lang, "Wichtig:", "Important:", "Important :", "Importante:", "Importante:", "Belangrijk:"), "B4233C", "FBE9EC"),
+        "result" => (Settings.OutText.For(lang, "Ergebnis:", "Result:", "Résultat :", "Resultado:", "Risultato:", "Resultaat:"), "3F3D38", "F1F0EC"),
+        _ => (Settings.OutText.For(lang, "Hinweis:", "Note:", "Remarque :", "Nota:", "Nota:", "Opmerking:"), "2F5C9C", "EAF0F9")
     };
 
     static (double, double, double) Rgb(string hex) => (Convert.ToInt32(hex[..2], 16) / 255.0, Convert.ToInt32(hex[2..4], 16) / 255.0, Convert.ToInt32(hex[4..6], 16) / 255.0);
@@ -246,8 +247,8 @@ public static partial class GuideExport
         var parts = new List<string>();
         if (DocSettings.GuideText(view.Edits.Obj("guide"), "intro", lang) is { Length: > 0 } intro) parts.Add(view.Clean(intro));
         var goal = view.Goal();
-        if (goal?.Str("description") is { } d) parts.Add((lang == "de" ? "Ziel: " : "Goal: ") + d);
-        if (goal?.Str("expected") is { } e) parts.Add((lang == "de" ? "Erwartetes Ergebnis: " : "Expected result: ") + e);
+        if (goal?.Str("description") is { } d) parts.Add(Settings.OutText.T(lang, "Ziel: ", "Goal: ") + d);
+        if (goal?.Str("expected") is { } e) parts.Add(Settings.OutText.T(lang, "Erwartetes Ergebnis: ", "Expected result: ") + e);
         return string.Join("\n", parts);
     }
 
@@ -464,7 +465,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
 
     static void Docx(Doc d, string outPath)
     {
-        var x = new SimpleDocx { Title = d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US", Accent = d.S.AccentHex, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title };
+        var x = new SimpleDocx { Title = d.Title, Language = Settings.OutText.Tag(d.Lang), Accent = d.S.AccentHex, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title };
         if (d.Logo != null) { using var lm = new MemoryStream(d.Logo); using var lb = new Bitmap(lm); x.Image(d.Logo, "png", lb.Width, lb.Height, "Logo", d.S.Cover ? 6 : 4, d.S.Cover ? 2.6 : 1.6, border: false); }
         x.Heading(d.Title, 0);
         if (d.Subtitle.Length > 0) x.Subtitle(d.Subtitle);
@@ -559,7 +560,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
     {
         var acc = d.S.AccentRgb();
         var ink = (0.11, 0.11, 0.10); var muted = (0.42, 0.41, 0.38); var line = (0.85, 0.84, 0.81);
-        var pdf = new SimplePdf { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US" };
+        var pdf = new SimplePdf { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = Settings.OutText.Tag(d.Lang) };
         double cw = pdf.ContentWidth;
 
         // Deckblatt oder Kopf

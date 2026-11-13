@@ -2,6 +2,7 @@ using System.Drawing;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using StepRecorder.Data;
+using StepRecorder.Settings;
 using StepRecorder.Steps;
 
 namespace StepRecorder.ReadLayer;
@@ -112,6 +113,8 @@ public sealed partial class SessionView : IDisposable
     /// standardmäßig ab und nehmen den automatischen Text der Exportsprache (09 §10).
     /// </summary>
     public bool AuthorTextFallback { get; set; } = true;
+    /// <summary>Sprache, deren Autorentext bei fehlender Übersetzung einspringt: Deutsch ↔ Englisch; weitere Sprachen nehmen Englisch, sonst Deutsch.</summary>
+    string OtherLanguage => Language == "de" ? "en" : Language == "en" ? "de" : "en";
     readonly List<(Regex rx, string placeholder)> _subst = new();
     readonly HashSet<string> _redactedStrings = new(StringComparer.Ordinal);
     readonly List<(long from, long to, bool images)> _rangeRedactions = new();
@@ -122,7 +125,7 @@ public sealed partial class SessionView : IDisposable
     readonly HashSet<long> _redactedInputAnchors = new();
     /// <summary>seq aufgenommener Kommentare, die der Autor als intern markiert hat.</summary>
     readonly HashSet<long> _hiddenComments = new();
-    public string RedactedText => Language == "de" ? "[geschwärzt]" : "[redacted]";
+    public string RedactedText => OutText.T(Language, "[geschwärzt]", "[redacted]");
 
     SessionView(Session s, bool headless, string? lang)
     {
@@ -411,7 +414,7 @@ public sealed partial class SessionView : IDisposable
             }
             if (vs.Redacted)
             {
-                vs.Title = Language == "de" ? "Schritt geschwärzt" : "Step redacted";
+                vs.Title = OutText.T(Language, "Schritt geschwärzt", "Step redacted");
                 vs.Protocol = vs.Guide = vs.Title;
                 vs.Json = new JsonObject { ["id"] = vs.Id, ["kind"] = vs.Kind, ["anchorSeq"] = vs.Anchor, ["tFrom"] = vs.TFrom, ["tTo"] = vs.TTo, ["importance"] = vs.Importance, ["redacted"] = true, ["evidence"] = new JsonObject { ["level"] = "unknown" } };
                 vs.PreFrame = vs.PostFrame = null;
@@ -442,7 +445,7 @@ public sealed partial class SessionView : IDisposable
             var vs = new ViewStep
             {
                 Manual = true, Id = "m" + (-anchor), Anchor = anchor, After = ins.Long("after"), Kind = "manual", Importance = "primary",
-                Title = Clean(ins.Str("title") ?? (Language == "de" ? "Hinweis" : "Note")), Guide = Clean(ins.Str("body") ?? ""),
+                Title = Clean(ins.Str("title") ?? OutText.T(Language, "Hinweis", "Note")), Guide = Clean(ins.Str("body") ?? ""),
                 PreFrame = ins.Str("image"), TFrom = list.FirstOrDefault(x => x.Anchor == ins.Long("after"))?.TTo ?? 0
             };
             vs.TTo = vs.TFrom;
@@ -468,7 +471,7 @@ public sealed partial class SessionView : IDisposable
     void ApplyAuthorText(ViewStep vs, JsonObject? text)
     {
         var own = text?.Obj(Language);
-        var other = text?.Obj(Language == "de" ? "en" : "de");
+        var other = text?.Obj(OtherLanguage) ?? (Language is "de" or "en" ? null : text?.Obj("de"));
         vs.TranslationMissing = own == null && other != null;
         var txt = own ?? (AuthorTextFallback ? other : null);
         if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
@@ -648,7 +651,7 @@ public sealed partial class SessionView : IDisposable
         c.Protocol = string.Join(" ", visible.Select(s => s.Protocol.Trim()).Where(t => t.Length > 0));
         c.AuthorTitle = null; c.AuthorBody = null; c.TranslationMissing = false;
         var own = m.Text?.Obj(Language);
-        var other = m.Text?.Obj(Language == "de" ? "en" : "de");
+        var other = m.Text?.Obj(OtherLanguage) ?? (Language is "de" or "en" ? null : m.Text?.Obj("de"));
         var txt = own ?? (AuthorTextFallback ? other : null);
         c.TranslationMissing = own == null && other != null;
         if (txt != null) { c.AuthorTitle = Clean(txt.Str("title")); c.AuthorBody = Clean(txt.Str("body")); }

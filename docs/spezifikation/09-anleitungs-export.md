@@ -537,15 +537,16 @@ Die Art wählt im Exportdialog, wie viel eine Anleitung enthält. Sie gilt für 
 ## 10 Sprache der Schritttexte
 
 - Automatische Schritttexte entstehen beim Export aus den Textvorlagen im Anleitungsstil, in der gewählten Sprache ([05](05-schritterkennung.md#textvorlagen)). Eine Sitzung lässt sich so auf Deutsch und auf Englisch ausgeben, ohne neu aufzunehmen.
+- **Sprachen der Ausgabe:** Deutsch (`de`), Englisch (`en`), Französisch (`fr`), Spanisch (`es`), Italienisch (`it`) und Niederländisch (`nl`). Wählbar im Exportdialog („Sprache“), über `export --lang de|en|fr|es|it|nl` und `ExportRequest.Language`; eine andere Angabe weist die Kommandozeile zurück. In der gewählten Sprache erscheinen die automatischen Schritttexte und alle **Rahmentexte** der Anleitung: Überschriften („Voraussetzungen“, „Über diese Anleitung“, „Inhalt“, „Abschluss“), Kopfdaten („Stand“, „Autor“, „Umfang: 12 Schritte“), Kennzeichen der Hinweiskästen („Hinweis:“, „Tipp:“ …), „Ergebnis“, Navigation der Klick-Tour, Abschnitte des Fehlerberichts, die Sprachkennung von HTML, DOCX, PDF und PPTX sowie der Zusatz im Dateinamen („ – Checkliste“). Die Oberfläche des Programms, der Editor (Umschalter DE/EN), Meldungen und Prüfbefunde bleiben Deutsch oder Englisch; KI-Paket, AutoHotkey-Skript, UI-Test-Entwürfe und MCP verwenden für weitere Sprachen ihre englischen Rahmentexte, enthalten aber die Schritttexte der gewählten Sprache. Eigene Texte des Autors für eine weitere Sprache liegen wie die englischen unter `text.<sprache>` bzw. `guide.i18n.<sprache>` ([04](04-datenformat.md#edits-json)); fehlen sie, gilt der automatische Text dieser Sprache, bei „Text der anderen Sprache“ der englische Autorentext, sonst der deutsche.
 - **Eigene Texte des Autors** liegen in der Sprache vor, in der sie geschrieben wurden; sie werden nicht übersetzt. Fehlt ein eigener Text in der Exportsprache, gilt dort der automatische Text. Die Qualitätsprüfung meldet die betroffenen Schritte und Dokumenttexte (Q13). Der Exportdialog fragt dazu „Fehlt eine Übersetzung“ und bietet an:
   - den automatischen Text der Exportsprache verwenden (Standard),
   - stattdessen den eigenen Text der anderen Sprache unverändert übernehmen.
 
   Wer übersetzen will, bricht ab und übersetzt im Viewer. Die Wahl gilt für diesen Export; die Aufnahme bleibt unverändert. Die Kommandozeile verwendet den automatischen Text.
 - **Namen aus der aufgenommenen Anwendung** (Schaltflächen, Menüs, Fenstertitel) bleiben, wie sie aufgezeichnet wurden. Eine englische Anleitung zu einer deutschen Oberfläche nennt die deutschen Beschriftungen in Anführungszeichen.
-- **Tastennamen** folgen der Exportsprache („Strg“ oder „Ctrl“); die Zuordnung steht in [05](05-schritterkennung.md#textvorlagen).
-- **Anführungszeichen, Datums- und Zahlenformat** folgen der Exportsprache.
-- **Anrede** (Soll, nur Deutsch): „Klicken Sie auf …“, „Klicke auf …“ oder neutral „Auf … klicken“ – die Formen `formal`, `informal` und `neutral` der Textvorlagen. Englische Texte kennen nur die Befehlsform; die Wahl ist dann ausgegraut.
+- **Tastennamen** folgen der Exportsprache („Strg“ oder „Ctrl“; in Französisch, Spanisch, Italienisch und Niederländisch „Ctrl“, dazu z. B. „Maj“, „Mayús“, „Maiusc“, „Entrée“, „Intro“, „Invio“); die Zuordnung steht in [05](05-schritterkennung.md#textvorlagen).
+- **Anführungszeichen, Datums- und Zahlenformat** folgen der Exportsprache: „…“ / “…” / « … » / «…» / ‘…’; Stand als 11.11.2026 (de), 2026-11-11 (en), 11/11/2026 (fr, es, it), 11-11-2026 (nl); Dezimalkomma außer im Englischen.
+- **Anrede** (Soll, nur Deutsch): „Klicken Sie auf …“, „Klicke auf …“ oder neutral „Auf … klicken“ – die Formen `formal`, `informal` und `neutral` der Textvorlagen. Englische Texte kennen nur die Befehlsform, die weiteren Sprachen je eine feste Form ([05](05-schritterkennung.md#textvorlagen)); die Wahl ist dann ausgegraut.
 
 ## 11 Entschärfung aufgezeichneter Texte
 

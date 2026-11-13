@@ -119,7 +119,7 @@ public static class Exporter
     public static string SessionExportDir(SessionView view)
         => view.Session.ReadOnly ? Path.GetDirectoryName(view.Session.Path) ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) : Path.Combine(view.Session.Path, "export");
 
-    static string Title(SessionView view, string? fallback = null, string? lang = null) => Fmt.FileSafe(view.Title.Length > 0 ? view.Title : fallback ?? Loc.For(lang ?? view.Language, "Anleitung", "Guide"));
+    static string Title(SessionView view, string? fallback = null, string? lang = null) => Fmt.FileSafe(view.Title.Length > 0 ? view.Title : fallback ?? OutText.T(lang ?? view.Language, "Anleitung", "Guide"));
 
     /// <summary>
     /// Vollständiges Ziel. <paramref name="lastFolder"/>: zuletzt gewählter Ordner für dieses Format (null = Standardort in der Aufnahme).
@@ -129,7 +129,7 @@ public static class Exporter
     {
         string f = Normalize(format), title = Title(view, f is "ahk" or "ahk-ki" or "test-ki" || IsTestFormat(f) ? Loc.For(lang ?? view.Language, "Ablauf", "Workflow") : null, lang);
         // Markdown: ASCII-Namen für Repository und Wiki (09 §6.1)
-        if (f == "md" && !mdLegacy) title = Fmt.AsciiSlug(view.Title, Loc.For(lang ?? view.Language, "anleitung", "guide"));
+        if (f == "md" && !mdLegacy) title = Fmt.AsciiSlug(view.Title, Fmt.AsciiSlug(OutText.T(lang ?? view.Language, "Anleitung", "Guide"), "guide").ToLowerInvariant());
         string suffix = f is "html" or "md" or "docx" or "pdf" ? GuidePresets.FileSuffix(template, lang ?? view.Language) : "";
         if (f == "md" && !mdLegacy && suffix.Length > 0) suffix = "-" + Fmt.AsciiSlug(suffix, "");
         if (lastFolder != null)

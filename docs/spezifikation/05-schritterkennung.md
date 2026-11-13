@@ -803,6 +803,8 @@ Die beiden Teile entsprechen `title` und `body` der Texte in `edits.json` ([Date
 
 Für den Stil `guide` gibt es im Deutschen drei Anredeformen (`address`): `formal` (Sie, Standard), `informal` (du), `neutral` (Grundform: „Auf die Schaltfläche … klicken.“). Jede Vorlage des Anleitungsstils liegt in allen drei Formen vor ([12.5](#anredeformen)). Im Englischen gibt es nur die Befehlsform. Der Kurztitel steht im Deutschen immer in der Grundform und ist damit von der Anrede unabhängig.
 
+**Sprachen der Vorlagen.** Alle Vorlagen (Kurztitel, Text in beiden Stilen, Ursachen von Lücken, Programm-Schritte) gibt es auf Deutsch (`de`), Englisch (`en`), Französisch (`fr`), Spanisch (`es`), Italienisch (`it`) und Niederländisch (`nl`); eine unbekannte Sprache erhält die englischen Texte. Die vier weiteren Sprachen kennen je eine feste Anredeform, wie sie Anleitungen dort üblich verwenden: Französisch und Spanisch die höfliche Befehlsform („Cliquez sur le bouton « Enregistrer ».“, „Haga clic en el botón «Guardar».“), Italienisch den Infinitiv („Fare clic sul pulsante «Salva».“), Niederländisch die Befehlsform („Klik op de knop ‘Opslaan’.“); die Wahl der Anrede ist dort ausgegraut. Kurztitel stehen in der Grundform („Cliquer sur « OK »“, „Op ‘OK’ klikken“). Die Oberfläche des Programms bleibt Deutsch oder Englisch; die weiteren Sprachen gelten nur für Ausgaben ([Anleitungs-Export §10](09-anleitungs-export.md#10-sprache-der-schritttexte)).
+
 ### 12.2 Zielbezeichnung
 
 Die Bezeichnung des Ziels wird nach dieser **Rückfallkette** gebildet; die erste zutreffende Regel gilt:
@@ -823,7 +825,7 @@ Ergänzende Regeln:
 - **Bereinigung.** Führende und schließende Leerzeichen entfallen, Zeilenumbrüche werden Leerzeichen, ein abschließender Doppelpunkt einer Beschriftung entfällt („Dateiname:“ → „Dateiname“), Kennzeichen für Zugriffstasten (`&`) entfallen.
 - **Länge.** Namen über 60 Zeichen werden mit „…“ gekürzt; der volle Name bleibt in den Details.
 - **Keine Übersetzung.** Namen, Titel und Werte erscheinen so, wie die Anwendung sie zeigte – auch im englischen Text.
-- **Anführung.** Deutsch „…“, Englisch “…”. Getippter Text und Feldinhalte stehen im Protokollstil als Code.
+- **Anführung.** Deutsch „…“, Englisch “…”, Französisch « … » (mit geschützten Leerzeichen), Spanisch und Italienisch «…», Niederländisch ‘…’. Getippter Text und Feldinhalte stehen im Protokollstil als Code.
 - **Sonderzeichen** in aufgezeichneten Texten entschärft der jeweilige Export für sein Zielformat ([KI-Export](06-ki-export-und-mcp.md), [Anleitungs-Export](09-anleitungs-export.md)).
 
 ### 12.3 Typwörter
@@ -859,6 +861,37 @@ Ergänzende Regeln:
 
 Im Protokollstil steht das Typwort ohne Artikel, im Anleitungsstil mit Artikel im passenden Fall.
 
+In Französisch, Spanisch, Italienisch und Niederländisch steht das Typwort in beiden Stilen mit bestimmtem Artikel; die Vorlagen verschmelzen Präposition und Artikel, wo die Sprache es verlangt (Italienisch „su“ + „il pulsante“ → „sul pulsante“, „in“ + „il campo“ → „nel campo“; Französisch „de“ + „le bouton“ → „du bouton“; Spanisch „a“ + „el botón“ → „al botón“).
+
+| `ct` | Französisch | Spanisch | Italienisch | Niederländisch |
+|---|---|---|---|---|
+| `Button`, `SplitButton` | le bouton | el botón | il pulsante | de knop |
+| `Edit` | le champ | el campo | il campo | het veld |
+| `Document` | la zone de texte | el área de texto | l'area di testo | het tekstgebied |
+| `CheckBox` | la case à cocher | la casilla | la casella di controllo | het selectievakje |
+| `RadioButton` | l'option | la opción | l'opzione | de optie |
+| `ComboBox` | la liste déroulante | la lista desplegable | l'elenco a discesa | de vervolgkeuzelijst |
+| `List` | la liste | la lista | l'elenco | de lijst |
+| `ListItem`, `TreeItem` | l'entrée | la entrada | la voce | het item |
+| `DataItem` | la ligne | la fila | la riga | de rij |
+| `Menu`, `MenuBar` | le menu, la barre de menus | el menú, la barra de menús | il menu, la barra dei menu | het menu, de menubalk |
+| `MenuItem` | la commande | la opción de menú | la voce di menu | het menu-item |
+| `TabItem` | l'onglet | la pestaña | la scheda | het tabblad |
+| `Tree` | l'arborescence | la vista de árbol | la struttura ad albero | de structuurweergave |
+| `Table`, `DataGrid` | le tableau | la tabla | la tabella | de tabel |
+| `HeaderItem` | l'en-tête de colonne | el encabezado de columna | l'intestazione di colonna | de kolomkop |
+| `Hyperlink` | le lien | el vínculo | il collegamento | de koppeling |
+| `Image` | l'image | la imagen | l'immagine | de afbeelding |
+| `Slider` | le curseur | el control deslizante | il dispositivo di scorrimento | de schuifregelaar |
+| `Spinner` | le compteur | el control numérico | la casella numerica | het numerieke veld |
+| `ScrollBar` | la barre de défilement | la barra de desplazamiento | la barra di scorrimento | de schuifbalk |
+| `ToolBar` | la barre d'outils | la barra de herramientas | la barra degli strumenti | de werkbalk |
+| `StatusBar` | la barre d'état | la barra de estado | la barra di stato | de statusbalk |
+| `TitleBar` | la barre de titre | la barra de título | la barra del titolo | de titelbalk |
+| `Text` | le texte | el texto | il testo | de tekst |
+| `Window` | la fenêtre | la ventana | la finestra | het venster |
+| alle übrigen | l'élément | el elemento | l'elemento | het element |
+
 ### 12.4 Tastennamen
 
 | Kanonisch | Deutsch | Englisch |
@@ -872,6 +905,17 @@ Im Protokollstil steht das Typwort ohne Artikel, im Anleitungsstil mit Artikel i
 | Layoutabhängige Tasten (`Oem…`) | das Zeichen aus `ch`, sonst der kanonische Name | wie Deutsch |
 
 Kombinationen werden mit `+` verbunden: `Ctrl+Shift+Enter` → „Strg+Umschalt+Eingabetaste“.
+
+In den weiteren Sprachen heißt `Ctrl` überall „Ctrl“, `Alt`, `Tab`, `Win` und die Funktionstasten bleiben unverändert. Übersetzt werden die Tasten, die auf den Tastaturen der Sprache anders beschriftet sind; alle übrigen erscheinen wie aufgezeichnet:
+
+| Kanonisch | Französisch | Spanisch | Italienisch | Niederländisch |
+|---|---|---|---|---|
+| `Shift` | Maj | Mayús | Maiusc | Shift |
+| `Enter`, `Escape`, `Space` | Entrée, Échap, Espace | Intro, Esc, Espacio | Invio, Esc, Barra spaziatrice | Enter, Esc, Spatiebalk |
+| `Backspace`, `Delete`, `Insert` | Retour arrière, Suppr, Inser | Retroceso, Supr, Insert | Backspace, Canc, Ins | Backspace, Delete, Insert |
+| `Home`, `End`, `PageUp`, `PageDown` | Origine, Fin, Page précédente, Page suivante | Inicio, Fin, Re Pág, Av Pág | Home, Fine, Pag su, Pag giù | Home, End, PageUp, PageDown |
+| `Left`, `Right`, `Up`, `Down` | Flèche gauche / droite / haut / bas | Flecha izquierda / derecha / arriba / abajo | Freccia sinistra / destra / su / giù | Pijl-links / -rechts / -omhoog / -omlaag |
+| `PrintScreen`, `Apps` | Impr écran, touche Menu | Impr Pant, tecla de menú | Stamp, tasto Menu | PrintScreen, Menutoets |
 
 Die deutschen Namen sind **eindeutig**: „Eingabetaste“, nie „Eingabe“ – das Wort bezeichnet in dieser Spezifikation sonst jede Eingabe des Nutzers. Endet ein Tastenname auf „taste“ (Eingabetaste, Leertaste, Rücktaste, Kontextmenütaste), entfällt in den Vorlagen das Wort „Taste“ davor: „Eingabetaste“ statt „Taste Eingabetaste“, „Drücken Sie die Eingabetaste.“ statt „Drücken Sie die Taste Eingabetaste.“
 

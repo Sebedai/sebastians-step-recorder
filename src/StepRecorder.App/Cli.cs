@@ -29,7 +29,7 @@ Aufruf:
   SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
   SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI-Test-Entwürfe)
-      [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
+      [--out <Pfad>] [--lang de|en|fr|es|it|nl] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
       Markdown:    [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
@@ -73,7 +73,7 @@ Usage:
   SebastiansStepRecorder.exe support                 prepare a support recording in the start window
   SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI test drafts)
-      [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
+      [--out <path>] [--lang de|en|fr|es|it|nl] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
       Markdown:   [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
@@ -208,7 +208,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         if (c["--from"] is { } fs) { if (!int.TryParse(fs, out var fv) || fv < 1) return Usage("--from: >= 1"); req.FromStep = fv; }
         if (c["--to"] is { } ts) { if (!int.TryParse(ts, out var tv) || tv < 1) return Usage("--to: >= 1"); req.ToStep = tv; }
         if (req.FromStep > req.ToStep) return Usage(Loc.L("--from liegt hinter --to.", "--from is after --to."));
-        if (req.Language is { } l && l is not ("de" or "en")) return Usage("--lang: de | en");
+        if (req.Language is { } l && !OutText.IsSupported(l)) return Usage("--lang: " + string.Join(" | ", OutText.Languages));
         if (req.Importance is not ("primary" or "secondary" or "all")) return Usage("--importance: primary | secondary | all");
         bool json = c.Has("--json");
         using var view = SessionView.Open(S(c.Positional[0]), headless: true, lang: req.Language);

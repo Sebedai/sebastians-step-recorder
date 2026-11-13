@@ -45,7 +45,7 @@ sealed class ExportDialog : Window
     /// <summary>Ziel steht fest (getippt, gewählt oder vom letzten Export) – sonst wird es aus den Optionen berechnet.</summary>
     bool _targetCustom, _syncTarget, _userEdited;
 
-    readonly ComboBox _lang = new() { Items = { "Deutsch", "English" } };
+    readonly ComboBox _lang = new() { ItemsSource = OutText.NativeNames };
     readonly ComboBox _preset = new();
     readonly ComboBox _imp = new() { Items = { Loc.L("Hauptschritte", "Main steps"), Loc.L("Haupt- und Nebenschritte", "Main and secondary steps"), Loc.L("Alle Schritte", "All steps") }, SelectedIndex = 0 };
     readonly ComboBox _view = new() { Items = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Ausschnitt um die Aktion", "Detail around the action") }, SelectedIndex = 0 };
@@ -134,7 +134,7 @@ sealed class ExportDialog : Window
     string FormatId => _fmts[Math.Max(0, Array.FindIndex(_formatBtns, f => f.IsChecked == true))].Id;
     /// <summary>Tatsächliches Format (AutoHotkey als KI-Paket ist ein eigenes Ordnerformat).</summary>
     public string Format => FormatId == "ahk" && _ahkKi.IsChecked == true ? "ahk-ki" : FormatId == "uitest" ? TestTargets[Math.Max(0, _testTarget.SelectedIndex)] : FormatId;
-    string TextLanguage => _lang.SelectedIndex == 1 ? "en" : "de";
+    string TextLanguage => OutText.Languages[Math.Max(0, _lang.SelectedIndex)];
     string Preset => GuidePresets.All[Math.Max(0, _preset.SelectedIndex)].id;
     bool IsGuide => Format is "html" or "md" or "docx" or "pdf" or "pptx" or "tour" or "bugreport" or "gif";
     bool HasPreset => Format is "html" or "md" or "docx" or "pdf";
@@ -185,7 +185,7 @@ sealed class ExportDialog : Window
         _before = before; _guideAfter = guideAfter; _beforeTrack = beforeTrack; _guideAfterTrack = guideAfterTrack;
 
         // Vorbelegung
-        _lang.SelectedIndex = initial.Language == "en" ? 1 : 0;
+        _lang.SelectedIndex = Math.Max(0, Array.IndexOf(OutText.Languages, initial.Language));
         _preset.SelectedIndex = Math.Max(0, Array.FindIndex(GuidePresets.All, p => p.id == GuidePresets.Normalize(initial.Template)));
         _imp.SelectedIndex = initial.Importance switch { "secondary" => 1, "all" => 2, _ => 0 };
         _view.SelectedIndex = initial.View switch { "window" => 1, "crop" => 2, _ => 0 };
