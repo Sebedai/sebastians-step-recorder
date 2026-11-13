@@ -213,6 +213,7 @@ sealed partial class ViewerWindow
                 m.IsOpen = true;
             }, Loc.L("Hinweis zu diesem Schritt hinzufügen (K öffnet den Dialog)", "Add a note to this step (K opens the dialog)"));
             add.Content = U.MenuContent(Theme.IAdd, Loc.L("Hinweis hinzufügen", "Add note"));
+            add.Named(Loc.L("Hinweis hinzufügen", "Add note"));
             add.HorizontalAlignment = HorizontalAlignment.Left; add.Margin = new Thickness(0, 0, 0, 12);
             box.Children.Add(add);
         }

@@ -937,7 +937,9 @@ Die Gruppe „Profile“ zeigt links die Liste der Aufnahmeprofile ([4.7](#47-au
 
 ### 13.2 Einstellungen exportieren und importieren
 
-Profile, Vorlagen und Belegungen lassen sich als eine Datei weitergeben – etwa vom Helpdesk an alle, die Support-Fälle aufnehmen, oder vom einen Rechner auf den anderen. Export, Import, Sicherung und „Letzten Import zurücknehmen“ sind umgesetzt; die Kommandozeile bietet `settings export`, `settings import` und `settings reset`. Die Datei kennt in der Umsetzung fünf Teile: Tastenkürzel, Ausgeschlossene Programme, Dokumentvorlagen, Modus „Eigene“ und Allgemeine Einstellungen (Sprachen, Darstellung, Anrede, Countdown, Signaltöne, Schutzstufe). Aufnahmeprofile, Stilvorlagen für Markierungen und Textbausteine gibt es dort noch nicht; die folgenden Dialogbilder zeigen den Zielzustand.
+Profile, Vorlagen und Belegungen lassen sich als eine Datei weitergeben – etwa vom Helpdesk an alle, die Support-Fälle aufnehmen, oder vom einen Rechner auf den anderen. Export, Import, Sicherung und „Letzten Import zurücknehmen“ sind umgesetzt; die Kommandozeile bietet `settings export`, `settings import` und `settings reset`. Die Datei kennt in der Umsetzung sechs Teile: Tastenkürzel, Ausgeschlossene Programme, Dokumentvorlagen, Textbausteine, Modus „Eigene“ und Allgemeine Einstellungen (Sprachen, Darstellung, Anrede, Countdown, Signaltöne, Schutzstufe). Aufnahmeprofile und Stilvorlagen für Markierungen gibt es dort noch nicht; die folgenden Dialogbilder zeigen den Zielzustand.
+
+**Textbausteine** (Teil `textSnippets`, [08](08-viewer.md)) sind wiederkehrende Hinweise und Schritttexte des Autors: je Baustein ein Name (1 bis 60 Zeichen, einzeilig) und ein Text (bis 4000 Zeichen), höchstens 200. Verwaltet werden sie unter Einstellungen › Allgemein › „Textbausteine verwalten …“; der Dialog speichert sofort. Der Export-Dialog zeigt ihre Anzahl und kreuzt den Teil nur an, wenn es Bausteine gibt. Beim Import werden Bausteine **ergänzt oder bei gleichem Namen ersetzt, nie gelöscht**; sie schwächen den Schutz nicht und brauchen deshalb kein eigenes Häkchen. Ein ungültiger Baustein lässt den ganzen Teil aus, der Rest der Datei gilt. Zurücksetzen lässt die eigenen Bausteine stehen.
 
 **Exportieren**
 
@@ -1076,7 +1078,7 @@ Die Abläufe A16 bis A21 gehören zu Funktionen der Priorität Soll. A1 bis A4 g
 ## 16 Barrierefreiheit und Sprache
 
 - Startfenster, Einstellungen, Fensterliste und alle Dialoge sind vollständig per Tastatur bedienbar; die Tabulatorreihenfolge folgt der Leserichtung.
-- Alle Bedienelemente tragen Namen für Bildschirmleser.
+- Alle Bedienelemente tragen Namen für Bildschirmleser. *Umsetzung:* Die gemeinsamen Bausteine der Oberfläche setzen den Namen schon beim Erzeugen – Schaltflächen aus dem sichtbaren Text, reine Symbolknöpfe aus ihrem Tooltip (der Tooltip wird sonst zur Hilfe), Auswahlleisten je Eintrag, Umschalter aus Text oder Tooltip; beschriftete Felder sind über `LabeledBy` mit ihrer Beschriftung verbunden und heißen wie sie. Was danach noch keinen Namen hat, benennt beim Laden eine allgemeine Regel (Text, Tooltip, Platzhalter, Beschriftung davor); Einträge der Schrittliste heißen „Schritt N: Überschrift“, mit „ausgeblendet“ und „Lesezeichen“. Ein Test durchsucht den Quelltext nach Symbolknöpfen ohne Text, Tooltip und Namen.
 - Die Leiste nimmt absichtlich keinen Fokus und ist deshalb nicht per Tabulator erreichbar; jede ihrer Funktionen hat ein Tastenkürzel. Zustandswechsel werden Bildschirmlesern gemeldet (Soll).
 - Zustände unterscheiden sich durch Zeichen, Text und Linienart, nie nur durch Farbe. Der Windows-Kontrastmodus wird beachtet.
 - Die Oberfläche skaliert mit der Anzeigeskalierung je Monitor.

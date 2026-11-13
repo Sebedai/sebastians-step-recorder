@@ -89,6 +89,13 @@ static class SettingsPage
         var tray = new CheckBox { Content = new TextBlock { Text = Loc.L("Nach dem Schließen im Infobereich bereit bleiben – „Sofort aufnehmen“ wirkt dann jederzeit (kein Autostart, im Leerlauf keine Erfassung)", "Stay ready in the notification area after closing – \"Record now\" then works at any time (no autostart, nothing captured while idle)"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.StayInTray, Margin = new Thickness(0, 8, 0, 0) };
         var checkNow = U.Btn(Theme.ISearch, Loc.L("Jetzt suchen", "Check now"), () => _ = UpdateCheck.CheckInteractiveAsync(), Loc.L("Einmalig auf GitHub nach einer neuen Version suchen", "Check GitHub once for a new version"), "Link");
         checkNow.Margin = new Thickness(12, 0, 0, 0);
+        // Textbausteine: eigener Dialog, speichert sofort (unabhängig von „Speichern“ unten)
+        var snippetCount = U.Hint(Loc.N(s.TextSnippets.Count, "1 Textbaustein", "{0} Textbausteine", "1 text snippet", "{0} text snippets"), new Thickness(12, 0, 0, 0));
+        snippetCount.VerticalAlignment = VerticalAlignment.Center;
+        var snippets = U.Btn(Theme.ISnippet, Loc.L("Textbausteine verwalten …", "Manage text snippets …"), () =>
+        {
+            if (SnippetUi.Manage(owner)) snippetCount.Text = Loc.N(AppSettings.Load().TextSnippets.Count, "1 Textbaustein", "{0} Textbausteine", "1 text snippet", "{0} text snippets");
+        }, Loc.L("Wiederkehrende Hinweise und Schritttexte – im Editor mit Strg+Umschalt+B einfügen", "Recurring notes and step texts – insert them in the editor with Ctrl+Shift+B"));
 
         // ---------- Reiter ----------
         var general = U.Col(Two(U.Field(Loc.L("Darstellung", "Appearance"), theme, Loc.L("Gilt ab dem nächsten Start.", "Applies after the next start.")),
@@ -96,6 +103,7 @@ static class SettingsPage
                                 U.Field(Loc.L("Sprache der Anleitungstexte", "Language of guide texts"), lang, Loc.L("Für neue Aufnahmen und Exporte; im Editor je Aufnahme umschaltbar.", "For new recordings and exports; switchable per recording in the editor.")),
                                 U.Field(Loc.L("Anrede in Anleitungen", "Form of address (German guides)"), address)),
                             U.Field(Loc.L("Begriffe in automatischen Texten", "Terms in automatic texts"), glossary, Loc.L("„Fundstelle=Ersatz“ je Zeile – z. B. für Firmenbegriffe oder sprechende Namen von Programmen.", "\"Match=Replacement\" per line – e.g. for company terms or meaningful program names.")),
+                            U.Field(Loc.L("Textbausteine", "Text snippets"), U.Row(snippets, snippetCount), Loc.L("Werden sofort gespeichert und gehören zum Einstellungs-Austausch (Teil „Textbausteine“).", "Saved immediately and part of the settings exchange (part “Text snippets”).")),
                             U.Row(updates, checkNow), tray);
         var recording = U.Col(Two(U.Field(Loc.L("Schutzstufe", "Protection level"), level, Loc.L("Was bei Eingaben maskiert wird.", "What is masked when typing.")),
                                   U.Field(Loc.L("Countdown vor der Aufnahme", "Countdown before recording"), countdown, Loc.L("Bei ausgeblendeter Anzeige mindestens 3 Sekunden.", "At least 3 seconds with hidden display.")),
@@ -107,7 +115,7 @@ static class SettingsPage
                            RecordChoice.Build(rec, null), U.Field(Loc.L("Zusatzbilder ohne Eingabe", "Extra images without input"), U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
 
         var exchange = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
-        exchange.Children.Add(U.Btn(Theme.IExport, Loc.L("Exportieren …", "Export …"), () => SettingsExchangeDialogs.Export(owner), Loc.L("Einstellungen, Tastenkürzel, Vorlagen und Ausschlussliste als Datei speichern – ohne persönliche Angaben", "Save settings, shortcuts, templates and exclusion list to a file – without personal data")));
+        exchange.Children.Add(U.Btn(Theme.IExport, Loc.L("Exportieren …", "Export …"), () => SettingsExchangeDialogs.Export(owner), Loc.L("Einstellungen, Tastenkürzel, Vorlagen, Textbausteine und Ausschlussliste als Datei speichern – ohne persönliche Angaben", "Save settings, shortcuts, templates, text snippets and exclusion list to a file – without personal data")));
         exchange.Children.Add(U.Btn(Theme.IOpen, Loc.L("Importieren …", "Import …"), () => { if (SettingsExchangeDialogs.Import(owner)) rebuild(current); }));
         exchange.Children.Add(U.Btn(Theme.IUndo, Loc.L("Zurücksetzen …", "Reset …"), () => { if (SettingsExchangeDialogs.Reset(owner)) rebuild(current); }, Loc.L("Auslieferungszustand – Aufnahmeordner und Zuletzt-Liste bleiben", "Factory settings – recordings folder and recent list stay")));
         if (SettingsExchange.CanUndo(AppPaths.SettingsFile))

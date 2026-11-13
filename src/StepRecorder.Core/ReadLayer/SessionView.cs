@@ -51,6 +51,8 @@ public sealed class ViewStep
     public List<ViewStep>? Members;
     /// <summary>Beim Aufräumen ausgeblendet: Grund (null = nicht aufgeräumt).</summary>
     public string? CleanupReason;
+    /// <summary>Lesezeichen des Autors (<c>edits.steps[].bookmark</c>) – nur für den Editor (Stern, Filter), erscheint in keiner Ausgabe.</summary>
+    public bool Bookmarked;
 
     public ViewStep Clone() => (ViewStep)MemberwiseClone();
 }
@@ -387,6 +389,7 @@ public sealed partial class SessionView : IDisposable
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
                 if (se["discarded"] != null) vs.Discarded = se.Bool("discarded");
+                vs.Bookmarked = se.Bool("bookmark");
                 if (vs.Hidden && se.Obj("cleanup")?.Str("reason") is { } cr) vs.CleanupReason = StepCleanup.ReasonFor(se.Obj("cleanup")?.Str("rule")) ?? cr;
                 if (se.Str("importance") is { } imp) vs.Importance = imp;
                 ApplyAuthorText(vs, se.Obj("text"));
@@ -451,6 +454,7 @@ public sealed partial class SessionView : IDisposable
             if (stepEdits.TryGetValue(anchor, out var se))
             {
                 if (se["hidden"] != null) vs.Hidden = se.Bool("hidden");
+                vs.Bookmarked = se.Bool("bookmark");
                 ApplyAuthorText(vs, se.Obj("text"));
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");

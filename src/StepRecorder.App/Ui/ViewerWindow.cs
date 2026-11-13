@@ -105,7 +105,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     Button MenuButton(string glyph, string text, string tip, string? style, Func<(string label, Action action)[]> items)
     {
         var content = U.MenuContent(glyph, text);
-        var b = U.Make(style ?? "Ghost"); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
+        var b = U.Make(style ?? "Ghost").Named(string.IsNullOrEmpty(text) ? tip : text, tip); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
         b.Click += (_, _) => ShowMenu(b, items());
         return b;
     }

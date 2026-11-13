@@ -47,7 +47,7 @@ static class Accessibility
                 if (tip != null) Help(e, tip);
             }
             else if (e is ListBoxItem li && li.Content is not string)
-                Set(e, li.Tag is StepRecorder.ReadLayer.ViewStep vs ? (vs.Manual ? Loc.L("Eingefügter Schritt: ", "Inserted step: ") : Loc.F("Schritt {0}: ", "Step {0}: ", vs.Number)) + vs.Title + (vs.Hidden ? Loc.L(" (ausgeblendet)", " (hidden)") : "") : VisibleText(li.Content as DependencyObject));
+                Set(e, li.Tag is StepRecorder.ReadLayer.ViewStep vs ? (vs.Manual ? Loc.L("Eingefügter Schritt: ", "Inserted step: ") : Loc.F("Schritt {0}: ", "Step {0}: ", vs.Number)) + (vs.AuthorTitle ?? vs.Title) + (vs.Hidden ? Loc.L(" (ausgeblendet)", " (hidden)") : "") + (vs.Bookmarked ? Loc.L(" (Lesezeichen)", " (bookmarked)") : "") : VisibleText(li.Content as DependencyObject));
         }
         catch { /* Bedienungshilfen dürfen nie die Oberfläche stören */ }
     }

@@ -317,11 +317,13 @@ sealed class InputDialog : Window
     public string TitleValue => _title?.Text ?? "";
     public string Kind => _kinds == null ? "note" : ViewerWindow.NoteKindsUi[Math.Max(0, Array.FindIndex(_kinds, k => k.IsChecked == true))].kind;
     public string TitleLabel { set => _titleLabel.Text = value; }
+    TextBox _lastBox;
 
     public InputDialog(string prompt, string value, string? title = null, bool kinds = false)
     {
         Title = AppInfo.DisplayName; Width = 600; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
+        _lastBox = _value;
         var p = new StackPanel();
         if (kinds)
         {
@@ -336,11 +338,18 @@ sealed class InputDialog : Window
         p.Children.Add(title != null ? U.Field(Loc.L("Text", "Text"), _value, margin: new Thickness(0)) : _value);
         var hint = U.Row(U.Kbd(Loc.Keys("Ctrl+Enter")), U.Text(Loc.L("übernimmt", "applies"), Theme.FsHint, fg: Theme.Muted, margin: new Thickness(4, 0, 0, 0)));
         ((FrameworkElement)hint.Children[1]).VerticalAlignment = VerticalAlignment.Center;
-        hint.Margin = new Thickness(0, 12, 0, 0);
-        p.Children.Add(hint);
+        // Textbausteine: in das zuletzt bearbeitete Feld (Titel oder Text)
+        _value.GotKeyboardFocus += (_, _) => _lastBox = _value;
+        if (_title != null) _title.GotKeyboardFocus += (_, _) => _lastBox = _title;
+        var snippet = SnippetUi.InsertButton(this, () => _lastBox);
+        snippet.VerticalAlignment = VerticalAlignment.Center;
+        var hintRow = new DockPanel { Margin = new Thickness(0, 12, 0, 0) };
+        DockPanel.SetDock(snippet, Dock.Right); hintRow.Children.Add(snippet); hintRow.Children.Add(hint);
+        p.Children.Add(hintRow);
         U.Dialog(this, prompt, p, U.Primary(Loc.L("Übernehmen", "Apply"), () => DialogResult = true), U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
         PreviewKeyDown += (_, e) =>
         {
+            if (e.Key == SnippetUi.ShortcutKey && System.Windows.Input.Keyboard.Modifiers == SnippetUi.ShortcutMods) { SnippetUi.ShowMenu(this, _lastBox, () => _lastBox, null); e.Handled = true; return; }
             if (e.Key == System.Windows.Input.Key.Enter && System.Windows.Input.Keyboard.Modifiers == System.Windows.Input.ModifierKeys.Control) { DialogResult = true; e.Handled = true; }
             if (e.Key == System.Windows.Input.Key.Escape) DialogResult = false;
         };

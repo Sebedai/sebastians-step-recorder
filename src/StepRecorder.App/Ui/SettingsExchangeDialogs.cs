@@ -13,11 +13,12 @@ static class SettingsExchangeDialogs
     {
         var w = new Window { Title = Loc.L("Einstellungen exportieren", "Export settings"), Width = 560, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
-        var boxes = SettingsExchange.Parts.Select(p => new CheckBox { Content = SettingsExchange.PartName(p), IsChecked = true, Tag = p, Margin = new Thickness(0, 4, 0, 4) }).ToList();
+        var cur = AppSettings.Load();
+        var boxes = SettingsExchange.Parts.Select(p => new CheckBox { Content = p == "textSnippets" ? $"{SettingsExchange.PartName(p)} ({cur.TextSnippets.Count})" : SettingsExchange.PartName(p), IsChecked = p != "textSnippets" || cur.TextSnippets.Count > 0, Tag = p, Margin = new Thickness(0, 4, 0, 4) }).ToList();
         var body = U.Col(U.Text(Loc.L("Was soll in die Datei?", "What should go into the file?"), 13, true, margin: new Thickness(0, 0, 0, 6)));
         foreach (var b in boxes) body.Children.Add(b);
-        body.Children.Add(U.Text(Loc.L("Nicht enthalten: Aufnahmeordner, zuletzt verwendete Aufnahmen, Benutzer- und Rechnername. Die Ausschlussliste verrät, welche Programme Sie als vertraulich behandeln.",
-            "Not included: recordings folder, recent recordings, user and computer name. The exclusion list reveals which programs you treat as confidential."), 12, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)));
+        body.Children.Add(U.Text(Loc.L("Nicht enthalten: Aufnahmeordner, zuletzt verwendete Aufnahmen, Benutzer- und Rechnername. Die Ausschlussliste verrät, welche Programme Sie als vertraulich behandeln; Textbausteine und Vorlagen sind Ihre eigenen Texte.",
+            "Not included: recordings folder, recent recordings, user and computer name. The exclusion list reveals which programs you treat as confidential; text snippets and templates are your own texts."), 12, fg: Theme.Muted, margin: new Thickness(0, 10, 0, 0)));
         U.Dialog(w, Loc.L("Einstellungen exportieren", "Export settings"), body, U.Primary(Loc.L("Speichern …", "Save …"), () =>
         {
             var parts = boxes.Where(b => b.IsChecked == true).Select(b => (string)b.Tag).ToList();

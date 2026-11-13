@@ -149,6 +149,8 @@ public sealed class AppSettings
     /// <summary>Modus „Eigene“: was nach dem Stopp passiert (viewer | export | supportPackage | folder).</summary>
     public string CustomAfterStop { get; set; } = "viewer";
     public List<string> RecentSessions { get; set; } = new();
+    /// <summary>Textbausteine für Hinweise und Schritttexte (Name und Text), im Editor per Strg+Umschalt+B einfügbar.</summary>
+    public List<TextSnippet> TextSnippets { get; set; } = new();
     public JsonObject? Extra { get; set; }
 
     /// <summary>Schlüssel, die diese Version nicht kennt (z. B. von einer neueren) – bleiben beim Speichern erhalten.</summary>
@@ -193,6 +195,7 @@ public sealed class AppSettings
                 s.Hotkeys ??= HotkeyActions.Defaults();
                 s.Excluded ??= new(Capture.RecordingOptions.DefaultExcluded);
                 s.DocTemplates ??= new(); s.Record ??= new(); s.RecentSessions ??= new();
+                s.TextSnippets = TextSnippet.Clean(s.TextSnippets);
                 if (dropped.Count > 0)
                 {
                     AppLog.Write("Einstellungen: ungültige Werte verworfen: " + string.Join(", ", dropped));
@@ -276,6 +279,41 @@ public sealed class AppSettings
     public void RemoveRecent(string path)
     {
         if (RecentSessions.RemoveAll(p => string.Equals(p, path, StringComparison.OrdinalIgnoreCase)) > 0) Save();
+    }
+}
+
+/// <summary>Textbaustein: wiederverwendbarer Text für Hinweise und Schritttexte (08 §12, Teil <c>textSnippets</c> im Einstellungs-Austausch).</summary>
+public sealed class TextSnippet
+{
+    public const int MaxName = 60, MaxText = 4000, MaxCount = 200;
+    public string Name { get; set; } = "";
+    public string Text { get; set; } = "";
+
+    /// <summary>Gültig: Name 1–60 Zeichen (ohne Zeilenumbruch), Text 1–4000 Zeichen.</summary>
+    public static bool Valid(string? name, string? text)
+        => name != null && text != null && name.Trim().Length is > 0 and <= MaxName && !name.Contains('\n') && !name.Contains('\r') && text.Trim().Length > 0 && text.Length <= MaxText;
+
+    /// <summary>Bereinigt eine Liste: ungültige Einträge fallen weg, Namen eindeutig (ohne Groß-/Kleinschreibung, der letzte gewinnt), höchstens 200.</summary>
+    public static List<TextSnippet> Clean(IEnumerable<TextSnippet?>? list)
+    {
+        var result = new List<TextSnippet>();
+        foreach (var s in list ?? Enumerable.Empty<TextSnippet?>())
+        {
+            if (s == null || !Valid(s.Name, s.Text)) continue;
+            var t = new TextSnippet { Name = s.Name.Trim(), Text = s.Text.TrimEnd() };
+            int i = result.FindIndex(x => string.Equals(x.Name, t.Name, StringComparison.OrdinalIgnoreCase));
+            if (i >= 0) result[i] = t; else result.Add(t);
+        }
+        return result.Take(MaxCount).ToList();
+    }
+
+    /// <summary>Fügt <paramref name="snippet"/> an der Schreibmarke ein (ersetzt eine Markierung); liefert neuen Text und neue Schreibmarke.</summary>
+    public static (string text, int caret) Insert(string text, int selStart, int selLength, string snippet)
+    {
+        text ??= "";
+        selStart = Math.Clamp(selStart, 0, text.Length);
+        selLength = Math.Clamp(selLength, 0, text.Length - selStart);
+        return (text[..selStart] + snippet + text[(selStart + selLength)..], selStart + snippet.Length);
     }
 }
 
