@@ -350,7 +350,7 @@ public class AhkContextTests : IDisposable
         Assert.Contains(doc.Arr("steps")!, x => x!["msaa"] != null);
 
         var (issues, _) = Validator.Validate(folder, thorough: true);
-        Assert.Empty(issues.Where(i => i.Severity == "error"));
+        Assert.DoesNotContain(issues, i => i.Severity == "error");
     }
 }
 

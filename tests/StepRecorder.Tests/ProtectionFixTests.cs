@@ -7,6 +7,8 @@ using StepRecorder.ReadLayer;
 namespace StepRecorder.Tests;
 
 /// <summary>Korrekturen an Schutzfunktionen (Etappe 0.1): Zielordner, Tastenereignisse, interne Kommentare, Terminal.</summary>
+// Nicht parallel zu den Sprachtests (Loc.Set schaltet die Oberflächensprache kurz um)
+[Collection("Loc")]
 public class ProtectionFixTests : IDisposable
 {
     readonly string _root = Path.Combine(Path.GetTempPath(), "steprec-prot-" + Guid.NewGuid().ToString("N")[..8]);
@@ -106,7 +108,7 @@ public class ProtectionFixTests : IDisposable
             if (e.Str("type") is "key.up" && e.Str("fg") == "w2" && e.Long("vk") != 13) Assert.Equal("Redacted", e.Str("key"));
         }
         var (issues, _) = Validator.Validate(folder, thorough: true);
-        Assert.Empty(issues.Where(i => i.Severity == "error"));
+        Assert.DoesNotContain(issues, i => i.Severity == "error");
     }
 
     [Fact]

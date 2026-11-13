@@ -173,6 +173,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | [09-anleitungs-export.md](09-anleitungs-export.md) | Anleitungs-Exporte | `EXP-` |
 | [10-datenschutz-und-sicherheit.md](10-datenschutz-und-sicherheit.md) | Datenschutz, Sicherheit, Signierung | `DS-` |
 | [11-roadmap-tests-risiken.md](11-roadmap-tests-risiken.md) | Meilensteine, Experimente, Tests, Risiken | – (Kennungen: Meilensteine `M0`–`M8`, Experimente `VE-`, Tests `T-`) |
+| [12-entwickler-fahrplan.md](12-entwickler-fahrplan.md) | Fahrplan für Software-Entwickler: Pakete 8–19, Reihenfolge, Schutzregeln, Abgleich Grundsätze ↔ Code | – (Pakete; Abweichungen `A-`; Vorgaben V-40–V-45 in 01) |
 
 **Prioritäten:** *Muss* = Voraussetzung für Version 1.0; *Soll* = für 1.0 vorgesehen, kann begründet verschoben werden; *Kann* = Ausbau.
 

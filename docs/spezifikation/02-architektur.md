@@ -624,8 +624,8 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 
 | Bereich | Wahl | Lizenz | Begründung |
 |---|---|---|---|
-| Laufzeit | **.NET 10 (LTS)**, Support bis 2028-11-14 | MIT | .NET 8 und 9 sind seit 2026-11-10 ohne Support. .NET 11 (STS, erschienen 2026-11-10) endet am selben Tag wie .NET 10 und bringt daher keinen Vorteil gegenüber der seit einem Jahr gepflegten LTS-Version |
-| Sprache | C# (aktuelle Version des .NET-10-SDK), `Nullable` aktiv | – | – |
+| Laufzeit | **.NET 10 (LTS)**, Support bis 2028-11-14 | MIT | .NET 8 und 9 sind seit 2026-11-10 ohne Support. .NET 11 (STS) endet etwa zur selben Zeit, kann WPF in 11.0.0 aber nicht als Einzeldatei ausliefern ([dotnet/wpf#11842](https://github.com/dotnet/wpf/issues/11842)) – gewählt ist .NET 10 (Entscheidung 2026-11-13) |
+| Sprache | C# 15 (.NET-11-SDK), `Nullable` aktiv | – | – |
 | Oberfläche | **WPF** | MIT | Ausgereift für Windows-Oberflächen mit eigener Zeichenfläche (Viewer, Annotationen); Teil der Laufzeit |
 | Oberflächenstil | **WPF UI** (Fluent-Steuerelemente, Hell/Dunkel/Hochkontrast, Windows-Akzentfarbe, Mica und eigene Titelleiste für Start und Editor); eigene Stile nur noch für Aufnahmeleiste, Overlays, Werkzeugpalette und Auswahlkarten. Das eingebaute Fluent-Thema von WPF (`ThemeMode`) ist weiterhin als experimentell gekennzeichnet und wird nicht verwendet | MIT | Windows-11-typisches Aussehen mit einer gepflegten Bibliothek statt selbst gezeichneter Steuerelemente; Kontrastmodus (BED-112) über die mitgelieferten Hochkontrast-Themen |
 | Bindungslogik | CommunityToolkit.Mvvm 8.4.x | MIT | Quellgeneratoren statt Laufzeitreflexion |
@@ -993,7 +993,7 @@ Eine Tabelle (`HotkeyActions.All`) legt die globalen Aufnahme-Tastenkürzel fest
 
 | Nr. | Entscheidung | Begründung in Kürze | Abschnitt |
 |---|---|---|---|
-| E-01 | .NET 10 (LTS) und WPF, self-contained | Vorgabe; LTS bis 2028; reifste Windows-Anbindung | [9.1](#technologie) |
+| E-01 | .NET 10 (LTS) und WPF, self-contained | LTS bis 2028; reifste Windows-Anbindung; .NET 8 seit 2026-11-10 ohne Sicherheitsupdates; .NET 11 zurückgestellt, solange WPF-Einzeldateien abstürzen (Entscheidung 2026-11-13) | [9.1](#technologie) |
 | E-02 | GUI-Subsystem für die eine EXE | Kein Konsolenfenster beim Doppelklick; umgeleitete Ströme funktionieren | [8.3](#betriebsarten) |
 | E-03 | Hooks in eigenem Minimalprozess | Speicherbereinigung und Bildkodierung dürfen den Eingabepfad nie anhalten | [3.2](#prozessmodell) |
 | E-04 | Low-Level-Hooks als Hauptkanal, Raw Input als Zweitkanal | Nur der Hook wird vor der Anwendung aufgerufen (Vorher-Bild-Garantie); Raw Input deckt Hook-Verluste auf | [3.2](#prozessmodell), [03](03-aufzeichnungskern.md#eingabekanaele) |

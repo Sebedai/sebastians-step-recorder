@@ -111,7 +111,7 @@ public class ExportAndMcpTests : IDisposable
     public void Validate_SyntheticSessionHasNoErrors()
     {
         var (issues, _) = Validator.Validate(_folder, thorough: true);
-        Assert.Empty(issues.Where(i => i.Severity == "error"));
+        Assert.DoesNotContain(issues, i => i.Severity == "error");
     }
 
     [Fact]

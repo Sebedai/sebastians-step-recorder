@@ -53,7 +53,7 @@ Diese Anforderungen gelten für das ganze Produkt. Sie fassen zusammen und verwe
 | ID | Anforderung | Priorität | Abnahmekriterium | Einzelregelungen |
 |---|---|---|---|---|
 | NFA-001 | **Portabilität:** Das Programm läuft als einzelne EXE (oder entpacktes ZIP) ohne Installation, ohne Adminrechte, ohne Registry-Einträge, ohne Dienst. | Muss | T-01 | ARC-031–033, ARC-038, ARC-039, ARC-050 |
-| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 10 als eingebettete Laufzeit (*Stand: gebaut wird mit .NET 8, Wechsel offen*). | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
+| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 10 (LTS) als eingebettete Laufzeit. | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
 | NFA-003 | **Vollständigkeit:** Jedes Eingabeereignis steht im Rohprotokoll oder ist durch einen Lückenmarker mit Ursache erklärt. | Muss | T-02; `validate` | AUF-087, AUF-088, DAT-018, SCH-005, SCH-035 |
 | NFA-004 | **Ehrlichkeit:** Jeder Schritt trägt eine Belegstufe; nichts wird erfunden, Unsicheres wird als solches ausgewiesen. | Muss | T-09 | SCH-027, SCH-028, SCH-033, KI-008, KI-016, MCP-031 |
 | NFA-005 | **Reaktionszeit des Systems:** Die Aufnahme verzögert keine Eingabe spürbar; 99,9 % der Hook-Aufrufe unter 1 ms. | Muss | VE-01 | ARC-003, ARC-004, AUF-012, DS-021 |
@@ -130,6 +130,17 @@ Jede Vorgabe des Auftraggebers ist mindestens einer Anforderung mit Abnahmekrite
 | V-39 | **Fundament:** Programmprotokoll, Diagnose-Paket, robuste Einstellungen, vollständige Kommandozeile, automatischer Build | ARC-067, ARC-068, ARC-070, ARC-074, ARC-076 | FoundationTests, SettingsStateTests |
 
 Datenformat, Schrittlogik, KI-Paket und Datenschutzregeln dieser Funktionen stehen in DAT-064–073, SCH-052–060, KI-034–041, MCP-032–036 und DS-056–067.
+
+**Entwickler-Fahrplan** (vom Auftraggeber am 2026-11-12 gewählt; geplant, nicht umgesetzt – Pakete, Reihenfolge und Schutzregeln in [12](12-entwickler-fahrplan.md)). Anforderungen mit Kennung entstehen bei der Feinplanung des jeweiligen Pakets; bis dahin verweist die Spalte auf die Pakete.
+
+| Nr. | Vorgabe | Anforderungen (Auswahl, maßgeblich) | Abnahme |
+|---|---|---|---|
+| V-40 | **KI-Agent-Schleife:** der ganze Fehlerkontext für Agenten in einem Aufruf, MCP-Prompts, Notizen des Agenten, Prüfaufnahme; Kommandozeile mit `list`, `latest` und JSON | noch keine – Paket 8 | wie in [12, Paket 8](12-entwickler-fahrplan.md#paket-8--agenten-schleife-m) |
+| V-41 | **Entwickler-Kontext:** festhalten, was die Anwendung tat – Programmende und Absturz, Hänger, Build-Stand, Fehlertext, Einträge der Ereignisanzeige, Protokolldateien | noch keine – Pakete 10–13 | Kanarien-Abnahme über alle Ausgabewege (Paket 12) |
+| V-42 | **UI-Tests aus Aufnahmen:** Testentwürfe für FlaUI, pywinauto und Playwright; Testbarkeits-Bericht | noch keine – Pakete 16, 17 | erzeugter Test läuft gegen die Test-Zielanwendung (VE-21) |
+| V-43 | **Tempo im Alltag:** Bereitschaft im Infobereich, Modus „Fehler nachstellen“, Befehlspalette, Sofort-Bildschirmfoto | noch keine – Pakete 14, 15 | Tastaturdurchgang, Startzeit aus der Bereitschaft |
+| V-44 | **Doku und Reviews im Repository:** Markdown nach 09 §6, GIF für Pull Requests, visueller Vorher/Nachher-Vergleich | noch keine – Pakete 18, 19 | bytegleiche Exporte, T-14 mit Bildunterschieden |
+| V-45 | **Reaktionszeiten sichtbar machen** | noch keine – Paket 9 | Zahlen in Editor, `trace.md`, MCP und Vergleich stimmen überein |
 
 ## 5. Rückverfolgung der Review-Befunde
 

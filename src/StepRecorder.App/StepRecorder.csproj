@@ -19,8 +19,7 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <Deterministic>true</Deterministic>
-    <!-- WinForms-Analyzer: WFO0003 – die DPI-Einstellung im Manifest braucht WPF (die WinForms-API gilt nur für WinForms);
-         WFO2000 – Getter liefern absichtlich neue Listen, weil die Texte von der Oberflächensprache abhängen -->
+    <!-- WFO0003 (früher WFAC010): DPI-Modus steht bewusst im Manifest (WPF, Per-Monitor v2). WFO2000: Listen mit Texten der Oberflächensprache werden absichtlich je Aufruf neu gebaut. -->
     <NoWarn>$(NoWarn);CA1416;WFAC010;WFO0003;WFO2000</NoWarn>
   </PropertyGroup>
 

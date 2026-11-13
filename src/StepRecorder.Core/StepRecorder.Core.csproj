@@ -9,9 +9,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>StepRecorder</RootNamespace>
     <Version>0.12.0</Version>
-    <!-- WinForms-Analyzer: WFO0003 – die DPI-Einstellung im Manifest braucht WPF (die WinForms-API gilt nur für WinForms);
-         WFO2000 – Getter liefern absichtlich neue Listen, weil die Texte von der Oberflächensprache abhängen -->
-    <NoWarn>$(NoWarn);CA1416;WFO0003;WFO2000</NoWarn>
+    <!-- WFO2000: Listen mit Texten der Oberflächensprache (Loc) werden absichtlich je Aufruf neu gebaut. -->
+    <NoWarn>$(NoWarn);CA1416;WFO2000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
