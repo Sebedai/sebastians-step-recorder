@@ -108,6 +108,14 @@ public static partial class GuideExport
             }
             sb.Append(marker).Append(" **").Append(MdInline(it.Title, it.Step, false)).Append("**\n");
             void Gap() => sb.Append('\n');
+            void NoteMd(int ni)
+            {
+                var (kind, text) = it.Notes[ni];
+                Gap();
+                if (it.NoteBody(ni) is { } nr) { var nb = new StringBuilder(); AppendRichMd(nb, nr, ""); AppendNote(sb, kind, nb.ToString().TrimEnd('\n'), dialect, d.Lang, ind, preformatted: true); }
+                else AppendNote(sb, kind, text, dialect, d.Lang, ind);
+            }
+            for (int ni = 0; ni < it.NotesBefore; ni++) NoteMd(ni);
             if (it.Text.Length > 0 && it.Text != it.Title)
             {
                 Gap();
@@ -116,18 +124,13 @@ public static partial class GuideExport
                 else AppendParagraph(sb, it.Text, it.Step, ind);
             }
             if (!it.Step.Redacted && ConsoleBlock(it.Step) is { } cmd) { Gap(); AppendFence(sb, cmd, ind); }
-            for (int ni = 0; ni < it.Notes.Count; ni++)
-            {
-                var (kind, text) = it.Notes[ni];
-                Gap();
-                if (it.NoteBody(ni) is { } nr) { var nb = new StringBuilder(); AppendRichMd(nb, nr, ""); AppendNote(sb, kind, nb.ToString().TrimEnd('\n'), dialect, d.Lang, ind, preformatted: true); }
-                else AppendNote(sb, kind, text, dialect, d.Lang, ind);
-            }
+            for (int ni = it.NotesBefore; ni < it.Notes.Count; ni++) NoteMd(ni);
             if (it.Png != null && imgFolder != null && writeImage != null)
             {
                 string file = $"schritt-{flat:000}.png";
                 writeImage(file, it.Png);
-                Gap(); sb.Append(ind).Append("![").Append(MdText(it.Title)).Append("](").Append(imgFolder).Append('/').Append(file).Append(")\n");
+                Gap(); sb.Append(ind).Append("![").Append(MdText(it.Alt ?? it.Title)).Append("](").Append(imgFolder).Append('/').Append(file).Append(")\n");
+                if (it.Caption != null) { Gap(); sb.Append(ind).Append('*').Append(MdText(it.Caption)).Append("*\n"); }
                 if (it.AfterPng != null)
                 {
                     string af = $"schritt-{flat:000}-nachher.png";
@@ -141,6 +144,12 @@ public static partial class GuideExport
         if (d.Compact || d.Checkboxes) sb.Append('\n');
         if (d.OutroRich != null) { sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n"); AppendRichMd(sb, d.OutroRich, ""); sb.Append('\n'); }
         else if (d.Outro.Length > 0) { sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n"); AppendParagraph(sb, d.Outro, null, ""); sb.Append('\n'); }
+        if (d.FigureList.Count > 0)
+        {
+            sb.Append("## ").Append(d.L("Abbildungsverzeichnis", "List of figures")).Append("\n\n");
+            foreach (var (_, cap) in d.FigureList) sb.Append("- ").Append(MdText(cap)).Append('\n');
+            sb.Append('\n');
+        }
         if (d.S.Footer.Length > 0) sb.Append("---\n\n").Append(MdText(d.S.Footer)).Append('\n');
         // genau ein abschließender Zeilenumbruch
         return sb.ToString().TrimEnd('\n') + "\n";

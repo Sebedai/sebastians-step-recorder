@@ -37,6 +37,8 @@ public sealed class ViewStep
     public bool TextSection;
     /// <summary>Bild im Dokument zeigen (null = Standard) und Bildgröße (s|m|l|full, null = wie im Dokument).</summary>
     public bool? ShowImage;
+    /// <summary>Eigene Bildunterschrift und eigener Alternativtext in der Sprache der Ansicht (13, Paket 25), bereinigt.</summary>
+    public string? Caption, Alt;
     public string? ImageSize;
     public bool Hidden, Redacted, Discarded;
     public List<JsonObject> Comments = new();
@@ -421,6 +423,7 @@ public sealed partial class SessionView : IDisposable
                 if (se.Obj("frameChoice") is { } fc) { vs.PreFrame = fc.Str("pre"); vs.PostFrame = fc.Str("post"); }
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
+                vs.Caption = LangText(se.Obj("caption")); vs.Alt = LangText(se.Obj("alt"));
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.PreFrame ??= s.Obj("frames").Str("pre");
@@ -482,6 +485,7 @@ public sealed partial class SessionView : IDisposable
                 ApplyAuthorText(vs, se.Obj("text"));
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
+                vs.Caption = LangText(se.Obj("caption")); vs.Alt = LangText(se.Obj("alt"));
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => CleanComment(c, vs)).ToList();

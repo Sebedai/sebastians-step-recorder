@@ -75,6 +75,7 @@ public static class QualityCheck
         bool reordered = (view.Edits.Arr("order")?.Count ?? 0) > 0 || view.All.Any(s => s.Hidden) || view.Manual.Count > 0 || (view.Edits.Arr("merges")?.Count ?? 0) > 0 || (view.Edits.Obj("guide")?.Arr("append")?.Count ?? 0) > 0;
         var timeline = view.Steps.Arr("timeline") ?? new JsonArray();
         var personal = o.PersonalValues ?? DefaultPersonalValues();
+        bool customCaptions = DocSettings.From(view.Edits.Obj("guide")).Captions == "custom";
         var shownTargets = steps.Select(x => "s" + x.Anchor).Concat(steps.Where(x => x.ChapterTitle is { Length: > 0 }).Select(x => "k" + x.Anchor)).ToHashSet();
         foreach (var m in steps.Where(x => x.Members != null)) foreach (var mm in m.Members!) shownTargets.Add("s" + mm.Anchor);
 
@@ -167,6 +168,9 @@ public static class QualityCheck
             // Q20
             if (reordered && s.Comments.Any(c => StepRef.IsMatch(c.Str("text") ?? "")))
                 Add("Q20", "hint", s, null, "Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.", "A comment mentions a step number that may have shifted.", "editText");
+            // Q34: eigene Bildunterschriften verlangt, aber keine gesetzt (13, Paket 25)
+            if (customCaptions && !s.Redacted && s.ShowImage != false && !s.TextSection && s.Caption == null && (s.PreFrame != null || s.PostFrame != null))
+                Add("Q34", "hint", s, "caption", "Dieses Bild hat keine eigene Bildunterschrift (es erscheint die Überschrift).", "This image has no custom caption (the heading is used).", "editText");
             // Q31: Variable nicht aufgelöst, liegengebliebene Platzhalter (13, Paket 23) – nur eigene Texte
             string own = (s.AuthorTitle ?? "") + "\n" + (s.AuthorBody ?? "") + "\n" + (s.ChapterTitle ?? "") + "\n" + (s.ChapterText ?? "") + "\n" + string.Join("\n", s.Comments.Select(c => c.Str("text")));
             if (view.UnknownVars(own).Any())

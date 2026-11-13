@@ -73,7 +73,8 @@ public sealed class GuideOptions
 public static partial class GuideExport
 {
     sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size,
-        RectangleF? Hot = null, byte[]? AfterPng = null, int AW = 0, int AH = 0, RichText? Body = null, List<RichText?>? NoteRich = null)
+        RectangleF? Hot = null, byte[]? AfterPng = null, int AW = 0, int AH = 0, RichText? Body = null, List<RichText?>? NoteRich = null,
+        string? Caption = null, string? Alt = null, int NotesBefore = 0)
     {
         /// <summary>Formatierter Hinweis an Position <paramref name="i"/> oder null.</summary>
         public RichText? NoteBody(int i) => NoteRich != null && i < NoteRich.Count ? NoteRich[i] : null;
@@ -95,6 +96,8 @@ public static partial class GuideExport
         public HashSet<object> Foreign = new(ReferenceEqualityComparer.Instance);
         /// <summary>Formatierte Einleitung und formatierter Abschluss (13, Paket 21).</summary>
         public RichText? IntroRich, OutroRich;
+        /// <summary>Abbildungsverzeichnis (Sprungmarke, Bildunterschrift), nur wenn eingeschaltet (13, Paket 25).</summary>
+        public List<(string anchor, string caption)> FigureList = new();
         /// <summary>Enthält die Anleitung formatierten Text? Dann kommen zusätzliche Stile hinzu.</summary>
         public bool UsesRich => IntroRich != null || OutroRich != null || Blocks.Any(b => b is Chapter { Body: not null } || b is Item it && (it.Body != null || it.NoteRich?.Any(n => n != null) == true));
         public int StepCount => Blocks.OfType<Item>().Count();
@@ -182,7 +185,7 @@ public static partial class GuideExport
         bool overview = o.Overview ?? s.Overview;
 
         var num = new Numbering(s.Numbering);
-        int flat = 0, sections = 0;
+        int flat = 0, sections = 0, figs = 0;
         AddSteps(view, null);
         // angehängte Aufnahmen: je Aufnahme ein Kapitel (sofern sie nicht selbst mit einem Kapitel beginnt)
         if (o.IncludeAppended)
@@ -248,16 +251,22 @@ public static partial class GuideExport
                 }
             }
             var shown = st.Comments.Where(c => (c.Str("text") ?? "").Length > 0).ToList();
-            var notes = shown.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).ToList();
+            // Warnhinweise mit Signalwort (13, Paket 25): mit „Warnhinweise vor dem Text“ stehen sie vorn
+            if (s.WarnFirst) shown = shown.OrderBy(c => SignalOf(c) != null ? 0 : 1).ToList();
+            int before = s.WarnFirst ? shown.Count(c => SignalOf(c) != null) : 0;
+            var notes = shown.Select(c => (SignalOf(c) is { } sig ? "sig:" + sig : c.Str("kind") ?? "note", c.Str("text") ?? "")).ToList();
             List<RichText?>? noteRich = st.NoteRich == null ? null : shown.Select(c => c.Str("id") is { } id && st.NoteRich.TryGetValue(id, out var r) ? r : null).ToList();
             var item = new Item(st, number, anchorId, st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah,
-                st.AuthorBody != null && !st.Redacted ? st.BodyRich : null, noteRich);
+                st.AuthorBody != null && !st.Redacted ? st.BodyRich : null, noteRich,
+                png != null && s.Captions != "none" ? FigureLabel(++figs, s.Captions == "custom" && st.Caption != null ? st.Caption : st.AuthorTitle ?? st.Title, lang) : null,
+                png != null ? st.Alt : null, before);
             d.Blocks.Add(item);
             if (autoChapter != null) d.Foreign.Add(item);
         }
         }
 
         ResolveRefs(d, lang);
+        if (s.Figures) foreach (var fi in d.Blocks.OfType<Item>()) if (fi.Caption != null) d.FigureList.Add((fi.Anchor, fi.Caption));
         string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
         d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
@@ -269,8 +278,17 @@ public static partial class GuideExport
     }
 
     /// <summary>Bezeichnung und Farben eines Hinweiskastens: (Label, Balken, Fläche).</summary>
+    /// <summary>Signalwort eines Hinweises (nur bei <c>kind: "warning"</c> gültig; ältere Versionen zeigen ihn als „Achtung:“).</summary>
+    static string? SignalOf(System.Text.Json.Nodes.JsonObject c) => c.Str("kind") == "warning" && c.Str("signal") is "danger" or "warning" or "caution" or "notice" ? c.Str("signal") : null;
+
+    static string FigureLabel(int n, string text, string lang) => Settings.OutText.T(lang, "Abb. ", "Fig. ") + n + ": " + text;
+
     public static (string label, string bar, string fill) NoteStyle(string kind, string lang) => kind switch
     {
+        "sig:danger" => (Settings.OutText.T(lang, "GEFAHR:", "DANGER:"), "B00020", "FDE8EA"),
+        "sig:warning" => (Settings.OutText.T(lang, "WARNUNG:", "WARNING:"), "C2410C", "FFEFE3"),
+        "sig:caution" => (Settings.OutText.T(lang, "VORSICHT:", "CAUTION:"), "B26A00", "FFF4DC"),
+        "sig:notice" => (Settings.OutText.T(lang, "HINWEIS:", "NOTICE:"), "2F5C9C", "EAF0F9"),
         "tip" => (Settings.OutText.For(lang, "Tipp:", "Tip:", "Astuce :", "Consejo:", "Suggerimento:", "Tip:"), "2F7D4F", "E8F4EC"),
         "warning" => (Settings.OutText.For(lang, "Achtung:", "Warning:", "Attention :", "Advertencia:", "Attenzione:", "Waarschuwing:"), "B26A00", "FFF4DC"),
         "important" => (Settings.OutText.For(lang, "Wichtig:", "Important:", "Important :", "Importante:", "Importante:", "Belangrijk:"), "B4233C", "FBE9EC"),
@@ -413,16 +431,19 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             bool side = d.S.Layout == "side" && it.Png != null;
             sb.Append($"<section class=\"step{(side ? " side" : "")}\" id=\"{it.Anchor}\">\n<div>\n");
             sb.Append($"<h3>{(d.Checkboxes ? $"<input type=\"checkbox\" class=\"done\" aria-label=\"{d.L("erledigt", "done")}\">" : "")}{(it.Number.Length > 0 ? $"<span class=\"n\">{e(it.Number)}</span>" : "")}<span>{e(it.Title)}</span></h3>\n");
-            if (it.Step.Redacted) sb.Append($"<p class=\"redacted\">{e(it.Text)}</p>\n");
-            else if (it.Body != null && it.Text.Length > 0) sb.Append(HtmlRich(it.Body)).Append('\n');
-            else if (it.Text.Length > 0 && it.Text != it.Title) sb.Append($"<p>{P(it.Text)}</p>\n");
-            for (int ni = 0; ni < it.Notes.Count; ni++)
+            void NoteHtml(int ni)
             {
                 var (kind, text) = it.Notes[ni];
                 var (label, bar, _) = NoteStyle(kind, d.Lang);
                 if (it.NoteBody(ni) is { } nr) sb.Append($"<div class=\"note\" style=\"--c:#{bar}\">{HtmlRich(nr, "rt", $"<b>{e(label)}</b> ")}</div>\n");
                 else sb.Append($"<div class=\"note\" style=\"--c:#{bar}\"><b>{e(label)}</b> {P(text)}</div>\n");
             }
+            // Warnhinweise vor der Handlung (13, Paket 25)
+            for (int ni = 0; ni < it.NotesBefore; ni++) NoteHtml(ni);
+            if (it.Step.Redacted) sb.Append($"<p class=\"redacted\">{e(it.Text)}</p>\n");
+            else if (it.Body != null && it.Text.Length > 0) sb.Append(HtmlRich(it.Body)).Append('\n');
+            else if (it.Text.Length > 0 && it.Text != it.Title) sb.Append($"<p>{P(it.Text)}</p>\n");
+            for (int ni = it.NotesBefore; ni < it.Notes.Count; ni++) NoteHtml(ni);
             if (o.ShowEvidence) sb.Append($"<div class=\"ev\">{d.L("Beleg", "Evidence")}: {e(it.Step.EvidenceLevel)}</div>\n");
             if (!side) sb.Append("</div>\n");
             if (it.Png != null)
@@ -430,11 +451,11 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 string style = side ? "" : $" style=\"max-width:{(int)(DocSettings.Factor(it.Size) * 100)}%\"";
                 string Fig(byte[] png, int w, int h, string alt, string? caption) =>
                     $"<figure{style}>{(caption != null ? $"<figcaption>{e(caption)}</figcaption>" : "")}<label class=\"zoom\" title=\"{enlarge}\"><input type=\"checkbox\"><img alt=\"{e(alt)}\" width=\"{w}\" height=\"{h}\" src=\"data:image/png;base64,{Convert.ToBase64String(png)}\">" +
-                    $"<span class=\"zh zo\">{enlarge}</span><span class=\"zh zc\">{close}</span></label></figure>\n";
+                    $"<span class=\"zh zo\">{enlarge}</span><span class=\"zh zc\">{close}</span></label>{(png == it.Png && it.Caption != null ? $"<figcaption class=\"cap\">{e(it.Caption)}</figcaption>" : "")}</figure>\n";
                 if (side) sb.Append("</div>\n");
                 bool two = it.AfterPng != null;
                 if (side && two) sb.Append("<div>\n");
-                sb.Append(Fig(it.Png, it.W, it.H, it.Title, null));
+                sb.Append(Fig(it.Png, it.W, it.H, it.Alt ?? it.Title, null));
                 if (two) sb.Append(Fig(it.AfterPng!, it.AW, it.AH, it.Title + " – " + d.L("Ergebnis", "Result"), d.L("Ergebnis", "Result")));
                 if (side && two) sb.Append("</div>\n");
             }
@@ -443,6 +464,12 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         }
         if (d.OutroRich != null) sb.Append($"<section class=\"box outro\"><h2>{d.L("Abschluss", "Finally")}</h2>{HtmlRich(d.OutroRich)}</section>\n");
         else if (d.Outro.Length > 0) sb.Append($"<section class=\"box outro\"><h2>{d.L("Abschluss", "Finally")}</h2><p style=\"margin:0\">{P(d.Outro)}</p></section>\n");
+        if (d.FigureList.Count > 0)
+        {
+            sb.Append($"<section class=\"box figures\" id=\"m-figures\"><h2>{d.L("Abbildungsverzeichnis", "List of figures")}</h2><ul>");
+            foreach (var (anchor, caption) in d.FigureList) sb.Append($"<li><a href=\"#{anchor}\">{e(caption)}</a></li>");
+            sb.Append("</ul></section>\n");
+        }
         sb.Append($"<footer><span>{e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)}</span><span>{d.L("Erstellt mit", "Created with")} {AppInfo.DisplayName}</span></footer>\n</body>\n</html>\n");
         return sb.ToString();
     }
@@ -574,15 +601,18 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                     return;
                 }
                 x.Heading(Heading(it.Number, it.Title), 2, marks[b]);
-                if (it.Body != null && it.Text.Length > 0) x.RichBlocks(it.Body.Doc);
-                else if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
-                for (int ni = 0; ni < it.Notes.Count; ni++)
+                void NoteX(int ni)
                 {
                     var (kind, text) = it.Notes[ni];
                     var (label, bar, fill) = NoteStyle(kind, d.Lang);
                     if (it.NoteBody(ni) is { } nr) x.NoteRich(label, nr.Doc, bar, fill); else x.Note(label, text, bar, fill);
                 }
+                for (int ni = 0; ni < it.NotesBefore; ni++) NoteX(ni);
+                if (it.Body != null && it.Text.Length > 0) x.RichBlocks(it.Body.Doc);
+                else if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
+                for (int ni = it.NotesBefore; ni < it.Notes.Count; ni++) NoteX(ni);
             }
+            void Cap() { if (it.Caption != null) x.Paragraph(it.Caption, italic: true, color: "555555"); }
             void After(double maxW, double maxH)
             {
                 if (it.AfterPng == null) return;
@@ -590,17 +620,18 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 x.Image(it.AfterPng, "png", it.AW, it.AH, it.Title + " – " + d.L("Ergebnis", "Result"), maxW, maxH);
             }
             if (it.Png != null && d.S.Layout == "side")
-                x.SideBySide(Text, () => { x.Image(it.Png, "png", it.W, it.H, it.Title, Wd(9.2), Math.Min(9, maxHCm)); After(Wd(9.2), Math.Min(9, maxHCm)); }, 42);
+                x.SideBySide(Text, () => { x.Image(it.Png, "png", it.W, it.H, it.Alt ?? it.Title, Wd(9.2), Math.Min(9, maxHCm)); Cap(); After(Wd(9.2), Math.Min(9, maxHCm)); }, 42);
             else
             {
                 Text();
                 double mw = cwCm * DocSettings.Factor(it.Size), mh = Math.Min(cwCm * DocSettings.Factor(it.Size) * 0.8 + 3, maxHCm);
-                if (it.Png != null) x.Image(it.Png, "png", it.W, it.H, it.Title, mw, mh);
+                if (it.Png != null) { x.Image(it.Png, "png", it.W, it.H, it.Alt ?? it.Title, mw, mh); Cap(); }
                 After(mw, mh);
             }
         }
         if (d.OutroRich != null) { x.Heading(d.L("Abschluss", "Finally"), 1); x.RichBlocks(d.OutroRich.Doc); }
         else if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
+        if (d.FigureList.Count > 0) { x.Heading(d.L("Abbildungsverzeichnis", "List of figures"), 1); foreach (var (_, cap) in d.FigureList) x.Paragraph(cap); }
         x.Save(outPath);
     }
 
@@ -787,6 +818,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             }
             pdf.SetY(top + 2);
             pdf.Paragraph(it.Title, 12.5, true, numW, 4, ink, textW - numW);
+            void NoteP(int ni)
+            {
+                var (kind, text) = it.Notes[ni];
+                var (label, bar, fill) = NoteStyle(kind, d.Lang);
+                if (it.NoteBody(ni) is { } nr) pdf.CalloutRich(label, nr.Doc, Rgb(bar), Rgb(fill));
+                else pdf.Callout(label, text, Rgb(bar), Rgb(fill));
+            }
+            for (int ni = 0; ni < it.NotesBefore; ni++) NoteP(ni);
             if (it.Body != null && it.Text.Length > 0) pdf.RichBlocks(it.Body.Doc, 10.5, 0, 6, ink, textW);
             else if (it.Text.Length > 0 && it.Text != it.Title) pdf.Paragraph(it.Text, 10.5, false, 0, 6, it.Step.Redacted ? muted : ink, textW);
             if (side)
@@ -794,19 +833,15 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 double afterText = pdf.Y;
                 pdf.SetY(top);
                 pdf.Image(jp.jpg, jp.w, jp.h, imgW, imgH, pdf.Margin + textW + 16);
-                pdf.SetY(Math.Min(afterText, top - imgH - 8));
+                if (it.Caption != null) pdf.Paragraph(it.Caption, 9, false, textW + 16, 2, muted, imgW);
+                pdf.SetY(Math.Min(afterText, pdf.Y));
             }
-            for (int ni = 0; ni < it.Notes.Count; ni++)
-            {
-                var (kind, text) = it.Notes[ni];
-                var (label, bar, fill) = NoteStyle(kind, d.Lang);
-                if (it.NoteBody(ni) is { } nr) pdf.CalloutRich(label, nr.Doc, Rgb(bar), Rgb(fill));
-                else pdf.Callout(label, text, Rgb(bar), Rgb(fill));
-            }
+            for (int ni = it.NotesBefore; ni < it.Notes.Count; ni++) NoteP(ni);
             if (hasImg && !side)
             {
                 double f = DocSettings.Factor(it.Size);
                 pdf.Image(jp.jpg, jp.w, jp.h, cw * f, Math.Min(560 * f + 60, maxImgH));
+                if (it.Caption != null) pdf.Paragraph(it.Caption, 9, false, 0, 4, muted, cw * f);
             }
             if (afterJpegs.TryGetValue(it, out var aj))
             {
@@ -820,6 +855,22 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             pdf.Space(6);
         }
         if (d.Outro.Length > 0 || d.OutroRich != null) { pdf.Space(10); Box(d.L("Abschluss", "Finally"), d.Outro, rich: d.OutroRich); }
+        if (d.FigureList.Count > 0)
+        {
+            pdf.Space(10);
+            pdf.Dest("m-figures");
+            pdf.Bookmark(d.L("Abbildungsverzeichnis", "List of figures"), 0, "m-figures");
+            pdf.Paragraph(d.L("Abbildungsverzeichnis", "List of figures"), 15, true, 0, 8, acc);
+            foreach (var (anchor, cap) in d.FigureList)
+            {
+                pdf.EnsureSpace(16);
+                string pg = record.TryGetValue(anchor, out var pn) ? pn.ToString() : "";
+                double ty = pdf.Y;
+                pdf.Paragraph(cap, 10, false, 0, 3, ink, cw - 40);
+                pdf.DrawText(pdf.Margin + cw - SimplePdf.TextWidth(pg, 10), ty - 10 * 1.35 + 2.5, pg, 10, false, muted);
+                pdf.LinkTo(pdf.Margin, pdf.Y, cw, ty - pdf.Y, anchor);
+            }
+        }
         return pdf;
     }
 

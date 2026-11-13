@@ -54,6 +54,14 @@ public sealed partial class SessionView
     /// <summary>Bereinigter Hinweis; ein formatierter Hinweis trägt danach seinen sichtbaren Text, die Formatierung steht in <see cref="ViewStep.NoteRich"/>.</summary>
     JsonObject CleanComment(JsonObject c, ViewStep vs)
     {
+        // eigener Text der Sprache (comments[].i18n.<lang>.text, 13 Paket 25) ersetzt den Grundtext
+        if (Language != "de" && c.Obj("i18n")?.Obj(Language) is { } loc && loc.Str("text") is { Length: > 0 } lt)
+        {
+            c = (JsonObject)c.DeepClone();
+            c["text"] = lt;
+            if (loc.Int("fmt") == 1) c["fmt"] = 1; else c.Remove("fmt");
+            c.Remove("i18n");
+        }
         var o = (JsonObject)CleanNode(c)!;
         if (IsRich(c) && c.Str("text") is { } raw && c.Str("id") is { } id)
         {

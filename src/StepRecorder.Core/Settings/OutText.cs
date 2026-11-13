@@ -59,6 +59,7 @@ public static class OutText
             ["Result"] = ("Ergebnis", "Résultat", "Resultado", "Risultato", "Resultaat"),
             ["Prerequisites"] = ("Voraussetzungen", "Prérequis", "Requisitos previos", "Prerequisiti", "Vereisten"),
             ["About this guide"] = ("Über diese Anleitung", "À propos de ce guide", "Acerca de esta guía", "Informazioni su questa guida", "Over deze handleiding"),
+            ["List of figures"] = ("Abbildungsverzeichnis", "Table des figures", "Índice de figuras", "Indice delle figure", "Lijst van afbeeldingen"),
             ["Finally"] = ("Abschluss", "Pour terminer", "Para terminar", "Per concludere", "Tot slot"),
             ["Contents"] = ("Inhalt", "Sommaire", "Contenido", "Sommario", "Inhoud"),
             ["steps"] = ("Schritte", "étapes", "pasos", "passaggi", "stappen"),

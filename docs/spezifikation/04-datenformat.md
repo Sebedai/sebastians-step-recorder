@@ -2472,6 +2472,22 @@ Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-
 |---|---|---|---|
 | DAT-086 | Ohne `level`, `hidden`, `type` und `perChapter` bleibt jede Ausgabe gleich (bis auf die Überschriftenregel). | Muss | `LegacyOutputTests`, `OutlineTests` |
 
+### 13.21 Bildunterschriften, Warnhinweise, Hinweise je Sprache (Paket 25)
+
+| Ort | Schlüssel | Bedeutung | Fehlt = |
+|---|---|---|---|
+| `steps[]` | `caption`, `alt` | `{ "de": "…", "en": "…" }` – eigene Bildunterschrift, Alternativtext (fehlt die Sprache: Deutsch) | Überschrift des Schritts |
+| `guide.doc` | `captions` | `none` \| `auto` („Abb. n: Überschrift“) \| `custom` (eigener Text, sonst Überschrift) | `none` |
+| `guide.doc` | `figures`, `warnFirst` | Abbildungsverzeichnis am Ende; Warnhinweise vor dem Schritttext | aus |
+| `comments[]` | `signal` | `danger` \| `warning` \| `caution` \| `notice` – nur zusammen mit `kind: "warning"`; Kennzeichnung „GEFAHR:“, „WARNUNG:“, „VORSICHT:“, „HINWEIS:“ | gewöhnlicher Kasten |
+| `comments[]` | `i18n.<lang>.text`, `i18n.<lang>.fmt` | Text des Hinweises in dieser Sprache | Grundtext |
+
+`signal` statt neuer `kind`-Werte: `kind` ist schutzrelevant (§15.7); ältere Versionen zeigen einen Warnhinweis als „Achtung:“. Neue `guide.doc`-Schlüssel schreibt der Editor nur, wenn sie vom Standard abweichen.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-087 | Ohne `captions`, `signal` und `i18n` an Hinweisen ist jede Ausgabe gleich. | Muss | `LegacyOutputTests`, `FiguresTests` |
+
 ### 13.19 Markenstil (`guide.auto.style`)
 
 Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).

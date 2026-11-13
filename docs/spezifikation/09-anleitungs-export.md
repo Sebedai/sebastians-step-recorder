@@ -702,6 +702,7 @@ Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt
 | Q19 | Hinweis | „Für diesen Schritt wurde keine Wirkung beobachtet.“ | `noEffect` | Prüfen, ob der Schritt nötig ist · ausblenden | – |
 | Q20 | Hinweis | „Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.“ | `stepNumberInComment` | Kommentar prüfen | – |
 | Q31 | Warnung | „Eine Variable ist nicht festgelegt …“ bzw. „Im Text steht noch ein Platzhalter (TODO, ???, XXX).“ – nur eigene Texte | `var`, `todo` | Text bearbeiten | – |
+| Q34 | Hinweis | „Dieses Bild hat keine eigene Bildunterschrift …“ – nur bei `captions: custom` | `caption` | Text bearbeiten | – |
 | Q32 | Warnung | „Ein Querverweis zeigt auf einen Schritt oder ein Kapitel, das nicht in der Anleitung steht.“ | `ref` | Text bearbeiten | – |
 | Q21 | Hinweis | „Die Anwendung brauchte nach diesem Schritt … bis sie bereit war.“ – Wartezeit (bereit, sonst Bild ruhig, sonst erste Reaktion) eines Hauptschritts ab 2 s (`Timing.SlowMs`; Paket 9 aus [12](12-entwickler-fahrplan.md)) | Schritt | Zum Schritt | – |
 
@@ -1080,6 +1081,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-197 | GIF | Kann | Das GIF zeigt Titelbild und alle Schritte in der gewählten Dauer und läuft in Schleife. |
 | EXP-200 | Querverweise, Variablen, Tabellen | Soll | `[[ref:s…]]` zeigt nach dem Umsortieren die aktuelle Nummer; ein ausgeblendetes Ziel ergibt „??“ ohne Titel; `{{Produkt}}` erscheint mit dem Wert der Exportsprache; eine Tabelle erscheint in HTML, Markdown, Word und PDF mit Kopfzeile. |
 | EXP-201 | Unterkapitel und Textabschnitte | Soll | Unterkapitel erscheinen in HTML als kleinere Überschrift (eingerückt im Inhaltsverzeichnis), in Word als Überschrift 2, im PDF kleiner und als Lesezeichen eine Ebene tiefer, in Markdown als `###`; Textabschnitte ohne Nummer und Bild. |
+| EXP-202 | Bildunterschriften und Warnhinweise | Soll | Mit `captions: custom` steht unter dem Bild „Abb. 1: …“ (HTML `figcaption`, Word kursiv, PDF klein, Markdown kursiv), das Abbildungsverzeichnis am Ende verweist auf die Schritte; der Alternativtext steht im `alt` bzw. in Word in der Bildbeschreibung; ein Hinweis mit `signal: danger` heißt „GEFAHR:“ und steht mit `warnFirst` vor dem Schritttext. |
 | EXP-199 | Formatierter Text | Soll | Fett, kursiv, Eingabe, Tasten, Bedienelemente, Links und Listen erscheinen in HTML, Markdown, Word, PDF und Klick-Tour wie in 11.1; PowerPoint ohne Formatierung; KI-Paket und MCP ohne Auszeichnung. |
 | EXP-198 | Video (MP4) | Kann | Die Datei beginnt mit einer `ftyp`-Box, enthält `moov` und einen H.264-Videostrom mit gerader Breite und Höhe; ihre Dauer ist Titelbild plus gewählte Dauer je Schritt. Ohne H.264-Encoder entsteht keine Datei, und die Meldung nennt die fehlende Voraussetzung. |
 | EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |

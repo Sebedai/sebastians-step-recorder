@@ -70,6 +70,14 @@ public sealed partial class SessionView
             if (!vars.ContainsKey(m.Groups[1].Value.Trim())) yield return m.Groups[1].Value.Trim();
     }
 
+    /// <summary>Text eines Sprachobjekts <c>{ "de": "…", "en": "…" }</c>: eigene Sprache, sonst Deutsch; bereinigt, leer = null.</summary>
+    string? LangText(JsonObject? o)
+    {
+        if (o == null) return null;
+        string? t = o.Str(Language) is { Length: > 0 } own ? own : o.Str("de");
+        return string.IsNullOrWhiteSpace(t) ? null : CleanVars(t);
+    }
+
     /// <summary>Variablen einsetzen, dann bereinigen – für reine Autorentexte und Titel.</summary>
     public string CleanVars(string? s) => Clean(ExpandVars(s));
 }

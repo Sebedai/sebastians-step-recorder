@@ -27,6 +27,9 @@ public sealed class DocSettings
     public bool Overview = true;
     /// <summary>Seitenformat für Word und PDF: a4 | letter (09 §4.4).</summary>
     public string Page = "a4";
+    /// <summary>Bildunterschriften: none (bisher), auto (Abb. n: Titel), custom (eigener Text, sonst Titel); Abbildungsverzeichnis; Warnhinweise vor dem Schritttext (13, Paket 25).</summary>
+    public string Captions = "none";
+    public bool Figures, WarnFirst;
     /// <summary>Querformat für Word und PDF.</summary>
     public bool Landscape;
     /// <summary>Eigene Word-Vorlage (.dotx/.docx, Base64; 09 §7.3); leer = keine. Höchstens <see cref="WordTemplateMaxBytes"/>.</summary>
@@ -149,6 +152,8 @@ public sealed class DocSettings
         d.Page = j.Str("page") == "letter" ? "letter" : "a4";
         d.Landscape = j.Bool("landscape");
         d.WordTemplate = j.Str("wordTemplate") ?? ""; d.WordTemplateName = j.Str("wordTemplateName") ?? "";
+        d.Captions = j.Str("captions") is "auto" or "custom" ? j.Str("captions")! : "none";
+        d.Figures = j.Bool("figures"); d.WarnFirst = j.Bool("warnFirst");
     }
 
     public static (string id, string name)[] Pages => new[] { ("a4", "A4"), ("letter", "Letter") };
@@ -186,7 +191,17 @@ public sealed class DocSettings
         return Convert.ToBase64String(ms.ToArray());
     }
 
-    public JsonObject ToJson() => new()
+    public JsonObject ToJson()
+    {
+        var o = BaseJson();
+        // neue Schlüssel nur, wenn gesetzt (ältere Versionen und Vorlagen bleiben unverändert)
+        if (Captions != "none") o["captions"] = Captions;
+        if (Figures) o["figures"] = true;
+        if (WarnFirst) o["warnFirst"] = true;
+        return o;
+    }
+
+    JsonObject BaseJson() => new()
     {
         ["subtitle"] = Subtitle, ["author"] = Author, ["version"] = Version, ["audience"] = Audience, ["prerequisites"] = Prerequisites, ["footer"] = Footer,
         ["cover"] = Cover, ["toc"] = Toc, ["showDate"] = ShowDate, ["numbering"] = Numbering, ["imageSize"] = ImageSize, ["layout"] = Layout, ["accent"] = Accent,

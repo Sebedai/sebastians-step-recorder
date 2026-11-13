@@ -26,6 +26,9 @@ sealed partial class ViewerWindow
     internal static (string kind, string name, string glyph)[] NoteKindsUi => new[]
     {
         ("note", Loc.L("Hinweis", "Note"), Theme.IComment), ("tip", Loc.L("Tipp", "Tip"), Theme.IInfo), ("warning", Loc.L("Achtung", "Caution"), Theme.IWarn),
+        // Warnhinweise mit Signalwort (13, Paket 25): gespeichert als kind "warning" + signal
+        ("sig:danger", Loc.L("GEFAHR – Tod oder schwere Verletzung", "DANGER – death or serious injury"), Theme.IWarn), ("sig:warning", Loc.L("WARNUNG – mögliche schwere Folgen", "WARNING – possible serious consequences"), Theme.IWarn),
+        ("sig:caution", Loc.L("VORSICHT – leichte Folgen", "CAUTION – minor consequences"), Theme.IWarn), ("sig:notice", Loc.L("HINWEIS – Sachschaden, Datenverlust", "NOTICE – damage, data loss"), Theme.IWarn),
         ("important", Loc.L("Wichtig", "Important"), Theme.IImportant), ("result", Loc.L("Ergebnis", "Result"), Theme.ICheck), ("internal", Loc.L("Intern", "Internal"), Theme.ILock),
         ("agent", Loc.L("Vom KI-Agenten (intern)", "From AI agent (internal)"), Theme.IRobot),
     };
@@ -186,23 +189,32 @@ sealed partial class ViewerWindow
         foreach (var c in notes)
         {
             string? cid = c.Str("id");
-            string kind = c.Str("kind") ?? "note";
+            string kind = c.Str("kind") == "warning" && c.Str("signal") is { Length: > 0 } sg ? "sig:" + sg : c.Str("kind") ?? "note";
             var barBrush = kind is "internal" or "agent" ? Theme.Muted : new SolidColorBrush((Color)ColorConverter.ConvertFromString("#" + GuideExport.NoteStyle(kind, "de").bar));
             var kinds = new ComboBox { MinWidth = 130, IsEnabled = !ro, Margin = new Thickness(0, 0, 6, 0), HorizontalAlignment = HorizontalAlignment.Left };
             foreach (var (_, name, _) in NoteKindsUi) kinds.Items.Add(name);
             kinds.SelectedIndex = Math.Max(0, Array.FindIndex(NoteKindsUi, k => k.kind == kind));
             kinds.ToolTip = Loc.L("„Intern“ erscheint in keiner Ausgabe", "“Internal” appears in no output");
-            kinds.SelectionChanged += (_, _) => { string k = NoteKindsUi[Math.Max(0, kinds.SelectedIndex)].kind; Change(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["kind"] = k; }, refill: false); };
+            kinds.SelectionChanged += (_, _) => { string k = NoteKindsUi[Math.Max(0, kinds.SelectedIndex)].kind; Change(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) SetNoteKind(x, k); }, refill: false); };
             var del = U.Ghost(Theme.IDelete, null, () => RemoveComment(cid), Loc.L("Hinweis löschen", "Delete note"));
             del.MinHeight = 32; del.Padding = new Thickness(8, 5, 8, 5); del.Margin = new Thickness(0); del.IsEnabled = !ro;
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             DockPanel.SetDock(del, Dock.Right); head.Children.Add(del); head.Children.Add(kinds);
             // Hinweistext formatierbar (13, Paket 21); gespeichert mit Kennzeichen fmt
-            var text = RichBox(c.Str("text") ?? "", ViewSessionRich(c), (v, rich) => QuietChange(e =>
+            // je Sprache (13, Paket 25): in der englischen Ansicht wird comments[].i18n.en bearbeitet, leer = Grundtext
+            string lang = _view.Language;
+            var loc = lang != "de" ? c.Obj("i18n")?.Obj(lang) : null;
+            bool own = loc?.Str("text") is { Length: > 0 };
+            var text = RichBox(own ? loc!.Str("text")! : c.Str("text") ?? "", own ? loc!.Int("fmt") == 1 : ViewSessionRich(c), (v, rich) => QuietChange(e =>
             {
                 if (e["comments"] is JsonArray arr)
-                    foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) { x["text"] = v; if (rich) x["fmt"] = 1; else x.Remove("fmt"); }
-            }), Loc.L("Text des Hinweises", "Note text"), 44);
+                    foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid))
+                    {
+                        JsonObject h = x;
+                        if (lang != "de") { var i18n = x["i18n"] as JsonObject ?? new JsonObject(); x["i18n"] = i18n; h = i18n[lang] as JsonObject ?? new JsonObject(); i18n[lang] = h; }
+                        h["text"] = v; if (rich) h["fmt"] = 1; else h.Remove("fmt");
+                    }
+            }), lang != "de" && !own ? Loc.L("Text in dieser Sprache (leer = Text der Grundsprache)", "Text in this language (empty = base language text)") : Loc.L("Text des Hinweises", "Note text"), 44);
             if (cid != null && cid == _focusCommentId) focus = text;
             var stripe = new Border { Width = 4, CornerRadius = new CornerRadius(2), Background = barBrush, Margin = new Thickness(0, 2, 12, 2) };
             var inner = new DockPanel();
@@ -271,6 +283,20 @@ sealed partial class ViewerWindow
         };
         row.Children.Add(size);
         box.Children.Add(row);
+        // Bildunterschrift und Alternativtext je Sprache (13, Paket 25)
+        string lang = _view.Language;
+        string? LangOf(string key) => (_view.Edits.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Long("anchor") == anchor)?.Obj(key)?.Str(lang);
+        void SetLang(string key, string v) => QuietChange(e =>
+        {
+            var se = StepEdit(e, anchor);
+            var o = se[key] as JsonObject ?? new JsonObject();
+            if (v.Trim().Length == 0) o.Remove(lang); else o[lang] = v.Trim();
+            if (o.Count == 0) se.Remove(key); else se[key] = o;
+        });
+        box.Children.Add(U.Field(Loc.L("Bildunterschrift", "Caption"), CommitBox(LangOf("caption") ?? "", v => SetLang("caption", v), Loc.L("Leer = Überschrift des Schritts", "Empty = step heading")),
+            Loc.L("Erscheint, wenn im Dokument „Bildunterschriften: eigene“ gewählt ist, als „Abb. n: …“.", "Appears as “Fig. n: …” when “Captions: custom” is chosen in the document.")));
+        box.Children.Add(U.Field(Loc.L("Alternativtext", "Alternative text"), CommitBox(LangOf("alt") ?? "", v => SetLang("alt", v), Loc.L("Was zeigt das Bild? Für Bildschirmleser", "What does the image show? For screen readers")),
+            Loc.L("Leer = Überschrift des Schritts.", "Empty = step heading.")));
         var acts = new WrapPanel { Margin = new Thickness(-3, 0, 0, 10) };
         Button? repl = null;
         repl = U.Btn(Theme.ICamera, s.Manual && s.PreFrame == null ? Loc.L("Bild hinzufügen …", "Add image …") : Loc.L("Bild ersetzen …", "Replace image …"), () => ReplaceImageMenu(s, repl), Loc.L("Bildschirmfoto neu aufnehmen oder Bild aus Datei bzw. Zwischenablage nehmen", "Take a new screenshot or use an image from a file or the clipboard"));

@@ -52,6 +52,13 @@ sealed partial class ViewerWindow
 
     static (string id, string de, string en, string bodyDe, string bodyEn)[] Blocks => ManualBlocks.All;
 
+    /// <summary>Art eines Hinweises setzen; Signalwörter („sig:danger“ …) werden als <c>kind: "warning"</c> + <c>signal</c> gespeichert.</summary>
+    static void SetNoteKind(JsonObject x, string k)
+    {
+        if (k.StartsWith("sig:", StringComparison.Ordinal)) { x["kind"] = "warning"; x["signal"] = k[4..]; }
+        else { x["kind"] = k; x.Remove("signal"); }
+    }
+
     /// <summary>Textabschnitt (ohne Nummer und Bild) nach dem gewählten Schritt einfügen.</summary>
     void InsertSection(string kind)
     {

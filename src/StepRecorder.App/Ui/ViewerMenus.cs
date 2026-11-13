@@ -399,7 +399,9 @@ sealed partial class ViewerWindow
         Change(e =>
         {
             var arr = e["comments"] as System.Text.Json.Nodes.JsonArray ?? new System.Text.Json.Nodes.JsonArray();
-            arr.Add(new System.Text.Json.Nodes.JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
+            var nc = new System.Text.Json.Nodes.JsonObject { ["id"] = NextId(e, "comments", "uc"), ["anchor"] = s.Anchor, ["kind"] = d.Kind, ["text"] = d.Value.Trim(), ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" };
+            SetNoteKind(nc, d.Kind);
+            arr.Add(nc);
             e["comments"] = arr;
         });
     }

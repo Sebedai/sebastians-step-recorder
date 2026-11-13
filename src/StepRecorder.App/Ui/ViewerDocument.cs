@@ -161,6 +161,14 @@ sealed partial class ViewerWindow
         int numIdx = d.Numbering switch { "flat" => 1, "perChapter" => 2, "none" => 3, _ => 0 };
         var (numTrack, nums) = U.Segmented("dnum", numIdx, (null, "1.1, 1.2 …"), (null, "1, 2, 3 …"), (null, Loc.L("je Kapitel 1, 2 …", "per chapter 1, 2 …")), (null, Loc.L("Keine", "None")));
         for (int i = 0; i < 4; i++) { string v = new[] { "chapter", "flat", "perChapter", "none" }[i]; nums[i].Checked += (_, _) => DocChange(x => x.Numbering = v); }
+        // Bildunterschriften, Abbildungsverzeichnis, Warnhinweise (13, Paket 25)
+        int capIdx = d.Captions switch { "auto" => 1, "custom" => 2, _ => 0 };
+        var (capTrack, caps) = U.Segmented("dcap", capIdx, (null, Loc.L("Keine", "None")), (null, Loc.L("Abb. n: Überschrift", "Fig. n: heading")), (null, Loc.L("Eigene", "Custom")));
+        for (int i = 0; i < 3; i++) { string v = new[] { "none", "auto", "custom" }[i]; caps[i].Checked += (_, _) => DocChange(x => x.Captions = v); }
+        var figs = Check(Loc.L("Abbildungsverzeichnis am Ende", "List of figures at the end"), d.Figures, v => DocChange(x => x.Figures = v), Loc.L("Nur mit Bildunterschriften", "Only with captions"));
+        figs.Margin = new Thickness(0, 8, 0, 0);
+        build.Children.Add(U.Field(Loc.L("Bildunterschriften", "Captions"), U.Col(capTrack, figs), Loc.L("„Eigene“ nimmt den Text unter „Bild in der Anleitung“, sonst die Überschrift.", "“Custom” uses the text under “Image in the guide”, otherwise the heading."), new Thickness(0, 8, 0, 8)));
+        build.Children.Add(Check(Loc.L("Warnhinweise vor dem Schritttext", "Safety messages before the step text"), d.WarnFirst, v => DocChange(x => x.WarnFirst = v), Loc.L("GEFAHR, WARNUNG, VORSICHT und HINWEIS stehen vor der Handlung, auf die sie sich beziehen", "DANGER, WARNING, CAUTION and NOTICE appear before the action they refer to")));
         build.Children.Add(U.Field(Loc.L("Nummerierung der Schritte", "Step numbering"), numTrack, Loc.L("„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt unter „Einordnung“ an.", "“1.1” counts within chapters – you create chapters on the step under “Placement”."), new Thickness(0, 8, 0, 16)));
 
         // Bilder
@@ -464,7 +472,9 @@ sealed partial class ViewerWindow
         {
             var arr = e["comments"] as JsonArray ?? new JsonArray();
             id = NextId(e, "comments", "uc");
-            arr.Add(new JsonObject { ["id"] = id, ["anchor"] = anchor, ["kind"] = kind, ["text"] = "", ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" });
+            var nc = new JsonObject { ["id"] = id, ["anchor"] = anchor, ["kind"] = kind, ["text"] = "", ["createdUtc"] = Json.UtcNow(), ["by"] = "user", ["origin"] = "viewer" };
+            SetNoteKind(nc, kind);
+            arr.Add(nc);
             e["comments"] = arr;
             _focusCommentId = id;
         }, refill: false);
