@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 29 Redaktionsprüfung I | Stilregeln Q22–Q25, Q43 und Lesbarkeit Q39 für eigene Texte (abschaltbar über `QualityOptions.Style`), vollständige du-Form der automatischen Texte (genehmigte Korrektur) | erledigt; Trefferquote an echten Anleitungen (VE-26): offen |
 | 28 Bild-Editor II | Sprechblase, Stempel, Weichzeichnen, Kopieren/Einfügen von Zeichnungen zwischen Schritten, Duplizieren, Pfeiltasten, Umschalt-Zwang | erledigt; Mehrfachauswahl, Ausrichten, Einrasten am erkannten Text und „Bild kürzen“: offen |
 | 27 Seite und Layout | Rand, Kopf- und Fußzeile mit Feldern (Seite, Seiten, Kapitel, Variablen), Seitenumbrüche (Kapitel, Schritt, einzeln), „Erstellt mit“ abschaltbar, Layoutvorlagen; Version 0.14.0 | erledigt; vier einzelne Ränder und Dateieigenschaften folgen |
 | 26 Bausteine | Impressum, Änderungsverzeichnis und Glossar je Sprache mit Platzierung, Störungsbehebung als Textabschnitt mit Tabelle | erledigt; Glossarbegriffe im Text markieren (Q38): offen |

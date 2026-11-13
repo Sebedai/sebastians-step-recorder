@@ -702,6 +702,12 @@ Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt
 | Q19 | Hinweis | „Für diesen Schritt wurde keine Wirkung beobachtet.“ | `noEffect` | Prüfen, ob der Schritt nötig ist · ausblenden | – |
 | Q20 | Hinweis | „Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.“ | `stepNumberInComment` | Kommentar prüfen | – |
 | Q31 | Warnung | „Eine Variable ist nicht festgelegt …“ bzw. „Im Text steht noch ein Platzhalter (TODO, ???, XXX).“ – nur eigene Texte | `var`, `todo` | Text bearbeiten | – |
+| Q22 | Hinweis | „Ein Satz hat mehr als 25 Wörter …“ – nur eigene Texte (Paket 29) | `long` | Text bearbeiten | – |
+| Q23 | Hinweis | „Der Text beschreibt mehrere Handlungen („und dann …“) …“ | `multi` | Text bearbeiten | – |
+| Q24 | Hinweis | „Der Text duzt, die Anleitung siezt.“ bzw. umgekehrt (nur Deutsch) | `du`, `sie` | Text bearbeiten | – |
+| Q25 | Hinweis | „Füllwort „…“ – meist entbehrlich.“ | `filler` | Text bearbeiten | – |
+| Q43 | Hinweis | „Passiv in einer Anweisung …“ (Nummer, weil Q21 belegt ist) | `passive` | Text bearbeiten | – |
+| Q39 | Hinweis | „Die eigenen Texte sind schwer lesbar (Lesbarkeit n) …“ – Flesch-Amstad (Deutsch) unter 40 bzw. Flesch (Englisch) unter 50, ab 150 Wörtern | `readability` | – | – |
 | Q34 | Hinweis | „Dieses Bild hat keine eigene Bildunterschrift …“ – nur bei `captions: custom` | `caption` | Text bearbeiten | – |
 | Q32 | Warnung | „Ein Querverweis zeigt auf einen Schritt oder ein Kapitel, das nicht in der Anleitung steht.“ | `ref` | Text bearbeiten | – |
 | Q21 | Hinweis | „Die Anwendung brauchte nach diesem Schritt … bis sie bereit war.“ – Wartezeit (bereit, sonst Bild ruhig, sonst erste Reaktion) eines Hauptschritts ab 2 s (`Timing.SlowMs`; Paket 9 aus [12](12-entwickler-fahrplan.md)) | Schritt | Zum Schritt | – |

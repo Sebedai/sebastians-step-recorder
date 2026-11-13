@@ -27,6 +27,8 @@ public sealed class QualityOptions
     /// <summary>Darstellung (screen | window | crop); null = aus den Dokument-Einstellungen.</summary>
     public string? View { get; set; }
     public bool IncludeIgnored { get; set; }
+    /// <summary>Stilregeln und Lesbarkeit für eigene Texte (13, Paket 29).</summary>
+    public bool Style { get; set; } = true;
     public int MinW { get; set; } = 400;
     public int MinH { get; set; } = 225;
     public int MaxW { get; set; } = 2560;
@@ -75,6 +77,8 @@ public static class QualityCheck
         bool reordered = (view.Edits.Arr("order")?.Count ?? 0) > 0 || view.All.Any(s => s.Hidden) || view.Manual.Count > 0 || (view.Edits.Arr("merges")?.Count ?? 0) > 0 || (view.Edits.Obj("guide")?.Arr("append")?.Count ?? 0) > 0;
         var timeline = view.Steps.Arr("timeline") ?? new JsonArray();
         var personal = o.PersonalValues ?? DefaultPersonalValues();
+        string address = view.Edits.Obj("guide")?.Str("address") ?? "formal";
+        var readText = new List<string>();
         bool customCaptions = DocSettings.From(view.Edits.Obj("guide")).Captions == "custom";
         var shownTargets = steps.Select(x => "s" + x.Anchor).Concat(steps.Where(x => x.ChapterTitle is { Length: > 0 }).Select(x => "k" + x.Anchor)).ToHashSet();
         foreach (var m in steps.Where(x => x.Members != null)) foreach (var mm in m.Members!) shownTargets.Add("s" + mm.Anchor);
@@ -168,6 +172,20 @@ public static class QualityCheck
             // Q20
             if (reordered && s.Comments.Any(c => StepRef.IsMatch(c.Str("text") ?? "")))
                 Add("Q20", "hint", s, null, "Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.", "A comment mentions a step number that may have shifted.", "editText");
+            // Q22–Q25, Q43: Stil eigener Texte (Titel, Anleitungstext, Kapiteleinleitung, Hinweise)
+            if (o.Style && !s.Redacted)
+            {
+                var seen = new HashSet<string>();
+                void StyleOf(string? t, bool instr)
+                {
+                    foreach (var h in StyleRules.Check(t, lang, address, instr))
+                        if (seen.Add(h.Rule)) Add(h.Rule, "hint", s, h.Key, h.De, h.En, "editText");
+                }
+                StyleOf(s.AuthorBody, true);
+                StyleOf(s.ChapterText, false);
+                foreach (var c in s.Comments.Where(c => c.Str("by") != "mcp")) StyleOf(c.Str("text"), false);
+                if (s.AuthorBody != null || s.AuthorTitle != null) readText.Add(s.AuthorBody ?? "");
+            }
             // Q34: eigene Bildunterschriften verlangt, aber keine gesetzt (13, Paket 25)
             if (customCaptions && !s.Redacted && s.ShowImage != false && !s.TextSection && s.Caption == null && (s.PreFrame != null || s.PostFrame != null))
                 Add("Q34", "hint", s, "caption", "Dieses Bild hat keine eigene Bildunterschrift (es erscheint die Überschrift).", "This image has no custom caption (the heading is used).", "editText");
@@ -184,6 +202,9 @@ public static class QualityCheck
             prev = s;
         }
 
+        // Q39: Lesbarkeit eigener Texte (ab 150 Wörtern)
+        if (o.Style && Readability.Compute(readText, lang) is { Words: >= 150 } rd && rd.Score < (lang == "en" ? 50 : 40))
+            Add("Q39", "hint", null, "readability", $"Die eigenen Texte sind schwer lesbar (Lesbarkeit {rd.Score:0} – {rd.Level}). Kürzere Sätze und Wörter helfen.", $"The own texts are hard to read (readability {rd.Score:0}). Shorter sentences and words help.", "none");
         // Q13 für Dokumenttexte
         var guide = view.Edits.Obj("guide");
         if (guide != null)

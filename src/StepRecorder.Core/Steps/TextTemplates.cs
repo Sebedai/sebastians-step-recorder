@@ -815,7 +815,10 @@ public static class TextTemplates
         .Replace("Wählen Sie", "Wähle").Replace("Öffnen Sie", "Öffne").Replace("Wechseln Sie", "Wechsle").Replace("Ziehen Sie", "Ziehe").Replace("Zeigen Sie", "Zeige")
         .Replace("Scrollen Sie", "Scrolle").Replace("Aktivieren Sie", "Aktiviere").Replace("Deaktivieren Sie", "Deaktiviere").Replace("Markieren Sie", "Markiere")
         .Replace("Verschieben Sie", "Verschiebe").Replace("Warten Sie", "Warte").Replace("Halten Sie", "Halte").Replace("Beachten Sie", "Beachte")
-        .Replace(" Ihr ", " dein ").Replace(" Ihre ", " deine ").Replace("drücken Sie", "drücke").Replace("klicken Sie", "klicke");
+        .Replace(" Ihr ", " dein ").Replace(" Ihre ", " deine ").Replace("drücken Sie", "drücke").Replace("klicken Sie", "klicke")
+        // vollständige du-Form (13, genehmigte Korrektur)
+        .Replace("Ändern Sie", "Ändere").Replace("Vergrößern oder verkleinern Sie", "Vergrößere oder verkleinere").Replace("Bestätigen Sie", "Bestätige")
+        .Replace("Verwenden Sie", "Verwende").Replace("bevor Sie ziehen", "bevor du ziehst").Replace("bevor Sie loslassen", "bevor du loslässt");
 
     static string Neutral(string s) => s; // Neutrale Form: Vorlagen bleiben in der Sie-Form, wenn keine eigene Vorlage existiert
 }
