@@ -45,6 +45,33 @@ sealed partial class ViewerWindow
         if (quiet) QuietChange(Do); else Change(Do, refill: false);
     }
 
+    /// <summary>Formatierbares Textfeld (13, Paket 21), das beim Verlassen speichert: (Text, formatiert?).</summary>
+    RichEdit RichBox(string value, bool rich, Action<string, bool> save, string? placeholder = null, double minH = 48)
+    {
+        var r = new RichEdit(placeholder, minH, 4000, _view.Language, barAlways: false) { IsReadOnly = _view.Session.ReadOnly };
+        r.Load(value, rich);
+        r.Committed += (v, f) => save(v.TrimEnd(), f);
+        r.Left += () => _list.Focus();
+        return r;
+    }
+
+    /// <summary>Ist ein Hinweis als formatiert gespeichert (und nicht von einem Agenten)?</summary>
+    static bool ViewSessionRich(JsonObject c) => SessionView.IsRich(c);
+
+    /// <summary>Kennzeichen „formatiert“ eines Dokumenttexts in der Sprache der Ansicht.</summary>
+    static bool GuideFmt(JsonObject? guide, string key, string lang)
+        => lang != "de" && guide?.Obj("i18n")?.Obj(lang) is { } loc && loc.Str(key) is { Length: > 0 } ? loc.Obj("fmt")?.Int(key) == 1 : guide?.Obj("fmt")?.Int(key) == 1;
+
+    void SetGuideFmt(JsonObject e, string key, bool rich)
+    {
+        var g = GuideOf(e);
+        JsonObject holder = g;
+        if (_view.Language != "de") { var i18n = g["i18n"] as JsonObject ?? new JsonObject(); g["i18n"] = i18n; holder = i18n[_view.Language] as JsonObject ?? new JsonObject(); i18n[_view.Language] = holder; }
+        var fmt = holder["fmt"] as JsonObject;
+        if (rich) { fmt ??= new JsonObject(); fmt[key] = 1; holder["fmt"] = fmt; }
+        else if (fmt != null) { fmt.Remove(key); if (fmt.Count == 0) holder.Remove("fmt"); }
+    }
+
     /// <summary>Textfeld, das beim Verlassen speichert (nur wenn sich etwas geändert hat).</summary>
     TextBox CommitBox(string value, Action<string> save, string? placeholder = null, bool multi = false, double minH = 0)
     {
@@ -68,7 +95,7 @@ sealed partial class ViewerWindow
     void DocDetails()
     {
         _details.Children.Clear();
-        _editTitle = _editBody = null; _editAnchor = null;
+        _editTitle = null; _editBody = null; _editAnchor = null;
         var guide = _view.Edits.Obj("guide");
         string lang = _view.Language;
         var d = DocSettings.From(guide, lang);
@@ -111,11 +138,11 @@ sealed partial class ViewerWindow
 
         // Einleitung und Texte
         var texts = Section(Loc.L("Einleitung und Texte", "Introduction and texts"));
-        texts.Children.Add(U.Field(Loc.L("Einleitung", "Introduction"), CommitBox(GS("intro"), v => QuietChange(e => SetGuideText(e, "intro", v)), Loc.L("Wozu dient die Anleitung, was ist das Ergebnis?", "What is the guide for, and what is the result?"), true),
+        texts.Children.Add(U.Field(Loc.L("Einleitung", "Introduction"), RichBox(GS("intro"), GuideFmt(guide, "intro", lang), (v, rich) => QuietChange(e => { SetGuideText(e, "intro", v); SetGuideFmt(e, "intro", rich); }), Loc.L("Wozu dient die Anleitung, was ist das Ergebnis?", "What is the guide for, and what is the result?"), 64),
             Loc.L("Ziel und erwartetes Ergebnis der Aufnahme werden automatisch ergänzt.", "The goal and expected result of the recording are added automatically.")));
         texts.Children.Add(U.Field(Loc.L("Voraussetzungen", "Prerequisites"), CommitBox(d.Prerequisites, v => LocDocChange("prerequisites", v), Loc.L("Eine pro Zeile, z. B. Zugang zum Portal", "One per line, e.g. Access to the portal"), true),
             Loc.L("Erscheint als Aufzählung vor dem ersten Schritt.", "Appears as a list before the first step.")));
-        texts.Children.Add(U.Field(Loc.L("Abschluss", "Closing"), CommitBox(GS("outro"), v => QuietChange(e => SetGuideText(e, "outro", v)), Loc.L("z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", "e.g. Done! Questions? Service desk, phone …"), true)));
+        texts.Children.Add(U.Field(Loc.L("Abschluss", "Closing"), RichBox(GS("outro"), GuideFmt(guide, "outro", lang), (v, rich) => QuietChange(e => { SetGuideText(e, "outro", v); SetGuideFmt(e, "outro", rich); }), Loc.L("z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", "e.g. Done! Questions? Service desk, phone …"), 64)));
 
         // Aufbau
         var build = Section(Loc.L("Aufbau", "Structure"));

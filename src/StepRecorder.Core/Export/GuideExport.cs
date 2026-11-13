@@ -6,6 +6,7 @@ using System.Text.Json.Nodes;
 using StepRecorder.Data;
 using StepRecorder.Export.Formats;
 using StepRecorder.ReadLayer;
+using StepRecorder.Text;
 
 namespace StepRecorder.Export;
 
@@ -72,8 +73,12 @@ public sealed class GuideOptions
 public static partial class GuideExport
 {
     sealed record Item(ViewStep Step, string Number, string Anchor, string Title, string Text, byte[]? Png, int W, int H, List<(string kind, string text)> Notes, string Size,
-        RectangleF? Hot = null, byte[]? AfterPng = null, int AW = 0, int AH = 0);
-    sealed record Chapter(string Number, string Anchor, string Title, string Text);
+        RectangleF? Hot = null, byte[]? AfterPng = null, int AW = 0, int AH = 0, RichText? Body = null, List<RichText?>? NoteRich = null)
+    {
+        /// <summary>Formatierter Hinweis an Position <paramref name="i"/> oder null.</summary>
+        public RichText? NoteBody(int i) => NoteRich != null && i < NoteRich.Count ? NoteRich[i] : null;
+    }
+    sealed record Chapter(string Number, string Anchor, string Title, string Text, RichText? Body = null);
 
     /// <summary>Alles, was ein Dokument braucht – einmal gesammelt, für alle Formate gleich.</summary>
     sealed class Doc
@@ -88,6 +93,10 @@ public static partial class GuideExport
         public bool Compact, Checkboxes;
         /// <summary>Schritte aus angehängten Aufnahmen (ihre Anker gehören zu einer anderen Aufnahme).</summary>
         public HashSet<object> Foreign = new(ReferenceEqualityComparer.Instance);
+        /// <summary>Formatierte Einleitung und formatierter Abschluss (13, Paket 21).</summary>
+        public RichText? IntroRich, OutroRich;
+        /// <summary>Enthält die Anleitung formatierten Text? Dann kommen zusätzliche Stile hinzu.</summary>
+        public bool UsesRich => IntroRich != null || OutroRich != null || Blocks.Any(b => b is Chapter { Body: not null } || b is Item it && (it.Body != null || it.NoteRich?.Any(n => n != null) == true));
         public int StepCount => Blocks.OfType<Item>().Count();
         public bool HasChapters => Blocks.OfType<Chapter>().Any();
         public bool ShowToc => S.Toc && (HasChapters ? Blocks.Count >= 3 : StepCount >= 6);
@@ -135,11 +144,11 @@ public static partial class GuideExport
             case "mp4": Video(doc, outPath, o); break;
             case "bugreport": res.Text = BugReport(view, doc, outPath); break;
             case "tour":
-                File.WriteAllText(outPath, Tour(doc, o), new UTF8Encoding(false));
+                File.WriteAllText(outPath, WithRichCss(Tour(doc, o), doc.UsesRich), new UTF8Encoding(false));
                 if (new FileInfo(outPath).Length > 25L << 20) res.Notices.Add(lang == "de" ? "Die Klick-Tour ist größer als 25 MB – zum Verschicken ggf. den Bildausschnitt „Ausschnitt um die Aktion“ oder weniger Schritte wählen." : "The click tour is larger than 25 MB – for sending, consider the \"detail\" view or fewer steps.");
                 break;
             case "pptx": Pptx(doc, outPath, o); break;
-            default: File.WriteAllText(outPath, Html(doc, o), new UTF8Encoding(false)); break;
+            default: File.WriteAllText(outPath, WithRichCss(Html(doc, o), doc.UsesRich), new UTF8Encoding(false)); break;
         }
         res.Files.Add(outPath); res.Path = outPath;
         return res;
@@ -162,6 +171,11 @@ public static partial class GuideExport
         d.Subtitle = view.Clean(s.Subtitle);
         d.Intro = Intro(view, lang);
         d.Outro = view.Clean(DocSettings.GuideText(guide, "outro", lang) ?? "");
+        if (view.GuideRich("intro", lang) is { } ir) d.IntroRich = ir.AppendPlain(GoalLines(view, lang));
+        d.OutroRich = view.GuideRich("outro", lang);
+        // Formate ohne Formatierung (PowerPoint, GIF, Fehlerbericht) lesen den sichtbaren Text
+        if (d.IntroRich != null) d.Intro = PlainLines(d.IntroRich);
+        if (d.OutroRich != null) d.Outro = PlainLines(d.OutroRich);
         d.Logo = s.LogoBytes();
         d.Prereq = view.Clean(s.Prerequisites).Replace("\r", "").Split('\n').Select(x => x.Trim().TrimStart('-', '*', '•').Trim()).Where(x => x.Length > 0).ToList();
         string viewMode = o.View ?? s.View;
@@ -198,7 +212,7 @@ public static partial class GuideExport
             if (st.ChapterTitle is { Length: > 0 } ct)
             {
                 chap++; inChap = 0;
-                d.Blocks.Add(new Chapter(s.Numbering == "none" ? "" : chap.ToString(), $"k{chap}", ct, st.ChapterText ?? ""));
+                d.Blocks.Add(new Chapter(s.Numbering == "none" ? "" : chap.ToString(), $"k{chap}", ct, st.ChapterText ?? "", st.ChapterRich));
             }
             flat++;
             string number = s.Numbering switch
@@ -236,8 +250,11 @@ public static partial class GuideExport
                     if (cacheKey != null) o.ImageCache!.Put(cacheKey, (png, w, h, hot, afterPng, aw, ah));
                 }
             }
-            var notes = st.Comments.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).Where(n => n.Item2.Length > 0).ToList();
-            var item = new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah);
+            var shown = st.Comments.Where(c => (c.Str("text") ?? "").Length > 0).ToList();
+            var notes = shown.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).ToList();
+            List<RichText?>? noteRich = st.NoteRich == null ? null : shown.Select(c => c.Str("id") is { } id && st.NoteRich.TryGetValue(id, out var r) ? r : null).ToList();
+            var item = new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah,
+                st.AuthorBody != null && !st.Redacted ? st.BodyRich : null, noteRich);
             d.Blocks.Add(item);
             if (autoChapter != null) d.Foreign.Add(item);
         }
@@ -264,6 +281,16 @@ public static partial class GuideExport
     };
 
     static (double, double, double) Rgb(string hex) => (Convert.ToInt32(hex[..2], 16) / 255.0, Convert.ToInt32(hex[2..4], 16) / 255.0, Convert.ToInt32(hex[4..6], 16) / 255.0);
+
+    /// <summary>Ziel und erwartetes Ergebnis als Zeilen unter der Einleitung.</summary>
+    static string GoalLines(SessionView view, string lang)
+    {
+        var parts = new List<string>();
+        var goal = view.Goal();
+        if (goal?.Str("description") is { } d) parts.Add(Settings.OutText.T(lang, "Ziel: ", "Goal: ") + d);
+        if (goal?.Str("expected") is { } e) parts.Add(Settings.OutText.T(lang, "Erwartetes Ergebnis: ", "Expected result: ") + e);
+        return string.Join("\n", parts);
+    }
 
     static string Intro(SessionView view, string lang)
     {
@@ -370,7 +397,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             if (open) sb.Append("</ol></li>\n");
             sb.Append("</ol></nav>\n");
         }
-        if (d.Intro.Length > 0) sb.Append($"<section class=\"box\"><h2>{d.L("Über diese Anleitung", "About this guide")}</h2><p style=\"margin:0\">{P(d.Intro)}</p></section>\n");
+        if (d.IntroRich != null) sb.Append($"<section class=\"box\"><h2>{d.L("Über diese Anleitung", "About this guide")}</h2>{HtmlRich(d.IntroRich)}</section>\n");
+        else if (d.Intro.Length > 0) sb.Append($"<section class=\"box\"><h2>{d.L("Über diese Anleitung", "About this guide")}</h2><p style=\"margin:0\">{P(d.Intro)}</p></section>\n");
         if (d.Prereq.Count > 0) sb.Append($"<section class=\"box\"><h2>{d.L("Voraussetzungen", "Prerequisites")}</h2><ul>{string.Concat(d.Prereq.Select(x => $"<li>{e(x)}</li>"))}</ul></section>\n");
 
         string enlarge = d.L("Klicken zum Vergrößern", "Click to enlarge"), close = d.L("Klicken zum Schließen", "Click to close");
@@ -379,7 +407,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             if (b is Chapter c)
             {
                 sb.Append($"<h2 class=\"chapter\" id=\"{c.Anchor}\">{(c.Number.Length > 0 ? $"<span class=\"n\">{e(c.Number)}</span>" : "")}{e(c.Title)}</h2>\n");
-                if (c.Text.Length > 0) sb.Append($"<p class=\"chtext\">{P(c.Text)}</p>\n");
+                if (c.Body != null) sb.Append(HtmlRich(c.Body, "rt chtext")).Append('\n');
+                else if (c.Text.Length > 0) sb.Append($"<p class=\"chtext\">{P(c.Text)}</p>\n");
                 continue;
             }
             var it = (Item)b;
@@ -387,11 +416,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             sb.Append($"<section class=\"step{(side ? " side" : "")}\" id=\"{it.Anchor}\">\n<div>\n");
             sb.Append($"<h3>{(d.Checkboxes ? $"<input type=\"checkbox\" class=\"done\" aria-label=\"{d.L("erledigt", "done")}\">" : "")}{(it.Number.Length > 0 ? $"<span class=\"n\">{e(it.Number)}</span>" : "")}<span>{e(it.Title)}</span></h3>\n");
             if (it.Step.Redacted) sb.Append($"<p class=\"redacted\">{e(it.Text)}</p>\n");
+            else if (it.Body != null && it.Text.Length > 0) sb.Append(HtmlRich(it.Body)).Append('\n');
             else if (it.Text.Length > 0 && it.Text != it.Title) sb.Append($"<p>{P(it.Text)}</p>\n");
-            foreach (var (kind, text) in it.Notes)
+            for (int ni = 0; ni < it.Notes.Count; ni++)
             {
+                var (kind, text) = it.Notes[ni];
                 var (label, bar, _) = NoteStyle(kind, d.Lang);
-                sb.Append($"<div class=\"note\" style=\"--c:#{bar}\"><b>{e(label)}</b> {P(text)}</div>\n");
+                if (it.NoteBody(ni) is { } nr) sb.Append($"<div class=\"note\" style=\"--c:#{bar}\">{HtmlRich(nr, "rt", $"<b>{e(label)}</b> ")}</div>\n");
+                else sb.Append($"<div class=\"note\" style=\"--c:#{bar}\"><b>{e(label)}</b> {P(text)}</div>\n");
             }
             if (o.ShowEvidence) sb.Append($"<div class=\"ev\">{d.L("Beleg", "Evidence")}: {e(it.Step.EvidenceLevel)}</div>\n");
             if (!side) sb.Append("</div>\n");
@@ -411,7 +443,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             else if (side) sb.Append("</div>\n");
             sb.Append("</section>\n");
         }
-        if (d.Outro.Length > 0) sb.Append($"<section class=\"box outro\"><h2>{d.L("Abschluss", "Finally")}</h2><p style=\"margin:0\">{P(d.Outro)}</p></section>\n");
+        if (d.OutroRich != null) sb.Append($"<section class=\"box outro\"><h2>{d.L("Abschluss", "Finally")}</h2>{HtmlRich(d.OutroRich)}</section>\n");
+        else if (d.Outro.Length > 0) sb.Append($"<section class=\"box outro\"><h2>{d.L("Abschluss", "Finally")}</h2><p style=\"margin:0\">{P(d.Outro)}</p></section>\n");
         sb.Append($"<footer><span>{e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)}</span><span>{d.L("Erstellt mit", "Created with")} {AppInfo.DisplayName}</span></footer>\n</body>\n</html>\n");
         return sb.ToString();
     }
@@ -521,14 +554,16 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             x.Toc(d.L("Inhalt", "Contents"), d.Blocks.Select(b => b is Chapter c ? (Heading(c.Number, c.Title), 1, marks[b]) : (Heading(((Item)b).Number, ((Item)b).Title), 2, marks[b])));
             if (d.S.Cover) x.PageBreak();
         }
-        if (d.Intro.Length > 0) { x.Heading(d.L("Über diese Anleitung", "About this guide"), 1); x.Paragraph(d.Intro); }
+        if (d.IntroRich != null) { x.Heading(d.L("Über diese Anleitung", "About this guide"), 1); x.RichBlocks(d.IntroRich.Doc); }
+        else if (d.Intro.Length > 0) { x.Heading(d.L("Über diese Anleitung", "About this guide"), 1); x.Paragraph(d.Intro); }
         if (d.Prereq.Count > 0) { x.Heading(d.L("Voraussetzungen", "Prerequisites"), 1); foreach (var p in d.Prereq) x.Bullet(p); }
         foreach (var b in d.Blocks)
         {
             if (b is Chapter c)
             {
                 x.Heading(Heading(c.Number, c.Title), 1, marks[b]);
-                if (c.Text.Length > 0) x.Paragraph(c.Text);
+                if (c.Body != null) x.RichBlocks(c.Body.Doc);
+                else if (c.Text.Length > 0) x.Paragraph(c.Text);
                 continue;
             }
             var it = (Item)b;
@@ -541,8 +576,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                     return;
                 }
                 x.Heading(Heading(it.Number, it.Title), 2, marks[b]);
-                if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
-                foreach (var (kind, text) in it.Notes) { var (label, bar, fill) = NoteStyle(kind, d.Lang); x.Note(label, text, bar, fill); }
+                if (it.Body != null && it.Text.Length > 0) x.RichBlocks(it.Body.Doc);
+                else if (it.Text.Length > 0 && it.Text != it.Title) x.Paragraph(it.Text, italic: it.Step.Redacted);
+                for (int ni = 0; ni < it.Notes.Count; ni++)
+                {
+                    var (kind, text) = it.Notes[ni];
+                    var (label, bar, fill) = NoteStyle(kind, d.Lang);
+                    if (it.NoteBody(ni) is { } nr) x.NoteRich(label, nr.Doc, bar, fill); else x.Note(label, text, bar, fill);
+                }
             }
             void After(double maxW, double maxH)
             {
@@ -560,7 +601,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 After(mw, mh);
             }
         }
-        if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
+        if (d.OutroRich != null) { x.Heading(d.L("Abschluss", "Finally"), 1); x.RichBlocks(d.OutroRich.Doc); }
+        else if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
         x.Save(outPath);
     }
 
@@ -669,14 +711,15 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             pdf.NewPage();
         }
 
-        void Box(string heading, string text, IEnumerable<string>? bullets = null)
+        void Box(string heading, string text, IEnumerable<string>? bullets = null, RichText? rich = null)
         {
             pdf.Paragraph(heading.ToUpperInvariant(), 9, true, 0, 4, muted);
-            if (text.Length > 0) pdf.Paragraph(text, 10.5, false, 0, 4, ink);
+            if (rich != null) pdf.RichBlocks(rich.Doc, 10.5, 0, 4, ink);
+            else if (text.Length > 0) pdf.Paragraph(text, 10.5, false, 0, 4, ink);
             if (bullets != null) foreach (var x in bullets) pdf.Paragraph("•  " + x, 10.5, false, 6, 2, ink);
             pdf.Space(12);
         }
-        if (d.Intro.Length > 0) Box(d.L("Über diese Anleitung", "About this guide"), d.Intro);
+        if (d.Intro.Length > 0 || d.IntroRich != null) Box(d.L("Über diese Anleitung", "About this guide"), d.Intro, rich: d.IntroRich);
         if (d.Prereq.Count > 0) Box(d.L("Voraussetzungen", "Prerequisites"), "", d.Prereq);
 
         foreach (var b in d.Blocks)
@@ -691,7 +734,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 pdf.Paragraph(Heading(c.Number, c.Title), 17, true, 0, 4, acc);
                 pdf.Line(pdf.Margin, pdf.Y, pdf.Margin + cw, pdf.Y, acc, 1.2);
                 pdf.Space(10);
-                if (c.Text.Length > 0) pdf.Paragraph(c.Text, 10.5, false, 0, 10, ink);
+                if (c.Body != null) pdf.RichBlocks(c.Body.Doc, 10.5, 0, 10, ink);
+                else if (c.Text.Length > 0) pdf.Paragraph(c.Text, 10.5, false, 0, 10, ink);
                 continue;
             }
             var it = (Item)b;
@@ -732,7 +776,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 double maxW = cw - textW - 16;
                 double scale = Math.Min(Math.Min(maxW / jp.w, 360.0 / jp.h), 0.75);
                 imgW = jp.w * scale; imgH = jp.h * scale;
-                double textH = titleH + SimplePdf.MeasureText(it.Text, textW, 10.5) + 20;
+                double textH = titleH + (it.Body != null ? SimplePdf.MeasureRichDoc(it.Body.Doc, textW, 10.5) : SimplePdf.MeasureText(it.Text, textW, 10.5)) + 20;
                 if (top - Math.Max(imgH, textH) < pdf.Margin + 20) { pdf.NewPage(); top = pdf.Y; record[it.Anchor] = pdf.PageCount; }
             }
             pdf.SetY(top); pdf.Dest(it.Anchor);
@@ -744,7 +788,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             }
             pdf.SetY(top + 2);
             pdf.Paragraph(it.Title, 12.5, true, numW, 4, ink, textW - numW);
-            if (it.Text.Length > 0 && it.Text != it.Title) pdf.Paragraph(it.Text, 10.5, false, 0, 6, it.Step.Redacted ? muted : ink, textW);
+            if (it.Body != null && it.Text.Length > 0) pdf.RichBlocks(it.Body.Doc, 10.5, 0, 6, ink, textW);
+            else if (it.Text.Length > 0 && it.Text != it.Title) pdf.Paragraph(it.Text, 10.5, false, 0, 6, it.Step.Redacted ? muted : ink, textW);
             if (side)
             {
                 double afterText = pdf.Y;
@@ -752,10 +797,12 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 pdf.Image(jp.jpg, jp.w, jp.h, imgW, imgH, pdf.Margin + textW + 16);
                 pdf.SetY(Math.Min(afterText, top - imgH - 8));
             }
-            foreach (var (kind, text) in it.Notes)
+            for (int ni = 0; ni < it.Notes.Count; ni++)
             {
+                var (kind, text) = it.Notes[ni];
                 var (label, bar, fill) = NoteStyle(kind, d.Lang);
-                pdf.Callout(label, text, Rgb(bar), Rgb(fill));
+                if (it.NoteBody(ni) is { } nr) pdf.CalloutRich(label, nr.Doc, Rgb(bar), Rgb(fill));
+                else pdf.Callout(label, text, Rgb(bar), Rgb(fill));
             }
             if (hasImg && !side)
             {
@@ -773,7 +820,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             }
             pdf.Space(6);
         }
-        if (d.Outro.Length > 0) { pdf.Space(10); Box(d.L("Abschluss", "Finally"), d.Outro); }
+        if (d.Outro.Length > 0 || d.OutroRich != null) { pdf.Space(10); Box(d.L("Abschluss", "Finally"), d.Outro, rich: d.OutroRich); }
         return pdf;
     }
 

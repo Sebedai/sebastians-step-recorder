@@ -190,6 +190,8 @@ public sealed partial class SimpleDocx
             rels.Root!.Add(new XElement(Pr + "Relationship", new XAttribute("Id", "rIdSrStyles"), new XAttribute("Type", RelBase + "styles"), new XAttribute("Target", stylesPart[dir.Length..])));
             Override(stylesPart, "application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml");
         }
+        for (int i = 0; i < _links.Count; i++)
+            rels.Root!.Add(new XElement(Pr + "Relationship", new XAttribute("Id", $"rIdSrLink{i + 1}"), new XAttribute("Type", RelBase + "hyperlink"), new XAttribute("Target", _links[i]), new XAttribute("TargetMode", "External")));
         var map = MergeStyles(styles, ours);
         Put(stylesPart, Bytes(styles));
         Put(relsPart, Bytes(rels));
@@ -198,7 +200,7 @@ public sealed partial class SimpleDocx
         var doc = Load(_mainPart)!;
         string body = _body.ToString();
         body = Regex.Replace(body, "<w:(pStyle|rStyle) w:val=\"([^\"]*)\"/>", m => $"<w:{m.Groups[1].Value} w:val=\"{X(map.TryGetValue(m.Groups[2].Value, out var id) ? id : m.Groups[2].Value)}\"/>");
-        body = body.Replace("r:embed=\"rIdImg", "r:embed=\"rIdSrImg");
+        body = body.Replace("r:embed=\"rIdImg", "r:embed=\"rIdSrImg").Replace("r:id=\"rIdLink", "r:id=\"rIdSrLink");
         int maxPr = 0, maxBm = 0;
         foreach (var (n, data) in parts)
             if (n.EndsWith(".xml") && n.StartsWith(dir))

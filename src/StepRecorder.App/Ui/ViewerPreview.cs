@@ -31,7 +31,7 @@ sealed partial class ViewerWindow
     /// <summary>Umschalter „Bild | Seite“ für die Ansichtszeile über dem Bild.</summary>
     FrameworkElement BuildCenterModeToggle()
     {
-        var (track, btns) = U.Segmented("cmode", 0, (Theme.IImage, Loc.L("Bild", "Image")), (Theme.IDoc, Loc.L("Seite", "Page")));
+        var (track, btns) = U.Segmented("cmode", 0, (null, Loc.L("Bild", "Image")), (null, Loc.L("Seite", "Page")));
         _imgModeBtn = btns[0]; _pageModeBtn = btns[1];
         track.ToolTip = Loc.L("Bild bearbeiten oder die Seiten der fertigen Anleitung ansehen (Strg+F2)", "Edit the image or view the pages of the finished guide (Ctrl+F2)");
         btns[0].Checked += (_, _) => { if (IsLoaded && _pageMode) SetPageMode(false); };

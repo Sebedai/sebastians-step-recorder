@@ -50,11 +50,12 @@ sealed partial class ViewerWindow
     }
 
     /// <summary>Eigener Text eines zusammengefassten Schritts (je Sprache in <c>merges[].text</c>).</summary>
-    void SaveMergeText(string mergeId, string title, string body) => Change(e =>
+    void SaveMergeText(string mergeId, string title, string body, bool rich = false) => Change(e =>
     {
         if (MergeEdit(e, mergeId) is not { } m) return;
         var text = m["text"] as JsonObject ?? new JsonObject();
         text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
+        if (rich) ((JsonObject)text[_view.Language]!)["fmt"] = 1;
         m["text"] = text;
     });
 

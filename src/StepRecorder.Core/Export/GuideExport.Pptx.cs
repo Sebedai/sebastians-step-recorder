@@ -70,7 +70,7 @@ public static partial class GuideExport
             long bodyY = top + titleH + 300000, bodyH = H - bodyY - M - 200000;
             bool img = it.Png != null;
             long textW = img ? (long)((W - 2 * M) * 0.36) : W - 2 * M;
-            string text = it.Text.Length > 0 && it.Text != it.Title ? it.Text : "";
+            string text = it.Body != null && it.Text.Length > 0 ? PlainLines(it.Body) : it.Text.Length > 0 && it.Text != it.Title ? it.Text : "";
             // bis zu zwei Hinweiskästen unter dem Text, weitere hängen am Text
             var boxes = it.Notes.Take(2).ToList();
             foreach (var (kind, nt) in it.Notes.Skip(2)) text += (text.Length > 0 ? "\n" : "") + NoteStyle(kind, d.Lang).label + " " + nt;

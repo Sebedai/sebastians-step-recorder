@@ -175,6 +175,7 @@ public sealed partial class SimpleDocx
         for (int i = 0; i < _media.Count; i++)
             rels.Append($@"<Relationship Id=""rIdImg{i + 1}"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"" Target=""media/{_media[i].name}""/>");
         if (Footer != null) rels.Append(@"<Relationship Id=""rIdFooter1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"" Target=""footer1.xml""/>");
+        rels.Append(LinkRelationships());
         rels.Append("</Relationships>");
         if (Footer != null)
         {

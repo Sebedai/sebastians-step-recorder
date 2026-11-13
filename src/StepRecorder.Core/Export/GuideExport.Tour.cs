@@ -68,7 +68,8 @@ footer{color:var(--muted);font-size:.8em;margin-top:28px}
         if (d.Subtitle.Length > 0) b.Append("<p class=\"sub\">").Append(e(d.Subtitle)).Append("</p>\n");
         b.Append("<p class=\"text\">").Append(e(items.Count == 1 ? d.L("1 Schritt", "1 step") : $"{items.Count} {d.L("Schritte", "steps")}")).Append(" · ")
          .Append(e(d.L("Klicken Sie im Bild auf die markierte Stelle, um weiterzugehen.", "Click the marked spot in the image to continue."))).Append("</p>\n");
-        if (d.Intro.Length > 0) b.Append("<div class=\"box\">").Append(P(d.Intro)).Append("</div>\n");
+        if (d.IntroRich != null) b.Append("<div class=\"box\">").Append(HtmlRich(d.IntroRich)).Append("</div>\n");
+        else if (d.Intro.Length > 0) b.Append("<div class=\"box\">").Append(P(d.Intro)).Append("</div>\n");
         if (d.Prereq.Count > 0) b.Append("<div class=\"box\"><b>").Append(e(d.L("Voraussetzungen", "Prerequisites"))).Append("</b><ul>").Append(string.Concat(d.Prereq.Select(x => $"<li>{e(x)}</li>"))).Append("</ul></div>\n");
         b.Append("<nav><a class=\"next\" href=\"").Append(first).Append("\" accesskey=\"n\">").Append(e(d.L("Tour starten →", "Start tour →"))).Append("</a></nav>\n</section>\n");
 
@@ -79,11 +80,14 @@ footer{color:var(--muted);font-size:.8em;margin-top:28px}
             b.Append("<section class=\"slide\" id=\"").Append(it.Anchor).Append("\">\n<header>");
             if (it.Number.Length > 0) b.Append("<span class=\"n\">").Append(e(it.Number)).Append("</span>");
             b.Append("<h2>").Append(e(it.Title)).Append("</h2><span class=\"count\">").Append(e(Settings.OutText.For(d.Lang, $"{i + 1} von {items.Count}", $"{i + 1} of {items.Count}", $"{i + 1} sur {items.Count}", $"{i + 1} de {items.Count}", $"{i + 1} di {items.Count}", $"{i + 1} van {items.Count}"))).Append("</span></header>\n");
-            if (it.Text.Length > 0 && it.Text != it.Title) b.Append("<p class=\"text\">").Append(P(it.Text)).Append("</p>\n");
-            foreach (var (kind, text) in it.Notes)
+            if (it.Body != null && it.Text.Length > 0) b.Append(HtmlRich(it.Body, "rt text")).Append('\n');
+            else if (it.Text.Length > 0 && it.Text != it.Title) b.Append("<p class=\"text\">").Append(P(it.Text)).Append("</p>\n");
+            for (int ni = 0; ni < it.Notes.Count; ni++)
             {
+                var (kind, text) = it.Notes[ni];
                 var (label, _, _) = NoteStyle(kind, d.Lang);
-                b.Append("<div class=\"note k-").Append(NoteKind(kind)).Append("\"><b>").Append(e(label)).Append("</b> ").Append(P(text)).Append("</div>\n");
+                if (it.NoteBody(ni) is { } nr) b.Append("<div class=\"note k-").Append(NoteKind(kind)).Append("\">").Append(HtmlRich(nr, "rt", "<b>" + e(label) + "</b> ")).Append("</div>\n");
+                else b.Append("<div class=\"note k-").Append(NoteKind(kind)).Append("\"><b>").Append(e(label)).Append("</b> ").Append(P(text)).Append("</div>\n");
             }
             if (it.Png != null)
             {
@@ -98,7 +102,8 @@ footer{color:var(--muted);font-size:.8em;margin-top:28px}
 
         // Endseite
         b.Append("<section class=\"slide\" id=\"end\">\n<h1>").Append(e(d.L("Geschafft", "Done"))).Append("</h1>\n");
-        if (d.Outro.Length > 0) b.Append("<div class=\"box\">").Append(P(d.Outro)).Append("</div>\n");
+        if (d.OutroRich != null) b.Append("<div class=\"box\">").Append(HtmlRich(d.OutroRich)).Append("</div>\n");
+        else if (d.Outro.Length > 0) b.Append("<div class=\"box\">").Append(P(d.Outro)).Append("</div>\n");
         b.Append("<nav><a class=\"next\" href=\"").Append(first).Append("\">").Append(e(d.L("Von vorn", "Start again"))).Append("</a><a href=\"#start\">").Append(e(d.L("Übersicht", "Overview"))).Append("</a></nav>\n");
         b.Append("<footer>").Append(e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)).Append(" · ").Append(e(d.L("Erstellt mit ", "Created with "))).Append(e(AppInfo.DisplayName)).Append("</footer>\n</section>\n");
 

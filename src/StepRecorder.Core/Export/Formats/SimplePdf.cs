@@ -11,7 +11,7 @@ namespace StepRecorder.Export.Formats;
 /// mit ToUnicode, damit Kopieren und Suchen funktionieren). Nicht darstellbar bleiben Schriften mit Zeichenformung
 /// (Chinesisch/Japanisch/Koreanisch, Arabisch, Hebräisch, Thai) – sie erscheinen als „?“, mit genau einer Warnung.
 /// </summary>
-public sealed class SimplePdf
+public sealed partial class SimplePdf
 {
     /// <summary>A4 hoch in Punkt.</summary>
     public const double A4W = 595.28, A4H = 841.89;
@@ -98,6 +98,7 @@ public sealed class SimplePdf
         _cur = new StringBuilder();
         _pages.Add(_cur);
         _links.Add(new());
+        _uris.Add(new());
         Y = PageH - Margin;
     }
 
@@ -176,6 +177,9 @@ public sealed class SimplePdf
 
     /// <summary>Text in Läufen je Schrift: ein BT-Block, mehrere Tf/Tj (Tj rückt selbst weiter).</summary>
     void DrawTextTo(StringBuilder sb, double x, double y, string text, double size, bool bold, (double r, double g, double b)? color)
+        => DrawTextTo(sb, x, y, text, size, bold, color, false, false);
+
+    void DrawTextTo(StringBuilder sb, double x, double y, string text, double size, bool bold, (double r, double g, double b)? color, bool italic, bool mono)
     {
         var c = color ?? (0.1, 0.1, 0.1);
         sb.Append(F($"BT {c.r} {c.g} {c.b} rg {x} {y} Td "));
@@ -184,7 +188,7 @@ public sealed class SimplePdf
         void Flush()
         {
             if (run.Length == 0) return;
-            string res = curFont <= 0 ? (bold ? "F2" : "F1") : "U" + curFont;
+            string res = curFont <= 0 ? StdFont(bold, italic, mono) : "U" + curFont;
             sb.Append(F($"/{res} {size} Tf ")).Append(curFont <= 0 ? "(" + run + ")" : "<" + run + ">").Append(" Tj ");
             run.Clear();
         }
@@ -319,6 +323,9 @@ public sealed class SimplePdf
         var annots = _links.Select(l => l.Where(x => _dests.ContainsKey(x.dest)).Select(x => (x, obj: New())).ToList()).ToList();
         int outlineRoot = _outline.Count > 0 ? New() : 0;
         var outlineObjs = _outline.Where(o => _dests.ContainsKey(o.dest)).Select(o => (o.title, o.level, o.dest, obj: New())).ToList();
+        // Neu (13, Paket 21): weitere Standardschriften und Weblinks nur bei Gebrauch, nach allen bisherigen Objekten nummeriert
+        var stdObjs = StdFonts.Where(f => _stdUsed.Contains(f.res)).Select(f => (f.res, f.name, obj: New())).ToList();
+        var uriObjs = _uris.Select(l => l.Select(x => (x, obj: New())).ToList()).ToList();
 
         var ms = new MemoryStream();
         var offsets = new Dictionary<int, long>();
@@ -378,15 +385,18 @@ public sealed class SimplePdf
             Stream(imgObjs[i], $"/Type /XObject /Subtype /Image /Width {w} /Height {h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode", jpeg);
         }
         string xobjs = string.Join(" ", imgObjs.Select((o, i) => $"/Im{i} {o} 0 R"));
-        string fontRes = $"/F1 {f1} 0 R /F2 {f2} 0 R" + string.Concat(fonts.Select(f => $" /U{f.Key} {f.Value.type0} 0 R"));
+        string fontRes = $"/F1 {f1} 0 R /F2 {f2} 0 R" + string.Concat(fonts.Select(f => $" /U{f.Key} {f.Value.type0} 0 R")) + string.Concat(stdObjs.Select(f => $" /{f.res} {f.obj} 0 R"));
         for (int i = 0; i < _pages.Count; i++)
         {
             var (po, co) = pageObjs[i];
-            string ann = annots[i].Count > 0 ? $" /Annots [{string.Join(" ", annots[i].Select(a => $"{a.obj} 0 R"))}]" : "";
+            var annIds = annots[i].Select(a => a.obj).Concat(uriObjs[i].Select(a => a.obj)).ToList();
+            string ann = annIds.Count > 0 ? $" /Annots [{string.Join(" ", annIds.Select(a => $"{a} 0 R"))}]" : "";
             Obj(po, $"<< /Type /Page /Parent {pagesObj} 0 R /MediaBox [0 0 {F($"{PageW}")} {F($"{PageH}")}] /Resources << /Font << {fontRes} >> /XObject << {xobjs} >> >> /Contents {co} 0 R{ann} >>");
             Stream(co, "", Encoding.Latin1.GetBytes(_pages[i].ToString()));
             foreach (var (l, obj) in annots[i])
                 Obj(obj, F($"<< /Type /Annot /Subtype /Link /Rect [{Math.Round(l.x, 2)} {Math.Round(l.y, 2)} {Math.Round(l.x + l.w, 2)} {Math.Round(l.y + l.h, 2)}] /Border [0 0 0] /Dest {DestArr(l.dest)} >>"));
+            foreach (var (u, obj) in uriObjs[i])
+                Obj(obj, F($"<< /Type /Annot /Subtype /Link /Rect [{Math.Round(u.x, 2)} {Math.Round(u.y, 2)} {Math.Round(u.x + u.w, 2)} {Math.Round(u.y + u.h, 2)}] /Border [0 0 0] /A << /S /URI /URI {PdfTextString(u.url)} >> >>"));
         }
 
         if (outlineObjs.Count > 0)
@@ -408,6 +418,7 @@ public sealed class SimplePdf
             foreach (var t in tops) Item(t, tops, outlineRoot);
         }
 
+        foreach (var (res, name, obj) in stdObjs) Obj(obj, $"<< /Type /Font /Subtype /Type1 /BaseFont /{name} /Encoding /WinAnsiEncoding >>");
         long xref = ms.Position;
         W($"xref\n0 {next + 1}\n0000000000 65535 f \n");
         for (int n = 1; n <= next; n++) W($"{(offsets.TryGetValue(n, out var off) ? off : 0):D10} 00000 n \n");

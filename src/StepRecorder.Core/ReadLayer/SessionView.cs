@@ -21,6 +21,12 @@ public sealed class ViewStep
     public string Protocol = "";         // Protokollstil (KI)
     public string Guide = "";            // Anleitungsstil
     public string? AuthorTitle, AuthorBody;
+    /// <summary>Formatierter Anleitungstext (13, Paket 21); <see cref="AuthorBody"/> enthält dann den sichtbaren Text ohne Auszeichnung.</summary>
+    public StepRecorder.Text.RichText? BodyRich;
+    /// <summary>Formatierte Kapiteleinleitung; <see cref="ChapterText"/> enthält den sichtbaren Text.</summary>
+    public StepRecorder.Text.RichText? ChapterRich;
+    /// <summary>Formatierte Hinweise je Kennung (<c>comments[].id</c>); der Text im Hinweis ist dann der sichtbare Text.</summary>
+    public Dictionary<string, StepRecorder.Text.RichText>? NoteRich;
     /// <summary>Vor diesem Schritt beginnt ein Kapitel (Bedienungsanleitung).</summary>
     public string? ChapterTitle, ChapterText;
     /// <summary>Bild im Dokument zeigen (null = Standard) und Bildgröße (s|m|l|full, null = wie im Dokument).</summary>
@@ -258,7 +264,9 @@ public sealed partial class SessionView : IDisposable
         }
         foreach (var sb in Edits.Arr("substitutions") ?? new JsonArray())
         {
-            string ph = "{" + (sb.Str("placeholder") ?? "Wert") + "}";
+            // Platzhaltername geprüft (04 §13.14): ein fremder, unzulässiger Name wird nie Auszeichnung oder Ersetzungsmuster
+            string phName = (sb.Str("placeholder") ?? "Wert").Trim('{', '}', ' ');
+            string ph = PlaceholderName.IsMatch(phName) ? "{" + phName + "}" : RedactedText;
             var m = sb.Obj("match");
             var opts = sb.Bool("caseSensitive") ? RegexOptions.None : RegexOptions.IgnoreCase;
             var timeout = TimeSpan.FromMilliseconds(200);
@@ -335,12 +343,14 @@ public sealed partial class SessionView : IDisposable
         return cur is JsonValue v && v.TryGetValue<string>(out var s) ? s : null;
     }
 
+    static readonly Regex PlaceholderName = new(@"^[\p{L}\p{N}][\p{L}\p{N} _.\-]{0,39}$", RegexOptions.Compiled);
+
     /// <summary>Wendet Textschwärzungen und Verallgemeinerungen auf einen Text an.</summary>
     public string Clean(string? text)
     {
         if (string.IsNullOrEmpty(text)) return text ?? "";
         foreach (var r in _redactedStrings.OrderByDescending(s => s.Length)) text = text.Replace(r, RedactedText, StringComparison.Ordinal);
-        foreach (var (rx, ph) in _subst) { try { text = rx.Replace(text, ph); } catch { } }
+        foreach (var (rx, ph) in _subst) { try { text = rx.Replace(text, _ => ph); } catch { } }
         return MaskUnreviewed(text);
     }
 
@@ -410,7 +420,7 @@ public sealed partial class SessionView : IDisposable
             vs.PreFrame ??= s.Obj("frames").Str("pre");
             vs.PostFrame ??= s.Obj("frames").Str("post");
             vs.Monitor = s.Obj("frames").Str("m");
-            vs.Comments = comments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.Comments = comments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => CleanComment(c, vs)).ToList();
             vs.InternalComments = internalComments.Where(c => c.Long("anchor") == vs.Anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == vs.Anchor || (a.Str("frame") is { } f && (f == vs.PreFrame || f == vs.PostFrame))).ToList();
             if (vs.Kind == "comment" && IsHiddenComment(s.Obj("input").Long("refSeq"))) { vs.CommentHidden = true; vs.Hidden = true; }
@@ -468,7 +478,7 @@ public sealed partial class SessionView : IDisposable
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
-            vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
+            vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => CleanComment(c, vs)).ToList();
             vs.InternalComments = internalComments.Where(c => c.Long("anchor") == anchor).Select(c => (JsonObject)CleanNode(c)!).ToList();
             vs.Annotations = anns.Where(a => a.Long("anchor") == anchor || (a.Str("frame") is { } f && f == vs.PreFrame)).ToList();
             manual.Add(vs);
@@ -483,7 +493,12 @@ public sealed partial class SessionView : IDisposable
         var other = text?.Obj(OtherLanguage) ?? (Language is "de" or "en" ? null : text?.Obj("de"));
         vs.TranslationMissing = own == null && other != null;
         var txt = own ?? (AuthorTextFallback ? other : null);
-        if (txt != null) { vs.AuthorTitle = Clean(txt.Str("title")); vs.AuthorBody = Clean(txt.Str("body")); }
+        if (txt != null)
+        {
+            vs.AuthorTitle = Clean(txt.Str("title"));
+            if (IsRich(txt) && txt.Str("body") is { } rb) { vs.BodyRich = SealRich(rb); vs.AuthorBody = vs.BodyRich.Plain; }
+            else vs.AuthorBody = Clean(txt.Str("body"));
+        }
     }
 
     /// <summary>Kapitel am Schritt; Titel und Text je Sprache (chapter.en überschreibt für Englisch).</summary>
@@ -494,7 +509,10 @@ public sealed partial class SessionView : IDisposable
         string? title = loc?.Str("title") is { Length: > 0 } lt ? lt : ch.Str("title");
         if (title is not { Length: > 0 }) return;
         vs.ChapterTitle = Clean(title);
-        vs.ChapterText = Clean(loc?.Str("text") is { Length: > 0 } ltx ? ltx : ch.Str("text"));
+        bool own = loc?.Str("text") is { Length: > 0 };
+        string? text = own ? loc!.Str("text") : ch.Str("text");
+        if (IsRich(own ? loc : ch) && text != null) { vs.ChapterRich = SealRich(text); vs.ChapterText = vs.ChapterRich.Plain; }
+        else vs.ChapterText = Clean(text);
     }
 
     Glossary? _glossary;
@@ -661,12 +679,18 @@ public sealed partial class SessionView : IDisposable
         c.Comments = members.SelectMany(s => s.Comments).ToList();
         c.Guide = string.Join(" ", visible.Select(s => (s.AuthorBody ?? s.Guide).Trim()).Where(t => t.Length > 0));
         c.Protocol = string.Join(" ", visible.Select(s => s.Protocol.Trim()).Where(t => t.Length > 0));
-        c.AuthorTitle = null; c.AuthorBody = null; c.TranslationMissing = false;
+        c.AuthorTitle = null; c.AuthorBody = null; c.BodyRich = null; c.TranslationMissing = false;
+        if (members.Any(x => x.NoteRich != null)) c.NoteRich = members.Where(x => x.NoteRich != null).SelectMany(x => x.NoteRich!).GroupBy(kv => kv.Key).ToDictionary(g => g.Key, g => g.First().Value);
         var own = m.Text?.Obj(Language);
         var other = m.Text?.Obj(OtherLanguage) ?? (Language is "de" or "en" ? null : m.Text?.Obj("de"));
         var txt = own ?? (AuthorTextFallback ? other : null);
         c.TranslationMissing = own == null && other != null;
-        if (txt != null) { c.AuthorTitle = Clean(txt.Str("title")); c.AuthorBody = Clean(txt.Str("body")); }
+        if (txt != null)
+        {
+            c.AuthorTitle = Clean(txt.Str("title"));
+            if (IsRich(txt) && txt.Str("body") is { } rb) { c.BodyRich = SealRich(rb); c.AuthorBody = c.BodyRich.Plain; }
+            else c.AuthorBody = Clean(txt.Str("body"));
+        }
         else c.AuthorTitle = lead.AuthorTitle;
         return c;
     }

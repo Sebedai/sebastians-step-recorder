@@ -611,6 +611,25 @@ Für alle Formate:
 | Text mit U+202E | Umgekehrte Darstellung ohne Kennzeichnung |
 | `CON`, `a/b\c:d*?` (als Sitzungstitel) | Ungültiger oder gefährlicher Dateiname |
 
+### 11.1 Formatierter Text des Autors
+
+Eigene Texte können formatiert sein ([04 §13.18](04-datenformat.md#1318-formatierter-text-fmt)); aufgezeichnete Texte (Elementnamen, getippter Text, Fenstertitel) und automatische Texte sind es nie.
+
+| Auszeichnung | Bedeutung | HTML | Markdown | Word | PDF |
+|---|---|---|---|---|---|
+| `**Text**`, `*Text*` | fett, kursiv (nie mitten im Wort) | `<strong>`, `<em>` | wie Eingabe | Fett, Kursiv | Helvetica-Bold, Helvetica-Oblique |
+| `` `Text` `` | Eingabe, Code, Dateiname | `<code>` | Codespanne | Consolas, schattiert | Courier, schattiert |
+| `[[Strg+S]]` | Tasten | `<kbd>` je Taste | `<kbd>` | Rahmen, schattiert | Tastenkästchen |
+| `[[ui:Speichern]]` | Name eines Bedienelements | `<b class="ui">` | fett | fett | fett |
+| `[Text](https://…)` | Link – nur http, https, mailto | `<a rel="noopener noreferrer">` | Link | Hyperlink (extern) | Link-Anmerkung |
+| `- ` / `1. ` am Zeilenanfang | Aufzählung, Nummerierung | `<ul>`, `<ol>` | Liste | Absätze mit Marke | Marke und Einzug |
+
+- Leerzeile trennt Absätze, ein Zeilenumbruch bleibt ein Umbruch. `\` vor `* ` [ ]` (am Zeilenanfang auch vor `-` und Ziffern) macht ein Zeichen wörtlich; sonst ist ein Backslash wörtlich, damit Windows-Pfade unverändert bleiben.
+- **PowerPoint, GIF, Fehlerbericht** zeigen den Text ohne Formatierung; Listen erscheinen dort als Zeilen mit „•“ bzw. „1.“.
+- **KI-Paket, MCP, AutoHotkey, Suche und Qualitätsprüfung** lesen den sichtbaren Text ohne Auszeichnung.
+- Zusätzliche Stile (HTML) und Schriften (PDF) kommen nur in Anleitungen, die formatierten Text enthalten; alle anderen Ausgaben bleiben bytegleich.
+- **Schutz:** siehe [10 §10.4](10-datenschutz-und-sicherheit.md#104-die-leseschicht-erzwingt), Regel L14.
+
 ## 12 Export-Vorprüfung
 
 Vor jedem Export – im Dialog laufend, beim Ein-Klick-Export und auf der Kommandozeile einmalig – prüft das Programm die Sitzung. Die Regeln zu Eingaben und sensiblen Mustern legt [10](10-datenschutz-und-sicherheit.md#11-prüfung-vor-dem-export) fest; hier steht, wie der Export damit umgeht.
@@ -1052,6 +1071,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-195 | Klick-Tour | Soll | Die Datei enthält kein Skript und keine fremde Adresse; ein Klick auf die Klickfläche führt zum nächsten Schritt; die Druckansicht zeigt alle Schritte. |
 | EXP-196 | Fehlerbericht | Soll | Der Bericht enthält Zusammenfassung, Umgebung, Schritte, erwartetes und tatsächliches Ergebnis und Anhänge, aber nie Pfade, Kommandozeilen oder Prozessnummern; mit ungeprüften Eingaben entsteht er nicht. |
 | EXP-197 | GIF | Kann | Das GIF zeigt Titelbild und alle Schritte in der gewählten Dauer und läuft in Schleife. |
+| EXP-199 | Formatierter Text | Soll | Fett, kursiv, Eingabe, Tasten, Bedienelemente, Links und Listen erscheinen in HTML, Markdown, Word, PDF und Klick-Tour wie in 11.1; PowerPoint ohne Formatierung; KI-Paket und MCP ohne Auszeichnung. |
 | EXP-198 | Video (MP4) | Kann | Die Datei beginnt mit einer `ftyp`-Box, enthält `moov` und einen H.264-Videostrom mit gerader Breite und Höhe; ihre Dauer ist Titelbild plus gewählte Dauer je Schritt. Ohne H.264-Encoder entsteht keine Datei, und die Meldung nennt die fehlende Voraussetzung. |
 | EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |
 

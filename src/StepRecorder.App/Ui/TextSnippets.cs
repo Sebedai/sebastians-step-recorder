@@ -42,6 +42,25 @@ static class SnippetUi
         m.IsOpen = true;
     }
 
+    /// <summary>Menü für Felder, die selbst einfügen (formatiertes Textfeld).</summary>
+    public static void ShowMenu(Window owner, FrameworkElement placement, Action<string> insert)
+    {
+        var m = U.MenuScope(new ContextMenu { PlacementTarget = placement, Placement = PlacementMode.Bottom });
+        var snippets = AppSettings.Load().TextSnippets;
+        foreach (var sn in snippets)
+        {
+            var text = sn.Text;
+            var mi = U.Mi(sn.Name, null, () => insert(text), Theme.ISnippet);
+            mi.ToolTip = text.Length > 400 ? text[..400] + "…" : text;
+            m.Items.Add(mi);
+        }
+        if (snippets.Count == 0)
+            m.Items.Add(new MenuItem { Header = Loc.L("Noch keine Textbausteine", "No text snippets yet"), IsEnabled = false });
+        m.Items.Add(new Separator());
+        m.Items.Add(U.Mi(Loc.L("Textbausteine verwalten …", "Manage text snippets …"), null, () => Manage(owner), Theme.ISettings));
+        m.IsOpen = true;
+    }
+
     static void Insert(TextBox? box, TextBox? first, string before, int selStart, int selLen, string snippet, Action? after)
     {
         if (box == null || box.IsReadOnly || !box.IsEnabled) return;

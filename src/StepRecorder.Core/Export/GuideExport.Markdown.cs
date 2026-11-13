@@ -79,7 +79,8 @@ public static partial class GuideExport
             foreach (var c in d.Blocks.OfType<Chapter>()) sb.Append("- ").Append(MdText(Heading(c.Number, c.Title))).Append('\n');
             sb.Append('\n');
         }
-        if (d.Intro.Length > 0) { sb.Append("## ").Append(d.L("Über diese Anleitung", "About this guide")).Append("\n\n"); AppendParagraph(sb, d.Intro, null, ""); sb.Append('\n'); }
+        if (d.IntroRich != null) { sb.Append("## ").Append(d.L("Über diese Anleitung", "About this guide")).Append("\n\n"); AppendRichMd(sb, d.IntroRich, ""); sb.Append('\n'); }
+        else if (d.Intro.Length > 0) { sb.Append("## ").Append(d.L("Über diese Anleitung", "About this guide")).Append("\n\n"); AppendParagraph(sb, d.Intro, null, ""); sb.Append('\n'); }
         if (d.Prereq.Count > 0) sb.Append("## ").Append(d.L("Voraussetzungen", "Prerequisites")).Append("\n\n").Append(string.Concat(d.Prereq.Select(x => "- " + MdText(x) + "\n"))).Append('\n');
 
         int flat = 0;
@@ -88,7 +89,8 @@ public static partial class GuideExport
             if (b is Chapter c)
             {
                 sb.Append("## ").Append(MdText(Heading(c.Number, c.Title))).Append("\n\n");
-                if (c.Text.Length > 0) { AppendParagraph(sb, c.Text, null, ""); sb.Append('\n'); }
+                if (c.Body != null) { AppendRichMd(sb, c.Body, ""); sb.Append('\n'); }
+                else if (c.Text.Length > 0) { AppendParagraph(sb, c.Text, null, ""); sb.Append('\n'); }
                 continue;
             }
             var it = (Item)b;
@@ -110,10 +112,17 @@ public static partial class GuideExport
             {
                 Gap();
                 if (it.Step.Redacted) sb.Append(ind).Append('*').Append(MdText(it.Text)).Append("*\n");
+                else if (it.Body != null) AppendRichMd(sb, it.Body, ind);
                 else AppendParagraph(sb, it.Text, it.Step, ind);
             }
             if (!it.Step.Redacted && ConsoleBlock(it.Step) is { } cmd) { Gap(); AppendFence(sb, cmd, ind); }
-            foreach (var (kind, text) in it.Notes) { Gap(); AppendNote(sb, kind, text, dialect, d.Lang, ind); }
+            for (int ni = 0; ni < it.Notes.Count; ni++)
+            {
+                var (kind, text) = it.Notes[ni];
+                Gap();
+                if (it.NoteBody(ni) is { } nr) { var nb = new StringBuilder(); AppendRichMd(nb, nr, ""); AppendNote(sb, kind, nb.ToString().TrimEnd('\n'), dialect, d.Lang, ind, preformatted: true); }
+                else AppendNote(sb, kind, text, dialect, d.Lang, ind);
+            }
             if (it.Png != null && imgFolder != null && writeImage != null)
             {
                 string file = $"schritt-{flat:000}.png";
@@ -130,7 +139,8 @@ public static partial class GuideExport
             sb.Append('\n');   // lockere Liste: Leerzeile zwischen den Schritten
         }
         if (d.Compact || d.Checkboxes) sb.Append('\n');
-        if (d.Outro.Length > 0) { sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n"); AppendParagraph(sb, d.Outro, null, ""); sb.Append('\n'); }
+        if (d.OutroRich != null) { sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n"); AppendRichMd(sb, d.OutroRich, ""); sb.Append('\n'); }
+        else if (d.Outro.Length > 0) { sb.Append("## ").Append(d.L("Abschluss", "Finally")).Append("\n\n"); AppendParagraph(sb, d.Outro, null, ""); sb.Append('\n'); }
         if (d.S.Footer.Length > 0) sb.Append("---\n\n").Append(MdText(d.S.Footer)).Append('\n');
         // genau ein abschließender Zeilenumbruch
         return sb.ToString().TrimEnd('\n') + "\n";
@@ -149,8 +159,9 @@ public static partial class GuideExport
         }
     }
 
-    static void AppendNote(StringBuilder sb, string kind, string text, string dialect, string lang, string ind)
+    static void AppendNote(StringBuilder sb, string kind, string text, string dialect, string lang, string ind, bool preformatted = false)
     {
+        string Inl(string l) => preformatted ? l : MdInline(l, null);
         var (label, _, _) = NoteStyle(kind, lang);
         var lines = text.Replace("\r", "").Split('\n').Select(l => l.Trim()).ToList();
         switch (dialect)
@@ -170,8 +181,8 @@ public static partial class GuideExport
         }
         foreach (var l in lines)
         {
-            if (l.StartsWith('\u0001')) sb.Append(ind).Append("> **").Append(MdText(label)).Append("** ").Append(MdInline(l[1..], null)).Append('\n');
-            else sb.Append(ind).Append(l.Length == 0 ? ">" : "> " + MdInline(l, null)).Append('\n');
+            if (l.StartsWith('\u0001')) sb.Append(ind).Append("> **").Append(MdText(label)).Append("** ").Append(Inl(l[1..])).Append('\n');
+            else sb.Append(ind).Append(l.Length == 0 ? ">" : "> " + Inl(l)).Append('\n');
         }
     }
 

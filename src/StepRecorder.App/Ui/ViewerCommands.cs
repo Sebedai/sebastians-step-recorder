@@ -177,7 +177,7 @@ sealed partial class ViewerWindow
 
     void OnKey(object sender, KeyEventArgs e)
     {
-        bool inText = Keyboard.FocusedElement is TextBox;
+        bool inText = Keyboard.FocusedElement is System.Windows.Controls.Primitives.TextBoxBase;
         if (!inText && PageViewShown && _pageView!.HandleKey(e)) { e.Handled = true; return; }
         if (!inText && _zoom.HandleKey(e)) { e.Handled = true; return; }
         var key = e.Key == Key.System ? e.SystemKey : e.Key;

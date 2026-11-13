@@ -614,6 +614,8 @@ Ebenso erscheinen **ausgeblendete Kommentare** in keiner Ausgabe – weder in de
 - **Texte von KI-Agenten:** Schreibt ein Agent über den MCP-Server einen Schritttext ([06](06-ki-export-und-mcp.md)), trägt der Schritt das Kennzeichen „von KI-Agent geschrieben“ mit dem Namen des Programms und der Zeit. Solche Texte lassen sich einzeln oder gesammelt verwerfen; dann gilt wieder der automatische Text.
 - Getippter Text, Tastenfolgen und Elementnamen stammen aus der Aufzeichnung und werden im Schritttext nicht verändert; wer sie nicht zeigen will, schwärzt sie.
 
+**Formatieren** ([13](13-handbuch-fahrplan.md), Paket 21): Anleitungstext, Hinweise, Kapiteleinleitung, Einleitung und Abschluss sind formatierbare Felder. Eine Leiste über dem Feld (bei Hinweisen und Dokumenttexten nur, solange das Feld den Fokus hat) bietet fett (`Strg+B`), kursiv (`Strg+I`), Eingabe (`Strg+E`), Taste, Bedienelement, Aufzählung (`Strg+Umschalt+L`), Nummerierung (`Strg+Umschalt+N`), Link (`Strg+K`), „Formatierung entfernen“ und „</>“ für die Auszeichnung als Text. Eingefügt wird nur reiner Text; Unterstreichen, Schriftgröße und Ausrichtung gibt es bewusst nicht. Ohne Formatierung speichert das Feld reinen Text wie bisher. Die Überschrift bleibt ein einfaches Textfeld.
+
 ### 9.2 Aktionen
 
 | Aktion | Kürzel | Wirkung in der Anleitung |
@@ -1464,6 +1466,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-237 | Oberflächensprache | Soll | Mit der Oberflächensprache Englisch erscheinen alle Fenster und Meldungen englisch; Texte, die in die Aufnahme oder einen Export gelangen, folgen der Sprache der Anleitungstexte. |
 | VIE-239 | Seitenansicht | Soll | „Seite“ zeigt die Seiten des PDF-Exports; nach einer Textänderung ist die Seite bei einer mittleren Aufnahme in höchstens 1 s aktualisiert; Klick wählt den Schritt, Auswahl springt zur Stelle; ungeprüfte Eingaben erscheinen nur als Platzhalter. |
 | VIE-240 | Drucken | Soll | `Strg+P` druckt die Anleitung wie das PDF, nach der Durchsicht, mit Seitenbereich; Abbrechen hinterlässt nichts. |
+| VIE-241 | Formatierbare Textfelder | Soll | `Strg+B` im Anleitungstext zeigt sofort Fettdruck; nach dem Verlassen ist der Text mit `fmt: 1` gespeichert und erscheint fett in der Seitenansicht; ein Text ohne Formatierung wird ohne Kennzeichen gespeichert; Einfügen aus Word bringt nur den Text. |
 | VIE-238 | Terminal, Remote-Desktop, virtuelle Maschinen | Muss | Getipptes in diesen Fenstern ist prüfpflichtig; in der Schutzstufe „Streng“ ist es vollständig maskiert. Kennwortabfragen im Terminal werden nicht automatisch erkannt. |
 
 ## 18 Offene Punkte

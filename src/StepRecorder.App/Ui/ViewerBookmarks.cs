@@ -62,15 +62,16 @@ sealed partial class ViewerWindow
     /// </summary>
     void InsertSnippet()
     {
+        if (_editBody != null && _editBody.IsKeyboardFocusWithin && !_editBody.IsReadOnly) { SnippetForInline(false, _editBody); return; }
         if (Keyboard.FocusedElement is TextBox tb && !tb.IsReadOnly && tb != _search)
         {
-            if (tb == _editTitle || tb == _editBody) SnippetForInline(tb == _editTitle, tb);
+            if (tb == _editTitle) SnippetForInline(true, tb);
             else SnippetUi.ShowMenu(this, tb, () => tb, null);
             return;
         }
         if (Sel == null || _view.Session.ReadOnly) return;
         if (_detailTab != 0) _tabBtns[0].IsChecked = true;
-        Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { if (_editBody is { } body) { body.Focus(); body.CaretIndex = body.Text.Length; SnippetForInline(false, body); } });
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { if (_editBody is { } body) { body.FocusEnd(); SnippetForInline(false, body); } });
     }
 
     /// <summary>
@@ -78,7 +79,10 @@ sealed partial class ViewerWindow
     /// Detailbereich neu – darum wird das Feld erst beim Klick bestimmt.
     /// </summary>
     void SnippetForInline(bool title, FrameworkElement placement)
-        => SnippetUi.ShowMenu(this, placement, () => title ? _editTitle : _editBody, () => InlineCommit());
+    {
+        if (title) SnippetUi.ShowMenu(this, placement, () => _editTitle, () => InlineCommit());
+        else SnippetUi.ShowMenu(this, placement, text => { _editBody?.InsertText(text); InlineCommit(); });
+    }
 
     /// <summary>Knopf „Textbaustein“ unter dem Anleitungstext.</summary>
     Button SnippetButton()

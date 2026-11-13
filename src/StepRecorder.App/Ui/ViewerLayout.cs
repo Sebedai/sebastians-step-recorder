@@ -57,8 +57,9 @@ sealed partial class ViewerWindow
 
     // Direktbearbeitung von Überschrift und Text
     long? _editAnchor;
-    TextBox? _editTitle, _editBody;
-    string _editOrigTitle = "", _editOrigBody = "";
+    TextBox? _editTitle;
+    RichEdit? _editBody;
+    string _editOrigTitle = "";
 
     void BuildLayout()
     {
@@ -569,7 +570,7 @@ sealed partial class ViewerWindow
     {
         s = _view.All.FirstOrDefault(x => x.Id == s.Id) ?? s;   // nach dem Speichern sind die Listeneinträge veraltet
         _details.Children.Clear();
-        _editTitle = _editBody = null; _editAnchor = null;
+        _editTitle = null; _editBody = null; _editAnchor = null;
         if (_detailTab == 1)
         {
             if (_list.SelectedItems.Count > 1) _details.Children.Add(U.InfoBar(Loc.L("Mehrere Schritte ausgewählt", "Several steps selected"), Loc.F("Die technischen Angaben zeigen den ersten von {0} Schritten.", "The technical details show the first of {0} steps.", _list.SelectedItems.Count), false, new Thickness(0, 0, 0, 12)));
@@ -626,24 +627,26 @@ sealed partial class ViewerWindow
         bool ro = _view.Session.ReadOnly;
         _editAnchor = s.Anchor;
         _editOrigTitle = composite != null ? composite.AuthorTitle ?? composite.Title : s.AuthorTitle ?? s.Title;
-        _editOrigBody = composite != null ? composite.AuthorBody ?? composite.Guide : s.AuthorBody ?? s.Guide;
+        // Anleitungstext: formatiert (13, Paket 21) – formatierter Autorentext wird als Auszeichnung geladen, sonst als reiner Text
+        var bodySrc = composite ?? s;
+        string bodyText = bodySrc.BodyRich != null ? bodySrc.BodyRich.Doc.ToMarkup() : bodySrc.AuthorBody ?? bodySrc.Guide;
         _editTitle = new TextBox { Text = _editOrigTitle, FontSize = Theme.FsSub, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, IsReadOnly = ro, MaxLength = 300 };
-        _editBody = new TextBox { Text = _editOrigBody, FontSize = Theme.FsBody, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true, MinHeight = 96, VerticalContentAlignment = VerticalAlignment.Top, IsReadOnly = ro, MaxLength = 8000 };
-        TextBlock.SetLineHeight(_editBody, 21);
+        _editBody = new RichEdit(Loc.L("Anleitungstext", "Guide text"), 96, 8000, _view.Language) { IsReadOnly = ro, AutoCommit = false };
+        _editBody.Load(bodyText, bodySrc.BodyRich != null);
         var editTitle = _editTitle; var editBody = _editBody;
-        Spell(editTitle); Spell(editBody);
+        Spell(editTitle);
         editTitle.GotKeyboardFocus += (_, _) => _lastInlineTitle = true; editBody.GotKeyboardFocus += (_, _) => _lastInlineTitle = false;
         _lastInlineTitle = false;
-        editTitle.KeyDown += (_, e) => { if (e.Key == Key.Enter) { editBody.Focus(); editBody.CaretIndex = editBody.Text.Length; e.Handled = true; } };
-        foreach (var box in new[] { editTitle, editBody })
+        editTitle.KeyDown += (_, e) => { if (e.Key == Key.Enter) { editBody.FocusEnd(); e.Handled = true; } };
+        bool Inside(object? f) => f is DependencyObject d && (d == editTitle || d == editBody || editBody.IsAncestorOf(d) || (d is FrameworkContentElement fce && fce.Parent is DependencyObject p && editBody.IsAncestorOf(p)));
+        editTitle.LostKeyboardFocus += (_, e) => { if (Inside(e.NewFocus)) return; InlineCommit(); };
+        editBody.LostKeyboardFocus += (_, e) => { if (Inside(e.NewFocus)) return; InlineCommit(); };
+        editTitle.PreviewKeyDown += (_, e) =>
         {
-            box.LostKeyboardFocus += (_, e) => { if (e.NewFocus == editTitle || e.NewFocus == editBody) return; InlineCommit(); };
-            box.PreviewKeyDown += (_, e) =>
-            {
-                if (e.Key == Key.Escape) { editTitle.Text = _editOrigTitle; editBody.Text = _editOrigBody; _list.Focus(); e.Handled = true; }
-                else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { _list.Focus(); e.Handled = true; }
-            };
-        }
+            if (e.Key == Key.Escape) { editTitle.Text = _editOrigTitle; editBody.Revert(); _list.Focus(); e.Handled = true; }
+            else if (e.Key == Key.Enter && Keyboard.Modifiers == ModifierKeys.Control) { _list.Focus(); e.Handled = true; }
+        };
+        editBody.Left += () => { editTitle.Text = _editOrigTitle; _list.Focus(); };
         bool edited = composite?.MergeId is { } cmid ? MergeTextEdited(cmid) : s.AuthorTitle != null || s.AuthorBody != null;
         var textBox = Section(Loc.L("Text", "Text"), labelMargin: new Thickness(0, 4, 0, 8));
         textBox.Children.Add(U.Field(Loc.L("Überschrift", "Heading"), editTitle));
@@ -794,23 +797,27 @@ sealed partial class ViewerWindow
     void InlineCommit(bool now = false)
     {
         if (_editAnchor is not long anchor || _editTitle == null || _editBody == null || _editTitle.IsReadOnly) return;
-        string t = _editTitle.Text.Trim(), b = _editBody.Text.TrimEnd();
-        if (t == _editOrigTitle.Trim() && b == _editOrigBody.TrimEnd()) return;
+        string t = _editTitle.Text.Trim();
+        bool bodyChanged = _editBody.Changed(out var b, out var rich);
+        if (t == _editOrigTitle.Trim() && !bodyChanged) return;
         if (t.Length == 0) { _editTitle.Text = _editOrigTitle; return; }
-        _editOrigTitle = t; _editOrigBody = b;
-        if (now) SaveText(anchor, t, b);
-        else Dispatcher.BeginInvoke(DispatcherPriority.Background, () => SaveText(anchor, t, b));
+        b = b.TrimEnd();
+        _editOrigTitle = t; _editBody.MarkSaved(b, rich);
+        if (now) SaveText(anchor, t, b, rich);
+        else Dispatcher.BeginInvoke(DispatcherPriority.Background, () => SaveText(anchor, t, b, rich));
     }
 
-    void SaveText(long anchor, string title, string body)
+    void SaveText(long anchor, string title, string body, bool rich = false)
     {
         // führender Schritt einer Gruppe: der Text gehört dem zusammengefassten Schritt
-        if (anchor >= 0 && _view.MergeOf(anchor) is { lead: true } mg) { SaveMergeText(mg.id, title, body); return; }
+        if (anchor >= 0 && _view.MergeOf(anchor) is { lead: true } mg) { SaveMergeText(mg.id, title, body, rich); return; }
         Change(e =>
         {
             var se = StepEdit(e, anchor);
             var text = se["text"] as JsonObject ?? new JsonObject();
-            text[_view.Language] = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
+            var o = new JsonObject { ["title"] = title, ["body"] = body, ["by"] = "user", ["atUtc"] = Json.UtcNow() };
+            if (rich) o["fmt"] = 1;
+            text[_view.Language] = o;
             se["text"] = text;
         });
     }
@@ -1159,6 +1166,8 @@ sealed partial class ViewerWindow
         void Flush() { for (int i = 0; i < 6; i++) Dispatcher.Invoke(DispatcherPriority.ApplicationIdle, () => { }); }
         if (_list.Items.Count < 2) return;
         _list.SelectedIndex = 1;
+        // formatierter Anleitungstext (Paket 21)
+        if (Sel is { } rs) { SaveText(rs.Anchor, rs.AuthorTitle ?? rs.Title, Loc.L("Geben Sie **notiz.txt** ein und bestätigen Sie mit [[Eingabe]].\n- Dateityp: `Textdateien`\n- Ordner: [[ui:Dokumente]]", "Type **notiz.txt** and confirm with [[Enter]].\n- File type: `Text files`\n- Folder: [[ui:Documents]]"), true); Flush(); }
         _tabBtns[1].IsChecked = true; Flush(); save();
         _tabBtns[0].IsChecked = true;
         if (_currentMeta != null)

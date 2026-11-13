@@ -109,6 +109,7 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Re-record and replace a section** (Ctrl+R): mark steps and demonstrate the section again – the new steps take the place of the old ones. The old ones are kept, the seam is marked, Ctrl+Z undoes the replacement.
 - **Bookmarks** (Ctrl+Shift+L): mark steps with a star and filter by them.
 - **Text snippets** (Ctrl+Shift+B): insert frequently used texts into notes and step texts; managed under *Settings → General*.
+- **Formatted text:** the guide text, notes, introduction and closing support **bold** (Ctrl+B), *italic* (Ctrl+I), input such as `notes.txt` (Ctrl+E), keys such as Ctrl+S, names of buttons, links (Ctrl+K) as well as bulleted and numbered lists. The formatting appears in PDF, Word, HTML and Markdown; redactions and placeholders still apply everywhere.
 - **Find and replace** (Ctrl+H) across all headings, texts, notes and chapters.
 - **Automatically cleaned up:** When first opened, the editor hides superfluous steps – the click into a field right before typing, duplicate clicks on the same element, a window switch away and straight back, and entries that were deleted again. Nothing is deleted: Ctrl+Z undoes it, and under *⋯ → Clean up* you can see every suggestion with its reason.
 - **Better texts:** Menus appear as a path ("File › Save as"), ribbon buttons with their group. A **glossary** in the settings replaces technical names with your own (e.g. "SAP Easy Access=SAP start page").

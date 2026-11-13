@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 21 Formatierter Text | Auszeichnung in Autorentexten (fett, kursiv, Eingabe, Tasten, Bedienelemente, Links, Listen), Schutzreihenfolge in der Leseschicht, Darstellung in HTML, Markdown, Word, PDF, Klick-Tour; formatierbare Felder im Editor | erledigt; Bedienung mit Bildschirmleser von Hand offen |
 | 20 Fundament und Seitenansicht | Referenztest für bestehende Ausgaben, `PdfRaster` (Windows.Data.Pdf), `RenderPdf` mit Bildspeicher, Mitte „Bild \| Seite“, Auswahl in beide Richtungen, Drucken | erledigt; Drucken auf echtem Drucker von Hand offen |
 
 Die Vorab-Experimente VE-15 bis VE-23 brauchen echte Programme, Terminals und Hardware und liegen nicht vor; die Pakete sind durch automatische Tests mit synthetischen Aufnahmen belegt.

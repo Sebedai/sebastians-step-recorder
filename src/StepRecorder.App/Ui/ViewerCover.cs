@@ -182,7 +182,7 @@ sealed partial class ViewerWindow
         long anchor = s.Anchor;
         var notes = NotesOf(s);
         var box = Section(notes.Count > 0 ? Loc.F("Hinweise ({0})", "Notes ({0})", notes.Count) : Loc.L("Hinweise", "Notes"));
-        TextBox? focus = null;
+        RichEdit? focus = null;
         foreach (var c in notes)
         {
             string? cid = c.Str("id");
@@ -197,7 +197,12 @@ sealed partial class ViewerWindow
             del.MinHeight = 32; del.Padding = new Thickness(8, 5, 8, 5); del.Margin = new Thickness(0); del.IsEnabled = !ro;
             var head = new DockPanel { Margin = new Thickness(0, 0, 0, 8) };
             DockPanel.SetDock(del, Dock.Right); head.Children.Add(del); head.Children.Add(kinds);
-            var text = CommitBox(c.Str("text") ?? "", v => QuietChange(e => { if (e["comments"] is JsonArray arr) foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) x["text"] = v; }), Loc.L("Text des Hinweises", "Note text"), true, 44);
+            // Hinweistext formatierbar (13, Paket 21); gespeichert mit Kennzeichen fmt
+            var text = RichBox(c.Str("text") ?? "", ViewSessionRich(c), (v, rich) => QuietChange(e =>
+            {
+                if (e["comments"] is JsonArray arr)
+                    foreach (var x in arr.OfType<JsonObject>().Where(x => x.Str("id") == cid)) { x["text"] = v; if (rich) x["fmt"] = 1; else x.Remove("fmt"); }
+            }), Loc.L("Text des Hinweises", "Note text"), 44);
             if (cid != null && cid == _focusCommentId) focus = text;
             var stripe = new Border { Width = 4, CornerRadius = new CornerRadius(2), Background = barBrush, Margin = new Thickness(0, 2, 12, 2) };
             var inner = new DockPanel();
@@ -219,7 +224,7 @@ sealed partial class ViewerWindow
             add.HorizontalAlignment = HorizontalAlignment.Left; add.Margin = new Thickness(0, 0, 0, 12);
             box.Children.Add(add);
         }
-        if (focus != null) { _focusCommentId = null; var f = focus; Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { f.Focus(); f.BringIntoView(); }); }
+        if (focus != null) { _focusCommentId = null; var f = focus; Dispatcher.BeginInvoke(DispatcherPriority.Input, () => { f.FocusEnd(); f.BringIntoView(); }); }
     }
 
     /// <summary>Kapitel: Häkchen „Kapitel beginnt hier“, dann Titel und Einleitung.</summary>
@@ -237,7 +242,7 @@ sealed partial class ViewerWindow
         {
             var ct = CommitBox(s.ChapterTitle, v => { if (v.Length > 0) QuietChange(e => ChapterTarget(e, anchor)["title"] = v, refillLater: true); }, Loc.L("Titel des Kapitels", "Chapter title"));
             ct.FontWeight = FontWeights.SemiBold; ct.Margin = new Thickness(0, 8, 0, 0);
-            var cx = CommitBox(s.ChapterText ?? "", v => QuietChange(e => ChapterTarget(e, anchor)["text"] = v), Loc.L("Kurze Einleitung zum Kapitel (optional)", "Short chapter introduction (optional)"), true, 48);
+            var cx = RichBox(s.ChapterRich?.Doc.ToMarkup() ?? s.ChapterText ?? "", s.ChapterRich != null, (v, rich) => QuietChange(e => { var t = ChapterTarget(e, anchor); t["text"] = v; if (rich) t["fmt"] = 1; else t.Remove("fmt"); }), Loc.L("Kurze Einleitung zum Kapitel (optional)", "Short chapter introduction (optional)"), 48);
             cx.Margin = new Thickness(0, 6, 0, 0);
             p.Children.Add(ct); p.Children.Add(cx);
         }

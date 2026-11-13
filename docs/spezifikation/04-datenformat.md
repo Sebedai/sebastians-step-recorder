@@ -2434,6 +2434,26 @@ Regeln:
 ---
 
 <a id="cache"></a>
+### 13.18 Formatierter Text (`fmt`)
+
+Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-export.md#111-formatierter-text-des-autors), [13](13-handbuch-fahrplan.md) Paket 21). Gedeutet wird sie **nur**, wenn das Feld als formatiert gekennzeichnet ist; jeder Text ohne Kennzeichen bleibt wörtlich – so ändern sich bestehende Aufnahmen nicht.
+
+| Ort | Kennzeichen | Gilt für |
+|---|---|---|
+| `steps[].text.<lang>` | `"fmt": 1` | `body` (der Titel ist nie formatiert) |
+| `merges[].text.<lang>` | `"fmt": 1` | `body` |
+| `steps[].chapter`, `steps[].chapter.<lang>` | `"fmt": 1` | `text` der jeweiligen Sprache |
+| `comments[]` | `"fmt": 1` | `text` |
+| `guide` bzw. `guide.i18n.<lang>` | `"fmt": { "intro": 1, "outro": 1 }` | Einleitung, Abschluss je Feld |
+
+- Ein Text mit `by: "mcp"` (geschrieben von einem Agenten) bleibt immer wörtlich, auch mit Kennzeichen; ein unbekannter Wert von `fmt` gilt als „nicht formatiert“.
+- Neue optionale Felder: `schemaVersion` bleibt „1.0“. Programme bis 0.13 zeigen formatierte Texte mit ihren Zeichen (`**fett**`), verlieren aber nichts.
+- Der Editor setzt das Kennzeichen nur, wenn der Text tatsächlich Formatierung enthält; sonst speichert er reinen Text ohne Kennzeichen.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-084 | Auszeichnung wird nur bei `fmt: 1` und nicht bei `by: "mcp"` gedeutet; alle übrigen Texte bleiben wörtlich. | Muss | Ein alter Text mit `*`, `[`, `` ` `` ergibt dieselbe Ausgabe wie vorher (`LegacyOutputTests`); ein Agententext mit `**x**` zeigt die Sterne |
+
 ## 14. `cache/`, `history/` und `export/`
 
 **`cache/`** enthält ausschließlich Daten, die sich aus der Sitzung wiederherstellen lassen. Der Ordner darf jederzeit gelöscht werden und wird nicht in `.steprec` gepackt.

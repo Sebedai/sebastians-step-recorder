@@ -41,7 +41,7 @@ sealed partial class ViewerWindow
     {
         var steps = SelSteps;
         _details.Children.Clear();
-        _editTitle = _editBody = null; _editAnchor = null;
+        _editTitle = null; _editBody = null; _editAnchor = null;
         bool ro = _view.Session.ReadOnly;
         _details.Children.Add(U.Heading(Loc.N(steps.Count, "1 Schritt ausgewählt", "{0} Schritte ausgewählt", "1 step selected", "{0} steps selected"), Theme.FsTitle, new Thickness(0, 4, 0, 4)));
         _details.Children.Add(U.Hint(Loc.L("Strg+Klick wählt einzelne Schritte dazu, Umschalt+Klick einen Bereich. Alles hier gilt für alle ausgewählten Schritte.", "Ctrl+click adds single steps, Shift+click a range. Everything here applies to all selected steps.")));
