@@ -77,6 +77,8 @@ static class SettingsPage
         var hotkeys = new HotkeyEditor(s.EffectiveHotkeys());
         var glossary = new TextBox { Text = string.Join(Environment.NewLine, s.Glossary), AcceptsReturn = true, Height = 74, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = Theme.FsHint,
             ToolTip = Loc.L("Eine Ersetzung je Zeile, z. B.  Text-Editor=Editor  oder  SAP Easy Access=SAP-Startseite", "One replacement per line, e.g.  Text-Editor=Editor  or  SAP Easy Access=SAP-Startseite") };
+        var keepAsk = new CheckBox { Content = new TextBlock { Text = Loc.L("Beim Schließen einer neuen Aufnahme fragen, ob sie behalten oder verworfen wird", "When closing a new recording, ask whether to keep or discard it"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.AskKeepOnClose, Margin = new Thickness(0, 8, 0, 0),
+            ToolTip = Loc.L("Verworfene Aufnahmen kommen in den Papierkorb – so sammeln sich keine Probeaufnahmen an.", "Discarded recordings go to the recycle bin – so test recordings do not pile up.") };
         var cleanup = new CheckBox { Content = new TextBlock { Text = Loc.L("Neue Aufnahmen beim ersten Öffnen aufräumen (doppelte Klicks, Klick vor der Eingabe, Fensterwechsel hin und zurück)", "Clean up new recordings when first opened (double clicks, click before typing, switching windows back and forth)"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.AutoCleanup, Margin = new Thickness(0, 8, 0, 0),
             ToolTip = Loc.L("Überflüssige Schritte werden nur ausgeblendet, nicht gelöscht – im Editor rückgängig mit Strg+Z oder über ⋯ › Aufräumen.", "Unnecessary steps are only hidden, not deleted – undo in the editor with Ctrl+Z or via ⋯ › Clean up.") };
         var updates = new CheckBox { Content = Loc.L("Beim Start nach einer neuen Version suchen", "Check for a new version at startup"), IsChecked = s.CheckUpdates, VerticalAlignment = VerticalAlignment.Center,
@@ -110,7 +112,7 @@ static class SettingsPage
                                   U.Field(Loc.L("Countdown vor der Aufnahme", "Countdown before recording"), countdown, Loc.L("Bei ausgeblendeter Anzeige mindestens 3 Sekunden.", "At least 3 seconds with hidden display.")),
                                   U.Field(Loc.L("Signaltöne", "Sound cues"), sounds, Loc.L("Bei Start, Stopp, Pause, Markern und Erinnerungen.", "On start, stop, pause, markers and reminders.")),
                                   U.Field(Loc.L("Erinnerung, wenn keine Eingabe kommt", "Reminder when there is no input"), idle, Loc.L("Erinnert nur – die Aufnahme läuft weiter.", "Only reminds – recording continues.")),
-                                  U.Field(Loc.L("Erinnerung „Privattaste noch an“", "Reminder \"privacy key still on\""), priv), new Border()), fallback, cleanup);
+                                  U.Field(Loc.L("Erinnerung „Privattaste noch an“", "Reminder \"privacy key still on\""), priv), new Border()), fallback, cleanup, keepAsk);
         var keys = U.Col(U.Hint(Loc.L("Diese Tastenkürzel gelten systemweit während der Aufnahme. „Sofort aufnehmen“ startet auch ohne geöffnetes Fenster eine Aufnahme.", "These shortcuts work system-wide during recording. \"Record now\" also starts a recording without an open window."), new Thickness(0, 0, 0, 12)), hotkeys);
         var custom = U.Col(U.Hint(Loc.L("Gilt nur für den Modus „Eigene“ – die anderen Modi haben einen festen Detailgrad.", "Applies to the \"Custom\" mode only – the other modes have a fixed level of detail."), new Thickness(0, 0, 0, 12)),
                            RecordChoice.Build(rec, null), U.Field(Loc.L("Zusatzbilder ohne Eingabe", "Extra images without input"), U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
@@ -182,7 +184,7 @@ static class SettingsPage
             s.IdleReminderMinutes = idleValues[Math.Max(0, idle.SelectedIndex)];
             s.PrivacyReminderSeconds = privValues[Math.Max(0, priv.SelectedIndex)];
             s.Glossary = glossary.Text.Split('\n').Select(x => x.Trim()).Where(x => x.Contains('=') && x.Length > 2).ToList();
-            s.AutoCleanup = cleanup.IsChecked == true; s.CheckUpdates = updates.IsChecked == true;
+            s.AutoCleanup = cleanup.IsChecked == true; s.AskKeepOnClose = keepAsk.IsChecked == true; s.CheckUpdates = updates.IsChecked == true;
             s.EventLogText = evText.IsChecked == true; s.ClipboardContent = clip.IsChecked == true; s.LogFiles = newLogs; s.StayInTray = tray.IsChecked == true;
             s.Excluded = newExcl;
             s.Hotkeys = new Dictionary<string, string>(hotkeys.Map);

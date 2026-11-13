@@ -23,6 +23,7 @@ sealed class UiApp : Application
             if (args.Length > 0 && args[0] == "record") return SingleInstance.WaitForForwardedRecording(args.Contains("--json"));
             return 0;
         }
+        _firstRun = !File.Exists(AppPaths.SettingsFile);
         Loc.Init(AppSettings.Load().UiLanguage, applyToThreads: true);
         AppLog.InstallCrashHandlers(TryEmergencyStop);
         var app = new UiApp { ShutdownMode = ShutdownMode.OnExplicitShutdown };
@@ -44,8 +45,16 @@ sealed class UiApp : Application
         _cliRecord = args.Length > 0 && args[0] == "record";
         _cliJson = args.Contains("--json");
         _cliRecordOnly = _cliRecord && Array.IndexOf(args, "--after-stop") is int ai && ai >= 0 && ai + 1 < args.Length && args[ai + 1] == "none";
+        // Ersteinrichtung: nur beim normalen Start ohne Befehl
+        if ((args.Length == 0 || args[0] == "--activate") && FirstRunDialog.ShowIfFirstRun(_firstRun))
+        {
+            Resources.MergedDictionaries.Clear();
+            Theme.Init(this);
+        }
         HandleArgs(args);
     }
+
+    static bool _firstRun;
 
     /// <summary>Diese Instanz wurde mit <c>record</c> gestartet: beim Ende der ersten Aufnahme den Pfad ausgeben (02 §8.4).</summary>
     bool _cliRecord, _cliJson;
@@ -131,6 +140,7 @@ sealed class UiApp : Application
         var s = AppSettings.Load();
         string folder = StepRecorder.ReadLayer.QuickShot.Create(AppPaths.DefaultSessionsFolder(), bmp, s.Language);
         var v = OpenViewer(folder);
+        v.FreshRecording = true;
         v.SelectFirstStep();
     }
 
@@ -305,6 +315,7 @@ sealed class UiApp : Application
                 case "folder": System.Diagnostics.Process.Start("explorer.exe", $"\"{folder}\""); ShowStart(); break;
                 default:
                     var viewer = OpenViewer(folder);
+                    viewer.FreshRecording = true;
                     if (o.AfterStop == "supportPackage") viewer.StartSupportFlow();
                     else if (o.AfterStop == "viewerError") viewer.JumpToFailure();
                     else if (o.AfterStop == "export") viewer.ShowExportDialog("ki");

@@ -72,6 +72,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         _imgCaption.Foreground = Theme.Fg2;
         _imgCaptionPill = new Border { Padding = new Thickness(0), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0), IsHitTestVisible = false };
         Load();
+        Closing += AskKeepOnClosing;
         BuildLayout();
         Activated += (_, _) => InstallTextSources();
         InstallTextSources();
@@ -645,5 +646,5 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     void ToggleBeforeAfter() => (_showAfter ? _beforeBtn : _afterBtn).IsChecked = true;
     void TogglePlay() { if (_play.IsEnabled) StopPlay(); else { if (_list.SelectedIndex >= _list.Items.Count - 1) _list.SelectedIndex = 0; _play.Start(); _playIcon.Text = Theme.IPause; } }
 
-    protected override void OnClosed(EventArgs e) { base.OnClosed(e); _play.Stop(); _currentMeta?.Dispose(); _view.Dispose(); }
+    protected override void OnClosed(EventArgs e) { base.OnClosed(e); _play.Stop(); _currentMeta?.Dispose(); _view.Dispose(); DiscardAfterClose(); }
 }

@@ -126,6 +126,8 @@ public sealed class AppSettings
     public int PrivacyReminderSeconds { get; set; } = 60;
     /// <summary>Beim ersten Öffnen einer Aufnahme überflüssige Schritte automatisch ausblenden.</summary>
     public bool AutoCleanup { get; set; } = true;
+    /// <summary>Beim Schließen einer frisch aufgenommenen Aufnahme fragen: behalten oder verwerfen.</summary>
+    public bool AskKeepOnClose { get; set; } = true;
     /// <summary>Begriffsliste für automatische Texte: „Fundstelle=Ersatz“ je Zeile (z. B. Firmenwörter).</summary>
     public List<string> Glossary { get; set; } = new();
     /// <summary>Beim Start nach einer neuen Version auf GitHub suchen (Standard aus: das Programm bleibt offline).</summary>
