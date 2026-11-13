@@ -1,0 +1,47 @@
+# Handbuch Test
+
+## Zusammenfassung
+
+Diese Anleitung zeigt den Ablauf\.
+
+## Umgebung
+
+- Monitor M1: 200 × 100, 100 % (Hauptmonitor)
+- Programme: `notepad.exe`
+- Aufgenommen: 11.11.2026 14:30 mit Sebastians Step Recorder test
+
+## Schritte zum Nachstellen
+
+1. **Menüpunkt „Datei“ wählen** – Wählen Sie den Menüpunkt „Datei“\.
+   > **Wichtig:** Vorher speichern\!
+   ![Schritt 1](bilder/schritt-001.png)
+2. **Speichern unter wählen** – Wählen Sie \*Speichern unter\* – siehe \[Hilfe\]\(https://example\.org\)\. Zweite Zeile mit \`Code\`\.
+   > **Achtung:** Nicht \*\*schließen\*\*\.
+   ![Schritt 2](bilder/schritt-002.png)
+3. **Kommentar** – Kanarie\-Kommentar\-7Q2 – nur intern
+   ![Schritt 3](bilder/schritt-003.png)
+4. **Lücke: Pause** – Hinweis: Die Aufnahme war angehalten\.
+   ![Schritt 4](bilder/schritt-004.png)
+
+## Erwartetes Ergebnis
+
+- So soll es sein (bei 00:00:10)
+
+## Tatsächliches Ergebnis
+
+_(bitte ergänzen)_
+
+## Anhänge
+
+- bilder/schritt-001.png
+- bilder/schritt-002.png
+- bilder/schritt-003.png
+- bilder/schritt-004.png
+
+---
+Erstellt mit Sebastians Step Recorder
+
+#file bilder/schritt-001.png
+#file bilder/schritt-002.png
+#file bilder/schritt-003.png
+#file bilder/schritt-004.png

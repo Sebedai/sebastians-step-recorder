@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data:; style-src 'unsafe-inline'">
+<title>Handbuch Test</title>
+<style>
+:root{--accent:#C2410C}
+:root{--fg:#1c1b19;--muted:#6b6962;--line:#dedcd5;--bg:#fff;--soft:#f6f5f1}
+@media (prefers-color-scheme:dark){:root{--fg:#ecebe7;--muted:#a3a19a;--line:#36352f;--bg:#161615;--soft:#1f1f1d;--accent:color-mix(in srgb,var(--accent) 65%,white)}}
+*{box-sizing:border-box}
+body{font-family:"Segoe UI",system-ui,sans-serif;max-width:1000px;margin:0 auto;padding:32px 20px 48px;color:var(--fg);background:var(--bg);line-height:1.55}
+h1{font-size:2em;line-height:1.2;margin:0 0 6px;color:var(--accent)} .sub{font-size:1.2em;color:var(--muted);margin:0 0 18px}
+.cover{min-height:88vh;display:flex;flex-direction:column;justify-content:center;border-left:6px solid var(--accent);padding:0 0 0 28px;margin-bottom:32px}
+.cover h1{font-size:2.6em} img.logo{max-height:64px;max-width:240px;display:block;margin:0 0 22px} header img.logo{max-height:44px;margin-bottom:14px}
+.cover img.logo{max-height:90px;max-width:320px;margin-bottom:40px}
+.meta{display:flex;flex-wrap:wrap;gap:6px 22px;color:var(--muted);font-size:.9em;margin:0 0 26px}
+.meta b{color:var(--fg);font-weight:600;margin-left:6px}
+.box{background:var(--soft);border-radius:6px;padding:14px 18px;margin:0 0 22px}
+.box h2{font-size:1em;margin:0 0 6px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.box ul{margin:4px 0 0;padding-left:20px}
+nav.toc ol{list-style:none;padding:0;margin:4px 0 0} nav.toc li{margin:3px 0} nav.toc ol ol{padding-left:22px}
+nav.toc a{color:var(--fg);text-decoration:none} nav.toc a:hover{color:var(--accent)} nav.toc .n{display:inline-block;min-width:3em;color:var(--accent);font-variant-numeric:tabular-nums}
+h2.chapter{font-size:1.5em;margin:40px 0 6px;padding-bottom:8px;border-bottom:2px solid var(--accent)} h2.chapter .n{color:var(--accent);margin-right:12px}
+.chtext{color:var(--fg);margin:0 0 6px}
+.step{border-top:1px solid var(--line);padding:20px 0;break-inside:avoid}
+.step h3{font-size:1.12em;margin:0 0 6px;display:flex;gap:12px;align-items:baseline}
+.step h3 .n{flex:none;min-width:2.2em;height:1.9em;line-height:1.9em;padding:0 .5em;border-radius:5px;background:var(--accent);color:#fff;font-size:.85em;text-align:center;font-variant-numeric:tabular-nums}
+.step p{margin:0 0 8px}
+.step.side{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:24px;align-items:start}
+figure{margin:10px 0 0} figure img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block}
+figcaption{color:var(--muted);font-size:.85em;margin:0 0 4px}
+.note{border-left:4px solid var(--c);background:color-mix(in srgb,var(--c) 10%,var(--bg));padding:8px 12px;margin:8px 0;border-radius:3px}
+.note b{color:var(--c)}
+.ev{color:var(--muted);font-size:.85em} .redacted{color:var(--muted);font-style:italic}
+.outro{margin-top:28px}
+footer{margin-top:36px;padding-top:12px;border-top:1px solid var(--line);color:var(--muted);font-size:.85em;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.zoom{display:block;position:relative;cursor:zoom-in}
+.zoom input{position:absolute;opacity:0;pointer-events:none;width:0;height:0}
+.zoom .zh{display:block;color:var(--muted);font-size:.8em;margin-top:3px}
+.zoom input:checked+img{position:fixed;inset:0;margin:auto;max-width:96vw;max-height:94vh;width:auto;height:auto;z-index:11;border:0;border-radius:6px;cursor:zoom-out}
+.zoom:has(input:checked){position:fixed;inset:0;z-index:10;background:rgba(10,11,14,.88);cursor:zoom-out;margin:0}
+.zoom .zc{display:none}
+.zoom:has(input:checked) .zo{display:none}
+.zoom:has(input:checked) .zc{display:block;position:fixed;left:0;right:0;bottom:12px;text-align:center;color:#ddd}
+body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0 2px} body.compact .step p{margin:0 0 4px}
+.step h3 input.done{flex:none;width:1.15em;height:1.15em;margin:.15em 0 0;accent-color:var(--accent)}
+@page{margin:16mm 15mm}
+@media print{body{max-width:none;padding:0}.cover{min-height:auto;height:250mm;page-break-after:always;margin:0}.step{page-break-inside:avoid}.zoom .zh{display:none}nav.toc{page-break-after:always}h2.chapter{page-break-after:avoid}}
+</style>
+</head>
+<body>
+<header class="cover"><h1>Handbuch Test</h1><p class="sub">Kurzanleitung</p><div class="meta"><span>Version<b>1.2</b></span><span>Stand<b>11.11.2026</b></span><span>Autor<b>IT</b></span><span>Umfang<b>5 Schritte &#183; 1 Kapitel</b></span></div></header>
+<nav class="toc box"><h2>Inhalt</h2><ol>
+<li><a href="#k1"><span class="n">1</span>Vorbereitung</a><ol>
+<li><a href="#s1"><span class="n">1.1</span>Men&#252;punkt „Datei“ w&#228;hlen</a></li>
+<li><a href="#s2"><span class="n">1.2</span>Speichern unter w&#228;hlen</a></li>
+<li><a href="#s3"><span class="n">1.3</span>Kommentar</a></li>
+<li><a href="#s4"><span class="n">1.4</span>L&#252;cke: Pause</a></li>
+<li><a href="#s5"><span class="n">1.5</span>Soll-Zustand</a></li>
+</ol></li>
+</ol></nav>
+<section class="box"><h2>Über diese Anleitung</h2><p style="margin:0">Diese Anleitung zeigt den Ablauf.</p></section>
+<section class="box"><h2>Voraussetzungen</h2><ul><li>Zugang</li><li>Rechte</li></ul></section>
+<h2 class="chapter" id="k1"><span class="n">1</span>Vorbereitung</h2>
+<p class="chtext">Zuerst das Men&#252; &#246;ffnen.</p>
+<section class="step" id="s1">
+<div>
+<h3><span class="n">1.1</span><span>Men&#252;punkt „Datei“ w&#228;hlen</span></h3>
+<p>W&#228;hlen Sie den Men&#252;punkt „Datei“.</p>
+<div class="note" style="--c:#B4233C"><b>Wichtig:</b> Vorher speichern!</div>
+</div>
+<figure style="max-width:68%"><label class="zoom" title="Klicken zum Vergrößern"><input type="checkbox"><img alt="Men&#252;punkt „Datei“ w&#228;hlen" width="200" height="100" src="data:image"><span class="zh zo">Klicken zum Vergrößern</span><span class="zh zc">Klicken zum Schließen</span></label></figure>
+</section>
+<section class="step" id="s2">
+<div>
+<h3><span class="n">1.2</span><span>Speichern unter w&#228;hlen</span></h3>
+<p>W&#228;hlen Sie *Speichern unter* – siehe [Hilfe](https://example.org).<br>Zweite Zeile mit `Code`.</p>
+<div class="note" style="--c:#B26A00"><b>Achtung:</b> Nicht **schlie&#223;en**.</div>
+</div>
+<figure style="max-width:68%"><label class="zoom" title="Klicken zum Vergrößern"><input type="checkbox"><img alt="Speichern unter w&#228;hlen" width="200" height="100" src="data:image"><span class="zh zo">Klicken zum Vergrößern</span><span class="zh zc">Klicken zum Schließen</span></label></figure>
+</section>
+<section class="step" id="s3">
+<div>
+<h3><span class="n">1.3</span><span>Kommentar</span></h3>
+<p>Kanarie-Kommentar-7Q2 – nur intern</p>
+</div>
+<figure style="max-width:68%"><label class="zoom" title="Klicken zum Vergrößern"><input type="checkbox"><img alt="Kommentar" width="200" height="100" src="data:image"><span class="zh zo">Klicken zum Vergrößern</span><span class="zh zc">Klicken zum Schließen</span></label></figure>
+</section>
+<section class="step" id="s4">
+<div>
+<h3><span class="n">1.4</span><span>L&#252;cke: Pause</span></h3>
+<p>Hinweis: Die Aufnahme war angehalten.</p>
+</div>
+<figure style="max-width:68%"><label class="zoom" title="Klicken zum Vergrößern"><input type="checkbox"><img alt="L&#252;cke: Pause" width="200" height="100" src="data:image"><span class="zh zo">Klicken zum Vergrößern</span><span class="zh zc">Klicken zum Schließen</span></label></figure>
+</section>
+<section class="step" id="s5">
+<div>
+<h3><span class="n">1.5</span><span>Soll-Zustand</span></h3>
+<p>Hinweis: So sollte es aussehen. – So soll es sein</p>
+</div>
+<figure style="max-width:68%"><label class="zoom" title="Klicken zum Vergrößern"><input type="checkbox"><img alt="Soll-Zustand" width="200" height="100" src="data:image"><span class="zh zo">Klicken zum Vergrößern</span><span class="zh zc">Klicken zum Schließen</span></label></figure>
+</section>
+<section class="box outro"><h2>Abschluss</h2><p style="margin:0">Fertig.</p></section>
+<footer><span>Intern</span><span>Erstellt mit Sebastians Step Recorder</span></footer>
+</body>
+</html>

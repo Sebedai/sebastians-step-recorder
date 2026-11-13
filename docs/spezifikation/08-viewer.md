@@ -399,6 +399,18 @@ Der Vergleich stellt zwei Sitzungen desselben Ablaufs nebeneinander und zeigt, w
 - **Grenzen:** Verglichen wird, was aufgezeichnet ist. Unterscheiden sich Aufnahmebereich, Auflösung oder Sprache der Anwendung, nennt die Kopfzeile das; „Bild“ ist dann häufig als Unterschied gekennzeichnet. Verglichen werden nur abgeschlossene Sitzungen – auch zwei Fassungen derselben Aufnahme, etwa Original und bereinigte Kopie. Hat eine Sitzung mehr als 5 000 Kernschritte, wird nicht abgeglichen; der Viewer sagt das ([05](05-schritterkennung.md#schrittabgleich)). Der Vergleich urteilt nicht, welche Sitzung „richtig“ ist.
 - **Geschwindigkeit:** Für zwei Sitzungen mit je 500 Schritten steht die Paarliste auf System A in höchstens 2 Sekunden; bis dahin zeigt der Viewer einen Fortschritt und bleibt bedienbar.
 
+### 5.10 Seitenansicht und Drucken
+
+Die Mitte zeigt wahlweise das Bild des Schritts oder die **Seiten der fertigen Anleitung** – so, wie das PDF sie enthält ([13](13-handbuch-fahrplan.md), Paket 20).
+
+- **Umschalten:** „Bild | Seite“ über dem Bild, `Strg+F2`, Knopf „Seitenansicht“ in der Kopfleiste oder „Ansicht → Seitenansicht“. Der Eintrag „Titelseite und Einleitung“ zeigt immer die Seiten von vorn.
+- **Aktualität:** Nach jedem Speichern wird das PDF nach einer kurzen Pause neu aufgebaut, im Hintergrund und abbrechbar. Gerenderte Schrittbilder bleiben im Arbeitsspeicher, solange sich weder das Bild noch Schwärzungen, Verallgemeinerungen oder die Durchsicht ändern; auf die Platte kommt nichts. Die Lage im Dokument bleibt beim Aktualisieren erhalten.
+- **Auswahl in beide Richtungen:** Ein Klick auf einen Schritt in den Seiten wählt ihn in der Liste, ein Doppelklick wechselt zu seinem Bild. Wird ein Schritt gewählt, springt die Seitenansicht zu ihm und umrandet ihn kurz. Schritte angehängter Aufnahmen sind sichtbar, aber nur in ihrer eigenen Aufnahme bearbeitbar.
+- **Ungeprüfte Eingaben** erscheinen in der Seitenansicht als Platzhalter; ein Hinweisband sagt das. Export und Druck warten weiter auf die Durchsicht.
+- **Zoom:** Seitenbreite (Standard), `Strg+Mausrad`, `Strg+Plus`/`Strg+Minus`, `Strg+0` ganze Seite, `Strg+1` Seitenbreite. Seiten werden erst gerastert, wenn sie sichtbar werden.
+- **Drucken** (`Strg+P`, „Datei → Drucken …“): nach der Durchsicht; Windows-Druckdialog mit Seitenbereich; die Seiten werden mit 200 dpi im Hintergrund vorbereitet, mit Fortschritt und Abbrechen.
+- **Rückfall:** Fehlt der PDF-Renderer von Windows (`Windows.Data.Pdf`, etwa auf Windows Server ohne Desktopdarstellung), bleibt die nachgebaute Titelseite; „Vorschau im Browser“ und der PDF-Export funktionieren weiter.
+
 ## 6 Abspielen
 
 Die Wiedergabe zeigt den Ablauf als Bildfolge mit bewegtem Mauszeiger. Sie macht sichtbar, was die Aufzeichnung über die Einzelbilder hinaus enthält: Mausweg, Tastenfolge, Wartezeiten.
@@ -1203,6 +1215,8 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `I` `E` | Klickmarke, Elementrahmen ein und aus |
 | `Strg+B` `Strg+I` `Strg+T` | Schrittliste, Detailbereich, Zeitleiste ein und aus |
 | `F7` | Vergleichen mit … |
+| `Strg+F2` | Seitenansicht ein/aus (Mitte „Bild | Seite“) |
+| `Strg+P` | Drucken … |
 | `F8` | Fenster der Qualitätsprüfung öffnen |
 | `F11` | Vollbild |
 
@@ -1448,6 +1462,8 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-235 | Bearbeitungsstände | Kann | Nach Bearbeitungen liegen Stände unter `history/` (höchstens 40 und 15 MB); Wiederherstellen ist mit `Strg+Z` rückgängig zu machen und lässt Schwärzungen, Verallgemeinerungen und Durchsicht unverändert; „Endgültig schwärzen“ löscht alle Stände. |
 | VIE-236 | Bibliothek, Packen, Entpacken | Soll | „Alle Aufnahmen“ listet Aufnahmen und Archive mit geschwärztem Vorschaubild; die bereinigte Kopie entsteht erst nach der Durchsicht; ein präpariertes Archiv hinterlässt beim Entpacken nichts. |
 | VIE-237 | Oberflächensprache | Soll | Mit der Oberflächensprache Englisch erscheinen alle Fenster und Meldungen englisch; Texte, die in die Aufnahme oder einen Export gelangen, folgen der Sprache der Anleitungstexte. |
+| VIE-239 | Seitenansicht | Soll | „Seite“ zeigt die Seiten des PDF-Exports; nach einer Textänderung ist die Seite bei einer mittleren Aufnahme in höchstens 1 s aktualisiert; Klick wählt den Schritt, Auswahl springt zur Stelle; ungeprüfte Eingaben erscheinen nur als Platzhalter. |
+| VIE-240 | Drucken | Soll | `Strg+P` druckt die Anleitung wie das PDF, nach der Durchsicht, mit Seitenbereich; Abbrechen hinterlässt nichts. |
 | VIE-238 | Terminal, Remote-Desktop, virtuelle Maschinen | Muss | Getipptes in diesen Fenstern ist prüfpflichtig; in der Schutzstufe „Streng“ ist es vollständig maskiert. Kennwortabfragen im Terminal werden nicht automatisch erkannt. |
 
 ## 18 Offene Punkte

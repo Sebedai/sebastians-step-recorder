@@ -72,7 +72,7 @@ sealed partial class ViewerWindow
         var play = U.Make("Ghost").Set(b => { b.Content = U.Row(_playIcon, playText); b.ToolTip = TipOf("play"); b.Margin = new Thickness(2, 0, 2, 0); });
         play.Click += (_, _) => Run("play");
         _labels.Add((playText, 1));
-        var preview = CmdButton("preview", Loc.L("Vorschau", "Preview"), 1);
+        var preview = CmdButton("pageView", Loc.L("Seitenansicht", "Page view"), 1);
         var review = U.Make("Ghost").Set(b => { b.ToolTip = Loc.L("Auffällige Eingaben durchsehen, bevor die Aufnahme weitergegeben wird (Strg+Umschalt+R)", "Review conspicuous input before the recording is shared (Ctrl+Shift+R)"); b.Margin = new Thickness(2, 0, 2, 0); });
         var reviewContent = (StackPanel)U.IconText(Theme.IChecklist, Loc.L("Durchsicht", "Review"));
         _reviewBadge = new Border { Background = Theme.WarnSoft, CornerRadius = new CornerRadius(999), Padding = new Thickness(7, 1, 7, 2), MinWidth = 22, Margin = new Thickness(8, 0, 0, 0), Child = _reviewCount, VerticalAlignment = VerticalAlignment.Center };
@@ -170,7 +170,8 @@ sealed partial class ViewerWindow
         _stepPos.Foreground = Theme.Muted;
         var nav = U.Row(prev, _stepPos, next);
         var viewLeft = new StackPanel { Orientation = Orientation.Horizontal };
-        foreach (var c in new FrameworkElement[] { baTrack, disp, marksBtn }) { c.VerticalAlignment = VerticalAlignment.Center; c.Margin = new Thickness(viewLeft.Children.Count == 0 ? 0 : 10, 0, 0, 0); viewLeft.Children.Add(c); }
+        _imageOnly.AddRange(new FrameworkElement[] { baTrack, disp, marksBtn });
+        foreach (var c in new FrameworkElement[] { BuildCenterModeToggle(), baTrack, disp, marksBtn }) { c.VerticalAlignment = VerticalAlignment.Center; c.Margin = new Thickness(viewLeft.Children.Count == 0 ? 0 : 10, 0, 0, 0); viewLeft.Children.Add(c); }
         var viewRow = new DockPanel { Margin = new Thickness(16, 10, 16, 10) };
         DockPanel.SetDock(nav, Dock.Right); viewRow.Children.Add(nav); viewRow.Children.Add(viewLeft);
 
@@ -273,6 +274,7 @@ sealed partial class ViewerWindow
         };
         imgArea.Children.Add(zoomBar);
         imgArea.Children.Add(_coverHost);
+        EnsurePageView(imgArea);
         var center = new DockPanel { Background = Theme.Bg };
         var viewBorder = new Border { Background = Theme.Bg, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 0, 0, 1), Child = viewRow };
         _viewBorder = viewBorder; _paletteEl = palette; _zoomBarEl = zoomBar;
@@ -1190,9 +1192,11 @@ sealed partial class ViewerWindow
             Flush();
             if (_details.Parent is ScrollViewer sv) { sv.ScrollToEnd(); Flush(); save(); sv.ScrollToHome(); }
         }
-        ShowCover(); Flush(); save();
+        ShowCover(); Flush(); DevWaitPreview(); save();
         if (_details.Parent is ScrollViewer sv2) { sv2.ScrollToEnd(); Flush(); save(); sv2.ScrollToHome(); }
         _list.SelectedIndex = 1; Flush();
+        // Seitenansicht mit gewähltem Schritt
+        SetPageMode(true); DevWaitPreview(); save(); SetPageMode(false); Flush();
         // eingefügter Textschritt, Mehrfachauswahl, Suchen und Ersetzen
         _list.SelectedIndex = 1; Flush();
         InsertManual(null); Flush(); save();

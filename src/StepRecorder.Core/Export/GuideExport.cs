@@ -1,4 +1,5 @@
 ﻿using System.Drawing;
+using System.Runtime.CompilerServices;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -48,6 +49,8 @@ public sealed class GuideOptions
     public bool PptxNotes { get; set; } = true;
     public bool Compact { get; set; }
     public bool Checkboxes { get; set; }
+    /// <summary>Bildspeicher der Seitenansicht (nur Arbeitsspeicher); null = jedes Bild neu rendern.</summary>
+    public GuideImageCache? ImageCache { get; set; }
     /// <summary>Markdown: Dialekt der Hinweiskästen plain | github | obsidian (09 §6.2).</summary>
     public string MdDialect { get; set; } = "plain";
     /// <summary>Markdown: Kopfdaten als YAML-Block (Docusaurus, MkDocs, Jekyll).</summary>
@@ -83,6 +86,8 @@ public static partial class GuideExport
         public DocSettings S = new();
         /// <summary>Kurzfassung: kompakte Schrittdarstellung; Checkliste: Kästchen je Schritt.</summary>
         public bool Compact, Checkboxes;
+        /// <summary>Schritte aus angehängten Aufnahmen (ihre Anker gehören zu einer anderen Aufnahme).</summary>
+        public HashSet<object> Foreign = new(ReferenceEqualityComparer.Instance);
         public int StepCount => Blocks.OfType<Item>().Count();
         public bool HasChapters => Blocks.OfType<Chapter>().Any();
         public bool ShowToc => S.Toc && (HasChapters ? Blocks.Count >= 3 : StepCount >= 6);
@@ -94,11 +99,12 @@ public static partial class GuideExport
     {
         string lang = o.Language ?? view.Session.Language;
         bool fallbackBefore = view.AuthorTextFallback;
+        string langBefore = view.Language;
         // Fehlende Übersetzung: standardmäßig der automatische Text der Exportsprache (09 §10)
         view.AuthorTextFallback = o.MissingTranslation == "other";
         view.Language = lang; view.Rebuild();
         try { return ExportCore(view, o, lang); }
-        finally { view.AuthorTextFallback = fallbackBefore; view.Rebuild(); }
+        finally { view.AuthorTextFallback = fallbackBefore; view.Language = langBefore; view.Rebuild(); }
     }
 
     static ExportResult ExportCore(SessionView view, GuideOptions o, string lang)
@@ -207,23 +213,33 @@ public static partial class GuideExport
                 string variant = StepImages.GuideVariant(st, viewMode);
                 var mask = ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks);
                 string renderView = viewMode == "window" ? "window" : "screen";
-                // Markierungen des Autors zeichnet Render – jeweils nur die, die auf genau diesem Bild gezeichnet wurden
-                using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, overview: overview, authorAnnotations: true);
-                if (img != null)
+                // Ergebnis: Nachher-Bild zusätzlich, wenn gewünscht und nicht schon das Schrittbild
+                bool wantAfter = o.After == "always" || (o.After == "changed" && StepImages.ScreenChanged(st, 0.02));
+                wantAfter = wantAfter && variant != "after" && !st.Manual && !st.ImageReplaced && st.PostFrame != null && st.PostFrame != st.PreFrame;
+                string? cacheKey = o.ImageCache?.KeyFor(v, st, variant, renderView, mask, overview, o.ImageProfile, wantAfter, o.Format == "tour");
+                if (cacheKey != null && o.ImageCache!.TryGet(cacheKey, out var cached))
+                    (png, w, h, hot, afterPng, aw, ah) = cached;
+                else
                 {
-                    png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height;
-                    if (o.Format == "tour") hot = StepImages.HotspotPercent(img, st.Kind);
-                    // Ergebnis: Nachher-Bild zusätzlich, wenn gewünscht und nicht schon das Schrittbild
-                    bool wantAfter = o.After == "always" || (o.After == "changed" && StepImages.ScreenChanged(st, 0.02));
-                    if (wantAfter && variant != "after" && !st.Manual && !st.ImageReplaced && st.PostFrame != null && st.PostFrame != st.PreFrame)
+                    // Markierungen des Autors zeichnet Render – jeweils nur die, die auf genau diesem Bild gezeichnet wurden
+                    using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, overview: overview, authorAnnotations: true);
+                    if (img != null)
                     {
-                        using var after = StepImages.Render(v, st, "after", o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, authorAnnotations: true);
-                        if (after != null) { afterPng = StepImages.Png(after.Bitmap); aw = after.Bitmap.Width; ah = after.Bitmap.Height; }
+                        png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height;
+                        if (o.Format == "tour") hot = StepImages.HotspotPercent(img, st.Kind);
+                        if (wantAfter)
+                        {
+                            using var after = StepImages.Render(v, st, "after", o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, authorAnnotations: true);
+                            if (after != null) { afterPng = StepImages.Png(after.Bitmap); aw = after.Bitmap.Width; ah = after.Bitmap.Height; }
+                        }
                     }
+                    if (cacheKey != null) o.ImageCache!.Put(cacheKey, (png, w, h, hot, afterPng, aw, ah));
                 }
             }
             var notes = st.Comments.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).Where(n => n.Item2.Length > 0).ToList();
-            d.Blocks.Add(new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah));
+            var item = new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah);
+            d.Blocks.Add(item);
+            if (autoChapter != null) d.Foreign.Add(item);
         }
         }
 
@@ -554,6 +570,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
 
     static void Pdf(Doc d, string outPath, ExportResult res)
     {
+        var pdf = PdfDocument(d);
+        File.WriteAllBytes(outPath, pdf.ToBytes());
+        res.Warnings.AddRange(pdf.Warnings);
+    }
+
+    /// <summary>PDF im Speicher aufbauen (zwei Durchläufe für die Seitenzahlen im Inhaltsverzeichnis); Bytes über <see cref="SimplePdf.ToBytes"/>.</summary>
+    static SimplePdf PdfDocument(Doc d)
+    {
         var jpegs = new Dictionary<Item, (byte[] jpg, int w, int h)>();
         var afterJpegs = new Dictionary<Item, (byte[] jpg, int w, int h)>();
         (byte[] jpg, int w, int h)? logo = null;
@@ -566,22 +590,25 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         foreach (var it in d.Blocks.OfType<Item>())
             if (it.Png != null)
             {
-                using var ms = new MemoryStream(it.Png);
-                using var bmp = new Bitmap(ms);
-                jpegs[it] = (StepImages.Jpeg(bmp, 88), bmp.Width, bmp.Height);
-                if (it.AfterPng != null)
-                {
-                    using var ams = new MemoryStream(it.AfterPng);
-                    using var abmp = new Bitmap(ams);
-                    afterJpegs[it] = (StepImages.Jpeg(abmp, 88), abmp.Width, abmp.Height);
-                }
+                jpegs[it] = JpegOf(it.Png);
+                if (it.AfterPng != null) afterJpegs[it] = JpegOf(it.AfterPng);
             }
         var pages = new Dictionary<string, int>();
         PdfRender(d, jpegs, afterJpegs, logo, pages, null);
-        var pdf = PdfRender(d, jpegs, afterJpegs, logo, new Dictionary<string, int>(), pages);
-        File.WriteAllBytes(outPath, pdf.ToBytes());
-        res.Warnings.AddRange(pdf.Warnings);
+        return PdfRender(d, jpegs, afterJpegs, logo, new Dictionary<string, int>(), pages);
     }
+
+    /// <summary>JPEG eines Schrittbilds; je PNG-Instanz zwischengespeichert (der Bildspeicher der Seitenansicht liefert dieselbe Instanz).</summary>
+    static (byte[] jpg, int w, int h) JpegOf(byte[] png)
+    {
+        if (JpegMemo.TryGetValue(png, out var hit)) return hit.Value;
+        using var ms = new MemoryStream(png);
+        using var bmp = new Bitmap(ms);
+        var r = (StepImages.Jpeg(bmp, 88), bmp.Width, bmp.Height);
+        JpegMemo.AddOrUpdate(png, new StrongBox<(byte[] jpg, int w, int h)>(r));
+        return r;
+    }
+    static readonly ConditionalWeakTable<byte[], StrongBox<(byte[] jpg, int w, int h)>> JpegMemo = new();
 
     static SimplePdf PdfRender(Doc d, Dictionary<Item, (byte[] jpg, int w, int h)> jpegs, Dictionary<Item, (byte[] jpg, int w, int h)> afterJpegs, (byte[] jpg, int w, int h)? logo, Dictionary<string, int> record, Dictionary<string, int>? known)
     {

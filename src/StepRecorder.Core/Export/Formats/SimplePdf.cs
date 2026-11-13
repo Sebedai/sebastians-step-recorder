@@ -118,6 +118,9 @@ public sealed class SimplePdf
     }
 
     /// <summary>Sprungziel an der aktuellen Stelle (für Inhaltsverzeichnis und Lesezeichen).</summary>
+    /// <summary>Gesetzte Sprungziele: Schlüssel → Seite (0-basiert) und Oberkante in Punkt (PDF-Koordinaten, von unten).</summary>
+    public IReadOnlyDictionary<string, (int page, double top)> Destinations => _dests;
+
     public void Dest(string key) => _dests[key] = (_pages.Count - 1, Math.Min(PageH, Y + 24));
 
     /// <summary>Klickfläche auf der aktuellen Seite, die zu <paramref name="key"/> springt.</summary>

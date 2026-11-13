@@ -83,6 +83,12 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 | 18 Doku im Repository | Markdown nach 09 §6, Kopieren als Markdown, GIF-Größenziel | erledigt; GitHub-Vorschau von Hand offen |
 | 19 Visueller Vergleich | Vergleichsfenster mit Bildern, Bildunterschiede, `compare --images`, `compare_sessions` mit `images` | erledigt |
 
+**Handbuch-Editor und Bild-Editor.** Der Fahrplan in [13](13-handbuch-fahrplan.md) plant die Pakete 20–38 (Vorgaben V-46 bis V-54).
+
+| Paket | Inhalt | Stand |
+|---|---|---|
+| 20 Fundament und Seitenansicht | Referenztest für bestehende Ausgaben, `PdfRaster` (Windows.Data.Pdf), `RenderPdf` mit Bildspeicher, Mitte „Bild \| Seite“, Auswahl in beide Richtungen, Drucken | erledigt; Drucken auf echtem Drucker von Hand offen |
+
 Die Vorab-Experimente VE-15 bis VE-23 brauchen echte Programme, Terminals und Hardware und liegen nicht vor; die Pakete sind durch automatische Tests mit synthetischen Aufnahmen belegt.
 
 ## 3. Vorab-Experimente (M0)

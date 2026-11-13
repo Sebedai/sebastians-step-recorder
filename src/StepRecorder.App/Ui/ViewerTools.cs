@@ -336,6 +336,7 @@ sealed partial class ViewerWindow
         _thumbs.Clear();
         Fill(keep);
         if (_cover) ApplyCoverMode();
+        AfterEditsSaved();
         _status.Text = lang == "en"
             ? Loc.L("Texte auf Englisch – die deutschen Texte bleiben getrennt erhalten.", "Texts in English – the German texts are kept separately.")
             : Loc.L("Texte auf Deutsch – die englischen Texte bleiben getrennt erhalten.", "Texts in German – the English texts are kept separately.");

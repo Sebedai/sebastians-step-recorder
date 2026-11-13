@@ -70,6 +70,8 @@ sealed partial class ViewerWindow
         _cropOff.Visibility = Visibility.Collapsed;
         _coverHost.Visibility = Visibility.Visible;
         _coverHost.Content = CoverPreview();
+        // Mit Seitenansicht: statt der nachgebauten Titelseite die echten Seiten von vorn
+        if (ApplyCenterMode()) ShowStepInPages(null);
         _overlay.Children.Clear();
         _stepPos.Text = "";
         DocDetails();

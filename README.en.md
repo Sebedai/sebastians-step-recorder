@@ -122,7 +122,9 @@ After recording, the editor opens: the steps on the left, the image in the middl
 
 **More features**
 - **Play:** the steps as a slide show.
-- **Preview:** view the finished guide in the browser.
+- **Page view (Ctrl+F2):** the pages of the finished guide right in the editor – exactly as the PDF contains them. Every change appears after a moment; clicking a step on a page selects it.
+- **Print (Ctrl+P):** send the guide straight to the printer.
+- **Preview in browser:** view the finished guide as HTML (*File → Preview in browser*).
 - **Compare:** put two recordings of the same procedure side by side (F7) – pair list, both images side by side with highlighted image differences, timing differences; can be saved as Markdown with before/after images.
 - **Command palette** (Ctrl+Shift+P): find any command by name.
 - **Response times:** every step shows how long the application took; the "Slow" filter shows only slow steps.

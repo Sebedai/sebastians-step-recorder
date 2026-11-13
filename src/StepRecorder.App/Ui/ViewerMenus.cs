@@ -20,7 +20,7 @@ sealed partial class ViewerWindow
 
     static readonly Dictionary<string, string> Glyphs = new()
     {
-        ["newRecording"] = Theme.IRecord, ["open"] = Theme.IOpen, ["library"] = Theme.IHistory, ["rename"] = Theme.IEdit, ["preview"] = Theme.IEye, ["export"] = Theme.IExport,
+        ["pageView"] = Theme.IDoc, ["print"] = Theme.IPrint, ["newRecording"] = Theme.IRecord, ["open"] = Theme.IOpen, ["library"] = Theme.IHistory, ["rename"] = Theme.IEdit, ["preview"] = Theme.IEye, ["export"] = Theme.IExport,
         ["support"] = Theme.IWrench, ["continueRec"] = Theme.IRecord, ["append"] = Theme.IAdd, ["pack"] = Theme.ISave, ["showFolder"] = Theme.IFolder, ["aiConnect"] = Theme.IRobot,
         ["settings"] = Theme.ISettings, ["close"] = Theme.IClose, ["undo"] = Theme.IUndo, ["redo"] = Theme.IRedo, ["history"] = Theme.IHistory, ["copyImage"] = Theme.ICopy,
         ["copyGuide"] = Theme.IDoc, ["find"] = Theme.ISearch, ["editText"] = Theme.IEdit, ["comment"] = Theme.IComment, ["chapter"] = Theme.IDoc, ["hide"] = Theme.IEye,
@@ -135,7 +135,7 @@ sealed partial class ViewerWindow
         return new()
         {
             Item("newRecording"), Item("open"), Item("library"), recent, Sep(),
-            Item("preview"), Item("export"), formats, Sep(),
+            Item("preview"), Item("print"), Item("export"), formats, Sep(),
             Item("rename", enabled: !ro), more, Item("pack", enabled: !ro), Item("showFolder"), Sep(),
             Item("settings"), Item("close"),
         };
@@ -236,7 +236,7 @@ sealed partial class ViewerWindow
         var zoom = Sub(Loc.L("Zoom", "Zoom"), Theme.IZoomIn, Item("zoomIn"), Item("zoomOut"), Item("zoomFit"), Item("zoom100"));
         return new()
         {
-            Item("beforeAfter", enabled: Sel != null), disp, MarksMenu(), Sep(),
+            Check(Loc.L("Seitenansicht", "Page view"), _pageMode, TogglePageMode), Item("beforeAfter", enabled: Sel != null && !_pageMode), disp, MarksMenu(), Sep(),
             Check(Loc.L("Schritte", "Steps"), _filterBtns[0].IsChecked == true, () => _filterBtns[0].IsChecked = true),
             Check(Loc.L("Mit Spur", "With trace"), _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true),
             Check(Loc.L("Nur Lesezeichen", "Bookmarks only"), _bookmarkToggle.IsChecked == true, () => _bookmarkToggle.IsChecked = _bookmarkToggle.IsChecked != true), Sep(),

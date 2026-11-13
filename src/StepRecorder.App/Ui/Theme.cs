@@ -49,6 +49,7 @@ static class Theme
     public static readonly FontFamily Display = new("Segoe UI Variable Display, Segoe UI");
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
     /// <summary>Lesezeichen: Stern leer und gefüllt (FavoriteStar, FavoriteStarFill); Textbaustein (Notizblock).</summary>
+    public const string IPrint = "\uE749", IImage = "\uE91B";
     public const string IStar = "", IStarFill = "", ISnippet = "";
     public const string IArrowUp ="", IArrowDown = "";
     /// <summary>Freihand (Stift), Spotlight (Helligkeit), Lupe.</summary>

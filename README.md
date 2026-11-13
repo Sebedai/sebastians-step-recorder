@@ -122,7 +122,9 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 
 **Weitere Funktionen**
 - **Abspielen:** Schritte als Diashow.
-- **Vorschau:** die fertige Anleitung im Browser ansehen.
+- **Seitenansicht (Strg+F2):** die Seiten der fertigen Anleitung direkt im Editor – so, wie das PDF sie enthält. Jede Änderung erscheint nach einem Augenblick; ein Klick auf einen Schritt in den Seiten wählt ihn aus.
+- **Drucken (Strg+P):** die Anleitung direkt auf dem Drucker ausgeben.
+- **Vorschau im Browser:** die fertige Anleitung als HTML ansehen (*Datei → Vorschau im Browser*).
 - **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7) – Paarliste, beide Bilder nebeneinander mit hervorgehobenen Bildunterschieden, Zeitunterschiede; als Markdown mit Vorher/Nachher-Bildern speicherbar.
 - **Befehlspalette** (Strg+Umschalt+P): jeden Befehl über seinen Namen finden.
 - **Reaktionszeiten:** Jeder Schritt zeigt, wie lange die Anwendung gebraucht hat; der Filter „Langsam“ zeigt nur langsame Schritte.

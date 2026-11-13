@@ -173,6 +173,16 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         _currentMeta?.Dispose(); _currentMeta = null;
         _img.Source = null; _current = null;
         if (s == null && _cover) { ApplyCoverMode(); return; }
+        if (!_cover && ApplyCenterMode())
+        {
+            // Seitenansicht: kein Bild rendern, nur zum Schritt in den Seiten springen
+            _stepPos.Text = $"{_list.SelectedIndex + 1} / {_list.Items.Count}";
+            if (s == null) { _details.Children.Clear(); return; }
+            ShowStepInPages(s);
+            ShowDetails(s);
+            UpdateStatus();
+            return;
+        }
         if (s == null) { _details.Children.Clear(); _cropOff.Visibility = Visibility.Collapsed; _imgCaptionPill.Visibility = Visibility.Collapsed; _noImage.Visibility = Visibility.Visible; _imgHost.Visibility = Visibility.Collapsed; return; }
         string variant = _display == "crop" && !s.Manual && !s.ImageReplaced ? "crop" : (_variantOverride ?? DefaultVariant(s));
         var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop", authorAnnotations: true);
@@ -424,6 +434,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         if (refill) Fill();
         else { ShowStep(); if (allImages) InvalidateAllThumbs(); else InvalidateThumb(Sel); }
         UpdateUndo();
+        AfterEditsSaved();
     }
 
     void Undo() { if (_undo.Count == 0) return; _redo.Add(Json.Line(_view.Edits)); Restore(_undo[^1]); _undo.RemoveAt(_undo.Count - 1); UpdateUndo(); _status.Text = Loc.L("Rückgängig gemacht", "Undone"); }
@@ -439,6 +450,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         _thumbs.Clear(); _selAnn = null;
         QualityInvalidate();
         Fill();
+        AfterEditsSaved();
     }
 
     JsonObject StepEdit(JsonObject edits, long anchor)

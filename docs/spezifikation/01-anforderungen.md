@@ -141,6 +141,15 @@ Datenformat, Schrittlogik, KI-Paket und Datenschutzregeln dieser Funktionen steh
 | V-43 | **Tempo im Alltag:** Bereitschaft im Infobereich, Modus „Fehler nachstellen“, Befehlspalette, Sofort-Bildschirmfoto | noch keine – Pakete 14, 15 | Tastaturdurchgang, Startzeit aus der Bereitschaft |
 | V-44 | **Doku und Reviews im Repository:** Markdown nach 09 §6, GIF für Pull Requests, visueller Vorher/Nachher-Vergleich | noch keine – Pakete 18, 19 | bytegleiche Exporte, T-14 mit Bildunterschieden |
 | V-45 | **Reaktionszeiten sichtbar machen** | noch keine – Paket 9 | Zahlen in Editor, `trace.md`, MCP und Vergleich stimmen überein |
+| V-46 | **Handbuch-Bausteine:** freie Textabschnitte, Unterkapitel, Änderungsverzeichnis, Glossar, Abbildungsverzeichnis, Impressum, Warnhinweise mit Signalwort, Störungsbehebung, Tabellen | Pakete 24–26 in [13](13-handbuch-fahrplan.md) | Ein Handbuch entsteht ohne Nacharbeit in Word |
+| V-47 | **Formatierter Text:** fett, kursiv, Listen, Tastenkappen, Bedienelemente, Links, Querverweise, Variablen | Pakete 21, 23 | Formatierung erscheint in allen Anleitungsformaten; Schutz bleibt vollständig |
+| V-48 | **Seitenansicht und Layout:** Seitenansicht im Editor, Seitenformat, Kopf- und Fußzeile, Umbrüche, Layoutvorlagen, Word-Vorlage | VIE-239, VIE-240; Pakete 27, 31 | Seitenansicht zeigt das PDF, wie es exportiert wird |
+| V-49 | **Redaktionsprüfung:** Fertigstellung, Stilregeln, Lesbarkeit, Freigabe mit Wasserzeichen | Pakete 29, 30 | Prüfung nennt, was zum fertigen Handbuch fehlt |
+| V-50 | **Pflege des Handbuchs:** Abschnitt ersetzen, Schritt teilen, Kapitel verschieben, Übersetzungsübersicht | Pakete 24, 33, 34 | – |
+| V-51 | **Tempo im Editor:** Befehlspalette, Lesezeichen, Kapitelvorschläge, Markierungsstil übertragen | Pakete 22, 37 | – |
+| V-52 | **Schulung und Weitergabe:** Präsentationsansicht, Drucken, Stapel-Export | VIE-240; Paket 38 | – |
+| V-53 | **Barrierearmes PDF:** Strukturmarkierung, Alternativtext, Metadaten | Paket 32 | Prüfprogramm ohne Befund zu Struktur und Alternativtext |
+| V-54 | **Bild-Editor:** Schrittmarken 1, 2, 3 …, weitere Markierungen, mehr Farben, weitere Werkzeuge | Pakete 22, 28 | Alte Markierungen bleiben pixelgleich |
 
 ## 5. Rückverfolgung der Review-Befunde
 

@@ -670,7 +670,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 | SixLabors.ImageSharp | Geteilte Lizenz (Split License), für kommerzielle Nutzer der Anwendung nicht eindeutig frei |
 | Microsoft.Web.WebView2 | Eingebettete Browser-Komponente mit eigenem Benutzerdatenordner; eigener Netzwerkverkehr ist nicht ausgeschlossen – unvereinbar mit der Zusage „kein Netzwerk" |
 | SharpHook / libuiohook | Zusätzliche native Bibliothek; der Hook-Pfad muss vollständig unter eigener Kontrolle und anforderungsfrei sein |
-| Windows.Media.Ocr | Laut Dokumentation nur für Anwendungen mit Paketidentität; Texterkennung ist eine spätere Ausbaustufe |
+| Windows.Media.Ocr | Laut Dokumentation nur für Anwendungen mit Paketidentität; Texterkennung ist eine spätere Ausbaustufe. *Stand:* Die Texterkennung zum Finden persönlicher Daten nutzt sie inzwischen; ebenso nutzt die Seitenansicht `Windows.Data.Pdf` (Teil von Windows, keine Abhängigkeit; geprüft in VE-24, [13](13-handbuch-fahrplan.md)) |
 | Trimming, Native AOT | Für WPF nicht unterstützt |
 | .NET Framework 4.8 | Vom Auftraggeber zugunsten von .NET entschieden |
 

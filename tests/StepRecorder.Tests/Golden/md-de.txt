@@ -1,0 +1,71 @@
+# Handbuch Test
+
+*Kurzanleitung*
+
+Version: **1.2** · Stand: **11.11.2026** · Autor: **IT** · Umfang: **5 Schritte · 1 Kapitel**
+
+## Inhalt
+
+- 1  Vorbereitung
+
+## Über diese Anleitung
+
+Diese Anleitung zeigt den Ablauf.
+
+## Voraussetzungen
+
+- Zugang
+- Rechte
+
+## 1  Vorbereitung
+
+Zuerst das Menü öffnen.
+
+1. **Menüpunkt „Datei“ wählen**
+
+   Wählen Sie den Menüpunkt **„Datei“**.
+
+   > **Wichtig:** Vorher speichern!
+
+   ![Menüpunkt „Datei“ wählen](out-bilder/schritt-001.png)
+
+2. **Speichern unter wählen**
+
+   Wählen Sie \*Speichern unter\* – siehe \[Hilfe\](https://example.org).\
+   Zweite Zeile mit \`Code\`.
+
+   > **Achtung:** Nicht \*\*schließen\*\*.
+
+   ![Speichern unter wählen](out-bilder/schritt-002.png)
+
+3. **Kommentar**
+
+   Kanarie-Kommentar-7Q2 – nur intern
+
+   ![Kommentar](out-bilder/schritt-003.png)
+
+4. **Lücke: Pause**
+
+   Hinweis: Die Aufnahme war angehalten.
+
+   ![Lücke: Pause](out-bilder/schritt-004.png)
+
+5. **Soll-Zustand**
+
+   Hinweis: So sollte es aussehen. – So soll es sein
+
+   ![Soll-Zustand](out-bilder/schritt-005.png)
+
+## Abschluss
+
+Fertig.
+
+---
+
+Intern
+
+#file out-bilder/schritt-001.png
+#file out-bilder/schritt-002.png
+#file out-bilder/schritt-003.png
+#file out-bilder/schritt-004.png
+#file out-bilder/schritt-005.png

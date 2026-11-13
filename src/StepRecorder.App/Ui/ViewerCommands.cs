@@ -120,6 +120,8 @@ sealed partial class ViewerWindow
             new("compare", "general", Loc.L("Mit anderer Aufnahme vergleichen", "Compare with another recording"), Key.F7, N, Compare),
             new("stopPlay", "general", Loc.L("Abspielen beenden", "Stop playback"), Key.Escape, N, StopPlay, Listed: false),
             new("shortcuts", "general", Loc.L("Alle Tastenkürzel", "All shortcuts"), Key.F1, N, () => ShortcutsWindow.Show(this, Cmds), InText: true),
+            new("pageView", "general", Loc.L("Seitenansicht ein/aus", "Page view on/off"), Key.F2, C, TogglePageMode, InText: true),
+            new("print", "copy", Loc.L("Drucken …", "Print …"), Key.P, C, PrintGuide, InText: true),
             new("palette", "general", Loc.L("Befehlspalette", "Command palette"), Key.P, CS, () => CommandPalette.Show(this, Cmds), InText: true),
             // Nur in Menüs (ohne Tastenkürzel) – damit Menüleiste, Rechtsklick und Knöpfe dieselben Namen tragen
             new("rename", "general", Loc.L("Umbenennen …", "Rename …"), Key.None, N, Rename, Listed: false),
@@ -176,6 +178,7 @@ sealed partial class ViewerWindow
     void OnKey(object sender, KeyEventArgs e)
     {
         bool inText = Keyboard.FocusedElement is TextBox;
+        if (!inText && PageViewShown && _pageView!.HandleKey(e)) { e.Handled = true; return; }
         if (!inText && _zoom.HandleKey(e)) { e.Handled = true; return; }
         var key = e.Key == Key.System ? e.SystemKey : e.Key;
         var mods = Keyboard.Modifiers;

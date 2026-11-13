@@ -32,7 +32,9 @@ sealed partial class ViewerWindow
         if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show(Loc.L("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen.", "The session was changed in the meantime; please try again.")); }
         UpdateUndo();
         _status.Text = Loc.L("Gespeichert", "Saved");
-        if (_cover) _coverHost.Content = CoverPreview();
+        if (_cover && !PageViewShown) _coverHost.Content = CoverPreview();
+        QualityInvalidate();
+        AfterEditsSaved();
         if (refillLater) Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () => { if (!_details.IsKeyboardFocusWithin) Fill(); });
     }
 
