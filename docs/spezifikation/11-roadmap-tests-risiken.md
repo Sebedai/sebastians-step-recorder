@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 33 Übersetzungsübersicht | Tabelle Deutsch/Englisch aller eigenen Texte, Bearbeiten in der Zelle, CSV-Export mit Formelschutz und Import nur geänderter, ungeschützter Zellen | erledigt |
 | 32 Barrierearmes PDF | Strukturmarkierung (Überschriften, Absätze, Figure mit Alternativtext, Artefakte), Strukturbaum, Selbstprüfung `SimplePdf.Audit()`, Schalter im Dokumentbereich | erledigt; Prüfung mit Bildschirmleser und PAC (VE-27): offen, Schrifteinbettung: offen |
 | 31 Word-Profil | Zeichenformatvorlagen SREingabe, SRTaste, SRElement, SRLink für formatierten Text, von einer eigenen Word-Vorlage überschreibbar (die Word-Vorlage selbst gibt es seit 0.13.0) | erledigt; echte Word-Listennummerierung: offen |
 | 30 Fertigstellung und Freigabe | Prüfliste mit Pflichtpunkten, Status Entwurf/Freigegeben mit Fingerabdruck, Wasserzeichen „ENTWURF“ in PDF, Word, HTML | erledigt; Rechtschreib-Durchlauf (Q40) und Befehl `check --readiness`: offen |

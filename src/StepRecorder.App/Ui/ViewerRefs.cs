@@ -50,6 +50,14 @@ sealed partial class ViewerWindow
         return "??";
     }
 
+    /// <summary>Übersetzungsübersicht (13, Paket 33).</summary>
+    void ShowTranslations()
+    {
+        InlineCommit(now: true);
+        new TranslationWindow(_view, a => Change(a, refill: false)) { Owner = this }.ShowDialog();
+        Fill(Sel?.Id);
+    }
+
     // ---------------- Variablen im Dokumentbereich ----------------
 
     /// <summary>Eigene Variablen als Zeilen „Name = Wert“ (in der Sprache der Ansicht).</summary>

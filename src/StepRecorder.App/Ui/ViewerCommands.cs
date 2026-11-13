@@ -61,6 +61,7 @@ sealed partial class ViewerWindow
             new("nudgeRight10", "image", Loc.L("Zeichnung 10 px nach rechts", "Drawing 10 px right"), Key.Right, S, () => NudgeMark(10, 0), () => _selAnn != null, Listed: false),
             new("nudgeUp10", "image", Loc.L("Zeichnung 10 px nach oben", "Drawing 10 px up"), Key.Up, S, () => NudgeMark(0, -10), () => _selAnn != null, Listed: false),
             new("nudgeDown10", "image", Loc.L("Zeichnung 10 px nach unten", "Drawing 10 px down"), Key.Down, S, () => NudgeMark(0, 10), () => _selAnn != null, Listed: false),
+            new("translations", "general", Loc.L("Übersetzungen …", "Translations …"), Key.None, N, ShowTranslations),
             new("toolCallout", "image", Loc.L("Sprechblase", "Speech bubble"), Key.B, N, () => SelectTool("callout")),
             new("toolStamp", "image", Loc.L("Stempel", "Stamp"), Key.G, N, () => SelectTool("stamp")),
             // Kopieren und Exportieren

@@ -277,7 +277,7 @@ sealed partial class ViewerWindow
             review, Sep(),
             Item("quality"), Item("nextFinding"), Item("prevFinding"), Sep(),
             Item("piiScan", enabled: !ro), Item("redactText", enabled: !ro), Item("redactStep", enabled: Sel != null && !ro), Item("generalize", enabled: !ro), Sep(),
-            Item("cleanup", enabled: !ro), Item("overview"), Sep(),
+            Item("cleanup", enabled: !ro), Item("overview"), Item("translations"), Sep(),
             Item("finalRedact", enabled: !ro),
         };
     }

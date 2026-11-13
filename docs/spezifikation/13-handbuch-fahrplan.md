@@ -70,7 +70,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 | 30 | Redaktionsprüfung II: Fertigstellung und Freigabe | V-49 | M | 27, 29 | erledigt |
 | 31 | Word-Profil mit Formatvorlagen und Listen | V-48 | M | 27 | erledigt (Zeichenformatvorlagen) |
 | 32 | Barrierearmes PDF | V-53 | L | 25, 27 | erledigt |
-| 33 | Übersetzungsübersicht und CSV | V-50 | M | 21 | geplant |
+| 33 | Übersetzungsübersicht und CSV | V-50 | M | 21 | erledigt |
 | 34 | Schritt teilen und Ergebnisschritt | V-50 | M | – | geplant |
 | 37 | Kapitelvorschläge | V-51 | S | 24 | geplant |
 | 38 | Präsentationsansicht und Stapel-Export | V-52 | M | 27 | geplant |
