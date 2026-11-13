@@ -11,7 +11,7 @@ static class SettingsExchangeDialogs
 {
     public static void Export(Window owner)
     {
-        var w = new Window { Title = Loc.L("Einstellungen exportieren", "Export settings"), Width = 560, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Einstellungen exportieren", "Export settings"), Width = 560, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         var boxes = SettingsExchange.Parts.Select(p => new CheckBox { Content = SettingsExchange.PartName(p), IsChecked = true, Tag = p, Margin = new Thickness(0, 4, 0, 4) }).ToList();
         var body = U.Col(U.Text(Loc.L("Was soll in die Datei?", "What should go into the file?"), 13, true, margin: new Thickness(0, 0, 0, 6)));
@@ -54,7 +54,7 @@ static class SettingsExchangeDialogs
     static bool Confirm(Window owner, ImportPlan plan, string heading)
     {
         if (!plan.Ok) { Msg.Show(string.Join("\n", plan.Errors), heading, MessageBoxButton.OK, MessageBoxImage.Warning); return false; }
-        var w = new Window { Title = heading, Width = 640, SizeToContent = SizeToContent.Height, MaxHeight = Theme.ActiveWorkArea().Height - 40, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = heading, Width = 640, SizeToContent = SizeToContent.Height, MaxHeight = Theme.ActiveWorkArea().Height - 40, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         var body = new StackPanel();
         foreach (var sk in plan.SkippedParts) body.Children.Add(U.Text("⚠ " + sk, 12.5, fg: Theme.Warn, margin: new Thickness(0, 0, 0, 6)));
@@ -110,43 +110,5 @@ static class DiagnosticsDialog
                 Shell.Reveal(path);
         }
         catch (Exception ex) { UiApp.ShowError(ex); }
-    }
-}
-
-/// <summary>Kurzhilfe mit Lizenz und Diagnose-Paket.</summary>
-static class HelpDialog
-{
-    public static void Show(Window owner)
-    {
-        var w = new Window { Title = Loc.L("Hilfe", "Help"), Width = 660, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        Theme.Prepare(w, Theme.Surface);
-        var s = AppSettings.Load();
-        string K(string id) => Loc.Keys(s.Hotkey(id));
-        var text = new TextBox
-        {
-            IsReadOnly = true, BorderThickness = new Thickness(0), Background = System.Windows.Media.Brushes.Transparent, TextWrapping = TextWrapping.Wrap, Foreground = Theme.Fg2, FontSize = 13.5, Focusable = false,
-            Text = Loc.F(
-                "1. Modus wählen: Anleitung (schlank), Support-Fall (ausführlich), KI-Spur (vollständig) oder Eigene (selbst festgelegt). Der Modus bestimmt den Detailgrad und was nach dem Stopp passiert.\n\n" +
-                "2. Bereich wählen: ganzer Bildschirm, eine Anwendung oder ein Ausschnitt. Ein Klick startet die Aufnahme; vorführen und mit {0} beenden.\n\n" +
-                "Privattaste {1}: Eingaben werden nur gezählt, nicht gespeichert.\n\n" +
-                "Editor: Texte rechts ändern, Kapitel und Hinweiskästen am Schritt anlegen, im Reiter „Dokument“ Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe festlegen. F1 zeigt alle Tastenkürzel, F8 die Qualitätsprüfung, Strg+E exportiert.\n\n" +
-                "KI-Zugriff: „Mit KI verbinden …“ zeigt die fertige Einrichtung für Claude & Co.\n\n" +
-                "Portabel, offline, ohne Installation. Das Programm ist in seinen eigenen Bildern nie zu sehen.\n\n" +
-                "Kostenlos nutzbar, auch beruflich. Lizenz: CC BY-ND 4.0 (Namensnennung – keine Bearbeitungen). © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
-                "1. Choose a mode: Guide (lean), Support case (detailed), AI trace (complete) or Custom. The mode sets the level of detail and what happens after stopping.\n\n" +
-                "2. Choose an area: full screen, one application or a region. One click starts recording; demonstrate and stop with {0}.\n\n" +
-                "Privacy key {1}: input is only counted, not stored.\n\n" +
-                "Editor: edit texts on the right, add chapters and note boxes per step, set cover, table of contents, image size and colour in the \"Document\" tab. F1 shows all shortcuts, F8 the quality check, Ctrl+E exports.\n\n" +
-                "AI access: \"Connect to AI …\" shows the ready-made setup for Claude & co.\n\n" +
-                "Portable, offline, no installation. The program never appears in its own images.\n\n" +
-                "Free to use, also commercially. Licence: CC BY-ND 4.0 (attribution – no derivatives). © 2026 Sebedai · github.com/Sebedai/sebastians-step-recorder",
-                K("stop"), K("privacy"))
-        };
-        var heading = Loc.F("So funktioniert {0}", "How {0} works", AppInfo.DisplayName);
-        var connect = U.Btn(Theme.IRobot, Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(w), null, "Ghost");
-        var diag = U.Btn(Theme.IWrench, Loc.L("Diagnose-Paket erstellen …", "Create diagnostics package …"), () => DiagnosticsDialog.Create(w), Loc.L("Für eine Fehlermeldung: Protokoll und Systemangaben, ohne Aufnahmen", "For a bug report: log and system information, without recordings"), "Ghost");
-        var log = U.Btn(Theme.IFolder, Loc.L("Protokollordner", "Log folder"), () => Shell.Reveal(AppLog.FilePath), null, "Ghost");
-        U.Dialog(w, heading, U.Col(text, new WrapPanel { Margin = new Thickness(-3, 14, 0, 0), Children = { connect, diag, log } }), U.Primary(Loc.L("Schließen", "Close"), () => w.Close()));
-        w.ShowDialog();
     }
 }

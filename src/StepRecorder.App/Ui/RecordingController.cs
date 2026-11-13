@@ -593,7 +593,7 @@ sealed class FrameWindow : Window
 }
 
 /// <summary>Kommentarfeld (Eingabe speichert, Umschalt+Eingabe neue Zeile, Esc verwirft).</summary>
-sealed class CommentWindow : Window
+sealed class CommentWindow : DialogWindow
 {
     readonly Wpf.Ui.Controls.TextBox _box = new() { ClearButtonEnabled = false, AcceptsReturn = false, TextWrapping = TextWrapping.Wrap, MinHeight = 90, MaxLength = 4000, FontSize = 14, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     public string Text => _box.Text;
@@ -621,7 +621,7 @@ sealed class CommentWindow : Window
 /// Unsichtbarkeit nicht bestätigt (z. B. Windows Server 2019 oder ältere Windows-Versionen ohne Ausschluss aus der Bildschirmaufnahme):
 /// anbieten, ohne sichtbare Leiste und Rahmen aufzunehmen und nur über Tastenkürzel zu steuern.
 /// </summary>
-sealed class HiddenModeDialog : Window
+sealed class HiddenModeDialog : DialogWindow
 {
     readonly CheckBox _remember = new() { Margin = new Thickness(0, 14, 0, 0) };
     public bool Hidden { get; private set; } = true;

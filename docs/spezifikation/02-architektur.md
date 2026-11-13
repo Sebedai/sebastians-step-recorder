@@ -34,7 +34,7 @@ Status: Entwurf 0.1 · Stand: 2026-11-11
 | Randbedingung | Festlegung |
 |---|---|
 | Plattform | Windows 10 22H2 (Build 19045) und Windows 11, x64 |
-| Technologie | C#, .NET 10 (LTS), WPF – *Stand: gebaut wird mit .NET 8, der Wechsel ist offen (Abschnitt 9.1)* |
+| Technologie | C#, .NET 10 (LTS), WPF |
 | Auslieferung | eine portable EXE mit eingebauter Laufzeit; zusätzlich eine ZIP-Variante |
 | Rechte | läuft ohne Adminrechte (`asInvoker`); kein Installer, kein Dienst, kein Treiber |
 | Spuren | keine Registry-Schreibzugriffe; Daten neben der EXE oder im Benutzerprofil |
@@ -631,7 +631,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 | Bindungslogik | CommunityToolkit.Mvvm 8.4.x | MIT | Quellgeneratoren statt Laufzeitreflexion |
 | Zielplattform der Windows-Projekte | `net10.0-windows10.0.22621.0`, Mindest-Betriebssystem `10.0.19045.0` | – | Zugriff auf neuere Schnittstellen (z. B. rahmenlose Aufnahme), die zur Laufzeit auf Vorhandensein geprüft werden |
 
-**Stand der Umsetzung.** Die Zielplattform .NET 10 ist **nicht umgesetzt**: Der Code baut gegen .NET 8 (`net8.0-windows10.0.19041.0`, SDK 8.0.4xx über `global.json`), weil auf dem Entwicklungsrechner das .NET-10-SDK fehlt. Der Wechsel ist offen und in [11, Abschnitt 9](11-roadmap-tests-risiken.md#9-offene-entscheidungen) geführt; er ändert Zielplattform und `global.json`, nicht die Architektur. `PublishReadyToRun` ist vorerst aus.
+**Stand der Umsetzung.** Umgesetzt: Alle drei Projekte zielen auf `net10.0-windows10.0.19041.0`. `global.json` verlangt mindestens SDK 10.0.100 und erlaubt neuere (`rollForward: latestMajor`), die CI installiert SDK und Laufzeit 10. Gemessen mit der veröffentlichten EXE: Start bis zum Startfenster 1,03 s (.NET 8: 1,21 s; Median aus 7 Läufen), Größe 76 MB. `PublishReadyToRun` bleibt aus – die EXE würde über 100 MB groß. Genutzt werden die Neuerungen von WPF 9 und 10: schnellere Schrift- und XAML-Verarbeitung, Fluent-Korrekturen und die neuen Schaltflächen des Meldungsfensters („Wiederholen“, „Weiter“, „Ignorieren“), etwa beim Export auf eine noch geöffnete Datei. Ausnahme: .NET 11.0.0 kann WPF-Apps nicht als einzelne EXE veröffentlichen – sie stürzen beim Start mit `BadImageFormatException` ab ([dotnet/wpf#11842](https://github.com/dotnet/wpf/issues/11842), offen). Ein Wechsel auf .NET 11 lohnt erst, wenn das behoben ist; die WPF-Neuerungen von .NET 11 sind ohnehin nur Fehlerbehebungen.
 
 ### 9.2 Bibliotheken
 
@@ -726,7 +726,7 @@ docs/spezifikation/              diese Spezifikation
 
 „windows" steht für `net10.0-windows10.0.22621.0`.
 
-**Stand der Umsetzung.** Die Lösung besteht aus drei Projekten: `StepRecorder.Core`, `StepRecorder.App` und `StepRecorder.Tests` (xUnit); Zielplattform ist derzeit `net8.0-windows10.0.19041.0` (Abschnitt [9.1](#technologie)). Die oben gezeichneten Bausteine liegen als Ordner in Core: `Capture` (Aufzeichnungssteuerung, Bildschirmaufnahme, UI Automation, Fensterregister), `Capture\Host` (Rolle `--capture-host`, Ring), `Data` (Sitzung, Schreiber, Validator, Pack- und Bearbeitungsstände), `Steps`, `ReadLayer`, `Compare`, `Export` (einschließlich `Formats` mit den eigenen Schreibern), `Mcp`, `Native` (Win32, Instanzkanal, Papierkorb, Bildschirmabgriff) und `Settings` (Einstellungen, Zustand, Protokoll, Sprache, Tastenkürzel, Austausch, Diagnose). `App` enthält die Rollenweiche (`Program`), die Kommandozeile (`Cli`, `CliArgs`) und die Oberfläche (`Ui`). Die Trennung in eigene Projekte (Ipc, Imaging, Export, Mcp, Capture.Host) ist noch nicht vollzogen; die Abhängigkeitsregeln aus Abschnitt 5.2 gelten als Ordnungsregeln, ein Architekturtest dafür besteht noch nicht. Core verweist deshalb heute auf Windows-Schnittstellen und WPF-Bibliotheken.
+**Stand der Umsetzung.** Die Lösung besteht aus drei Projekten: `StepRecorder.Core`, `StepRecorder.App` und `StepRecorder.Tests` (xUnit); Zielplattform ist `net10.0-windows10.0.19041.0` (Abschnitt [9.1](#technologie)). Die oben gezeichneten Bausteine liegen als Ordner in Core: `Capture` (Aufzeichnungssteuerung, Bildschirmaufnahme, UI Automation, Fensterregister), `Capture\Host` (Rolle `--capture-host`, Ring), `Data` (Sitzung, Schreiber, Validator, Pack- und Bearbeitungsstände), `Steps`, `ReadLayer`, `Compare`, `Export` (einschließlich `Formats` mit den eigenen Schreibern), `Mcp`, `Native` (Win32, Instanzkanal, Papierkorb, Bildschirmabgriff) und `Settings` (Einstellungen, Zustand, Protokoll, Sprache, Tastenkürzel, Austausch, Diagnose). `App` enthält die Rollenweiche (`Program`), die Kommandozeile (`Cli`, `CliArgs`) und die Oberfläche (`Ui`). Die Trennung in eigene Projekte (Ipc, Imaging, Export, Mcp, Capture.Host) ist noch nicht vollzogen; die Abhängigkeitsregeln aus Abschnitt 5.2 gelten als Ordnungsregeln, ein Architekturtest dafür besteht noch nicht. Core verweist deshalb heute auf Windows-Schnittstellen und WPF-Bibliotheken.
 
 Regeln:
 
@@ -805,7 +805,7 @@ In einer Single-File-Anwendung liefert `Assembly.Location` eine leere Zeichenfol
 <a id="entwicklungsumgebung"></a>
 ### 11.7 Entwicklungsumgebung
 
-- Vorgesehen ist das .NET-10-SDK. *Stand:* Auf dem Entwicklungsrechner ist nur das .NET-8-SDK installiert; gebaut wird daher mit .NET 8 (Abschnitt [9.1](#technologie)), bis das .NET-10-SDK vorhanden ist.
+- Gebaut wird mit dem .NET-10-SDK oder neuer (`global.json`: mindestens 10.0.100, `rollForward: latestMajor`); ein neueres SDK baut dieselbe Zielplattform .NET 10.
 - Der Projektordner liegt in einem synchronisierten Ordner (Nextcloud). Build-Ausgaben werden deshalb über `ArtifactsPath` in ein Verzeichnis **außerhalb** des Projektordners gelenkt; das Verzeichnis `.git` wird von der Synchronisierung ausgenommen ([11](11-roadmap-tests-risiken.md)).
 
 <a id="github-workflow"></a>
@@ -1066,7 +1066,7 @@ ARC-066 bis ARC-076 beschreiben Bausteine, die mit der Umsetzung der Ausbaupaket
 | ARC-022 | `mcp`, `export` und `validate` erzeugen kein Fenster und zeigen nie einen Dialog. | Muss | Fensterinventar des Prozesses bleibt leer; Fehlerfälle enden mit stderr-Zeile und Exit-Code. |
 | ARC-023 | Die Exit-Codes entsprechen der Tabelle in Abschnitt 8.6: 0 bis 6 wie dort, 7 für jede nicht erfüllte Voraussetzung, 8 für jeden Befehl, der eine Ausgabe schreibt, 9 nur für `export` und `check`. | Muss | Test je Code und Befehl; für Code 7 je genanntem Fall ein Test. |
 | ARC-024 | Die Rolle `--capture-host` lässt sich nicht von außen nutzen. | Muss | Start ohne gültige vererbte Handles endet mit Exit-Code 7 und setzt keinen Hook. |
-| ARC-025 | Zielplattform ist .NET 10 (LTS); Mindest-Betriebssystem ist Windows 10 22H2. *Stand: offen – gebaut wird mit .NET 8, weil das .NET-10-SDK fehlt (Abschnitt 9.1).* | Muss | Start auf einem frischen Windows 10 22H2 und Windows 11 ohne installierte .NET-Laufzeit und ohne Adminrechte. |
+| ARC-025 | Zielplattform ist .NET 10 (LTS); Mindest-Betriebssystem ist Windows 10 22H2. *Stand: umgesetzt (Abschnitt 9.1).* | Muss | Start auf einem frischen Windows 10 22H2 und Windows 11 ohne installierte .NET-Laufzeit und ohne Adminrechte. |
 | ARC-026 | Alle Abhängigkeiten tragen eine freizügige Lizenz und stehen in `THIRD-PARTY-NOTICES.txt`. | Muss | Lizenzprüfung im Build; die Datei deckt den gesamten Paketgraphen ab. |
 | ARC-027 | Die ausgeschlossenen Bibliotheken aus Abschnitt 9.3 sind weder direkt noch transitiv eingebunden. | Muss | Build prüft den Paketgraphen gegen die Ausschlussliste. |
 | ARC-028 | Paketversionen sind zentral festgelegt und gesperrt. | Soll | Wiederholter Build auf frischem Rechner erzeugt denselben Paketgraphen. |

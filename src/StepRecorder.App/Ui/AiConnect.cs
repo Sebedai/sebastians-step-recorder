@@ -13,7 +13,7 @@ static class AiConnect
 {
     public static void Show(Window? owner)
     {
-        var w = new Window { Title = Loc.L("Mit KI verbinden", "Connect to AI"), Width = 760, SizeToContent = SizeToContent.Height, MaxHeight = Theme.ActiveWorkArea().Height - 40, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = owner == null, Owner = owner, WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen };
+        var w = new DialogWindow { Title = Loc.L("Mit KI verbinden", "Connect to AI"), Width = 760, SizeToContent = SizeToContent.Height, MaxHeight = Theme.ActiveWorkArea().Height - 40, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = owner == null, Owner = owner, WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen };
         Theme.Prepare(w, Theme.Surface);
         string exe = Environment.ProcessPath ?? StepRecorder.Data.AppInfo.ExeName;
         var root = new TextBox { Text = AppPaths.DefaultSessionsFolder() };

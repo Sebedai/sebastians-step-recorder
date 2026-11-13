@@ -146,7 +146,8 @@ sealed class LibraryPage : ContentControl
         var cts = _scanCts = new CancellationTokenSource();
         _status.Text = Loc.L("Aufnahmen werden gesucht …", "Looking for recordings …");
         string root = _root;
-        Task.Run(() => SessionCatalog.Scan(root, ct: cts.Token), cts.Token).ContinueWith(t =>
+        var recent = AppSettings.Load().RecentSessions.ToList();
+        Task.Run(() => WithRecent(SessionCatalog.Scan(root, ct: cts.Token), recent), cts.Token).ContinueWith(t =>
         {
             if (cts.IsCancellationRequested || !IsLoaded) return;
             if (t.IsFaulted) { _status.Text = t.Exception?.InnerException?.Message ?? ""; return; }
@@ -156,6 +157,20 @@ sealed class LibraryPage : ContentControl
             Fill();
         }, TaskScheduler.FromCurrentSynchronizationContext());
     }
+
+    static string Norm(string p) { try { return Path.GetFullPath(p).TrimEnd('\\', '/'); } catch { return p; } }
+
+    /// <summary>Zuletzt geöffnete Aufnahmen aus anderen Ordnern dazunehmen – sonst fehlte hier, was „Zuletzt“ zeigt.</summary>
+    static List<SessionInfo> WithRecent(List<SessionInfo> list, List<string> recent)
+    {
+        var known = list.Select(x => Norm(x.Path)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var p in recent)
+            if (Session.LooksLikeSession(p) && known.Add(Norm(p))) list.Add(SessionCatalog.Read(p));
+        return list;
+    }
+
+    /// <summary>Liegt die Aufnahme außerhalb des Aufnahmeordners (nur über „zuletzt geöffnet“ bekannt)?</summary>
+    bool Elsewhere(SessionInfo s) => !Norm(s.Path).StartsWith(Norm(_root) + "\\", StringComparison.OrdinalIgnoreCase);
 
     void Refilter() { _filter.Focus(); Fill(); }
 
@@ -183,8 +198,9 @@ sealed class LibraryPage : ContentControl
             if (keep.Contains(s.Path)) item.IsSelected = true;
         }
         _count.Text = q.IsEmpty ? Loc.N(_all.Count, "1 Aufnahme", "{0} Aufnahmen", "1 recording", "{0} recordings") : Loc.F("{0} von {1}", "{0} of {1}", shown.Count, _all.Count);
-        _status.Text = _root;
-        if (_all.Count == 0) _list.Items.Add(new ListBoxItem { Content = U.Text(Loc.L("Noch keine Aufnahmen in diesem Ordner.", "No recordings in this folder yet."), 13, fg: Theme.Muted), IsEnabled = false, Padding = new Thickness(18) });
+        int outside = _all.Count(Elsewhere);
+        _status.Text = outside > 0 ? _root + Loc.N(outside, " · dazu 1 zuletzt geöffnete aus einem anderen Ordner", " · dazu {0} zuletzt geöffnete aus anderen Ordnern", " · plus 1 recently opened from another folder", " · plus {0} recently opened from other folders") : _root;
+        if (_all.Count == 0) _list.Items.Add(new ListBoxItem { Content = U.Text(Loc.L("Noch keine Aufnahmen. Unter „Neue Aufnahme“ starten – oder eine .steprec-Datei mit „Entpacken …“ holen.", "No recordings yet. Start one under “New recording” – or bring in a .steprec file with “Unpack …”."), Theme.FsBody, fg: Theme.Muted), IsEnabled = false, Padding = new Thickness(18) });
         LoadExtras(shown);
         UpdateActions();
     }
@@ -203,8 +219,10 @@ sealed class LibraryPage : ContentControl
         if (ProfileName(s.ProfileId) is { } pn) meta.Add(pn);
         var chips = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
         FillChips(chips, s);
-        var title = new TextBlock { Text = s.Title, FontWeight = FontWeights.SemiBold, FontSize = 13.5, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Fg };
-        var col = U.Col(title, new TextBlock { Text = string.Join("  ·  ", meta), FontFamily = Theme.Mono, FontSize = 11, Foreground = Theme.Muted, Margin = new Thickness(0, 3, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis }, chips);
+        // außerhalb des Aufnahmeordners: nur der Ordnername (ganzer Pfad im Tooltip der Zeile)
+        if (Elsewhere(s)) meta.Add(Loc.F("im Ordner „{0}“", "in folder “{0}”", Path.GetFileName(Path.GetDirectoryName(s.Path.TrimEnd('\\', '/')) ?? s.Path)));
+        var title = new TextBlock { Text = s.Title, FontWeight = FontWeights.SemiBold, FontSize = Theme.FsBody, TextTrimming = TextTrimming.CharacterEllipsis, Foreground = Theme.Fg };
+        var col = U.Col(title, new TextBlock { Text = string.Join(" · ", meta), FontSize = Theme.FsCaption, Foreground = Theme.Muted, Margin = new Thickness(0, 3, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis }, chips);
         col.VerticalAlignment = VerticalAlignment.Center;
         var g = new DockPanel { ToolTip = s.Path };
         DockPanel.SetDock(box, Dock.Left); g.Children.Add(box); g.Children.Add(col);

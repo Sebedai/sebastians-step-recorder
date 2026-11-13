@@ -19,7 +19,7 @@ sealed partial class StartWindow
     readonly List<TextBlock> _navLabels = new();
     readonly ContentControl _pageHost = new() { Focusable = false };
     FrameworkElement _newPage = null!;
-    DockPanel _navPanel = null!;
+    Grid _navPanel = null!;
 
     FrameworkElement BuildNav()
     {
@@ -40,8 +40,9 @@ sealed partial class StartWindow
         Item("sessions", Theme.IHistory, Loc.L("Aufnahmen", "Recordings"), Loc.L("Alle Aufnahmen: suchen, öffnen, umbenennen, packen, löschen (Strg+L)", "All recordings: search, open, rename, pack, delete (Ctrl+L)"), top);
         Item("settings", Theme.ISettings, Loc.L("Einstellungen", "Settings"), Loc.L("Darstellung, Sprache, Aufnahme, Tastenkürzel, Speicher und Schutz", "Appearance, language, recording, shortcuts, storage and protection"), bottom);
         Item("help", Theme.IHelp, Loc.L("Hilfe", "Help"), Loc.L("So funktioniert es, Tastenkürzel, KI-Zugriff, Version und Lizenz", "How it works, shortcuts, AI access, version and licence"), bottom);
-        _navPanel = new DockPanel { Width = NavWidth };
-        DockPanel.SetDock(bottom, Dock.Bottom); _navPanel.Children.Add(bottom); _navPanel.Children.Add(top);
+        // oben die Seiten, unten Einstellungen und Hilfe – die Tab-Taste geht in dieser Reihenfolge
+        _navPanel = U.Stack(top, bottom);
+        _navPanel.Width = NavWidth;
         return _navPanel;
     }
 
@@ -81,8 +82,8 @@ sealed partial class StartWindow
     FrameworkElement BuildSettingsPage(int tab)
     {
         var page = SettingsPage.Build(this, tab, t => _pageHost.Content = BuildSettingsPage(t));
-        // ohne Scrollen: bei wenig Platz gleichmäßig verkleinern
-        return new Viewbox { Child = page, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(28, 8, 32, 16) };
+        // bei wenig Platz scrollen statt verkleinern – die Schrift bleibt gut lesbar
+        return new ScrollViewer { Content = new Border { Child = page, Padding = new Thickness(28, 8, 32, 16) }, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
     }
 
     // =====================================================================================

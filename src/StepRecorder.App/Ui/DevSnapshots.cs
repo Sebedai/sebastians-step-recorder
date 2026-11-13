@@ -62,7 +62,7 @@ static class DevSnapshots
             if (!w.AllowsTransparency) rtb.Render(under);   // Leiste und Overlays bleiben freigestellt
             rtb.Render(root);
             var enc = new PngBitmapEncoder(); enc.Frames.Add(BitmapFrame.Create(rtb));
-            using var fs = File.Create(Path.Combine(_dir!, $"{++_n:00}-{w.GetType().Name}{(w.GetType() == typeof(Window) ? "-" + Sanitize(w.Title) : "")}.png"));
+            using var fs = File.Create(Path.Combine(_dir!, $"{++_n:00}-{w.GetType().Name}{(w.GetType() == typeof(Window) || w.GetType() == typeof(DialogWindow) ? "-" + Sanitize(w.Title) : "")}.png"));
             enc.Save(fs);
         }
         catch (Exception ex) { UiApp.Log("snapshot: " + ex); }

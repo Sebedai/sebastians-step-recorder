@@ -14,7 +14,7 @@ public sealed record QualityFinding(string Rule, string Severity, long? Anchor, 
     public string Line(string lang)
     {
         bool de = lang == "de";
-        string sev = Severity == "warning" ? (de ? "Warnung" : "Warning") : (de ? "Hinweis" : "Hint");
+        string sev = Severity == "warning" ? (de ? "Warnung" : "Warning") : (de ? "Vorschlag" : "Suggestion");
         string where = GuideNumber is int n ? (de ? $" Schritt {n}" : $" step {n}") : "";
         return $"{Rule} {sev}{where}: {Text(lang)}{(Ignored ? (de ? " (ignoriert)" : " (ignored)") : "")}";
     }

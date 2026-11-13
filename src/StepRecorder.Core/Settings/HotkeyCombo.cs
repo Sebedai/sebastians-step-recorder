@@ -86,7 +86,7 @@ public static class HotkeyActions
     public static readonly Action[] All =
     {
         new("instantPause", "Sofort aufnehmen · Pause / Fortsetzen", "Record now · pause / resume", "Ctrl+Shift+F9", false),
-        new("stop", "Aufnahme beenden und speichern", "Stop and save recording", "Ctrl+Shift+F10", true),
+        new("stop", "Aufnahme beenden", "Stop recording", "Ctrl+Shift+F10", true),
         new("markerError", "Fehlerstelle markieren", "Mark error", "Ctrl+Shift+F1", false),
         new("markerExpected", "Marker „Erwartet“", "Marker \"expected\"", "Ctrl+Shift+F2", false),
         new("marker", "Marker setzen", "Set marker", "Ctrl+Shift+F7", false),
@@ -94,7 +94,7 @@ public static class HotkeyActions
         new("dictation", "Diktat ein/aus (Mikrofon, offline)", "Dictation on/off (microphone, offline)", "Ctrl+Shift+F5", false),
         new("snapshot", "Schnappschuss", "Snapshot", "Ctrl+Shift+F11", false),
         new("privacy", "Privattaste (Eingaben nur zählen)", "Privacy key (count input only)", "Ctrl+Shift+F8", false),
-        new("discard", "Letzten Schritt verwerfen", "Discard last step", "Ctrl+Shift+F6", false),
+        new("discard", "Letzten Schritt zurücknehmen", "Undo last step", "Ctrl+Shift+F6", false),
         new("bar", "Leiste ein-/ausblenden", "Show/hide bar", "Ctrl+Shift+F4", false),
     };
 

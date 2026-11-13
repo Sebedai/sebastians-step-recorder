@@ -34,7 +34,7 @@ sealed partial class ViewerWindow
     {
         int w = f.Count(x => x.Severity == "warning"), h = f.Count - w;
         if (f.Count == 0) return Loc.L("Qualität: keine Befunde", "Quality: no findings");
-        return Loc.L("Qualität: ", "Quality: ") + string.Join(", ", new[] { w > 0 ? Loc.N(w, "1 Warnung", "{0} Warnungen", "1 warning", "{0} warnings") : null, h > 0 ? Loc.N(h, "1 Hinweis", "{0} Hinweise", "1 hint", "{0} hints") : null }.Where(x => x != null));
+        return Loc.L("Qualität: ", "Quality: ") + string.Join(", ", new[] { w > 0 ? Loc.N(w, "1 Warnung", "{0} Warnungen", "1 warning", "{0} warnings") : null, h > 0 ? Loc.N(h, "1 Vorschlag", "{0} Vorschläge", "1 suggestion", "{0} suggestions") : null }.Where(x => x != null));
     }
 
     void UpdateQualityLink()
@@ -123,11 +123,11 @@ sealed partial class ViewerWindow
 }
 
 /// <summary>Nicht modales Fenster der Qualitätsprüfung: Befunde mit Sprung, Aktion und „Ignorieren“.</summary>
-sealed class QualityWindow : Window
+sealed class QualityWindow : DialogWindow
 {
     readonly ViewerWindow _owner;
     readonly StackPanel _list = new();
-    readonly TextBlock _summary = U.Text("", 12.5, fg: Theme.Muted);
+    readonly TextBlock _summary = U.Text("", Theme.FsHint, fg: Theme.Muted);
     readonly CheckBox _showIgnored = new() { Content = Loc.L("Ignorierte zeigen", "Show ignored"), VerticalAlignment = VerticalAlignment.Center };
 
     public QualityWindow(ViewerWindow owner)
@@ -151,8 +151,8 @@ sealed class QualityWindow : Window
         var body = new DockPanel();
         DockPanel.SetDock(head, Dock.Top); body.Children.Add(head);
         body.Children.Add(new ScrollViewer { Content = _list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        var root = new DockPanel { Margin = new Thickness(20, 16, 16, 16) };
-        var h = U.Text(Loc.L("Qualitätsprüfung", "Quality check"), 17, true, margin: new Thickness(0, 0, 0, 6)); h.FontFamily = Theme.Display;
+        var root = new DockPanel { Margin = new Thickness(20, 12, 16, 16) };
+        var h = U.Heading(Loc.L("Qualitätsprüfung", "Quality check"), Theme.FsTitle, new Thickness(0, 0, 0, 6));
         DockPanel.SetDock(h, Dock.Top); root.Children.Add(h);
         root.Children.Add(body);
         Content = root;
@@ -168,13 +168,16 @@ sealed class QualityWindow : Window
         catch (Exception ex) { _summary.Text = ex.Message; return; }
         int w = all.Count(x => x.Severity == "warning" && !x.Ignored), hcount = all.Count(x => x.Severity != "warning" && !x.Ignored);
         _summary.Text = all.Count == 0 ? Loc.L("Keine Befunde – die Anleitung ist bereit.", "No findings – the guide is ready.")
-            : Loc.N(w, "1 Warnung", "{0} Warnungen", "1 warning", "{0} warnings") + " · " + Loc.N(hcount, "1 Hinweis", "{0} Hinweise", "1 hint", "{0} hints");
+            : Loc.N(w, "1 Warnung", "{0} Warnungen", "1 warning", "{0} warnings") + " · " + Loc.N(hcount, "1 Vorschlag", "{0} Vorschläge", "1 suggestion", "{0} suggestions");
         foreach (var f in all.OrderBy(x => x.Severity == "warning" ? 0 : 1).ThenBy(x => x.GuideNumber ?? int.MaxValue))
         {
             bool warn = f.Severity == "warning";
-            var icon = U.Icon(warn ? Theme.IWarn : Theme.IInfo, 13, warn ? Theme.Warn : Theme.Muted); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 10, 0);
-            var text = U.Text(f.Text(Loc.Lang), 13, fg: f.Ignored ? Theme.Muted : Theme.Fg); text.TextWrapping = TextWrapping.Wrap;
-            var where = new TextBlock { Text = (f.GuideNumber is int n ? Loc.F("Schritt {0}", "Step {0}", n) + " · " : "") + f.Rule + (f.Ignored ? Loc.L(" · ignoriert", " · ignored") : ""), FontFamily = Theme.Mono, FontSize = 11, Foreground = Theme.Muted, Margin = new Thickness(0, 0, 0, 3) };
+            var icon = U.Icon(warn ? Theme.IWarn : Theme.IInfo, 14, warn ? Theme.Warn : Theme.Muted); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 12, 0);
+            var text = U.Text(f.Text(Loc.Lang), Theme.FsBody, fg: f.Ignored ? Theme.Muted : Theme.Fg); text.TextWrapping = TextWrapping.Wrap;
+            // Regelkürzel (Q07 …) nur im Tooltip – für Menschen zählt Schritt und Art
+            string kind = warn ? Loc.L("Warnung", "Warning") : Loc.L("Vorschlag", "Suggestion");
+            var where = U.Text((f.GuideNumber is int n ? Loc.F("Schritt {0}", "Step {0}", n) + " · " : "") + kind + (f.Ignored ? Loc.L(" · ignoriert", " · ignored") : ""), Theme.FsCaption, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 2));
+            where.ToolTip = Loc.F("Regel {0}", "Rule {0}", f.Rule);
             var actions = new WrapPanel { Margin = new Thickness(-4, 4, 0, 0) };
             var go = U.Btn(null, ViewerWindow.ActionLabel(f.Action), () => _owner.RunFindingAction(f), null, "Link"); actions.Children.Add(go);
             var ign = U.Btn(null, f.Ignored ? Loc.L("Wieder berücksichtigen", "Consider again") : Loc.L("Ignorieren", "Ignore"), () => { _owner.SetFindingIgnored(f, !f.Ignored); }, f.Rule == "Q12" ? Loc.L("Ignorieren hebt die Durchsichtspflicht nicht auf.", "Ignoring does not lift the review requirement.") : null, "Link");
@@ -182,7 +185,7 @@ sealed class QualityWindow : Window
             var col = U.Col(where, text, actions);
             var row = new DockPanel { Margin = new Thickness(0, 0, 0, 2) };
             DockPanel.SetDock(icon, Dock.Left); row.Children.Add(icon); row.Children.Add(col);
-            var card = new Border { Padding = new Thickness(10, 8, 10, 8), CornerRadius = new CornerRadius(6), Background = Theme.Surface2, Margin = new Thickness(0, 0, 0, 6), Child = row, Cursor = Cursors.Hand };
+            var card = new Border { Padding = new Thickness(14, 10, 12, 8), CornerRadius = new CornerRadius(Theme.RCard), Background = Theme.Surface, BorderBrush = Theme.CardLine, BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, 6), Child = row, Cursor = Cursors.Hand };
             card.MouseLeftButtonUp += (_, e) => { if (e.OriginalSource is not TextBlock { Parent: StackPanel { Parent: Button } }) _owner.GoToFinding(f); };
             _list.Children.Add(card);
         }

@@ -150,7 +150,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 |---|---|
 | Betriebssystem | Windows 10 22H2 und Windows 11, x64 |
 | Rechte | Läuft als normaler Benutzer; Neustart mit Adminrechten optional, um Fenster mit Adminrechten aufzunehmen |
-| Technologie | C# / .NET 10 (LTS, Support bis November 2028), WPF, self-contained Single-File-EXE ([02](02-architektur.md)). *Stand: gebaut wird mit .NET 8; der Wechsel auf .NET 10 ist offen, weil das SDK fehlt* |
+| Technologie | C# / .NET 10 (LTS, Support bis November 2028), WPF, self-contained Single-File-EXE ([02](02-architektur.md)). *Stand: umgesetzt* |
 | Abhängigkeiten | Nur freizügige Lizenzen (MIT, Apache-2.0, BSD) |
 | Netzwerk | Kein Netzwerkzugriff |
 | Sprache | Oberfläche Deutsch und Englisch (Einstellung „System“ folgt Windows; die Sprache der Anleitungstexte ist davon unabhängig); Datenformat-Bezeichner englisch; Spezifikation deutsch |

@@ -115,7 +115,7 @@ public static partial class GuideExport
             case "bugreport": res.Text = BugReport(view, doc, outPath); break;
             case "tour":
                 File.WriteAllText(outPath, Tour(doc, o), new UTF8Encoding(false));
-                if (new FileInfo(outPath).Length > 25L << 20) res.Notices.Add(lang == "de" ? "Die Klick-Tour ist größer als 25 MB – zum Verschicken ggf. die Darstellung „Ausschnitt“ oder weniger Schritte wählen." : "The click tour is larger than 25 MB – for sending, consider the \"detail\" view or fewer steps.");
+                if (new FileInfo(outPath).Length > 25L << 20) res.Notices.Add(lang == "de" ? "Die Klick-Tour ist größer als 25 MB – zum Verschicken ggf. den Bildausschnitt „Ausschnitt um die Aktion“ oder weniger Schritte wählen." : "The click tour is larger than 25 MB – for sending, consider the \"detail\" view or fewer steps.");
                 break;
             case "pptx": Pptx(doc, outPath, o); break;
             default: File.WriteAllText(outPath, Html(doc, o), new UTF8Encoding(false)); break;

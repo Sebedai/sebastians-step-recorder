@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UseWPF>true</UseWPF>
@@ -9,7 +9,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>StepRecorder</RootNamespace>
     <Version>0.12.0</Version>
-    <NoWarn>$(NoWarn);CA1416</NoWarn>
+    <!-- WinForms-Analyzer: WFO0003 – die DPI-Einstellung im Manifest braucht WPF (die WinForms-API gilt nur für WinForms);
+         WFO2000 – Getter liefern absichtlich neue Listen, weil die Texte von der Oberflächensprache abhängen -->
+    <NoWarn>$(NoWarn);CA1416;WFO0003;WFO2000</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

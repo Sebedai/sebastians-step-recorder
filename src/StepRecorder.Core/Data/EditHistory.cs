@@ -97,7 +97,7 @@ public static class EditHistory
         var parts = new List<string>();
         void P(int n, string deOne, string deMany, string enOne, string enMany) { if (n > 0) parts.Add(Loc.N(n, deOne, deMany, enOne, enMany)); }
         P(TextCount(e), "1 eigener Text", "{0} eigene Texte", "1 own text", "{0} own texts");
-        P(Count(e, "annotations"), "1 Markierung", "{0} Markierungen", "1 marker", "{0} markers");
+        P(Count(e, "annotations"), "1 Zeichnung", "{0} Zeichnungen", "1 drawing", "{0} drawings");
         P(Count(e, "comments"), "1 Kommentar", "{0} Kommentare", "1 comment", "{0} comments");
         P((e.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().Count(s => s.Bool("hidden")), "1 ausgeblendet", "{0} ausgeblendet", "1 hidden", "{0} hidden");
         P(Count(e, "merges"), "1 Zusammenfassung", "{0} Zusammenfassungen", "1 merge", "{0} merges");
@@ -112,12 +112,12 @@ public static class EditHistory
         var l = new List<string>();
         void D(int a, int b, string de, string en) { if (a != b) l.Add(Loc.F(de, en, b - a > 0 ? "+" + (b - a) : (b - a).ToString(CultureInfo.InvariantCulture))); }
         D(TextCount(from), TextCount(to), "eigene Texte {0}", "own texts {0}");
-        D(Count(from, "annotations"), Count(to, "annotations"), "Markierungen {0}", "markers {0}");
+        D(Count(from, "annotations"), Count(to, "annotations"), "Zeichnungen {0}", "drawings {0}");
         D(Count(from, "comments"), Count(to, "comments"), "Kommentare {0}", "comments {0}");
         D(Count(from, "inserted"), Count(to, "inserted"), "eingefügte Schritte {0}", "inserted steps {0}");
         D(Count(from, "merges"), Count(to, "merges"), "Zusammenfassungen {0}", "merges {0}");
         if ((from.Arr("order")?.ToJsonString() ?? "") != (to.Arr("order")?.ToJsonString() ?? "")) l.Add(Loc.L("andere Reihenfolge", "different order"));
-        if ((from.Obj("guide")?.ToJsonString() ?? "") != (to.Obj("guide")?.ToJsonString() ?? "")) l.Add(Loc.L("Dokument-Einstellungen geändert", "document settings changed"));
+        if ((from.Obj("guide")?.ToJsonString() ?? "") != (to.Obj("guide")?.ToJsonString() ?? "")) l.Add(Loc.L("Titelseite und Einleitung geändert", "title page and introduction changed"));
         if ((from.Arr("steps")?.ToJsonString() ?? "") != (to.Arr("steps")?.ToJsonString() ?? "") && l.Count == 0) l.Add(Loc.L("Schritt-Einstellungen geändert", "step settings changed"));
         return l;
     }

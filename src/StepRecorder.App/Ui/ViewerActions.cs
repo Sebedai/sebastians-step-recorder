@@ -222,7 +222,7 @@ sealed partial class ViewerWindow
         using var other = SessionView.Open(Path.GetDirectoryName(dlg.FileName)!, headless: true);
         using var me = SessionView.Open(_path, headless: true);
         var r = StepCompare.Compare(me, other);
-        var w = new Window { Title = Loc.L("Vergleich", "Comparison"),Width = 960, Height = 720, Owner = this };
+        var w = new DialogWindow { Title = Loc.L("Vergleich", "Comparison"),Width = 960, Height = 720, Owner = this };
         Theme.Prepare(w, Theme.Surface);
         w.Content = new TextBox { Text = StepCompare.Markdown(r, Loc.Lang), FontFamily = Theme.Mono, FontSize = Theme.FsHint, IsReadOnly = true, BorderThickness = new Thickness(0), Padding = new Thickness(28, 24, 28, 24), VerticalContentAlignment = VerticalAlignment.Top, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Auto };
         w.Show();
@@ -230,7 +230,7 @@ sealed partial class ViewerWindow
 }
 
 /// <summary>Einfacher Eingabedialog (Text, optional Titel und Kommentarart).</summary>
-sealed class InputDialog : Window
+sealed class InputDialog : DialogWindow
 {
     readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 100, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     readonly TextBox? _title;
@@ -272,7 +272,7 @@ sealed class InputDialog : Window
 }
 
 /// <summary>Durchsicht der Eingaben: jede auffällige Eingabe braucht eine eigene Entscheidung.</summary>
-sealed class ReviewWindow : Window
+sealed class ReviewWindow : DialogWindow
 {
     public List<(ViewStep step, string status)> Decisions { get; } = new();
 

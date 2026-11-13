@@ -15,7 +15,7 @@ static class ViewerCommands
 {
     public static (string id, string label)[] Groups() => new[]
     {
-        ("steps", Loc.L("Schritte", "Steps")), ("image", Loc.L("Bild und Markierungen", "Image and markup")),
+        ("steps", Loc.L("Schritte", "Steps")), ("image", Loc.L("Bild und Zeichnungen", "Image and drawings")),
         ("copy", Loc.L("Kopieren und Exportieren", "Copy and export")), ("general", Loc.L("Allgemein", "General"))
     };
 
@@ -88,7 +88,7 @@ sealed partial class ViewerWindow
             new("prev", "steps", Loc.L("Vorheriger Schritt", "Previous step"), Key.Up, N, Prev, ListUnfocused),
             new("next2", "steps", Loc.L("Nächster Schritt", "Next step"), Key.Right, N, Next, ListUnfocused, Listed: false),
             new("prev2", "steps", Loc.L("Vorheriger Schritt", "Previous step"), Key.Left, N, Prev, ListUnfocused, Listed: false),
-            // Bild und Markierungen
+            // Bild und Zeichnungen
             new("toolSelect", "image", Loc.L("Auswählen", "Select"), Key.V, N, () => SelectTool("select")),
             new("toolArrow", "image", Loc.L("Pfeil", "Arrow"), Key.A, N, () => SelectTool("arrow")),
             new("toolLine", "image", Loc.L("Linie", "Line"), Key.A, S, () => SelectTool("line")),
@@ -197,7 +197,7 @@ static class ShortcutsWindow
 {
     public static void Show(Window owner, IEnumerable<ViewerCmd> commands)
     {
-        var w = new Window { Title = Loc.L("Tastenkürzel", "Keyboard shortcuts"), Width = 640, Height = Math.Min(760, Theme.ActiveWorkArea().Height - 60), ResizeMode = ResizeMode.CanResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Tastenkürzel", "Keyboard shortcuts"), Width = 640, Height = Math.Min(760, Theme.ActiveWorkArea().Height - 60), ResizeMode = ResizeMode.CanResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         var rows = new List<(string group, string label, string keys)>();
         foreach (var (gid, groupLabel) in ViewerCommands.Groups())
@@ -208,7 +208,11 @@ static class ShortcutsWindow
         foreach (var a in HotkeyActions.All)
             rows.Add((rec, Loc.L(a.De, a.En), Loc.Keys(s.Hotkey(a.Id)) is { Length: > 0 } k ? k : Loc.L("nicht belegt", "not assigned")));
 
-        var search = new TextBox { Tag = Loc.L("Kürzel oder Befehl suchen", "Search shortcut or command"), Padding = new Thickness(10, 7, 8, 7), Margin = new Thickness(0, 0, 0, 12) };
+        var search = new Wpf.Ui.Controls.TextBox
+        {
+            PlaceholderText = Loc.L("Kürzel oder Befehl suchen", "Search shortcut or command"), Margin = new Thickness(0, 0, 0, 12),
+            Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 }
+        };
         var list = new StackPanel();
         void Fill()
         {
@@ -220,16 +224,17 @@ static class ShortcutsWindow
                 if (!q.Matches(group + " " + label + " " + keys)) continue;
                 if (group != last)
                 {
-                    list.Children.Add(U.Overline(group, new Thickness(0, last == null ? 0 : 16, 0, 6)));
+                    list.Children.Add(U.Text(group, Theme.FsBody, true, margin: new Thickness(0, last == null ? 0 : 18, 0, 6)));
                     last = group;
                 }
-                var dock = new DockPanel { Margin = new Thickness(0, 3, 0, 3) };
-                var k = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 2, 8, 3), Child = new TextBlock { Text = keys, FontFamily = Theme.Mono, FontSize = 12, Foreground = Theme.Fg } };
+                // wie auf der Hilfe-Seite: Befehl links, Tastenkappe rechts
+                var dock = new DockPanel { Margin = new Thickness(0, 2, 12, 2) };
+                var k = Shortcuts.Keycap(keys);
                 DockPanel.SetDock(k, Dock.Right); dock.Children.Add(k);
-                dock.Children.Add(new TextBlock { Text = label, FontSize = 13, Foreground = Theme.Fg, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis });
+                dock.Children.Add(new TextBlock { Text = label, FontSize = Theme.FsHint, Foreground = Theme.Fg2, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 3, 12, 3) });
                 list.Children.Add(dock);
             }
-            if (last == null) list.Children.Add(U.Text(Loc.L("Kein Treffer.", "No match."), 13, fg: Theme.Muted));
+            if (last == null) list.Children.Add(U.Text(Loc.L("Kein Treffer.", "No match."), Theme.FsHint, fg: Theme.Muted));
         }
         search.TextChanged += (_, _) => Fill();
         Fill();

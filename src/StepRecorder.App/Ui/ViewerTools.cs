@@ -375,7 +375,7 @@ sealed class CountdownWindow : Window
 }
 
 /// <summary>Suchen und Ersetzen über alle Schritte, Hinweise, Kapitel und Dokumenttexte.</summary>
-sealed class SearchReplaceWindow : Window
+sealed class SearchReplaceWindow : DialogWindow
 {
     readonly Wpf.Ui.Controls.TextBox _find = new() { PlaceholderText = Loc.L("Suchen nach …", "Find …") }, _repl = new() { PlaceholderText = Loc.L("Ersetzen durch …", "Replace with …") };
     readonly CheckBox _case = new() { Content = Loc.L("Groß-/Kleinschreibung beachten", "Match case"), Margin = new Thickness(0, 0, 20, 8) }, _word = new() { Content = Loc.L("Nur ganze Wörter", "Whole words only"), Margin = new Thickness(0, 0, 20, 8) };
@@ -429,7 +429,7 @@ sealed class SearchReplaceWindow : Window
 }
 
 /// <summary>Durchsucht alle Bilder der Aufnahme per Texterkennung nach E-Mail-Adressen, IBANs, Telefon- und Kartennummern, Schlüsseln.</summary>
-sealed class PiiScanWindow : Window
+sealed class PiiScanWindow : DialogWindow
 {
     readonly ViewerWindow _v;
     readonly SessionView _view;

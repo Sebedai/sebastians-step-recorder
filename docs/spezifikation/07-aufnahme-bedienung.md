@@ -162,7 +162,9 @@ Profile lassen sich mit der EXE weitergeben: Eine Datei `profiles.json` neben de
 
 Das Startfenster ist eine kleine App im Stil von Windows 11 (Mica-Hintergrund, eigene Titelleiste) mit einer
 Navigationsspalte links: **Neue Aufnahme** · **Aufnahmen** · unten **Einstellungen** · **Hilfe**. Unter 900 px
-Fensterbreite zeigt die Spalte nur Symbole. Die Seite „Neue Aufnahme“ passt immer ohne Scrollen ins Fenster.
+Fensterbreite zeigt die Spalte nur Symbole. Die Seiten behalten immer die volle Schriftgröße: Bei wenig Platz rutscht
+„Zuletzt“ unter die Auswahl, die Moduskarten stehen in zwei Reihen, und reicht die Höhe nicht, scrollt die Seite
+(ebenso die Einstellungen). Die Tab-Taste geht von der Navigation über Zweck und Bereich zu „Zuletzt“.
 
 ```
 ┌─ Sebastians Step Recorder ─────────────────────────────────────────────────────── – □ × ┐
@@ -622,7 +624,7 @@ Alle Kürzel wirken systemweit, egal welches Programm den Fokus hat.
 | Privattaste | `Strg+Umschalt+F8` | Aufnahme | Umschalter |
 | Freigabetaste | `Strg+Umschalt+F3` | Aufnahme, nur Schutzstufe „Streng“ | erlaubt Klartext im aktuellen Fenster bis zum Fensterwechsel |
 | Marker | `Strg+Umschalt+F7` | Aufnahme | ohne Oberfläche |
-| Letzten Schritt verwerfen | `Strg+Umschalt+F6` | Aufnahme, Pause | mehrfach drücken geht schrittweise zurück |
+| Letzten Schritt verwerfen (in der Oberfläche „Letzten Schritt zurücknehmen“) | `Strg+Umschalt+F6` | Aufnahme, Pause | mehrfach drücken geht schrittweise zurück |
 | Aufnahmebereich wechseln | `Strg+Umschalt+F5` | Aufnahme, Pause | öffnet das Bereichsmenü |
 | Leiste ein-/ausblenden | `Strg+Umschalt+F4` | Aufnahme, Pause | der Rahmen bleibt |
 
