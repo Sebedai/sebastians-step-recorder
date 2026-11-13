@@ -65,10 +65,10 @@ public static class QualityCheck
         }
 
         // Q12 über alle Schritte (nicht nur den Umfang): ungeprüfte Eingaben blockieren jede Weitergabe
-        foreach (var s in view.All.Where(s => s.Unreviewed))
+        foreach (var s in view.AllWithInactive.Where(s => s.Unreviewed))
             Add("Q12", "warning", s, "typed", "Eine auffällige Eingabe ist ungeprüft.", "A flagged input has not been reviewed.", "review");
 
-        ViewStep? prev = null;
+        ViewStep? prev = null, prevRec = null;
         long firstT = steps.Count > 0 ? steps.Min(s => s.TFrom) : 0, lastT = steps.Count > 0 ? steps.Max(s => s.TTo) : 0;
         bool reordered = (view.Edits.Arr("order")?.Count ?? 0) > 0 || view.All.Any(s => s.Hidden) || view.Manual.Count > 0 || (view.Edits.Arr("merges")?.Count ?? 0) > 0 || (view.Edits.Obj("guide")?.Arr("append")?.Count ?? 0) > 0;
         var timeline = view.Steps.Arr("timeline") ?? new JsonArray();
@@ -95,8 +95,13 @@ public static class QualityCheck
             // Q05
             if (action && s.TTo - s.TFrom > o.LongStepUs)
                 Add("Q05", "hint", s, null, "Dieser Schritt dauert sehr lange.", "This step takes very long.", "insertNote");
+            // Q18: Nahtstelle vor diesem Schritt (Neuaufnahme oder Fortsetzung, 05 §16.4) – über sie hinweg keine Abstände (Q06)
+            var seams = s.Manual ? new List<Seam>() : view.SeamsBetween(prevRec, s);
+            if (seams.Count > 0)
+                Add("Q18", "hint", s, seams[0].Kind, "Vor diesem Schritt passt der Zustand nicht nahtlos.", "The state before this step may not continue seamlessly.", "insertNote");
+            if (!s.Manual) prevRec = s;
             // Q06
-            if (prev != null && prev.Kind is not ("wait" or "comment"))
+            if (prev != null && seams.Count == 0 && prev.Kind is not ("wait" or "comment"))
             {
                 long idle = timeline.OfType<JsonObject>().Where(x => x.Str("kind") == "idle" && x.Long("tTo") <= s.TFrom + 1000 && x.Long("tTo") >= prev.TTo).Select(x => x.Long("tTo") - x.Long("tFrom")).DefaultIfEmpty(0).Max();
                 if (idle == 0 && s.TFrom - prev.TTo > o.LongIdleUs) idle = s.TFrom - prev.TTo;

@@ -51,6 +51,12 @@ public sealed class ViewStep
     public List<ViewStep>? Members;
     /// <summary>Beim Aufräumen ausgeblendet: Grund (null = nicht aufgeräumt).</summary>
     public string? CleanupReason;
+    /// <summary>Aufnahmeabschnitt des Ankerereignisses (05 §16.1).</summary>
+    public int Section;
+    /// <summary>Nahtstelle unmittelbar vor diesem Schritt der wirksamen Folge (05 §16.4), sonst null.</summary>
+    public Seam? SeamBefore;
+    /// <summary>Ersetzte Schritte: Kennung der Ersetzung, die sie ersetzt; Schritte eines Ersatzblocks: Kennung der Ersetzung, zu der sie gehören.</summary>
+    public string? ReplacementId;
 
     public ViewStep Clone() => (ViewStep)MemberwiseClone();
 }
@@ -429,9 +435,8 @@ public sealed partial class SessionView : IDisposable
             }
             list.Add(vs);
         }
-        int n = 0;
-        foreach (var v in list) v.Number = ++n;
-        All = list;
+        // Abschnitte, Ersetzungen und Nahtstellen: All ist die wirksame Schrittfolge (05 §16)
+        ApplySections(list);
 
         // vom Autor eingefügte Schritte
         var manual = new List<ViewStep>();
@@ -531,7 +536,7 @@ public sealed partial class SessionView : IDisposable
             pos = order.Select((o, i) => (key: o is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue, i)).Where(x => x.key != long.MinValue).GroupBy(x => x.key).ToDictionary(g => g.Key, g => g.First().i);
         bool hide = guide, applyOrder = guide || ordered;
         if (hide) q = q.Where(s => !s.Hidden && !s.Discarded);
-        if (applyOrder && pos != null) q = q.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Number);
+        if (applyOrder && pos != null) q = q.OrderBy(s => OrderKey(s, pos)).ThenBy(s => s.Number);
         if (includeManual && Manual.Count > 0)
         {
             var list = q.ToList();
@@ -543,15 +548,16 @@ public sealed partial class SessionView : IDisposable
                 if (inOrder.Count > 0)
                 {
                     list.AddRange(inOrder);
-                    list = list.OrderBy(s => pos.TryGetValue(s.Anchor, out var p) ? p : int.MaxValue).ThenBy(s => s.Manual ? 1 : 0).ToList();
+                    list = list.OrderBy(s => OrderKey(s, pos)).ThenBy(s => s.Manual ? 1 : 0).ToList();
                     man = man.Except(inOrder).ToList();
                 }
             }
             foreach (var m in man)
             {
-                int i = m.After == 0 ? 0 : list.FindIndex(x => x.Anchor == m.After) + 1;
-                if (i <= 0 && m.After != 0) i = list.Count;
-                while (i < list.Count && list[i].Manual && list[i].After == m.After) i++;   // mehrere nach demselben Schritt: in Einfügereihenfolge
+                long after = MapAfter(m.After);   // Bezugsschritt ersetzt: hinter dem Ersatz
+                int i = after == 0 ? 0 : list.FindIndex(x => x.Anchor == after) + 1;
+                if (i <= 0 && after != 0) i = list.Count;
+                while (i < list.Count && list[i].Manual && MapAfter(list[i].After) == after) i++;   // mehrere nach demselben Schritt: in Einfügereihenfolge
                 list.Insert(Math.Clamp(i, 0, list.Count), m);
             }
             q = list;
@@ -580,10 +586,12 @@ public sealed partial class SessionView : IDisposable
         if (_mergeOf != null) return _mergeOf;
         var map = new Dictionary<long, MergeInfo>();
         var known = All.ToDictionary(s => s.Anchor);
+        var inactive = Inactive.Select(s => s.Anchor).ToHashSet();
         foreach (var m in (Edits.Arr("merges") ?? new JsonArray()).OfType<JsonObject>())
         {
-            var anchors = (m.Arr("anchors") ?? new JsonArray()).Select(a => a is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue)
-                .Where(a => known.ContainsKey(a) && !map.ContainsKey(a)).Distinct().ToList();
+            var raw = (m.Arr("anchors") ?? new JsonArray()).Select(a => a is JsonValue v && v.TryGetValue<long>(out var l) ? l : long.MinValue).ToList();
+            if (raw.Any(inactive.Contains)) continue;   // Gruppen mit ersetzten Schritten ruhen (05 §16.6)
+            var anchors = raw.Where(a => known.ContainsKey(a) && !map.ContainsKey(a)).Distinct().ToList();
             if (anchors.Count < 2) continue;
             var info = new MergeInfo(m.Str("id") ?? "", anchors, m.Obj("text"));
             foreach (var a in anchors) map[a] = info;
@@ -660,7 +668,10 @@ public sealed partial class SessionView : IDisposable
     public ViewStep? ById(string id) => All.FirstOrDefault(s => s.Id == id);
 
     /// <summary>Ungeprüfte auffällige Eingaben und pflichtige Prüfposten (Programmausgaben, auffällige Texte des Autors).</summary>
-    public int UnreviewedCount => All.Count(s => s.Unreviewed) + UnreviewedItems;
+    /// <remarks>Zählt auch ersetzte und nicht verwendete Schritte: Die Durchsicht gilt unabhängig vom Zustand (05 §16.5).</remarks>
+    public int UnreviewedCount => All.Count(s => s.Unreviewed) + Inactive.Count(s => s.Unreviewed) + UnreviewedItems;
+    /// <summary>Wirksame Schritte und dahinter ersetzte/nicht verwendete (für Durchsicht und bereinigte Kopie).</summary>
+    public IEnumerable<ViewStep> AllWithInactive => All.Concat(Inactive);
 
     public JsonObject? Goal()
     {

@@ -390,13 +390,13 @@ sealed partial class ViewerWindow
         int n = 0;
         var qualityWarn = Findings().Where(f => f.Severity == "warning" && f.Anchor != null).GroupBy(f => f.Anchor!.Value).ToDictionary(g => g.Key, g => g.First());
         // Reihenfolge der Anleitung (umsortierte Schritte stehen dort, wo sie im Export erscheinen); ausgeblendete bleiben sichtbar
-        foreach (var s in _view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true))
+        foreach (var s in WithInactive(_view.Effective(guide: false, importance: _allToggle.IsChecked == true ? "all" : "secondary", includeManual: true, ordered: true)))
         {
             if (!StepSearch.Matches(s, query)) continue;
             long? waitMs = s.Redacted || s.Manual ? null : StepRecorder.ReadLayer.Timing.WaitMsOf(s.Json);
             if (_slowToggle.IsChecked == true && (waitMs ?? 0) < StepRecorder.ReadLayer.Timing.SlowMs) continue;
             n++;
-            bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
+            bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded || s.State != "active";
             var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
             if (merge is { lead: false }) dim = true;
             var g = new Grid();
@@ -405,7 +405,7 @@ sealed partial class ViewerWindow
             FrameworkElement lead;
             var numBadge = new TextBlock
             {
-                Text = s.Manual ? "+" : s.Number.ToString(), FontSize = Theme.FsCaption, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
+                Text = s.Manual ? "+" : s.Number > 0 ? s.Number.ToString() : "–", FontSize = Theme.FsCaption, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal,
                 Foreground = primary ? Theme.Fg2 : Theme.Muted, MinWidth = 22, Margin = new Thickness(0, 2, 6, 0), VerticalAlignment = VerticalAlignment.Top
             };
             if (gap) lead = U.Row(numBadge, new Border { Width = ThumbW + 2, Child = U.IconBadge(Theme.IWarn, 40, Theme.WarnSoft, Theme.Warn, 16) });
@@ -447,6 +447,7 @@ sealed partial class ViewerWindow
             }
             if (s.Hidden) { var hc = U.Chip(s.CleanupReason != null ? Loc.L("aufgeräumt", "cleaned up") : Loc.L("ausgeblendet", "hidden"), Theme.Surface2, Theme.Muted, Theme.IEye); if (s.CleanupReason != null) hc.ToolTip = s.CleanupReason; meta.Children.Add(hc); }
             if (s.Discarded) meta.Children.Add(U.Chip(Loc.L("verworfen", "discarded"), Theme.DangerSoft, Theme.Danger));
+            SectionChips(s, meta);
             if (NotesOf(s).Count is int nc && nc > 0) meta.Children.Add(U.Chip(nc.ToString(), Theme.Surface2, Theme.Muted, Theme.IComment));
             if (s.AuthorTitle != null || s.AuthorBody != null) meta.Children.Add(U.Chip(Loc.L("bearbeitet", "edited"), Theme.Surface2, Theme.Muted, Theme.IEdit));
             var col = U.Col(head, meta); col.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(col, 1); g.Children.Add(col);

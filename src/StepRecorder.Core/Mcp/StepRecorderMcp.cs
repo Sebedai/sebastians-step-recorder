@@ -277,6 +277,12 @@ public sealed partial class StepRecorderMcp
         if (All("apps")) d["apps"] = AppsJson(v);
         if (All("completeness")) { var c = (JsonObject)v.Steps.Obj("completeness")!.DeepClone(); c.Remove("journal"); d["completeness"] = c; }
         if (All("review")) d["review"] = new JsonObject { ["unreviewedInputs"] = v.UnreviewedCount };
+        if (v.Sections.Count > 1 || v.Replacements.Count > 0)
+        {
+            var (rep, unused, seams, disc, eff) = v.SectionStats();
+            d["parts"] = new JsonArray(v.Sections.Where(p => !v.DiscardedSections.Contains(p.Part)).Select(p => (JsonNode)new JsonObject { ["part"] = p.Part, ["purpose"] = p.Purpose, ["startedAt"] = p.StartUtc, ["endedAt"] = p.EndUtc }.Clean()).ToArray());
+            d["replacements"] = new JsonObject { ["count"] = eff, ["replacedSteps"] = rep, ["unusedSteps"] = unused, ["seams"] = seams, ["discardedParts"] = disc };
+        }
         if (All("gaps")) d["gaps"] = new JsonArray((v.Steps.Arr("gaps") ?? new JsonArray()).Select(gp => (JsonNode)new JsonObject
         {
             ["gapId"] = gp.Str("gapId"), ["kind"] = gp.Str("gapId") != null ? "time" : "content", ["cause"] = gp.Str("cause"), ["from"] = Fmt.Time(gp.Long("tFrom"), "en"), ["to"] = Fmt.Time(gp.Long("tTo"), "en"),
@@ -287,7 +293,20 @@ public sealed partial class StepRecorderMcp
         JsonObject? page = null;
         if (All("outline"))
         {
-            var outline = v.All.Where(x => x.Importance != "trace").Select(x => new JsonObject { ["number"] = x.Number, ["id"] = x.Id, ["t"] = Fmt.Time(x.TFrom, "en"), ["kind"] = x.Kind, ["importance"] = x.Importance, ["evidence"] = x.EvidenceLevel, ["text"] = x.Protocol }).ToList();
+            // wirksame Schrittfolge; Nahtstellen als eigene Einträge (06 §7.7, 05 §16.4)
+            var outline = new List<JsonObject>();
+            ViewStep? prevO = null;
+            foreach (var x in v.All.Where(x => x.Importance != "trace"))
+            {
+                foreach (var sm in v.SeamsBetween(prevO, x))
+                    outline.Add(new JsonObject
+                    {
+                        ["seam"] = sm.Kind, ["part"] = sm.Section, ["recordedAt"] = sm.RecordedUtc,
+                        ["replaced"] = sm.Kind == "replacementStart" ? new JsonObject { ["count"] = sm.Replaced.Count, ["ids"] = new JsonArray(sm.Replaced.Select(r => (JsonNode)r.Id).ToArray()) } : null
+                    }.Clean());
+                outline.Add(new JsonObject { ["number"] = x.Number, ["id"] = x.Id, ["t"] = Fmt.Time(x.TFrom, "en"), ["kind"] = x.Kind, ["importance"] = x.Importance, ["evidence"] = x.EvidenceLevel, ["text"] = x.Protocol });
+                prevO = x;
+            }
             int start = FromCursor("get_session", v.Session.SessionId, v.Revision, a);
             var (items, pg, e2, _) = Page(outline, start, a.Int("limit", 100), Math.Max(1000, Budget(a) - est), p => Cursor("get_session", v.Session.SessionId, v.Revision, p, a));
             d["outline"] = items; page = pg; est += e2;

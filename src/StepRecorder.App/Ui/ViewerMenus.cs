@@ -162,6 +162,7 @@ sealed partial class ViewerWindow
             Item("hide", s?.Hidden == true ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), edit),
             Item("moveUp", enabled: edit), Item("moveDown", enabled: edit), Sep(),
             Item("merge", enabled: !ro && _list.SelectedItems.Count > 1), Item("unmerge", enabled: edit), Sep(),
+            ReRecordSubMenu(ro), Sep(),
             InsertSubMenu(Loc.L("Schritt einfügen", "Insert step"), !ro),
             Item("deleteInserted", enabled: !ro && SelSteps.Any(x => x.Manual)),
         };
@@ -292,7 +293,7 @@ sealed partial class ViewerWindow
             var multi = SelSteps;
             Add(U.Mi(Loc.F("{0} Schritte ausblenden", "Hide {0} steps", multi.Count), null, () => BulkEdit(multi, se => se["hidden"] = true), Theme.IEye),
                 U.Mi(Loc.F("{0} Schritte einblenden", "Show {0} steps", multi.Count), null, () => BulkEdit(multi, se => se.Remove("hidden"))), Sep(),
-                ImportanceMenu(s, !ro), Item("chapter", Loc.L("Kapitel vor dem ersten beginnen", "Start chapter before the first"), !ro), Item("merge", enabled: !ro),
+                ImportanceMenu(s, !ro), Item("chapter", Loc.L("Kapitel vor dem ersten beginnen", "Start chapter before the first"), !ro), Item("merge", enabled: !ro), Item("rerecord", enabled: !ro),
                 Sub(Loc.L("Bilder in der Anleitung", "Images in the guide"), Theme.ICamera, U.Mi(Loc.L("Bilder zeigen", "Show images"), null, () => BulkEdit(multi, se => se.Remove("showImage"))), U.Mi(Loc.L("Bilder weglassen", "Omit images"), null, () => BulkEdit(multi, se => se["showImage"] = false))), Sep(),
                 U.Mi(Loc.F("Hinweis zu {0} Schritten hinzufügen …", "Add note to {0} steps …", multi.Count), null, () => AddNoteToMany(multi), Theme.IComment));
             if (multi.Any(x => x.Manual)) Add(Sep(), Item("deleteInserted"));
@@ -311,7 +312,7 @@ sealed partial class ViewerWindow
             ImportanceMenu(s, !ro),
             Item("chapter", s.ChapterTitle != null ? Loc.L("Kapitel entfernen", "Remove chapter") : null, !ro),
             Item("hide", s.Hidden ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), !ro),
-            Sub(Loc.L("Verschieben", "Move"), Theme.IMove, Item("moveUp", enabled: !ro), Item("moveDown", enabled: !ro)), Sep(),
+            Sub(Loc.L("Verschieben", "Move"), Theme.IMove, Item("moveUp", enabled: !ro), Item("moveDown", enabled: !ro)), ReRecordSubMenu(ro), Sep(),
             copy, image, InsertSubMenu(Loc.L("Schritt danach einfügen", "Insert step after"), !ro), Sep(),
             Item("redactStep", enabled: !ro));
         if (s.Manual) Add(Item("deleteInserted", enabled: !ro));
