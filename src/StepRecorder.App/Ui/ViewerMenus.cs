@@ -220,7 +220,7 @@ sealed partial class ViewerWindow
             tools, Sep(),
             Item("toolCrop", enabled: edit), Item("cropRemove", enabled: cropped && !ro), Item("cropAll", enabled: cropped && !ro), Sep(),
             ReplaceSubMenu(s, s != null && !ro), Item("restoreImage", enabled: s?.ImageReplaced == true && !ro), Sep(),
-            Item("deleteMark", enabled: _selAnn != null && !ro), Item("clearDrawings", enabled: img && !ro && _currentMeta != null && AnnotationsFor(_currentMeta.FrameId).Any()), Sep(),
+            Item("markTarget", enabled: s != null && !ro), Item("deleteMark", enabled: _selAnn != null && !ro), Item("clearDrawings", enabled: img && !ro && _currentMeta != null && AnnotationsFor(_currentMeta.FrameId).Any()), Sep(),
             Item("saveImage", enabled: img), Item("saveClip", enabled: s != null),
         };
     }
@@ -256,6 +256,7 @@ sealed partial class ViewerWindow
         items.Add(new MenuItem { Header = head, IsHitTestVisible = false, Focusable = false });
         var all = _view.MarksFor(null);
         foreach (var (key, label) in MarkKeys) { bool on = MarkOf(all, key); string k = key; items.Add(Check(label, on, () => SetMark(null, k, !on))); }
+        items.Add(MarkStyleMenu());
         if (Sel is { } s)
         {
             items.Add(Sep());

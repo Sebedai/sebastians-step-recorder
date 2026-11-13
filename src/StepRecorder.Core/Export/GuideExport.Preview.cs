@@ -32,9 +32,10 @@ public sealed class GuideImageCache
 
     public void Clear() { lock (_items) { _items.Clear(); _bytes = 0; } }
 
-    internal string KeyFor(SessionView v, ViewStep st, string variant, string renderView, MouseMarks mask, bool overview, string profile, bool after, bool tour)
+    internal string KeyFor(SessionView v, ViewStep st, string variant, string renderView, MouseMarks mask, bool overview, string profile, bool after, bool tour, string? label = null)
     {
         var sb = new StringBuilder();
+        sb.Append(label).Append('|');
         sb.Append(v.Session.Path).Append('|').Append(v.Language).Append('|').Append(st.Anchor).Append('|').Append(st.MergeId).Append('|').Append(variant).Append('|').Append(renderView)
           .Append('|').Append(mask).Append('|').Append(overview).Append('|').Append(profile).Append('|').Append(after).Append('|').Append(tour)
           .Append('|').Append(st.PreFrame).Append('|').Append(st.PostFrame).Append('|').Append(v.CropFor(st)).Append('|').Append(v.MarksFor(st))

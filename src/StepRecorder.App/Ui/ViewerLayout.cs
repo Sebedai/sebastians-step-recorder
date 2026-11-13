@@ -21,7 +21,14 @@ namespace StepRecorder.App.Ui;
 /// </summary>
 sealed partial class ViewerWindow
 {
-    static readonly (string hex, string name)[] Palette = { ("#E5484D", Loc.L("Rot", "Red")), ("#F5A524", Loc.L("Orange", "Orange")), ("#1F9D55", Loc.L("Grün", "Green")), ("#4361EE", Loc.L("Blau", "Blue")), ("#1B1C21", Loc.L("Schwarz", "Black")), ("#FFFFFF", Loc.L("Weiß", "White")) };
+    // Zwölf Farben (13, Paket 22); die ersten sechs sind die bisherigen
+    static readonly (string hex, string name)[] Palette =
+    {
+        ("#E5484D", Loc.L("Rot", "Red")), ("#F5A524", Loc.L("Orange", "Orange")), ("#1F9D55", Loc.L("Grün", "Green")),
+        ("#4361EE", Loc.L("Blau", "Blue")), ("#1B1C21", Loc.L("Schwarz", "Black")), ("#FFFFFF", Loc.L("Weiß", "White")),
+        ("#FFEB3B", Loc.L("Gelb", "Yellow")), ("#12A594", Loc.L("Türkis", "Teal")), ("#8E4EC6", Loc.L("Violett", "Violet")),
+        ("#D6409F", Loc.L("Pink", "Pink")), ("#8D6E63", Loc.L("Braun", "Brown")), ("#6B7280", Loc.L("Grau", "Gray")),
+    };
     static readonly string[] ImportanceOrder = { "primary", "secondary", "trace" };
     static readonly (int width, int fontSize, string name)[] StrokeSizes = { (2, 14, Loc.L("dünn", "thin")), (4, 18, Loc.L("mittel", "medium")), (7, 26, Loc.L("dick", "thick")) };
     readonly List<RadioButton> _strokeBtns = new();
@@ -187,6 +194,8 @@ sealed partial class ViewerWindow
             {
                 bool cropChanged = (_tool == "crop") != (id == "crop");
                 _tool = id;
+                if (_pipette) SetPipette(false);
+                ToolColorFor(id);
                 _overlay.Cursor = id == "select" ? Cursors.Arrow : Cursors.Cross;
                 if (id != "select" && _selAnn != null) { _selAnn = null; DrawSelection(); }
                 if (cropChanged && IsLoaded) ShowStep();
@@ -215,15 +224,7 @@ sealed partial class ViewerWindow
         Tool("crop", G(Theme.ICrop), Loc.L("Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export", "Crop (C) – drag a rectangle; applies to the images of this step, also in the export"));
         Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 6, 6, 6) };
         pal.Children.Add(PalSep());
-        var colorGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
-        foreach (var (hex, name) in Palette)
-        {
-            var dot = new Ellipse { Width = 16, Height = 16, Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)), Stroke = Theme.LineStrong, StrokeThickness = 1 };
-            var rb = new RadioButton { Content = dot, GroupName = "color", IsChecked = hex == _color, ToolTip = Loc.F("Farbe: {0}", "Color: {0}", name), Style = Theme.Style("ToolToggle"), Margin = new Thickness(1), MinHeight = 28, MinWidth = 0, Padding = new Thickness(3), Tag = hex };
-            rb.Checked += (_, _) => { _color = hex; if (!_syncingColor) RecolorSelected(hex); };
-            _colorBtns.Add(rb); colorGrid.Children.Add(rb);
-        }
-        pal.Children.Add(colorGrid);
+        BuildColorGrid(pal);
         pal.Children.Add(PalSep());
         var widthGrid = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3 };
         foreach (var (w, fs, name) in StrokeSizes)
@@ -235,6 +236,10 @@ sealed partial class ViewerWindow
             _strokeBtns.Add(rb); widthGrid.Children.Add(rb);
         }
         pal.Children.Add(widthGrid);
+        var styleBtn = U.Ghost(Theme.IStroke, Loc.L("Stil", "Style"), () => { }, Loc.L("Linienart, Spitzen, Füllung, Hintergrund, Form und Zählweise von Nummern, Deckkraft – für die ausgewählte Zeichnung oder neue Zeichnungen; Stil auf alle übertragen", "Line style, heads, fill, background, shape and counting of numbers, opacity – for the selected drawing or new drawings; apply style to all"));
+        styleBtn.Click += (_, _) => ShowStyleMenu(styleBtn);
+        styleBtn.Margin = new Thickness(0, 4, 0, 0); styleBtn.MinWidth = 36; styleBtn.HorizontalAlignment = HorizontalAlignment.Stretch;
+        pal.Children.Add(styleBtn);
         pal.Children.Add(PalSep());
         var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, Loc.L("Ausgewählte Zeichnung löschen (Entf) – ohne Auswahl: alle Zeichnungen dieses Bildes", "Delete the selected markup (Del) – without a selection: all markup on this image"));
         del.Margin = new Thickness(0); del.MinWidth = 36; del.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -527,7 +532,7 @@ sealed partial class ViewerWindow
     {
         string variant = DefaultVariant(s);
         bool annotate = true;
-        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen", authorAnnotations: true) ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original", authorAnnotations: true) : null);
+        using var img = StepImages.Render(_view, s, variant, "original", annotate: annotate, viewMode: "screen", authorAnnotations: true, stepLabel: StepLabel(s)) ?? (variant == "after" ? StepImages.Render(_view, s, "before", "original", authorAnnotations: true) : null);
         if (img == null) return null;
         int w = ThumbRender, h = Math.Max(1, (int)Math.Round(img.Bitmap.Height * (double)ThumbRender / Math.Max(1, img.Bitmap.Width)));
         using var small = new System.Drawing.Bitmap(w, h);
@@ -898,8 +903,8 @@ sealed partial class ViewerWindow
     void SyncColorTo(JsonObject a)
     {
         _syncingColor = true;
-        if (a.Obj("style")?.Str("color") is { } hex && a.Str("type") is not ("highlight" or "spotlight"))
-            _colorBtns.FirstOrDefault(c => string.Equals((string)c.Tag, hex, StringComparison.OrdinalIgnoreCase))?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
+        string? shown = a.Str("type") == "highlight" ? a.Obj("style")?.Str("hue") ?? HighlightYellow : a.Str("type") == "spotlight" ? null : a.Obj("style")?.Str("color");
+        if (shown != null) { ShowColor(shown); _color = shown; }
         int w = a.Str("type") == "spotlight" ? DimToWidth(a.Obj("style")?.Dbl("dim", 0.55) ?? 0.55) : (int)(a.Obj("style")?.Dbl("width", 4) ?? 4);
         _strokeBtns.OrderBy(b => Math.Abs((int)b.Tag - w)).FirstOrDefault()?.SetCurrentValue(System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, true);
         _syncingColor = false;
@@ -917,6 +922,7 @@ sealed partial class ViewerWindow
     {
         if (_currentMeta == null) return;
         var pos = e.GetPosition(_overlay);
+        if (PipetteAt(pos)) return;
         if (_tool == "select")
         {
             var p = ToImage(pos);
@@ -934,6 +940,7 @@ sealed partial class ViewerWindow
             if (hit == null) { if (e.ClickCount == 2) OpenLightbox(); return; }
             SyncColorTo(hit);
             if (e.ClickCount == 2 && hit.Str("type") == "text") { EditAnnotationText(hit); return; }
+            if (e.ClickCount == 2 && hit.Str("type") == "badge") { ToggleBadgeAuto(hit); return; }
             _movePart = part;
             _moveFrom = p; _overlay.CaptureMouse();
             return;
@@ -942,7 +949,8 @@ sealed partial class ViewerWindow
         if (_tool is "text" or "badge")
         {
             var p = ToImage(pos);
-            string text = _tool == "badge" ? ((_view.Edits.Arr("annotations")?.Count(a => a.Str("frame") == _currentMeta.FrameId && a.Str("type") == "badge") ?? 0) + 1).ToString() : "";
+            // Nummern zählen automatisch (auto); der Text wird beim Speichern neu vergeben (Annotations.Renumber)
+            string text = _tool == "badge" ? "1" : "";
             if (_tool == "text") { var d = new InputDialog(Loc.L("Text der Zeichnung", "Text of the drawing"), "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
             AddAnnotation(_tool, new JsonArray((int)p.X, (int)p.Y), text);
             _dragStart = null;
@@ -958,7 +966,7 @@ sealed partial class ViewerWindow
             "redact" => new Rectangle { Fill = Brushes.Black, Stroke = Brushes.Black, StrokeThickness = 1 },
             "pixelate" => new Rectangle { Fill = new DrawingBrush { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, Px(12), Px(12)), ViewportUnits = BrushMappingMode.Absolute, Drawing = new GeometryDrawing(new SolidColorBrush(Color.FromArgb(150, 120, 125, 135)), null, new RectangleGeometry(new Rect(0, 0, 1, 1))) }, Stroke = Brushes.Gray, StrokeThickness = Px(1) },
             "crop" => new Rectangle { Stroke = Theme.Accent, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) },
-            "highlight" => new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(90, 255, 235, 59)) },
+            "highlight" => new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(90, ((SolidColorBrush)stroke).Color.R, ((SolidColorBrush)stroke).Color.G, ((SolidColorBrush)stroke).Color.B)) },
             "spotlight" => new Rectangle { Stroke = Brushes.White, StrokeThickness = Px(1.5), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
             "magnifier" => new Rectangle { Stroke = stroke, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 2, 2 } },
             _ => new Rectangle { Stroke = stroke, StrokeThickness = _stroke }
@@ -1062,14 +1070,18 @@ sealed partial class ViewerWindow
         var s = Sel; if (s == null || _currentMeta == null) return;
         string frame = _currentMeta.FrameId;
         string color = _color; int width = _stroke, fontSize = _fontSize;
+        var toolStyle = ToolStyleFor(type);
         Change(e =>
         {
             var arr = e["annotations"] as JsonArray ?? new JsonArray();
             var style = new JsonObject { ["color"] = color, ["width"] = width, ["fontSize"] = fontSize };
+            foreach (var kv in toolStyle ?? new JsonObject()) style[kv.Key] = kv.Value?.DeepClone();
             foreach (var kv in extraStyle ?? new JsonObject()) style[kv.Key] = kv.Value?.DeepClone();
             var a = new JsonObject { ["id"] = NextId(e, "annotations", "a"), ["frame"] = frame, ["anchor"] = s.Anchor, ["type"] = type, ["geom"] = geom, ["style"] = style };
             if (text != null) a["text"] = text;
+            if (type == "badge") a["auto"] = true;
             arr.Add(a); e["annotations"] = arr;
+            if (type == "badge") Annotations.Renumber(e, frame);
         }, refill: false);
         _status.Text = type switch
         {
@@ -1138,7 +1150,7 @@ sealed partial class ViewerWindow
     {
         if (i < 0 || i >= _list.Items.Count || ((ListBoxItem)_list.Items[i]).Tag is not ViewStep s) return null;
         string variant = i == _list.SelectedIndex && _variantOverride != null ? _variantOverride : DefaultVariant(s);
-        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", authorAnnotations: true)
+        using var img = StepImages.Render(_view, s, _display == "crop" ? "crop" : variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", authorAnnotations: true, stepLabel: StepLabel(s))
             ?? StepImages.Render(_view, s, "before", "original", authorAnnotations: true);
         if (img == null) return null;
         return (U.ToSource(img.Bitmap), Loc.F("Schritt {0} von {1}  ·  {2}", "Step {0} of {1}  ·  {2}", s.Number, _view.All.Count, s.AuthorTitle ?? s.Title));
@@ -1192,6 +1204,11 @@ sealed partial class ViewerWindow
             RemoveCrop(cs); Flush();
         }
         _zoom.FitNow();
+        // Markenstil „Nummern“: Schrittnummer wie in der Anleitung an der Klickstelle (Paket 22)
+        int keepIndex = _list.SelectedIndex;
+        _list.SelectedIndex = 0; Flush();
+        ApplyMarkPreset("numbers"); Flush(); save();
+        ApplyMarkPreset("classic"); _list.SelectedIndex = keepIndex; Flush();
         // Bedienungsanleitung: Kapitel und Hinweiskasten am Schritt, dann Reiter „Dokument“
         if (Sel is { } ds)
         {
@@ -1224,7 +1241,7 @@ sealed partial class ViewerWindow
         if (_selAnn is { } id)
         {
             _selAnn = null;
-            Change(e => { if (e["annotations"] is JsonArray arr && AnnotationEdit(e, id) is { } a) arr.Remove(a); }, refill: false);
+            Change(e => { if (e["annotations"] is JsonArray arr && AnnotationEdit(e, id) is { } a) { arr.Remove(a); if (a.Str("type") == "badge") Annotations.Renumber(e, a.Str("frame") ?? ""); } }, refill: false);
             _status.Text = Loc.L("Zeichnung gelöscht – rückgängig mit Strg+Z", "Drawing deleted – undo with Ctrl+Z");
             return;
         }

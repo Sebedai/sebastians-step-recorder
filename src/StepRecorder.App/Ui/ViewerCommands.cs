@@ -110,6 +110,7 @@ sealed partial class ViewerWindow
             new("toolCrop", "image", Loc.L("Zuschneiden", "Crop"), Key.C, N, () => SelectTool("crop")),
             new("deselect", "image", Loc.L("Auswahl aufheben", "Clear selection"), Key.Escape, N, () => { _selAnn = null; DrawSelection(); }, () => _selAnn != null),
             new("beforeAfter", "image", Loc.L("Vorher/Nachher wechseln", "Switch before/after"), Key.W, N, ToggleBeforeAfter),
+            new("markTarget", "image", Loc.L("Ziel markieren (Rahmen und Nummer)", "Mark target (frame and number)"), Key.None, N, MarkTarget),
             new("stepMarks", "image", Loc.L("Mausmarken dieses Schritts ein/aus", "Mouse marks for this step on/off"), Key.H, N, ToggleStepMarks),
             new("lightbox", "image", Loc.L("Großansicht", "Full view"), Key.F11, N, OpenLightbox),
             // Allgemein (Funktionstasten)

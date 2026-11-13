@@ -1863,7 +1863,7 @@ Lässt sich ein Eintrag nach einer Neuberechnung keinem Schritt mehr zuordnen, w
 | `sessionId` | string | ● | Zugehörige Sitzung. |
 | `revision` | int | ● | Zähler, bei jedem Speichern um 1 erhöht. |
 | `savedAtUtc`, `savedBy` | Zeit, string | ● | Letzter Schreiber (`"viewer"`, `"mcp:set_step_text"`, `"recorder"`). |
-| `guide` | Objekt | ○ | Angaben zur Anleitung: `title` (zugleich der Titel der Aufnahme in Bibliothek, Startfenster und Ausgaben; „Umbenennen“ in der Bibliothek schreibt hierher und ändert den Ordnernamen nicht), `subtitle`, `description`, `author`, `tags` (Schlagwörter), `intro`, `outro`, `language`. `auto` (Voreinstellung der automatischen Markierungen für alle Schritte, Schlüssel wie `steps[].auto`). `intro` ist die Einleitung der Anleitung – und beim Support-Paket der **Hinweis für den Empfänger** (siehe unter der Tabelle). |
+| `guide` | Objekt | ○ | Angaben zur Anleitung: `title` (zugleich der Titel der Aufnahme in Bibliothek, Startfenster und Ausgaben; „Umbenennen“ in der Bibliothek schreibt hierher und ändert den Ordnernamen nicht), `subtitle`, `description`, `author`, `tags` (Schlagwörter), `intro`, `outro`, `language`. `auto` (Voreinstellung der automatischen Markierungen für alle Schritte, Schlüssel wie `steps[].auto`; dazu `auto.style`, der Markenstil, siehe §13.19). `intro` ist die Einleitung der Anleitung – und beim Support-Paket der **Hinweis für den Empfänger** (siehe unter der Tabelle). |
 | `goal` | Objekt | ○ | Vom Autor geänderte Ziel-Angaben; überlagern `manifest.goal`, siehe [13.12](#edits-goal). |
 | `view` | Objekt | ○ | Darstellungsvorgabe für alle Schritte, siehe 13.4. |
 | `steps` | Objekt[] | ○ | Änderungen je Schritt, siehe 13.3. |
@@ -1907,7 +1907,7 @@ Lässt sich ein Eintrag nach einer Neuberechnung keinem Schritt mehr zuordnen, w
 | `view` | Objekt | Darstellung nur für diesen Schritt, siehe 13.4. |
 | `frameChoice` | Objekt | Anderes Bild wählen: `pre`, `post` (Bild-Kennungen). |
 | `frameReplacement` | Objekt | Extern bearbeitetes Bild verwenden: `pre`, `post` (Kennungen aus `assets`). |
-| `auto` | Objekt | Automatische Markierungen ein/aus, überschreibt `guide.auto`: `clickMarker` (Klickpunkt), `dragPath` (Zug-/Haltepfad mit Start- und Endmarke), `elementFrame` (Zielrahmen), `labels` (Hinweise wie Haltedauer, Taste, Modifikatoren), `approachPath` (Mausweg davor, Standard aus), `number`. Gilt für Viewer, Kopieren und Anleitungen; KI-Paket und MCP zeigen stets alle Markierungen als Beleg. |
+| `auto` | Objekt | Automatische Markierungen ein/aus, überschreibt `guide.auto`: `clickMarker` (Klickpunkt), `dragPath` (Zug-/Haltepfad mit Start- und Endmarke), `elementFrame` (Zielrahmen), `labels` (Hinweise wie Haltedauer, Taste, Modifikatoren), `approachPath` (Mausweg davor, Standard aus), `keyCaps` (Tasten und getippter Text), `stepNumber` (Nummer des Schritts wie in der Anleitung als Marke an der Stelle der Aktion, Standard aus; [13](13-handbuch-fahrplan.md) Paket 22). Gilt für Viewer, Kopieren und Anleitungen; KI-Paket und MCP zeigen stets die festen Markierungen als Beleg – ohne Schrittnummer und ohne Markenstil. |
 
 ### 13.4 Darstellungswahl (`view`)
 
@@ -1931,8 +1931,9 @@ Die Wahl wirkt nur auf Anzeige und Export. Die gespeicherten Bilder bleiben voll
 | `anchor` | int | Zugehöriger Schritt, falls vorhanden. |
 | `type` | enum | `arrow`, `line`, `rect`, `ellipse`, `highlight`, `text`, `badge`, `freehand`, `magnifier`, `spotlight`. |
 | `geom` | – | Je Typ: `arrow`/`line` `[x1, y1, x2, y2]`; `rect`/`ellipse`/`highlight`/`spotlight` `[x, y, w, h]`; `text`/`badge` `[x, y]`; `freehand` Punktliste `[[x, y], …]` (der Editor glättet beim Loslassen; höchstens 400 Punkte); `magnifier` `{ "src": [x, y, w, h], "at": [x, y], "zoom": 2 }`. Rechtecke dürfen mit negativer Breite oder Höhe gespeichert sein; Leser normalisieren. |
-| `text` | string | Bei `text` und `badge`. |
-| `style` | Objekt | `color`, `width`, `fill`, `fontSize`, `opacity`; bei `spotlight` zusätzlich `dim` (Stärke der Abdunklung, 0–1, Standard 0,55); bei `magnifier` zusätzlich `shape` (`round`: Rechteck mit abgerundeten Ecken, Standard des Editors; `circle`: kreisförmige Linse; unbekannte Werte wie `round`). |
+| `text` | string | Bei `text` und `badge`. Bei automatisch zählenden Nummern schreibt der Editor die aktuelle Zahl hinein, damit ältere Versionen und das KI-Paket sie zeigen. |
+| `auto`, `start` | bool, int | Nur `badge` ([13](13-handbuch-fahrplan.md) Paket 22): `auto: true` = Nummer zählt automatisch (je Bild in der Reihenfolge des Anlegens, neu nach Einfügen und Löschen); `start` = ab dieser Nummer neu zählen. Ohne `auto` ist die Beschriftung fest. |
+| `style` | Objekt | `color`, `width`, `fill`, `fontSize`, `opacity`; ab Paket 22 optional `dash` (`solid` \| `dash` \| `dot`), `heads` bei `arrow`/`line` (`end` \| `both` \| `start` \| `none`), `fill` als Farbe mit `fillOpacity` (0,05–1, Standard 0,25) bei `rect`/`ellipse`, `hue` bei `highlight` (Farbton; fehlt er, bleibt der Markierstift gelb, auch wenn `color` gesetzt ist), `bg` bei `text` (`white` Standard \| `none` \| `fill` = farbiger Grund mit weißer Schrift \| Farbe), `shape` bei `badge` (`circle` Standard \| `square` \| `rounded` \| `pin` \| `ring`), `seq` bei `badge` (`num` \| `alpha` \| `ALPHA` \| `roman`). Fehlt ein Schlüssel, bleibt das bisherige Aussehen; bei `spotlight` zusätzlich `dim` (Stärke der Abdunklung, 0–1, Standard 0,55); bei `magnifier` zusätzlich `shape` (`round`: Rechteck mit abgerundeten Ecken, Standard des Editors; `circle`: kreisförmige Linse; unbekannte Werte wie `round`). |
 
 Eigenheiten der neueren Typen:
 
@@ -2453,6 +2454,24 @@ Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-
 | Nr. | Anforderung | Priorität | Abnahme |
 |---|---|---|---|
 | DAT-084 | Auszeichnung wird nur bei `fmt: 1` und nicht bei `by: "mcp"` gedeutet; alle übrigen Texte bleiben wörtlich. | Muss | Ein alter Text mit `*`, `[`, `` ` `` ergibt dieselbe Ausgabe wie vorher (`LegacyOutputTests`); ein Agententext mit `**x**` zeigt die Sterne |
+
+### 13.19 Markenstil (`guide.auto.style`)
+
+Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).
+
+| Feld | Werte | Bedeutung |
+|---|---|---|
+| `preset` | `numbers`, `subtle`, `bold`, `custom` | Name des gewählten Stils (nur zur Anzeige) |
+| `click` | `ring` (Standard), `dot`, `target`, `none` | Klickmarke: Ring mit Fadenkreuz · kleiner Punkt · kräftiger Doppelring · keine |
+| `clickColor`, `targetColor`, `numberColor` | `#RRGGBB` | Farben von Klickmarke, Zielrahmen und Schrittnummer; ungültige Werte gelten als fehlend |
+| `targetWidth` | 1–8 (Standard 3) | Stärke des Zielrahmens |
+| `numberShape` | `circle` (Standard), `rounded`, `square` | Form der Schrittnummer |
+
+Mitgelieferte Stile: **Klassisch** (kein Block), **Nummern** (`click: none`, `stepNumber: true`), **Dezent** (`click: dot`, `targetWidth: 1.5`), **Kräftig** (`click: target`, `targetWidth: 5`). Die Schrittnummer ist dieselbe Zeichenkette wie in der Anleitung (Zählweise und Kapitel aus `guide.doc`); sie steht an der Klickstelle (bei sichtbarer Klickmarke rechts oberhalb), beim Ziehen am Startpunkt, bei Tastaturschritten oben links am Zielrahmen. KI-Paket und MCP verwenden den Stil nie.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-085 | Neue Markenschlüssel (`stepNumber`, `guide.auto.style`, `annotations[].auto/start`, neue `style`-Schlüssel) sind optional; ohne sie ist jedes Bild pixelgleich zu vorher. | Muss | `MarkStyleTests`: ohne Schalter ändert eine übergebene Nummer kein Pixel; Markierstift ohne `hue` bleibt gelb; KI-Bild mit eingeschalteter Nummer gleicht dem ohne |
 
 ## 14. `cache/`, `history/` und `export/`
 

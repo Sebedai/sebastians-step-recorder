@@ -148,7 +148,7 @@ public static class StepImages
         return (Math.Max(1, (int)Math.Round(src.Width * scale)), Math.Max(1, (int)Math.Round(src.Height * scale)), scale);
     }
 
-    public static RenderedImage? Render(SessionView view, ViewStep step, string variant, string profile = "compatible", bool annotate = true, string viewMode = "screen", bool respectMarks = true, MouseMarks? mask = null, bool applyCrop = true, bool overview = false, bool authorAnnotations = false)
+    public static RenderedImage? Render(SessionView view, ViewStep step, string variant, string profile = "compatible", bool annotate = true, string viewMode = "screen", bool respectMarks = true, MouseMarks? mask = null, bool applyCrop = true, bool overview = false, bool authorAnnotations = false, string? stepLabel = null)
     {
         string? frameId = FrameFor(step, variant);
         if (frameId == null) return null;
@@ -179,8 +179,10 @@ public static class StepImages
             if (click is { } cp && src.Contains(cp)) img.Marker = Map(cp);
             var marks = !annotate ? MouseMarks.None : respectMarks ? view.MarksFor(step) : MouseMarks.Default;
             if (mask != null) marks = marks.And(mask);
+            // Markenstil und Schrittnummer nur in Editor und Anleitungen; KI-Paket und MCP zeichnen die festen Marken (13, Paket 22)
+            var style = respectMarks && annotate ? view.MarkStyle() : null;
             if (marks.Any && variant is "before" or "crop" or "cropEnd")
-                DrawMouseMarks(g, j, marks, img, Map, f.Str("m"), bmp.Size, scale, view.Language);
+                DrawMouseMarks(g, j, marks, img, Map, f.Str("m"), bmp.Size, scale, view.Language, style, marks.Number && respectMarks ? stepLabel : null);
             if (marks.KeyCaps) KeyCaps.Draw(g, step, img, bmp.Size, view);
             if (overview && variant is "crop" or "cropEnd" && (src.Width < full.Width * 0.8 || src.Height < full.Height * 0.8))
                 DrawOverview(g, full, src, bmp.Size, img.Marker);
@@ -243,15 +245,17 @@ public static class StepImages
     /// Mausmarkierungen: Zielrahmen (blau), Mausweg davor (grau gestrichelt), Zug-/Haltepfad (orange: gefüllter Punkt = gedrückt,
     /// Pfeil = Bewegung, Ring = losgelassen), Klickpunkt (roter Ring mit Fadenkreuz), Hinweise (Haltedauer, Taste, Modifikatoren).
     /// </summary>
-    static void DrawMouseMarks(Graphics g, JsonObject j, MouseMarks marks, RenderedImage img, Func<Point, Point> map, string? monitor, Size size, double scale, string lang)
+    static void DrawMouseMarks(Graphics g, JsonObject j, MouseMarks marks, RenderedImage img, Func<Point, Point> map, string? monitor, Size size, double scale, string lang, MarkStyle? style = null, string? stepLabel = null)
     {
+        Color clickColor = style?.ClickColorOr(ClickColor) ?? ClickColor, targetColor = style?.TargetColorOr(TargetColor) ?? TargetColor;
+        string clickKind = style?.Click ?? "ring";
         bool de = lang != "en";
         string kind = j.Str("kind") ?? "";
         var input = j.Obj("input");
         Point P(JsonNode? pt) => map(new Point(pt![0]!.GetValue<int>(), pt[1]!.GetValue<int>()));
         string Sec(long us) => (us / 1_000_000.0).ToString("0.#", System.Globalization.CultureInfo.GetCultureInfo(de ? "de-DE" : "en-US")) + " s";
 
-        if (marks.Target && img.TargetRect is { } r2) using (var pen = new Pen(TargetColor, 3)) g.DrawRectangle(pen, r2);
+        if (marks.Target && img.TargetRect is { } r2) using (var pen = new Pen(targetColor, style == null ? 3 : (float)style.TargetWidth)) g.DrawRectangle(pen, r2);
 
         if (marks.Approach && j.Obj("approach") is { } ap && ap.Arr("path") is { Count: >= 2 } apath && (ap.Obj("from")?.Str("m") ?? monitor) == monitor)
         {
@@ -279,15 +283,39 @@ public static class StepImages
         }
 
         bool mouseKind = kind is "click" or "doubleClick" or "tripleClick" or "rightClick" or "scroll" or "hover";
-        if (marks.Click && img.Marker is { } mp && mouseKind)
+        if (marks.Click && img.Marker is { } md && mouseKind && clickKind == "dot")
         {
-            using var pen = new Pen(ClickColor, 3);
+            // Dezent: gefüllter Punkt mit weißem Rand
+            using (var b = new SolidBrush(Color.FromArgb(220, clickColor))) g.FillEllipse(b, md.X - 7, md.Y - 7, 14, 14);
+            using (var w = new Pen(Color.White, 2)) g.DrawEllipse(w, md.X - 7, md.Y - 7, 14, 14);
+        }
+        else if (marks.Click && img.Marker is { } mt && mouseKind && clickKind == "target")
+        {
+            // Kräftig: zwei Ringe mit hellem Saum und Mittelpunkt
+            using (var halo = new Pen(Color.FromArgb(170, 255, 255, 255), 9)) g.DrawEllipse(halo, mt.X - 24, mt.Y - 24, 48, 48);
+            using (var pen = new Pen(clickColor, 5)) g.DrawEllipse(pen, mt.X - 24, mt.Y - 24, 48, 48);
+            using (var pen2 = new Pen(clickColor, 3)) g.DrawEllipse(pen2, mt.X - 11, mt.Y - 11, 22, 22);
+            using (var b = new SolidBrush(clickColor)) g.FillEllipse(b, mt.X - 3, mt.Y - 3, 6, 6);
+        }
+        else if (marks.Click && img.Marker is { } mp && mouseKind && clickKind == "ring")
+        {
+            using var pen = new Pen(clickColor, 3);
             g.DrawEllipse(pen, mp.X - 18, mp.Y - 18, 36, 36);
-            using var thin = new Pen(ClickColor, 1.5f);
+            using var thin = new Pen(clickColor, 1.5f);
             g.DrawLine(thin, mp.X - 26, mp.Y, mp.X - 8, mp.Y); g.DrawLine(thin, mp.X + 8, mp.Y, mp.X + 26, mp.Y);
             g.DrawLine(thin, mp.X, mp.Y - 26, mp.X, mp.Y - 8); g.DrawLine(thin, mp.X, mp.Y + 8, mp.X, mp.Y + 26);
             if (input?.Bool("longPress") == true)
-                using (var hold = new Pen(Color.FromArgb(160, ClickColor), 2) { DashStyle = DashStyle.Dot }) g.DrawEllipse(hold, mp.X - 26, mp.Y - 26, 52, 52);
+                using (var hold = new Pen(Color.FromArgb(160, clickColor), 2) { DashStyle = DashStyle.Dot }) g.DrawEllipse(hold, mp.X - 26, mp.Y - 26, 52, 52);
+        }
+
+        // Schrittnummer wie in der Anleitung: an der Klickstelle, beim Ziehen am Startpunkt, sonst oben links am Ziel
+        if (stepLabel is { Length: > 0 })
+        {
+            Point? at = kind == "drag" && sameMonitor && input?.Arr("path") is { Count: >= 2 } dp ? P(dp[0]) : img.Marker;
+            PointF? c = null;
+            if (at is { } a0) c = clickKind is "none" || !marks.Click ? new PointF(a0.X, a0.Y) : new PointF(a0.X + 26, a0.Y - 26);
+            else if (img.TargetRect is { } tr) c = new PointF(tr.X, tr.Y);
+            if (c is { } cc) MarkStyle.DrawBadge(g, stepLabel, cc, scale, style?.NumberColorOr(clickColor) ?? clickColor, style?.NumberShape ?? "circle", size);
         }
 
         if (!marks.Labels || input == null) return;
@@ -367,20 +395,38 @@ public static class StepImages
             var geom = a["geom"];
             Color color;
             try { color = ColorTranslator.FromHtml(a.Obj("style").Str("color") ?? "#D32F2F"); } catch { color = Color.FromArgb(0xD3, 0x2F, 0x2F); }
-            float width = (float)(a.Obj("style")?.Dbl("width", 4) ?? 4);
+            var st = a.Obj("style");
+            float width = (float)(st?.Dbl("width", 4) ?? 4);
+            // Neue Stilschlüssel (13, Paket 22) sind optional – fehlen sie, bleibt das bisherige Aussehen
+            if (st?["opacity"] is JsonValue) color = Color.FromArgb((int)Math.Round(Math.Clamp(st.Dbl("opacity", 1), 0.1, 1) * 255), color);
             using var pen = new Pen(color, width) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+            if (st?.Str("dash") == "dash") pen.DashPattern = new[] { 3f, 2f };
+            else if (st?.Str("dash") == "dot") { pen.DashPattern = new[] { 0.1f, 2f }; pen.DashCap = DashCap.Round; }
             switch (a.Str("type"))
             {
                 case "arrow" or "line" when geom is JsonArray g4 && g4.Count >= 4:
-                    if (a.Str("type") == "arrow") pen.CustomEndCap = new AdjustableArrowCap(4, 4);
+                    string heads = st?.Str("heads") ?? (a.Str("type") == "arrow" ? "end" : "none");
+                    if (heads is "end" or "both") pen.CustomEndCap = new AdjustableArrowCap(4, 4);
+                    if (heads is "start" or "both") pen.CustomStartCap = new AdjustableArrowCap(4, 4);
                     g.DrawLine(pen, S(g4[0]!.GetValue<double>() - src.X), S(g4[1]!.GetValue<double>() - src.Y), S(g4[2]!.GetValue<double>() - src.X), S(g4[3]!.GetValue<double>() - src.Y));
                     break;
                 case "rect" or "ellipse" or "highlight" when geom is JsonArray r && r.Count >= 4:
                     {
                         var rect = new RectangleF(S(r[0]!.GetValue<double>() - src.X), S(r[1]!.GetValue<double>() - src.Y), S(r[2]!.GetValue<double>()), S(r[3]!.GetValue<double>()));
-                        if (a.Str("type") == "highlight") using (var b = new SolidBrush(Color.FromArgb(90, 255, 235, 59))) g.FillRectangle(b, rect);
-                        else if (a.Str("type") == "ellipse") g.DrawEllipse(pen, rect);
-                        else g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
+                        if (a.Str("type") == "highlight")
+                        {
+                            // Markierstift: gelb, außer ein Farbton ist ausdrücklich gewählt (style.hue)
+                            var hue = HexOr(st?.Str("hue"), Color.FromArgb(255, 235, 59));
+                            using var b = new SolidBrush(Color.FromArgb(90, hue)); g.FillRectangle(b, rect);
+                        }
+                        else
+                        {
+                            if (st?.Str("fill") is { } fillHex && fillHex != "none")
+                                using (var fb = new SolidBrush(Color.FromArgb((int)Math.Round(Math.Clamp(st.Dbl("fillOpacity", 0.25), 0.05, 1) * 255), HexOr(fillHex, color))))
+                                    if (a.Str("type") == "ellipse") g.FillEllipse(fb, rect); else g.FillRectangle(fb, rect);
+                            if (a.Str("type") == "ellipse") g.DrawEllipse(pen, rect);
+                            else g.DrawRectangle(pen, rect.X, rect.Y, rect.Width, rect.Height);
+                        }
                         break;
                     }
                 case "text" or "badge" when geom is JsonArray pt && pt.Count >= 2:
@@ -392,16 +438,36 @@ public static class StepImages
                         {
                             float d = Math.Max(font.Height + 6, 24);
                             using var b = new SolidBrush(color);
-                            g.FillEllipse(b, x - d / 2, y - d / 2, d, d);
+                            string shape = st?.Str("shape") ?? "circle";
+                            if (shape == "circle") g.FillEllipse(b, x - d / 2, y - d / 2, d, d);
+                            else
+                            {
+                                // breiter bei langen Beschriftungen (A, ii, 12)
+                                float bw = shape is "pin" or "ring" ? d : Math.Max(d, g.MeasureString(text, font).Width + 8);
+                                using var path = BadgePath(new RectangleF(x - bw / 2, y - d / 2, bw, d), shape);
+                                g.FillPath(b, path);
+                                if (shape == "ring") using (var wp = new Pen(Color.White, 2)) g.DrawPath(wp, path);
+                            }
                             g.DrawString(text, font, Brushes.White, new RectangleF(x - d / 2, y - d / 2, d, d), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
                         }
                         else
                         {
                             var size = g.MeasureString(text, font);
-                            using var bg = new SolidBrush(Color.FromArgb(220, 255, 255, 255));
-                            g.FillRectangle(bg, x - 2, y - 2, size.Width + 4, size.Height + 4);
-                            using var b = new SolidBrush(color);
-                            g.DrawString(text, font, b, x, y);
+                            string bgKind = st?.Str("bg") ?? "white";
+                            if (bgKind == "fill")
+                            {
+                                // Text weiß auf der gewählten Farbe
+                                using (var fb = new SolidBrush(color)) g.FillRectangle(fb, x - 4, y - 2, size.Width + 8, size.Height + 4);
+                                g.DrawString(text, font, Brushes.White, x, y);
+                            }
+                            else
+                            {
+                                if (bgKind != "none")
+                                    using (var bg = new SolidBrush(Color.FromArgb(220, bgKind == "white" ? Color.White : HexOr(bgKind, Color.White))))
+                                        g.FillRectangle(bg, x - 2, y - 2, size.Width + 4, size.Height + 4);
+                                using var b = new SolidBrush(color);
+                                g.DrawString(text, font, b, x, y);
+                            }
                         }
                         break;
                     }
@@ -410,6 +476,39 @@ public static class StepImages
                     break;
             }
         }
+    }
+
+    static Color HexOr(string? hex, Color fallback)
+    {
+        if (hex is not { Length: 7 } || hex[0] != '#') return fallback;
+        try { return ColorTranslator.FromHtml(hex); } catch { return fallback; }
+    }
+
+    /// <summary>Umriss einer Nummer: Quadrat, abgerundet, Ring (Kreis mit weißem Rand) oder Stecknadel (Kreis mit Spitze nach unten).</summary>
+    static GraphicsPath BadgePath(RectangleF r, string shape)
+    {
+        var p = new GraphicsPath();
+        switch (shape)
+        {
+            case "square": p.AddRectangle(r); break;
+            case "rounded":
+                {
+                    float rad = r.Height / 4;
+                    p.AddArc(r.X, r.Y, 2 * rad, 2 * rad, 180, 90); p.AddArc(r.Right - 2 * rad, r.Y, 2 * rad, 2 * rad, 270, 90);
+                    p.AddArc(r.Right - 2 * rad, r.Bottom - 2 * rad, 2 * rad, 2 * rad, 0, 90); p.AddArc(r.X, r.Bottom - 2 * rad, 2 * rad, 2 * rad, 90, 90); p.CloseFigure();
+                    break;
+                }
+            case "pin":
+                {
+                    float cx = r.X + r.Width / 2;
+                    p.AddArc(r.X, r.Y, r.Width, r.Height, 135, 270);
+                    p.AddLine(r.Right - r.Width * 0.146f, r.Bottom - r.Height * 0.146f, cx, r.Bottom + r.Height * 0.45f);
+                    p.CloseFigure();
+                    break;
+                }
+            default: p.AddEllipse(r); break;
+        }
+        return p;
     }
 
     /// <summary>

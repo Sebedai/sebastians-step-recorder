@@ -185,7 +185,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         }
         if (s == null) { _details.Children.Clear(); _cropOff.Visibility = Visibility.Collapsed; _imgCaptionPill.Visibility = Visibility.Collapsed; _noImage.Visibility = Visibility.Visible; _imgHost.Visibility = Visibility.Collapsed; return; }
         string variant = _display == "crop" && !s.Manual && !s.ImageReplaced ? "crop" : (_variantOverride ?? DefaultVariant(s));
-        var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop", authorAnnotations: true);
+        var img = StepImages.Render(_view, s, variant, "original", annotate: true, viewMode: _display == "window" ? "window" : "screen", applyCrop: _tool != "crop", overview: _display == "crop", authorAnnotations: true, stepLabel: StepLabel(s));
         if (img == null && variant == "after") { img = StepImages.Render(_view, s, "before", "original", authorAnnotations: true); variant = "before"; }
         _showAfter = variant == "after";
         _syncBA = true; (_showAfter ? _afterBtn : _beforeBtn).IsChecked = true; _syncBA = false;
@@ -371,9 +371,9 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
 
     // ---------------- Mausmarkierungen ----------------
 
-    static (string key, string label)[] MarkKeys => new[] { ("clickMarker", Loc.L("Klickpunkt", "Click point")), ("dragPath", Loc.L("Zug- und Haltepfad", "Drag and hold path")), ("elementFrame", Loc.L("Zielrahmen", "Target frame")), ("labels", Loc.L("Hinweise (Haltedauer, Scrollrichtung)", "Notes (hold time, scroll direction)")), ("approachPath", Loc.L("Mausweg davor", "Mouse path before")), ("keyCaps", Loc.L("Tasten und Texteingaben", "Keys and typed text")) };
+    static (string key, string label)[] MarkKeys => new[] { ("clickMarker", Loc.L("Klickpunkt", "Click point")), ("dragPath", Loc.L("Zug- und Haltepfad", "Drag and hold path")), ("elementFrame", Loc.L("Zielrahmen", "Target frame")), ("labels", Loc.L("Hinweise (Haltedauer, Scrollrichtung)", "Notes (hold time, scroll direction)")), ("approachPath", Loc.L("Mausweg davor", "Mouse path before")), ("keyCaps", Loc.L("Tasten und Texteingaben", "Keys and typed text")), ("stepNumber", Loc.L("Schrittnummer wie in der Anleitung", "Step number as in the guide")) };
 
-    static bool MarkOf(MouseMarks m, string key) => key switch { "clickMarker" => m.Click, "dragPath" => m.Path, "elementFrame" => m.Target, "labels" => m.Labels, "keyCaps" => m.KeyCaps, _ => m.Approach };
+    static bool MarkOf(MouseMarks m, string key) => key switch { "clickMarker" => m.Click, "dragPath" => m.Path, "elementFrame" => m.Target, "labels" => m.Labels, "keyCaps" => m.KeyCaps, "stepNumber" => m.Number, _ => m.Approach };
 
     JsonObject? StepMarksEdit(ViewStep s) => (_view.Edits.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Long("anchor") == s.Anchor)?.Obj("auto");
 
@@ -400,7 +400,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             foreach (var k in MouseMarks.Keys) auto?.Remove(k);
             if (auto == null) { auto = new JsonObject(); se["auto"] = auto; }
             if (!show) foreach (var k in MouseMarks.Keys) auto[k] = false;
-            else if (!all.Any) foreach (var k in MouseMarks.Keys.Where(k => k != "approachPath")) auto[k] = true;
+            else if (!all.Any) foreach (var k in MouseMarks.Keys.Where(k => k is not ("approachPath" or "stepNumber"))) auto[k] = true;
             if (auto.Count == 0) se.Remove("auto");
         }, refill: false);
         _status.Text = show ? Loc.F("Mausmarken bei Schritt {0} eingeblendet", "Mouse marks shown for step {0}", s.Number) : Loc.F("Mausmarken bei Schritt {0} ausgeblendet", "Mouse marks hidden for step {0}", s.Number);
@@ -424,7 +424,8 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     {
         if (_view.Session.ReadOnly) { Msg.Show(Loc.L("Diese Sitzung ist schreibgeschützt (.steprec). Bitte entpacken, um sie zu bearbeiten.", "This recording is read-only (.steprec). Please extract it to edit it.")); return; }
         _undo.Add(Json.Line(_view.Edits)); _redo.Clear();
-        string ImageEdits() => (_view.Edits["redactions"]?.ToJsonString() ?? "") + (_view.Edits["substitutions"]?.ToJsonString() ?? "");
+        // Alles, was viele Bilder zugleich ändert: Schwärzungen, Verallgemeinerungen, Markenstil, Nummernfolge (Paket 22)
+        string ImageEdits() => (_view.Edits["redactions"]?.ToJsonString() ?? "") + (_view.Edits["substitutions"]?.ToJsonString() ?? "") + (_view.Edits["guide"]?["auto"]?.ToJsonString() ?? "") + NumbersSignature();
         string before = ImageEdits();
         edit(_view.Edits);
         if (!_view.SaveEdits()) { _view.ReloadEdits(); Msg.Show(Loc.L("Die Sitzung wurde zwischenzeitlich geändert; bitte erneut versuchen.", "The recording was changed in the meantime; please try again.")); }
@@ -447,7 +448,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         foreach (var k in _view.Edits.Select(x => x.Key).ToList()) _view.Edits.Remove(k);
         foreach (var kv in restored.ToList()) { restored.Remove(kv.Key); _view.Edits[kv.Key] = kv.Value; }
         _view.SaveEdits();
-        _thumbs.Clear(); _selAnn = null;
+        _thumbs.Clear(); _selAnn = null; _stepNumbers = null;
         QualityInvalidate();
         Fill();
         AfterEditsSaved();

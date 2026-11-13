@@ -53,6 +53,8 @@ static class Theme
     public const string IStar = "", IStarFill = "", ISnippet = "";
     public const string IArrowUp ="", IArrowDown = "";
     /// <summary>Freihand (Stift), Spotlight (Helligkeit), Lupe.</summary>
+    /// <summary>Farbpalette, Pipette (13, Paket 22).</summary>
+    public const string IPalette = "", IPipette = "";
     public const string IInk = "", ISpot = "", IMagnifier = "";
     public const string IZoomIn ="", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "", IStroke = "";
 

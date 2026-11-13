@@ -77,27 +77,26 @@ public sealed class ViewStep
 /// </summary>
 /// <summary>Sichtbarkeit der Mausmarkierungen in Schrittbildern.</summary>
 /// <summary>Sichtbarkeit der Markierungen in Schrittbildern; <see cref="KeyCaps"/> = gedrückte Tasten und getippter Text als Tastenkappen.</summary>
-public sealed record MouseMarks(bool Click, bool Path, bool Target, bool Labels, bool Approach, bool KeyCaps = true)
+public sealed record MouseMarks(bool Click, bool Path, bool Target, bool Labels, bool Approach, bool KeyCaps = true, bool Number = false)
 {
     public static readonly MouseMarks Default = new(true, true, true, true, false, true);
     public static readonly MouseMarks None = new(false, false, false, false, false, false);
-    public bool Any => Click || Path || Target || Labels || Approach || KeyCaps;
+    public bool Any => Click || Path || Target || Labels || Approach || KeyCaps || Number;
 
     /// <summary>Nur was in beiden eingeschaltet ist (z. B. Export-Auswahl über den Einstellungen der Sitzung).</summary>
-    public MouseMarks And(MouseMarks o) => new(Click && o.Click, Path && o.Path, Target && o.Target, Labels && o.Labels, Approach && o.Approach, KeyCaps && o.KeyCaps);
+    public MouseMarks And(MouseMarks o) => new(Click && o.Click, Path && o.Path, Target && o.Target, Labels && o.Labels, Approach && o.Approach, KeyCaps && o.KeyCaps, Number && o.Number);
 
-    /// <summary>Maske für Exporte: Mausmarkierungen und/oder Tastenkappen.</summary>
-    public static MouseMarks Mask(bool mouse, bool keys) => new(mouse, mouse, mouse, mouse, mouse, keys);
+    /// <summary>Maske für Exporte: Mausmarkierungen (samt Schrittnummer) und/oder Tastenkappen.</summary>
+    public static MouseMarks Mask(bool mouse, bool keys) => new(mouse, mouse, mouse, mouse, mouse, keys, mouse);
+
+    static bool B(JsonNode? n, bool basis) => n is JsonValue v && v.TryGetValue<bool>(out var b) ? b : basis;
 
     public static MouseMarks From(JsonObject? o, MouseMarks basis) => o == null ? basis : new(
-        o["clickMarker"] is JsonValue c ? c.GetValue<bool>() : basis.Click,
-        o["dragPath"] is JsonValue p ? p.GetValue<bool>() : basis.Path,
-        o["elementFrame"] is JsonValue t ? t.GetValue<bool>() : basis.Target,
-        o["labels"] is JsonValue l ? l.GetValue<bool>() : basis.Labels,
-        o["approachPath"] is JsonValue a ? a.GetValue<bool>() : basis.Approach,
-        o["keyCaps"] is JsonValue k ? k.GetValue<bool>() : basis.KeyCaps);
+        B(o["clickMarker"], basis.Click), B(o["dragPath"], basis.Path), B(o["elementFrame"], basis.Target), B(o["labels"], basis.Labels),
+        B(o["approachPath"], basis.Approach), B(o["keyCaps"], basis.KeyCaps), B(o["stepNumber"], basis.Number));
 
-    public static readonly string[] Keys = { "clickMarker", "dragPath", "elementFrame", "labels", "approachPath", "keyCaps" };
+    /// <summary>Schlüssel in <c>guide.auto</c>/<c>steps[].auto</c>; <c>stepNumber</c> (13, Paket 22) ist standardmäßig aus.</summary>
+    public static readonly string[] Keys = { "clickMarker", "dragPath", "elementFrame", "labels", "approachPath", "keyCaps", "stepNumber" };
 }
 
 public sealed partial class SessionView : IDisposable
@@ -817,6 +816,9 @@ public sealed partial class SessionView : IDisposable
             m = MouseMarks.From(sm, m);
         return m;
     }
+
+    /// <summary>Stil der Mausmarken (<c>guide.auto.style</c>, 13 Paket 22) oder null = Klassisch.</summary>
+    public Export.MarkStyle? MarkStyle() => Export.MarkStyle.From(Edits.Obj("guide")?.Obj("auto")?.Obj("style"));
 
     public bool SaveEdits(string savedBy = "viewer")
     {

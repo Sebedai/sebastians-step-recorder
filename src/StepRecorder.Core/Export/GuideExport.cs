@@ -215,12 +215,7 @@ public static partial class GuideExport
                 d.Blocks.Add(new Chapter(s.Numbering == "none" ? "" : chap.ToString(), $"k{chap}", ct, st.ChapterText ?? "", st.ChapterRich));
             }
             flat++;
-            string number = s.Numbering switch
-            {
-                "none" => "",
-                "flat" => flat.ToString(),
-                _ => chap == 0 ? (++pre).ToString() : $"{chap}.{++inChap}"
-            };
+            string number = NumberFor(s.Numbering, chap, ref inChap, flat, ref pre);
             byte[]? png = null, afterPng = null; int w = 0, h = 0, aw = 0, ah = 0; RectangleF? hot = null;
             if (o.Images && !st.Redacted && st.ShowImage != false)
             {
@@ -230,13 +225,13 @@ public static partial class GuideExport
                 // Ergebnis: Nachher-Bild zusätzlich, wenn gewünscht und nicht schon das Schrittbild
                 bool wantAfter = o.After == "always" || (o.After == "changed" && StepImages.ScreenChanged(st, 0.02));
                 wantAfter = wantAfter && variant != "after" && !st.Manual && !st.ImageReplaced && st.PostFrame != null && st.PostFrame != st.PreFrame;
-                string? cacheKey = o.ImageCache?.KeyFor(v, st, variant, renderView, mask, overview, o.ImageProfile, wantAfter, o.Format == "tour");
+                string? cacheKey = o.ImageCache?.KeyFor(v, st, variant, renderView, mask, overview, o.ImageProfile, wantAfter, o.Format == "tour", number);
                 if (cacheKey != null && o.ImageCache!.TryGet(cacheKey, out var cached))
                     (png, w, h, hot, afterPng, aw, ah) = cached;
                 else
                 {
                     // Markierungen des Autors zeichnet Render – jeweils nur die, die auf genau diesem Bild gezeichnet wurden
-                    using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, overview: overview, authorAnnotations: true);
+                    using var img = StepImages.Render(v, st, variant, o.ImageProfile, annotate: true, viewMode: renderView, mask: mask, overview: overview, authorAnnotations: true, stepLabel: number);
                     if (img != null)
                     {
                         png = StepImages.Png(img.Bitmap); w = img.Bitmap.Width; h = img.Bitmap.Height;

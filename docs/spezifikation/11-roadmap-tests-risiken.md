@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 22 Bild-Editor I | Schrittnummer im Bild wie in der Anleitung, Markenstile (Klassisch, Nummern, Dezent, Kräftig), zwölf Farben, freie Farbe, Pipette, Farbe je Werkzeug, Stil von Zeichnungen (Linienart, Spitzen, Füllung, Hintergrund, Nummernform, Zählweise, Deckkraft), Nummern zählen neu, Stil übertragen, Ziel markieren | erledigt; Mehrfachauswahl, Eigenschaftsleiste und eigene Stilvorlagen folgen mit Paket 28 |
 | 21 Formatierter Text | Auszeichnung in Autorentexten (fett, kursiv, Eingabe, Tasten, Bedienelemente, Links, Listen), Schutzreihenfolge in der Leseschicht, Darstellung in HTML, Markdown, Word, PDF, Klick-Tour; formatierbare Felder im Editor | erledigt; Bedienung mit Bildschirmleser von Hand offen |
 | 20 Fundament und Seitenansicht | Referenztest für bestehende Ausgaben, `PdfRaster` (Windows.Data.Pdf), `RenderPdf` mit Bildspeicher, Mitte „Bild \| Seite“, Auswahl in beide Richtungen, Drucken | erledigt; Drucken auf echtem Drucker von Hand offen |
 

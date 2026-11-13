@@ -59,7 +59,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 |---|---|---|---|---|---|
 | 20 | Fundament und Seitenansicht (mit Drucken) | V-48, V-52 | L | – | erledigt |
 | 21 | Formatierter Text | V-47 | L | 20 | erledigt |
-| 22 | Bild-Editor I: Schrittmarken, Nummern, Farben, Stilvorlagen | V-54, V-51 | L | 20 | geplant |
+| 22 | Bild-Editor I: Schrittmarken, Nummern, Farben, Stilvorlagen | V-54, V-51 | L | 20 | erledigt |
 | 23 | Querverweise, Variablen, Tabellen | V-47 | M | 21 | geplant |
 | 24 | Gliederung: Unterkapitel, Textabschnitte, Kapitel ordnen | V-46, V-50 | M–L | 21 | geplant |
 | 25 | Bildunterschriften, Abbildungsverzeichnis, Warnhinweise | V-46 | M | 24 | geplant |

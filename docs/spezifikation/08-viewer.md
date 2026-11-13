@@ -474,8 +474,8 @@ Die Ausgabe der Wiedergabe als GIF oder Video ist Kann.
 | Rechteck | `R` | Etwas einrahmen | Farbe, Stärke, Füllung, Eckenrundung | Muss |
 | Ellipse | `E` | Etwas einkreisen | wie Rechteck | Muss |
 | Text | `T` | Beschriftung im Bild | Größe, Farbe, Hintergrund | Muss |
-| Nummer | `N` | Nummerierte Marke; zählt je Bild hoch | Farbe, Größe, Startwert | Muss |
-| Markierstift | `M` | Halbtransparente Hervorhebung | Farbe, Stärke | Muss |
+| Nummer | `N` | Nummerierte Marke; zählt je Bild automatisch und zählt nach Löschen neu | Farbe, Größe, Form (Kreis, Quadrat, abgerundet, Stecknadel, Kreis mit Rand), Zählweise (1 · a · A · i), „Ab hier neu zählen bei …“, feste Beschriftung (Doppelklick) | Muss |
+| Markierstift | `M` | Halbtransparente Hervorhebung | Farbe (Standard gelb; das Werkzeug merkt sich seine Farbe) | Muss |
 | Lupe | `L` | Vergrößerter Einsatz eines Bildteils: Bereich aufziehen, die runde Linse zeigt ihn vergrößert | Linse und Quelle lassen sich getrennt verschieben; ein runder Griff an der Linse ändert den Zoom | Soll |
 | Zuschnitt | `C` | Freien Bildausschnitt festlegen | Seitenverhältnis, Vorgaben | Muss |
 | Schwärzen | `X` | Bereich schwarz abdecken | Ausdehnung | Muss |
@@ -493,7 +493,7 @@ Automatische Markierungen sind keine Werkzeuge, sondern Schalter:
 | Klickmarke | `I` | Zeigt die aufgezeichnete Klickstelle. Ein- und ausblendbar, im Stil änderbar, aber nicht verschiebbar – sie soll zeigen, wo wirklich geklickt wurde. |
 | Elementrahmen | `E` | Rahmen um das erkannte Zielelement. Ein- und ausblendbar; fehlt, wenn kein zuverlässiges Rechteck vorliegt. |
 | Mauszeiger | – (Menü) | Zeigt den aufgezeichneten Zeiger in seiner Form. Ein- und ausblendbar, Größe wählbar. |
-| Schrittnummer | – (Menü) | Setzt die Nummer des Schritts als Marke an die Stelle der Aktion. Ein- und ausblendbar. |
+| Schrittnummer | – (Menü) | Setzt die Nummer des Schritts, wie sie in der Anleitung steht (z. B. „2.3“), als Marke an die Stelle der Aktion. Ein- und ausblendbar (Ansicht → Mausmarken), Standard aus. Im KI-Paket nie. |
 
 Bedienung der Werkzeuge:
 
@@ -501,6 +501,10 @@ Bedienung der Werkzeuge:
 - Ein Werkzeug bleibt gewählt, bis ein anderes gewählt oder `Esc` gedrückt wird. Über einem vorhandenen Objekt greift die Maus dieses Objekt; auf freier Fläche entsteht ein neues.
 - Gewählte Objekte: verschieben, Größe ändern, `Entf` löscht, `Strg+D` verdoppelt, Pfeiltasten verschieben um 1 Pixel (mit `Umschalt` um 10).
 - Text: Klick setzt die Schreibmarke; `Esc` oder ein Klick daneben beendet die Eingabe.
+
+**Farben und Stil** ([13](13-handbuch-fahrplan.md), Paket 22): Die Palette hat zwölf Farben (Rot, Orange, Grün, Blau, Schwarz, Weiß, Gelb, Türkis, Violett, Pink, Braun, Grau), dazu „Weitere Farbe …“ (freie Farbwahl), die Pipette (nächster Klick ins Bild nimmt die Farbe auf) und ein Feld mit der zuletzt gewählten eigenen Farbe. Jedes Werkzeug merkt sich seine Farbe. Der Knopf **Stil** öffnet je nach Art: Linienart, Spitzen, Füllung, Hintergrund des Textes, Form und Zählweise von Nummern, Deckkraft – für die ausgewählte Zeichnung oder, ohne Auswahl, für neue Zeichnungen des Werkzeugs; dazu „Stil auf alle Zeichnungen dieser Art übertragen“. **Bild → Ziel markieren** legt aus dem erkannten Zielrahmen bearbeitbare Zeichnungen an (Rahmen und Nummer), auch für mehrere gewählte Schritte.
+
+**Markenstil** (Ansicht → Mausmarken → Stil der Marken): Klassisch (bisher), Nummern (Schrittnummer statt Klickring), Dezent, Kräftig; dazu Farbe der Marken und Form der Schrittnummer. Der Stil gilt für alle Schritte der Aufnahme ([04 §13.19](04-datenformat.md#1319-markenstil-guideautostyle)).
 
 ### 7.3 Eigenschaften und Stilvorlagen
 
@@ -1466,6 +1470,8 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-237 | Oberflächensprache | Soll | Mit der Oberflächensprache Englisch erscheinen alle Fenster und Meldungen englisch; Texte, die in die Aufnahme oder einen Export gelangen, folgen der Sprache der Anleitungstexte. |
 | VIE-239 | Seitenansicht | Soll | „Seite“ zeigt die Seiten des PDF-Exports; nach einer Textänderung ist die Seite bei einer mittleren Aufnahme in höchstens 1 s aktualisiert; Klick wählt den Schritt, Auswahl springt zur Stelle; ungeprüfte Eingaben erscheinen nur als Platzhalter. |
 | VIE-240 | Drucken | Soll | `Strg+P` druckt die Anleitung wie das PDF, nach der Durchsicht, mit Seitenbereich; Abbrechen hinterlässt nichts. |
+| VIE-242 | Schrittnummer im Bild | Soll | Mit „Schrittnummer“ zeigt das Bild von Schritt 1.2 eine Marke „1.2“ an der Klickstelle, in Editor und Anleitung gleich; nach dem Umsortieren stimmt die Nummer; das KI-Paket zeigt keine Nummer. |
+| VIE-243 | Farben, Stil und Nummern | Soll | Zwölf Farben, freie Farbe und Pipette; „Stil“ ändert Linienart, Spitzen, Füllung, Hintergrund, Form, Zählweise und Deckkraft der gewählten Zeichnung; nach dem Löschen der Nummer 2 heißen die Nummern 1, 2 statt 1, 3; „Stil übertragen“ ändert alle Zeichnungen derselben Art. |
 | VIE-241 | Formatierbare Textfelder | Soll | `Strg+B` im Anleitungstext zeigt sofort Fettdruck; nach dem Verlassen ist der Text mit `fmt: 1` gespeichert und erscheint fett in der Seitenansicht; ein Text ohne Formatierung wird ohne Kennzeichen gespeichert; Einfügen aus Word bringt nur den Text. |
 | VIE-238 | Terminal, Remote-Desktop, virtuelle Maschinen | Muss | Getipptes in diesen Fenstern ist prüfpflichtig; in der Schutzstufe „Streng“ ist es vollständig maskiert. Kennwortabfragen im Terminal werden nicht automatisch erkannt. |
 
