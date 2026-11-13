@@ -1215,7 +1215,7 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `I` `E` | Klickmarke, Elementrahmen ein und aus |
 | `Strg+B` `Strg+I` `Strg+T` | Schrittliste, Detailbereich, Zeitleiste ein und aus |
 | `F7` | Vergleichen mit … |
-| `Strg+F2` | Seitenansicht ein/aus (Mitte „Bild | Seite“) |
+| `Strg+F2` | Seitenansicht ein/aus (Mitte „Bild \| Seite“) |
 | `Strg+P` | Drucken … |
 | `F8` | Fenster der Qualitätsprüfung öffnen |
 | `F11` | Vollbild |
