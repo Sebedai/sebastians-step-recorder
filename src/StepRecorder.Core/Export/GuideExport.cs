@@ -710,7 +710,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         var (pw, ph) = d.S.PagePoints();
         var pdf = new SimplePdf(pw, ph) { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = Settings.OutText.Tag(d.Lang) };
         if (d.S.MarginMm > 0) { pdf.Margin = Math.Round(d.S.MarginMm * 72 / 25.4, 2); pdf.SetY(pdf.PageH - pdf.Margin); }
-        pdf.HeaderBand = d.HeaderBand; pdf.FooterBand = d.FooterBand; pdf.Watermark = d.Watermark;
+        pdf.HeaderBand = d.HeaderBand; pdf.FooterBand = d.FooterBand; pdf.Watermark = d.Watermark; pdf.Tagged = d.S.PdfTagged;
         bool AtTop() => pdf.Y >= pdf.PageH - pdf.Margin - 1;
         double cw = pdf.ContentWidth;
         // Bildhöhe höchstens Satzspiegel abzüglich Platz für den Schritttext (A4 hoch: wie bisher 560 · Faktor + 60)
@@ -861,6 +861,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             {
                 double afterText = pdf.Y;
                 pdf.SetY(top);
+                pdf.NextAlt = it.Alt ?? it.Title;
                 pdf.Image(jp.jpg, jp.w, jp.h, imgW, imgH, pdf.Margin + textW + 16);
                 if (it.Caption != null) pdf.Paragraph(it.Caption, 9, false, textW + 16, 2, muted, imgW);
                 pdf.SetY(Math.Min(afterText, pdf.Y));
@@ -869,6 +870,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             if (hasImg && !side)
             {
                 double f = DocSettings.Factor(it.Size);
+                pdf.NextAlt = it.Alt ?? it.Title;
                 pdf.Image(jp.jpg, jp.w, jp.h, cw * f, Math.Min(560 * f + 60, maxImgH));
                 if (it.Caption != null) pdf.Paragraph(it.Caption, 9, false, 0, 4, muted, cw * f);
             }

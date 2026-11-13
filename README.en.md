@@ -109,6 +109,7 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Re-record and replace a section** (Ctrl+R): mark steps and demonstrate the section again – the new steps take the place of the old ones. The old ones are kept, the seam is marked, Ctrl+Z undoes the replacement.
 - **Bookmarks** (Ctrl+Shift+L): mark steps with a star and filter by them.
 - **Text snippets** (Ctrl+Shift+B): insert frequently used texts into notes and step texts; managed under *Settings → General*.
+- **Accessible PDF:** optionally the PDF tags headings, paragraphs and images (with alternative text) for screen readers.
 - **Completion and release:** a checklist shows what is still missing before sharing. Drafts can carry a “DRAFT” watermark; “Release” only works once all required items are done – and any later change turns it back into a draft.
 - **Style check:** the quality check (F8) points out overly long sentences, several actions in one step, the wrong form of address, filler words and passive voice in your own texts and estimates readability. Automatic German texts now use “du” throughout when chosen.
 - **More image tools:** speech bubble, stamps (check, cross, warning, info …), blur; copy drawings to other steps with Ctrl+C/Ctrl+V, duplicate with Ctrl+D, position precisely with the arrow keys.

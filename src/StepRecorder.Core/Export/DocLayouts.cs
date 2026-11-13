@@ -32,7 +32,7 @@ public static class DocLayouts
                 d.FooterLeft = "{{" + OutText.T(lang, "Titel", "Title") + "}}"; d.FooterRight = OutText.T(lang, "Seite {{Seite}}", "Page {{Page}}");
                 break;
             case "manual":
-                d.Cover = true; d.Toc = true; d.ChapterNewPage = true; d.Captions = "auto"; d.Figures = true; d.WarnFirst = true;
+                d.Cover = true; d.Toc = true; d.ChapterNewPage = true; d.Captions = "auto"; d.Figures = true; d.WarnFirst = true; d.PdfTagged = true;
                 d.HeaderLeft = "{{" + OutText.T(lang, "Titel", "Title") + "}}"; d.HeaderRight = "{{Kapitel}}";
                 d.FooterLeft = OutText.T(lang, "Version {{Version}}", "Version {{Version}}"); d.FooterRight = OutText.T(lang, "Seite {{Seite}} von {{Seiten}}", "Page {{Page}} of {{Pages}}");
                 break;

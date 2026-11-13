@@ -64,6 +64,7 @@ sealed partial class ViewerWindow
         }
         page.Children.Add(Check(Loc.L("Jedes Kapitel auf einer neuen Seite", "Each chapter on a new page"), d.ChapterNewPage, v => DocChange(x => x.ChapterNewPage = v), Loc.L("PDF, Word und Druck", "PDF, Word and print")));
         page.Children.Add(Check(Loc.L("Ein Schritt je Seite", "One step per page"), d.StepPerPage, v => DocChange(x => x.StepPerPage = v), Loc.L("Für Schulungsunterlagen", "For training material")));
+        page.Children.Add(Check(Loc.L("Barrierearmes PDF (Strukturmarkierung, Alternativtexte)", "Accessible PDF (structure tags, alternative texts)"), d.PdfTagged, v => DocChange(x => x.PdfTagged = v), Loc.L("Überschriften, Absätze und Bilder sind für Bildschirmleser markiert; Bilder tragen den Alternativtext (sonst die Überschrift). Orientiert an PDF/UA, ohne Konformitätsbehauptung.", "Headings, paragraphs and images are tagged for screen readers; images carry the alternative text (otherwise the heading). Oriented on PDF/UA without claiming conformance.")));
         page.Children.Add(Check(Loc.L("„Erstellt mit …“ zeigen", "Show “Created with …”"), d.CreatedWith, v => DocChange(x => x.CreatedWith = v), Loc.L("Hinweis auf das Programm in der HTML-Fußzeile", "Note about the program in the HTML footer")));
     }
 }

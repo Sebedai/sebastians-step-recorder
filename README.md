@@ -109,6 +109,7 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Abschnitt neu aufnehmen und ersetzen** (Strg+R): Schritte markieren, den Abschnitt neu vorführen – die neuen Schritte treten an die Stelle der alten. Die alten bleiben erhalten, die Nahtstelle ist gekennzeichnet, Strg+Z nimmt die Ersetzung zurück.
 - **Lesezeichen** (Strg+Umschalt+L): Schritte mit einem Stern merken und danach filtern.
 - **Textbausteine** (Strg+Umschalt+B): oft gebrauchte Texte für Hinweise und Schritttexte einfügen; verwaltet unter *Einstellungen → Allgemein*.
+- **Barrierearmes PDF:** Auf Wunsch markiert das PDF Überschriften, Absätze und Bilder (mit Alternativtext) für Bildschirmleser.
 - **Fertigstellung und Freigabe:** Eine Prüfliste zeigt, was vor der Weitergabe noch fehlt. Entwürfe tragen auf Wunsch das Wasserzeichen „ENTWURF“; „Freigeben“ geht erst, wenn alle Pflichtpunkte erledigt sind – und jede spätere Änderung macht wieder einen Entwurf daraus.
 - **Stilprüfung:** Die Qualitätsprüfung (F8) weist bei eigenen Texten auf zu lange Sätze, mehrere Handlungen in einem Schritt, falsche Anrede, Füllwörter und Passiv hin und schätzt die Lesbarkeit. Die automatischen Texte duzen jetzt vollständig, wenn „du“ gewählt ist.
 - **Mehr Bildwerkzeuge:** Sprechblase, Stempel (Haken, Kreuz, Warnung, Info …), Weichzeichnen; Zeichnungen mit Strg+C/Strg+V in andere Schritte übernehmen, Strg+D verdoppeln, mit den Pfeiltasten genau setzen.

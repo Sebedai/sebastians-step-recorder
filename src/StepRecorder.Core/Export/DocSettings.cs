@@ -40,6 +40,8 @@ public sealed class DocSettings
     public bool ChapterNewPage, StepPerPage, CreatedWith = true;
     /// <summary>Wasserzeichen „Entwurf“: auto (bei Status Entwurf) | off (13, Paket 30).</summary>
     public string Watermark = "auto";
+    /// <summary>Barrierearmes PDF mit Strukturmarkierung (13, Paket 32).</summary>
+    public bool PdfTagged;
     public bool HasHeader => HeaderLeft.Length + HeaderCenter.Length + HeaderRight.Length > 0;
     public bool HasFooterParts => FooterLeft.Length + FooterCenter.Length + FooterRight.Length > 0;
     /// <summary>Querformat für Word und PDF.</summary>
@@ -186,6 +188,7 @@ public sealed class DocSettings
         d.ChapterNewPage = j.Bool("chapterNewPage"); d.StepPerPage = j.Bool("stepPerPage");
         if (j["createdWith"] != null) d.CreatedWith = j.Bool("createdWith");
         d.Watermark = j.Str("watermark") == "off" ? "off" : "auto";
+        d.PdfTagged = j.Bool("pdfTagged");
     }
 
     public static (string id, string name)[] Pages => new[] { ("a4", "A4"), ("letter", "Letter") };
@@ -240,6 +243,7 @@ public sealed class DocSettings
         if (StepPerPage) o["stepPerPage"] = true;
         if (!CreatedWith) o["createdWith"] = false;
         if (Watermark == "off") o["watermark"] = "off";
+        if (PdfTagged) o["pdfTagged"] = true;
         return o;
     }
 

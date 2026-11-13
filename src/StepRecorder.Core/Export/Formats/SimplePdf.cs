@@ -183,6 +183,7 @@ public sealed partial class SimplePdf
     void DrawTextTo(StringBuilder sb, double x, double y, string text, double size, bool bold, (double r, double g, double b)? color, bool italic, bool mono)
     {
         var c = color ?? (0.1, 0.1, 0.1);
+        string end = BeginMark(sb, RoleFor(size, bold));
         sb.Append(F($"BT {c.r} {c.g} {c.b} rg {x} {y} Td "));
         int curFont = int.MinValue;
         var run = new StringBuilder();
@@ -214,16 +215,17 @@ public sealed partial class SimplePdf
         }
         Flush();
         sb.Append("ET\n");
+        sb.Append(end);
     }
 
     public void FillRect(double x, double y, double w, double h, (double r, double g, double b) color)
-        => _cur.Append(F($"{color.r} {color.g} {color.b} rg {x} {y} {w} {h} re f\n"));
+    { string e = BeginArtifact(_cur); _cur.Append(F($"{color.r} {color.g} {color.b} rg {x} {y} {w} {h} re f\n")).Append(e); }
 
     public void StrokeRect(double x, double y, double w, double h, (double r, double g, double b) color, double lw = 1)
-        => _cur.Append(F($"{color.r} {color.g} {color.b} RG {lw} w {x} {y} {w} {h} re S\n"));
+    { string e = BeginArtifact(_cur); _cur.Append(F($"{color.r} {color.g} {color.b} RG {lw} w {x} {y} {w} {h} re S\n")).Append(e); }
 
     public void Line(double x1, double y1, double x2, double y2, (double r, double g, double b) color, double lw = 0.5)
-        => _cur.Append(F($"{color.r} {color.g} {color.b} RG {lw} w {x1} {y1} m {x2} {y2} l S\n"));
+    { string e = BeginArtifact(_cur); _cur.Append(F($"{color.r} {color.g} {color.b} RG {lw} w {x1} {y1} m {x2} {y2} l S\n")).Append(e); }
 
     public void Space(double h) => Y -= h;
 
@@ -272,7 +274,9 @@ public sealed partial class SimplePdf
         Y -= h;
         int idx = _images.Count;
         _images.Add((jpeg, pxW, pxH));
-        _cur.Append(F($"q {w} 0 0 {h} {x} {Y} cm /Im{idx} Do Q\n"));
+        string endFig = BeginMark(_cur, "Figure", NextAlt ?? (Language.StartsWith("de") ? "Bild" : "Image"));
+        NextAlt = null;
+        _cur.Append(F($"q {w} 0 0 {h} {x} {Y} cm /Im{idx} Do Q\n")).Append(endFig);
         if (border) StrokeRect(x, Y, w, h, (0.75, 0.75, 0.75), 0.5);
         Y -= 8;
     }
@@ -326,7 +330,8 @@ public sealed partial class SimplePdf
 
     public byte[] ToBytes()
     {
-        // Fußzeilen (vor den Schriften, damit ihre Zeichen in die Teilmengen kommen)
+        // Fußzeilen (vor den Schriften, damit ihre Zeichen in die Teilmengen kommen); in markierten PDFs Artefakte
+        _artifact = true;
         for (int i = 0; i < _pages.Count; i++)
         {
             if (Watermark is { Length: > 0 } wm)
@@ -349,6 +354,7 @@ public sealed partial class SimplePdf
             DrawTextTo(_pages[i], Margin, 25, Footer, 8, false, (0.5, 0.5, 0.5));
             DrawTextTo(_pages[i], PageW - Margin - TextWidth(pg, 8), 25, pg, 8, false, (0.5, 0.5, 0.5));
         }
+        _artifact = false;
         if (_unsupported)
             Warnings.Add(Language.StartsWith("de")
                 ? "Einige Zeichen (z. B. Chinesisch, Arabisch, Hebräisch, Thai oder Emoji) kann das PDF nicht darstellen; sie erscheinen als „?“. Für solche Texte bitte HTML oder Word verwenden."
@@ -367,6 +373,7 @@ public sealed partial class SimplePdf
         // Neu (13, Paket 21): weitere Standardschriften und Weblinks nur bei Gebrauch, nach allen bisherigen Objekten nummeriert
         var stdObjs = StdFonts.Where(f => _stdUsed.Contains(f.res)).Select(f => (f.res, f.name, obj: New())).ToList();
         var uriObjs = _uris.Select(l => l.Select(x => (x, obj: New())).ToList()).ToList();
+        var tags = AllocateTags(New);
 
         var ms = new MemoryStream();
         var offsets = new Dictionary<int, long>();
@@ -388,6 +395,7 @@ public sealed partial class SimplePdf
             else { tops.Add(i); children[i] = new(); lastTop = i; }
         }
         string catalogExtra = outlineObjs.Count > 0 ? $" /Outlines {outlineRoot} 0 R /PageMode /UseOutlines" : "";
+        if (tags is { } tg) catalogExtra += $" /MarkInfo << /Marked true >> /StructTreeRoot {tg.root} 0 R /ViewerPreferences << /DisplayDocTitle true >>";
         Obj(catalog, $"<< /Type /Catalog /Pages {pagesObj} 0 R /Lang {PdfTextString(Language)}{catalogExtra} >>");
         Obj(pagesObj, $"<< /Type /Pages /Count {_pages.Count} /Kids [{string.Join(" ", pageObjs.Select(p => $"{p.page} 0 R"))}] >>");
         Obj(info, $"<< /Title {PdfTextString(Title)} /Producer (StepRecorder) >>");
@@ -432,7 +440,7 @@ public sealed partial class SimplePdf
             var (po, co) = pageObjs[i];
             var annIds = annots[i].Select(a => a.obj).Concat(uriObjs[i].Select(a => a.obj)).ToList();
             string ann = annIds.Count > 0 ? $" /Annots [{string.Join(" ", annIds.Select(a => $"{a} 0 R"))}]" : "";
-            Obj(po, $"<< /Type /Page /Parent {pagesObj} 0 R /MediaBox [0 0 {F($"{PageW}")} {F($"{PageH}")}] /Resources << /Font << {fontRes} >> /XObject << {xobjs} >> >> /Contents {co} 0 R{ann} >>");
+            Obj(po, $"<< /Type /Page /Parent {pagesObj} 0 R /MediaBox [0 0 {F($"{PageW}")} {F($"{PageH}")}] /Resources << /Font << {fontRes} >> /XObject << {xobjs} >> >> /Contents {co} 0 R{ann}{(tags != null ? $" /StructParents {i} /Tabs /S" : "")} >>");
             Stream(co, "", Encoding.Latin1.GetBytes(_pages[i].ToString()));
             foreach (var (l, obj) in annots[i])
                 Obj(obj, F($"<< /Type /Annot /Subtype /Link /Rect [{Math.Round(l.x, 2)} {Math.Round(l.y, 2)} {Math.Round(l.x + l.w, 2)} {Math.Round(l.y + l.h, 2)}] /Border [0 0 0] /Dest {DestArr(l.dest)} >>"));
@@ -460,6 +468,7 @@ public sealed partial class SimplePdf
         }
 
         foreach (var (res, name, obj) in stdObjs) Obj(obj, $"<< /Type /Font /Subtype /Type1 /BaseFont /{name} /Encoding /WinAnsiEncoding >>");
+        if (tags is { } tw) WriteTags(tw, pageObjs, Obj);
         long xref = ms.Position;
         W($"xref\n0 {next + 1}\n0000000000 65535 f \n");
         for (int n = 1; n <= next; n++) W($"{(offsets.TryGetValue(n, out var off) ? off : 0):D10} 00000 n \n");
