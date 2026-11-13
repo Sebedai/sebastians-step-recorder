@@ -24,6 +24,7 @@ sealed class ExportDialog : Window
         new("tour", Theme.IMouse, Loc.L("Klick-Tour", "Click tour"), Loc.L("zum Durchklicken", "click through")),
         new("bugreport", Theme.IError, Loc.L("Fehlerbericht", "Bug report"), Loc.L("für Tickets", "for tickets")),
         new("gif", Theme.IPlay, "GIF", Loc.L("animiert", "animated")),
+        new("mp4", "", Loc.L("Video", "Video"), Loc.L("MP4", "MP4")),
         new("ki", Theme.IRobot, Loc.L("KI-Paket", "AI package"), Loc.L("für KI", "for AI")),
         new("ahk", Theme.IScript, "AutoHotkey", Loc.L("Skript", "script")),
         new("uitest", Theme.IChecklist, Loc.L("UI-Test", "UI test"), Loc.L("Entwurf", "draft")),
@@ -136,7 +137,7 @@ sealed class ExportDialog : Window
     public string Format => FormatId == "ahk" && _ahkKi.IsChecked == true ? "ahk-ki" : FormatId == "uitest" ? TestTargets[Math.Max(0, _testTarget.SelectedIndex)] : FormatId;
     string TextLanguage => _lang.SelectedIndex == 1 ? "en" : "de";
     string Preset => GuidePresets.All[Math.Max(0, _preset.SelectedIndex)].id;
-    bool IsGuide => Format is "html" or "md" or "docx" or "pdf" or "pptx" or "tour" or "bugreport" or "gif";
+    bool IsGuide => Format is "html" or "md" or "docx" or "pdf" or "pptx" or "tour" or "bugreport" or "gif" or "mp4";
     bool HasPreset => Format is "html" or "md" or "docx" or "pdf";
 
     public ExportRequest Request => new()
@@ -239,6 +240,7 @@ sealed class ExportDialog : Window
         G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
         var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), U.Col(_gifSec, _gifSize), Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift. Mit Größenziel werden erst die Breite, dann die Zahl der Schritte verringert.", "The GIF shows a title image, then every step with number and heading. With a size target, first the width and then the number of steps is reduced."));
         _gifSize.Margin = new Thickness(0, 8, 0, 0);
+        var gifHint = (TextBlock)gifOpts.Children[^1];
         var mdOpts = U.Field(Loc.L("Markdown", "Markdown"), U.Col(_mdDialect, _mdFront, _mdLegacy), Loc.L("Hinweiskästen im gewählten Dialekt; Dateinamen nur ASCII, Bilder im Ordner „<name>-bilder“, gleiche Aufnahme ergibt dieselbe Datei.", "Note boxes in the chosen dialect; ASCII-only file names, images in the folder \"<name>-bilder\", the same recording gives the same file."));
         var ahkOpts = U.Col(_timing, _ahkKi); ahkOpts.Margin = new Thickness(0, 0, 0, 12);
         var testOpts = U.Field(Loc.L("Testgerüst", "Test framework"), _testTarget, Loc.L("Ein Entwurf zum Prüfen und Anpassen – das Programm spielt nichts selbst ab. Selektoren nach Stabilität, Warten auf Signale statt fester Pausen, Marker „Erwartet“ und „Fehler“ als Prüfungen.", "A draft to review and adapt – the program does not replay anything itself. Selectors by stability, waiting for signals instead of fixed pauses, markers \"Expected\" and \"Error\" as assertions."));
@@ -258,13 +260,18 @@ sealed class ExportDialog : Window
             options.Visibility = ahk || uitest ? Visibility.Collapsed : Visibility.Visible;
             testOpts.Visibility = uitest ? Visibility.Visible : Visibility.Collapsed;
             ahkOpts.Visibility = ahk ? Visibility.Visible : Visibility.Collapsed;
-            gifOpts.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
+            // Video: dieselbe Bildfolge und Anzeigedauer wie das GIF, aber ohne Größenziel
+            gifOpts.Visibility = Format is "gif" or "mp4" ? Visibility.Visible : Visibility.Collapsed;
+            _gifSize.Visibility = Format == "gif" ? Visibility.Visible : Visibility.Collapsed;
+            gifHint.Text = Format == "mp4"
+                ? Loc.L("Das Video zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift – erzeugt aus den Schrittbildern, keine Bildschirmaufnahme.", "The video shows a title image, then every step with number and heading – made from the step images, not a screen recording.")
+                : Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift. Mit Größenziel werden erst die Breite, dann die Zahl der Schritte verringert.", "The GIF shows a title image, then every step with number and heading. With a size target, first the width and then the number of steps is reduced.");
             mdOpts.Visibility = Format == "md" ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             marksOpts.Visibility = guide && Format != "bugreport" ? Visibility.Visible : Visibility.Collapsed;
             fPreset.Visibility = HasPreset ? Visibility.Visible : Visibility.Hidden;
             fImp.Visibility = fView.Visibility = guide ? Visibility.Visible : Visibility.Collapsed;
-            fMissing.Visibility = guide && Format != "gif" ? Visibility.Visible : Visibility.Collapsed;
+            fMissing.Visibility = guide && Format is not ("gif" or "mp4") ? Visibility.Visible : Visibility.Collapsed;
             fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             kiExtra.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             fBefore.Visibility = fMore.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
@@ -427,6 +434,8 @@ sealed class ExportDialog : Window
                 new[] { (Loc.L("<Titel>.md", "<title>.md"), Loc.L("der Bericht zum Einfügen in ein Ticket.", "the report to paste into a ticket.")), (Loc.L("bilder\\", "bilder\\"), Loc.L("Bilder der Schritte als Anhang.", "step images as attachments.")) }),
             "gif" => (Loc.L("GIF – animiert, für Wiki, Chat und E-Mail", "GIF – animated, for wiki, chat and email"), Loc.L("Spielt die Schritte nacheinander ab – ohne Anleitungstexte, nur mit Überschriften.", "Plays the steps one after another – without instructions, only with headings."),
                 new[] { (Loc.L("<Titel>.gif", "<title>.gif"), Loc.F("Titelbild, dann {0} mit Bild, Nummer und Überschrift; läuft in Schleife.", "Title image, then {0} with image, number and heading; loops.", imp)) }),
+            "mp4" => (Loc.L("Video – MP4 zum Abspielen und Hochladen", "Video – MP4 for playing and uploading"), Loc.L("Dieselbe Bildfolge wie das GIF, aber als H.264-Video: schärfer, kleiner, lässt sich anhalten und spulen – für Intranet, Lernplattform, Teams oder YouTube. Erzeugt aus den Schrittbildern, kein Bildschirmvideo.", "The same image sequence as the GIF, but as H.264 video: sharper, smaller, can be paused and seeked – for intranet, learning platform, Teams or YouTube. Made from the step images, not a screen video."),
+                new[] { (Loc.L("<Titel>.mp4", "<title>.mp4"), Loc.F("Titelbild, dann {0} mit Bild, Nummer und Überschrift; bis 1600 Pixel breit, 15 Bilder je Sekunde, ohne Ton. Braucht Windows Media Foundation (unter Windows N das Media Feature Pack).", "Title image, then {0} with image, number and heading; up to 1600 pixels wide, 15 frames per second, no sound. Needs Windows Media Foundation (on Windows N the Media Feature Pack).", imp)) }),
             "ki" => (Loc.L("KI-Paket – für ChatGPT, Claude & Co.", "AI package – for ChatGPT, Claude & co."), Loc.L("Ein Ordner, den Sie einer KI geben (hochladen oder als ZIP anhängen). Die KI erfährt daraus genau, was in welcher Reihenfolge passiert ist und wie sicher das belegt ist.", "A folder you give to an AI (upload or attach as ZIP). It tells the AI exactly what happened in which order and how well that is evidenced."),
                 KiFiles()),
             "ahk-ki" => (Loc.L("AutoHotkey als KI-Paket", "AutoHotkey as AI package"), Loc.L("Ein Skript-Entwurf plus alles, was ein KI-Assistent braucht, um das Skript zu prüfen und zu verbessern.", "A script draft plus everything an AI assistant needs to check and improve it."),

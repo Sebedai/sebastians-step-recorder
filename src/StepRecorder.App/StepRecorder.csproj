@@ -16,7 +16,8 @@
     <Product>Sebastians Step Recorder</Product>
     <AssemblyTitle>Sebastians Step Recorder</AssemblyTitle>
     <Copyright>© 2026 Sebedai · Lizenz: CC BY-ND 4.0</Copyright>
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <!-- Standard win-x64; ARM64: dotnet publish -r win-arm64 (02 §11) – die Angabe auf der Kommandozeile hat Vorrang -->
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <Deterministic>true</Deterministic>
     <NoWarn>$(NoWarn);CA1416;WFAC010</NoWarn>

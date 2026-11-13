@@ -20,7 +20,7 @@ public sealed class GuideOptions
     public bool? Overview { get; set; }
     /// <summary>Angehängte Aufnahmen (guide.append) mit ausgeben.</summary>
     public bool IncludeAppended { get; set; } = true;
-    /// <summary>GIF: Anzeigedauer je Schritt in Sekunden.</summary>
+    /// <summary>GIF und Video: Anzeigedauer je Schritt in Sekunden.</summary>
     public double GifSeconds { get; set; } = 2.5;
     public bool Images { get; set; } = true;
     /// <summary>
@@ -108,8 +108,8 @@ public static partial class GuideExport
         if (fmt == "bugreport" && view.UnreviewedCount > 0)
             throw new InvalidOperationException(lang == "de" ? $"Fehlerbericht erst nach der Durchsicht: {view.UnreviewedCount} auffällige Eingaben sind ungeprüft." : $"Bug report only after the review: {view.UnreviewedCount} flagged inputs are not reviewed.");
         if (fmt == "tour") o.MouseMarks = false;   // die Klickfläche zeigt die Stelle – keine eingezeichneten Mausmarken
-        string ext = fmt switch { "md" or "bugreport" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", _ => "html" };
-        string sub = fmt switch { "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", _ => ext };
+        string ext = fmt switch { "md" or "bugreport" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "mp4" => "mp4", "pptx" => "pptx", _ => "html" };
+        string sub = fmt switch { "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", "mp4" => "video", _ => ext };
         string name = fmt == "md" && !o.MdLegacy ? Fmt.AsciiSlug(title, lang == "de" ? "anleitung" : "guide") : Fmt.FileSafe(title.Length > 0 ? title : "Anleitung");
         string outPath = o.OutPath ?? Path.Combine(view.Session.Path, "export", sub, name + "." + ext);
         if (Directory.Exists(outPath) || outPath.EndsWith('\\') || outPath.EndsWith('/')) outPath = Path.Combine(outPath, name + "." + ext);
@@ -121,6 +121,7 @@ public static partial class GuideExport
             case "docx": Docx(doc, outPath); break;
             case "pdf": Pdf(doc, outPath, res); break;
             case "gif": Gif(doc, outPath, o, res); break;
+            case "mp4": Video(doc, outPath, o); break;
             case "bugreport": res.Text = BugReport(view, doc, outPath); break;
             case "tour":
                 File.WriteAllText(outPath, Tour(doc, o), new UTF8Encoding(false));
@@ -742,19 +743,34 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
 
     static byte[] GifBytes(Doc d, GuideOptions o, int maxWidth, int stride)
     {
-        var items = d.Blocks.OfType<Item>().Where(i => i.Png != null).Where((_, i) => i % stride == 0).ToList();
-        var imgs = items.Select(i => { using var ms = new MemoryStream(i.Png!); return new Bitmap(ms); }).ToList();
+        var frames = new List<Bitmap>(); var delays = new List<int>();
         try
         {
-            int maxW = imgs.Count > 0 ? imgs.Max(b => b.Width) : 1000;
-            int W = Math.Min(Math.Clamp(maxW, 640, 1200), maxWidth);
-            double maxAspect = imgs.Count > 0 ? imgs.Max(b => (double)b.Height / b.Width) : 0.6;
+            foreach (var (frame, ms) in SlideFrames(d, o, maxWidth, stride)) { frames.Add(frame); delays.Add(ms); }
+            using var fs = new MemoryStream();
+            GifWriter.Write(fs, frames, delays);
+            return fs.ToArray();
+        }
+        finally { foreach (var f in frames) f.Dispose(); }
+    }
+
+    /// <summary>
+    /// Bildfolge für GIF und Video (09 §8d/§8e): Titelbild, dann je Schritt Bild mit Nummer und Überschrift, jeweils mit Anzeigedauer in ms.
+    /// Liefert die Bilder einzeln (der Aufrufer gibt sie frei) und lädt Schrittbilder erst, wenn sie dran sind.
+    /// </summary>
+    static IEnumerable<(Bitmap frame, int ms)> SlideFrames(Doc d, GuideOptions o, int maxWidth, int stride, int widthCap = 1200)
+    {
+        var items = d.Blocks.OfType<Item>().Where(i => i.Png != null).Where((_, i) => i % stride == 0).ToList();
+        var sizes = items.Select(i => PngSize(i.Png!)).ToList();
+        {
+            int maxW = sizes.Count > 0 ? sizes.Max(b => b.Width) : 1000;
+            int W = Math.Min(Math.Clamp(maxW, 640, widthCap), maxWidth);
+            double maxAspect = sizes.Count > 0 ? sizes.Max(b => (double)b.Height / Math.Max(1, b.Width)) : 0.6;
             int imgH = (int)Math.Round(W * Math.Min(maxAspect, 0.8));
             const int bar = 64;
             int H = imgH + bar;
             var acc = System.Drawing.ColorTranslator.FromHtml(d.S.Accent);
             var bg = Color.FromArgb(0x17, 0x16, 0x14);
-            var frames = new List<Bitmap>(); var delays = new List<int>();
             int ms1 = (int)Math.Round(Math.Clamp(o.GifSeconds, 0.5, 20) * 1000);
             using var titleFont = new Font("Segoe UI Semibold", 30, GraphicsUnit.Pixel);
             using var subFont = new Font("Segoe UI", 18, GraphicsUnit.Pixel);
@@ -775,11 +791,12 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 if (d.Subtitle.Length > 0) g.DrawString(d.Subtitle, subFont, mb, new RectangleF(72, y + 50, W - 120, 30), fmt);
                 g.DrawString($"{items.Count} {d.L("Schritte", "steps")}", subFont, mb, new RectangleF(72, y + 86, W - 120, 30), fmt);
             }
-            frames.Add(title); delays.Add(Math.Max(1500, ms1));
+            yield return (title, Math.Max(1500, ms1));
 
             for (int i = 0; i < items.Count; i++)
             {
-                var it = items[i]; var src = imgs[i];
+                var it = items[i];
+                using var srcMs = new MemoryStream(it.Png!); using var src = new Bitmap(srcMs);
                 var f = new Bitmap(W, H, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
                 using (var g = Graphics.FromImage(f))
                 {
@@ -800,14 +817,18 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                     }
                     g.DrawString(it.Title, capFont, Brushes.White, new RectangleF(x, imgH, W - x - 20, bar), fmt);
                 }
-                frames.Add(f); delays.Add(ms1);
+                yield return (f, ms1);
             }
-            using var fs = new MemoryStream();
-            GifWriter.Write(fs, frames, delays);
-            foreach (var f in frames) f.Dispose();
-            return fs.ToArray();
         }
-        finally { foreach (var b in imgs) b.Dispose(); }
+    }
+
+    /// <summary>Breite und Höhe aus dem PNG-Kopf (IHDR), ohne das Bild zu dekodieren; sonst dekodieren.</summary>
+    static Size PngSize(byte[] png)
+    {
+        if (png.Length >= 24 && png[0] == 0x89 && png[1] == (byte)'P' && png[12] == (byte)'I' && png[13] == (byte)'H')
+            return new Size(System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(16)), System.Buffers.Binary.BinaryPrimitives.ReadInt32BigEndian(png.AsSpan(20)));
+        using var ms = new MemoryStream(png); using var b = new Bitmap(ms);
+        return b.Size;
     }
 
     /// <summary>

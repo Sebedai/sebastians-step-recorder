@@ -90,11 +90,11 @@ public sealed class ExportRequest
 /// </summary>
 public static class Exporter
 {
-    static readonly HashSet<string> Guide = new() { "html", "md", "markdown", "docx", "pdf", "gif", "pptx", "tour", "bugreport" };
+    static readonly HashSet<string> Guide = new() { "html", "md", "markdown", "docx", "pdf", "gif", "mp4", "pptx", "tour", "bugreport" };
     static readonly HashSet<string> Known = new(Guide) { "ki", "ahk", "autohotkey", "ahk-ki", "ahkki", "flaui", "pywinauto", "playwright", "test-ki" };
 
     /// <summary>Formate, die <see cref="GuideExport"/> wirklich erzeugen kann (wird mit neuen Formaten erweitert).</summary>
-    public static Func<string, bool> GuideSupports { get; set; } = f => f is "html" or "md" or "docx" or "pdf" or "gif" or "pptx" or "tour" or "bugreport";
+    public static Func<string, bool> GuideSupports { get; set; } = f => f is "html" or "md" or "docx" or "pdf" or "gif" or "mp4" or "pptx" or "tour" or "bugreport";
 
     public static string Normalize(string format) => format.ToLowerInvariant() switch { "markdown" => "md", "autohotkey" => "ahk", "ahkki" => "ahk-ki", "testki" => "test-ki", var f => f };
     public static bool IsKnownFormat(string format) { var f = Normalize(format); return Known.Contains(f) && (!Guide.Contains(f) || GuideSupports(f)); }
@@ -106,13 +106,13 @@ public static class Exporter
 
     public static string Extension(string format) => Normalize(format) switch
     {
-        "md" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "pptx" => "pptx", "bugreport" => "md", "ahk" => "ahk", "flaui" => "cs", "pywinauto" => "py", "playwright" => "spec.ts", _ => "html"
+        "md" => "md", "docx" => "docx", "pdf" => "pdf", "gif" => "gif", "mp4" => "mp4", "pptx" => "pptx", "bugreport" => "md", "ahk" => "ahk", "flaui" => "cs", "pywinauto" => "py", "playwright" => "spec.ts", _ => "html"
     };
 
     /// <summary>Unterordner unter <c>export\</c> der Aufnahme.</summary>
     public static string SubFolder(string format) => Normalize(format) switch
     {
-        "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", "ahk" => "ahk", "ahk-ki" => "ahk-ki", "ki" => "", "flaui" or "pywinauto" or "playwright" => "tests", var f => f
+        "md" => "markdown", "bugreport" => "fehlerbericht", "tour" => "tour", "mp4" => "video", "ahk" => "ahk", "ahk-ki" => "ahk-ki", "ki" => "", "flaui" or "pywinauto" or "playwright" => "tests", var f => f
     };
 
     /// <summary>Ordner, in den Exporte dieser Aufnahme standardmäßig gehen (bei .steprec-Archiven: daneben).</summary>

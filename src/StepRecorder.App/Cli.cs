@@ -27,12 +27,13 @@ Aufruf:
   SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Aufnahmeordner aus)
   SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
   SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
-  SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
+  SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI-Test-Entwürfe)
       [--out <Pfad>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
                    [--after nie|aenderung|immer]   Nachher-Bild zusätzlich als „Ergebnis“
       Markdown:    [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
+      GIF/Video:   [--seconds n]   Sekunden je Schritt (0.5–20, Standard 2.5); Video = MP4 (H.264)
       KI-Paket:    [--detail kompakt|standard|vollstaendig] [--image-profile kompatibel|hochaufloesend|original] [--zip] [--no-events]
                    Bilder: [--before auto|immer|nie] [--no-crop] [--no-after]
       AutoHotkey:  [--real-timing] [--no-images]      AHK für KI: [--with <Aufnahme>]… [--no-ocr]
@@ -71,12 +72,13 @@ Usage:
   SebastiansStepRecorder.exe record --stop           stop the running recording (prints its folder)
   SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
   SebastiansStepRecorder.exe support                 prepare a support recording in the start window
-  SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki
+  SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI test drafts)
       [--out <path>] [--lang de|en] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
                   [--after never|changed|always]   also the after image as "Result"
       Markdown:   [--md-dialect plain|github|obsidian] [--front-matter] [--md-legacy]      GIF: [--gif-max-mb n]
+      GIF/video:  [--seconds n]   seconds per step (0.5–20, default 2.5); video = MP4 (H.264)
       AI package: [--detail compact|standard|full] [--image-profile compatible|highres|original] [--zip] [--no-events]
                   images: [--before auto|always|never] [--no-crop] [--no-after]
       AutoHotkey: [--real-timing] [--no-images]      AHK for AI: [--with <recording>]… [--no-ocr]
@@ -129,6 +131,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         catch (InvalidDataException ex) { Console.Error.WriteLine(Loc.L("Aufnahme nicht lesbar: ", "Recording not readable: ") + ex.Message); return 3; }
         catch (UnauthorizedAccessException ex) { Console.Error.WriteLine(Loc.L("Ziel nicht beschreibbar: ", "Target not writable: ") + ex.Message); return 8; }
         catch (ExportTargetException ex) { Console.Error.WriteLine(ex.Message); return 8; }
+        catch (ExportPrerequisiteException ex) { Console.Error.WriteLine(ex.Message); return 7; }
         catch (OperationCanceledException) { Console.Error.WriteLine(Loc.L("Abgebrochen.", "Cancelled.")); return 5; }
         catch (Exception ex) { Console.Error.WriteLine(Loc.L("Fehler: ", "Error: ") + ex.Message); AppLog.Error("CLI", ex); if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Console.Error.WriteLine(ex); return 1; }
     }
@@ -176,7 +179,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
-        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb" },
+        var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb", "--seconds" },
             new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after", "--front-matter", "--md-legacy" }, "--with");
         if (c.Error != null) return Usage(c.Error);
         if (NeedSession(c) is { } e) return Usage(e);
@@ -196,6 +199,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         };
         if (req.MdDialect is not ("plain" or "github" or "obsidian")) return Usage("--md-dialect: plain | github | obsidian");
         if (c["--gif-max-mb"] is { } gm) { if (!double.TryParse(gm, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var mb) || mb < 0.5 || mb > 1000) return Usage("--gif-max-mb: 0.5–1000"); req.GifMaxMb = mb; }
+        if (c["--seconds"] is { } gs) { if (!double.TryParse(gs, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var sec) || sec < 0.5 || sec > 20) return Usage("--seconds: 0.5–20"); req.GifSeconds = sec; }
         if (!Exporter.IsKnownFormat(req.Format)) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", req.Format));
         // Schrittbereich: --from/--to oder --steps a-b (Nummern der Schrittliste)
         if (c["--steps"] is { } range)

@@ -104,7 +104,8 @@ public static class RecycleBin
         public int ResumeTimer() => 0;
     }
 
-    [StructLayout(LayoutKind.Sequential, Pack = 4)] struct SHQUERYRBINFO { public int cbSize; public long i64Size; public long i64NumItems; }
+    // shellapi.h packt unter 64 Bit (x64 und ARM64) auf 8 Byte: cbSize = 24. Mit Pack = 4 (20 Byte) antwortet Windows mit E_INVALIDARG.
+    [StructLayout(LayoutKind.Sequential, Pack = 8)] struct SHQUERYRBINFO { public int cbSize; public long i64Size; public long i64NumItems; }
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)] static extern int SHQueryRecycleBinW(string pszRootPath, ref SHQUERYRBINFO pSHQueryRBInfo);
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)] static extern int SHCreateItemFromParsingName(string pszPath, IntPtr pbc, ref Guid riid, out IShellItem ppv);
 
