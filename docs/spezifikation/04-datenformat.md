@@ -2519,6 +2519,10 @@ In Word werden die Felder echte Felder (`PAGE`, `NUMPAGES`, `STYLEREF "heading 1
 |---|---|---|---|
 | DAT-089 | Ohne die neuen Schlüssel sind PDF und Word unverändert; mit ihnen stehen Felder und Umbrüche wie beschrieben. | Muss | `LegacyOutputTests`, `LayoutBandTests` |
 
+### 13.24 Status und Freigabe (Paket 30)
+
+`guide.status = { "state": "draft" | "released", "releasedUtc", "fingerprint", "version" }`; `guide.doc.watermark = "off"` schaltet das Wasserzeichen ab. Der Fingerabdruck (SHA-256, 16 Zeichen) fasst das Overlay ohne `revision`, `savedAtUtc`, `savedBy`, `qualityIgnores`, `ui`, Kopfangaben und ohne `guide.status` zusammen; weicht er ab, gilt die Anleitung wieder als Entwurf. Ohne `guide.status` gibt es weder Status noch Wasserzeichen. Freigeben verlangt alle Pflichtpunkte der Prüfliste: Eingaben durchgesehen, eigener Titel, jeder Schritt mit Text, kein Bild fehlt, Variablen und Querverweise aufgelöst.
+
 ### 13.19 Markenstil (`guide.auto.style`)
 
 Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).

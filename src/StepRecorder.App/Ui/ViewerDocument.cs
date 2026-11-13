@@ -172,6 +172,7 @@ sealed partial class ViewerWindow
         build.Children.Add(U.Field(Loc.L("Nummerierung der Schritte", "Step numbering"), numTrack, Loc.L("„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt unter „Einordnung“ an.", "“1.1” counts within chapters – you create chapters on the step under “Placement”."), new Thickness(0, 8, 0, 16)));
 
         // Bilder
+        StatusSection(d);
         PartsSection(d);
         var images = Section(Loc.L("Bilder", "Images"));
         var viewBox = new ComboBox { MinWidth = 220, HorizontalAlignment = HorizontalAlignment.Left, IsEnabled = !ro };

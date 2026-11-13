@@ -102,6 +102,8 @@ public static partial class GuideExport
         public List<Part> Front = new(), Back = new();
         /// <summary>Kopf- und Fußzeile mit eingesetzten Variablen; Seitenfelder bleiben für den Schreiber (13, Paket 27).</summary>
         public (string L, string C, string R)? HeaderBand, FooterBand;
+        /// <summary>„ENTWURF“ bei Status Entwurf (13, Paket 30), sonst null.</summary>
+        public string? Watermark;
         /// <summary>Enthält die Anleitung formatierten Text? Dann kommen zusätzliche Stile hinzu.</summary>
         public bool UsesRich => IntroRich != null || OutroRich != null || Blocks.Any(b => b is Chapter { Body: not null } || b is Item it && (it.Body != null || it.NoteRich?.Any(n => n != null) == true));
         public int StepCount => Blocks.OfType<Item>().Count();
@@ -272,6 +274,7 @@ public static partial class GuideExport
         ResolveRefs(d, lang);
         if (s.Figures) foreach (var fi in d.Blocks.OfType<Item>()) if (fi.Caption != null) d.FigureList.Add((fi.Anchor, fi.Caption));
         BuildParts(view, d, lang);
+        if (ReadLayer.GuideStatus.Watermark(view)) d.Watermark = Settings.OutText.T(lang, "ENTWURF", "DRAFT");
         if (s.HasHeader) d.HeaderBand = (view.CleanVars(s.HeaderLeft), view.CleanVars(s.HeaderCenter), view.CleanVars(s.HeaderRight));
         if (s.HasFooterParts) d.FooterBand = (view.CleanVars(s.FooterLeft), view.CleanVars(s.FooterCenter), view.CleanVars(s.FooterRight));
         string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
@@ -408,6 +411,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         else
             sb.Append($"<header>{logoHtml}<h1>{e(d.Title)}</h1>{(d.Subtitle.Length > 0 ? $"<p class=\"sub\">{e(d.Subtitle)}</p>" : "")}<div class=\"meta\">{metaHtml}</div></header>\n");
 
+        if (d.Watermark != null) sb.Append($"<div class=\"wm\" aria-hidden=\"true\" style=\"position:fixed;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:50;font:700 14vw system-ui,sans-serif;color:rgba(128,128,128,.12);transform:rotate(-35deg)\">{e(d.Watermark)}</div>\n");
         sb.Append(HtmlParts(d.Front));
         if (d.ShowToc)
         {
@@ -586,6 +590,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         // Sprungziele je Block (Kapitel = Überschrift 1, Schritt = Überschrift 2) – das Inhaltsverzeichnis verweist darauf
         var marks = new Dictionary<object, string>();
         for (int i = 0; i < d.Blocks.Count; i++) marks[d.Blocks[i]] = SimpleDocx.TocBookmark(i + 1);
+        if (d.Watermark != null) x.Paragraph(d.Watermark, italic: false, color: "B0B0B0");
         DocxParts(x, d.Front);
         if (d.ShowToc)
         {
@@ -705,7 +710,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         var (pw, ph) = d.S.PagePoints();
         var pdf = new SimplePdf(pw, ph) { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = Settings.OutText.Tag(d.Lang) };
         if (d.S.MarginMm > 0) { pdf.Margin = Math.Round(d.S.MarginMm * 72 / 25.4, 2); pdf.SetY(pdf.PageH - pdf.Margin); }
-        pdf.HeaderBand = d.HeaderBand; pdf.FooterBand = d.FooterBand;
+        pdf.HeaderBand = d.HeaderBand; pdf.FooterBand = d.FooterBand; pdf.Watermark = d.Watermark;
         bool AtTop() => pdf.Y >= pdf.PageH - pdf.Margin - 1;
         double cw = pdf.ContentWidth;
         // Bildhöhe höchstens Satzspiegel abzüglich Platz für den Schritttext (A4 hoch: wie bisher 560 · Faktor + 60)

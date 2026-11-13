@@ -302,6 +302,8 @@ public sealed partial class SimplePdf
     /// <summary>Kopf- und Fußzeile in drei Teilen (13, Paket 27); Felder {{Seite}}/{{Page}}, {{Seiten}}/{{Pages}}, {{Kapitel}}/{{Chapter}}.
     /// Null = bisherige Fußzeile (Text links, „n / N“ rechts), kein Kopf.</summary>
     public (string L, string C, string R)? HeaderBand { get; set; }
+    /// <summary>Wasserzeichen quer über jede Seite, unter dem Inhalt (13, Paket 30); null = keins.</summary>
+    public string? Watermark { get; set; }
     public (string L, string C, string R)? FooterBand { get; set; }
     readonly List<string> _chapterAt = new();
     string _running = "";
@@ -327,6 +329,19 @@ public sealed partial class SimplePdf
         // Fußzeilen (vor den Schriften, damit ihre Zeichen in die Teilmengen kommen)
         for (int i = 0; i < _pages.Count; i++)
         {
+            if (Watermark is { Length: > 0 } wm)
+            {
+                // unter den Inhalt: an den Anfang des Seiteninhalts, 35° gedreht, hellgrau
+                var tmp = new StringBuilder();
+                double size = Math.Min(PageW, PageH) / Math.Max(4, wm.Length) * 1.35;
+                double ang = 35 * Math.PI / 180, cos = Math.Cos(ang), sin = Math.Sin(ang);
+                double w = TextWidth(wm, size, true);
+                double x = PageW / 2 - cos * w / 2 + sin * size / 3, y = PageH / 2 - sin * w / 2 - cos * size / 3;
+                tmp.Append(F($"q {cos:0.####} {sin:0.####} {-sin:0.####} {cos:0.####} {x:0.##} {y:0.##} cm "));
+                DrawTextTo(tmp, 0, 0, wm, size, true, (0.90, 0.90, 0.90));
+                tmp.Append("Q ");
+                _pages[i].Insert(0, tmp.ToString());
+            }
             if (NoFooter.Contains(i)) continue;
             if (HeaderBand is { } hb) Band(hb, i, PageH - Math.Max(22, Margin * 0.55));
             if (FooterBand is { } fb) { Band(fb, i, 25); continue; }
