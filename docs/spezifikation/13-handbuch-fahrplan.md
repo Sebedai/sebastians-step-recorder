@@ -72,7 +72,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 | 32 | Barrierearmes PDF | V-53 | L | 25, 27 | erledigt |
 | 33 | Übersetzungsübersicht und CSV | V-50 | M | 21 | erledigt |
 | 34 | Schritt teilen und Ergebnisschritt | V-50 | M | – | erledigt |
-| 37 | Kapitelvorschläge | V-51 | S | 24 | geplant |
+| 37 | Kapitelvorschläge | V-51 | S | 24 | erledigt |
 | 38 | Präsentationsansicht und Stapel-Export | V-52 | M | 27 | geplant |
 
 Die Nummern 35 und 36 (Übernahme als Abschnitt, Abschnitt ersetzen) entfallen: „Abschnitt neu aufnehmen und ersetzen“ ist mit 0.13.0 umgesetzt ([08 §9.3](08-viewer.md#93-abschnitt-neu-aufnehmen-und-ersetzen)). Befehlspalette, Lesezeichen und Textbausteine sind ebenfalls vorhanden; Paket 37 behält nur die Kapitelvorschläge.

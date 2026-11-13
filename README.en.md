@@ -109,6 +109,7 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Re-record and replace a section** (Ctrl+R): mark steps and demonstrate the section again – the new steps take the place of the old ones. The old ones are kept, the seam is marked, Ctrl+Z undoes the replacement.
 - **Bookmarks** (Ctrl+Shift+L): mark steps with a star and filter by them.
 - **Text snippets** (Ctrl+Shift+B): insert frequently used texts into notes and step texts; managed under *Settings → General*.
+- **Suggest chapters:** the editor suggests a chapter at every change of program – with a title such as “Excel”; review, rename, apply.
 - **Split step:** a step can be split into two; “Result as a separate step” shows the image after the action as its own step.
 - **Translations:** edit all own texts in German and English side by side and hand them to a translation agency as CSV – only changed cells come back.
 - **Accessible PDF:** optionally the PDF tags headings, paragraphs and images (with alternative text) for screen readers.

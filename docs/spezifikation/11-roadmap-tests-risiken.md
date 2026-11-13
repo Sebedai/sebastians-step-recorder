@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 37 Kapitelvorschläge | Vorschläge bei Programmwechsel mit Titeln aus Fenstertiteln, Dialog zum Prüfen und Übernehmen | erledigt |
 | 34 Schritt teilen | Schritt teilen (Text auf zwei Schritte, zweiter mit Nachher-Bild) und Ergebnisschritt, als eingefügte Schritte | erledigt; Teilen an einzelnen Tastendrücken mit eigenen Zwischenbildern: offen |
 | 33 Übersetzungsübersicht | Tabelle Deutsch/Englisch aller eigenen Texte, Bearbeiten in der Zelle, CSV-Export mit Formelschutz und Import nur geänderter, ungeschützter Zellen | erledigt |
 | 32 Barrierearmes PDF | Strukturmarkierung (Überschriften, Absätze, Figure mit Alternativtext, Artefakte), Strukturbaum, Selbstprüfung `SimplePdf.Audit()`, Schalter im Dokumentbereich | erledigt; Prüfung mit Bildschirmleser und PAC (VE-27): offen, Schrifteinbettung: offen |

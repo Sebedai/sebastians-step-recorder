@@ -109,6 +109,7 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Abschnitt neu aufnehmen und ersetzen** (Strg+R): Schritte markieren, den Abschnitt neu vorführen – die neuen Schritte treten an die Stelle der alten. Die alten bleiben erhalten, die Nahtstelle ist gekennzeichnet, Strg+Z nimmt die Ersetzung zurück.
 - **Lesezeichen** (Strg+Umschalt+L): Schritte mit einem Stern merken und danach filtern.
 - **Textbausteine** (Strg+Umschalt+B): oft gebrauchte Texte für Hinweise und Schritttexte einfügen; verwaltet unter *Einstellungen → Allgemein*.
+- **Kapitel vorschlagen:** Der Editor schlägt bei jedem Programmwechsel ein Kapitel vor – mit einem Titel wie „Excel“; prüfen, umbenennen, übernehmen.
 - **Schritt teilen:** Ein Schritt lässt sich in zwei aufteilen; „Ergebnis als eigenen Schritt“ zeigt das Bild nach der Aktion als eigenen Schritt.
 - **Übersetzungen:** Alle eigenen Texte Deutsch und Englisch nebeneinander bearbeiten und als CSV an ein Übersetzungsbüro geben – zurück kommen nur die geänderten Zellen.
 - **Barrierearmes PDF:** Auf Wunsch markiert das PDF Überschriften, Absätze und Bilder (mit Alternativtext) für Bildschirmleser.

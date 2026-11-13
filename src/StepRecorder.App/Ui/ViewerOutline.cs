@@ -99,8 +99,22 @@ sealed partial class ViewerWindow
             Item("chapter", s?.ChapterTitle != null ? Loc.L("Kapitel hier entfernen", "Remove chapter here") : null, enabled && s != null), Sep(),
             Item("chapterUp", enabled: enabled && st != null), Item("chapterDown", enabled: enabled && st != null),
             Item("chapterLevel", st?.ChapterLevel == 2 ? Loc.L("Zum Kapitel machen", "Make a chapter") : Loc.L("Zum Unterkapitel machen", "Make a subchapter"), enabled && st != null),
-            Item("chapterHide", st?.ChapterHidden == true ? Loc.L("Kapitel einblenden", "Show chapter") : Loc.L("Kapitel ausblenden", "Hide chapter"), enabled && st != null));
+            Item("suggestChapters", enabled: enabled), Item("chapterHide", st?.ChapterHidden == true ? Loc.L("Kapitel einblenden", "Show chapter") : Loc.L("Kapitel ausblenden", "Hide chapter"), enabled && st != null));
         return sub;
+    }
+
+    /// <summary>Kapitelvorschläge prüfen und übernehmen (13, Paket 37).</summary>
+    void SuggestChapters()
+    {
+        if (_view.Session.ReadOnly) return;
+        var list = ChapterSuggest.Suggest(_view);
+        if (list.Count == 0) { Msg.Show(Loc.L("Keine Vorschläge – die Aufnahme wechselt das Programm nicht oder hat schon Kapitel an diesen Stellen.", "No suggestions – the recording does not switch programs or already has chapters at these places.")); return; }
+        var nums = StepRecorder.Export.GuideExport.StepNumbers(_view);
+        var d = new ChapterSuggestWindow(list, a => nums.TryGetValue(a, out var n) && n.Length > 0 ? Loc.F("Schritt {0}", "step {0}", n) : "–") { Owner = this };
+        if (d.ShowDialog() != true || d.Chosen.Count == 0) return;
+        var chosen = d.Chosen;
+        Change(e => ChapterSuggest.Apply(e, chosen, _view.Language));
+        _status.Text = Loc.F("{0} Kapitel angelegt – rückgängig mit Strg+Z", "{0} chapters created – undo with Ctrl+Z", chosen.Count);
     }
 
     MenuItem SectionSubMenu(bool enabled)
