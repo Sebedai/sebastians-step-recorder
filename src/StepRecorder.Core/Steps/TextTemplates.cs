@@ -415,6 +415,14 @@ public static class TextTemplates
         string reason = input.Str("maskReason") ?? "";
         bool priv = reason == "privacyMode";
         bool strict = reason.StartsWith("strict");
+        // erkannte Passwortabfrage im Terminal (10 §6.3): die Abfragezeile ist der Kontext („Abfrage: [sudo] password for admin:“)
+        if (reason == "terminalPrompt" && input.Str("promptLine") is { Length: > 0 } pl)
+        {
+            if (guide) return de ? $"Geben Sie an der Abfrage {Q(pl, lang)} Ihr Kennwort ein." : $"At the prompt {Q(pl, lang)}, enter your password.";
+            long? k = input.LongN("count");
+            return de ? (k != null ? $"Eingabe an der Abfrage {Q(pl, lang)}: {k} Tasten, nicht aufgezeichnet (maskiert)" : $"Eingabe an der Abfrage {Q(pl, lang)}: nicht aufgezeichnet (maskiert)")
+                      : (k != null ? $"Input at the prompt {Q(pl, lang)}: {k} keys, not recorded (masked)" : $"Input at the prompt {Q(pl, lang)}: not recorded (masked)");
+        }
         if (guide) return priv || strict ? (de ? "Geben Sie hier Ihre vertraulichen Daten ein." : "Enter your confidential data here.") : (de ? "Geben Sie Ihr Kennwort ein." : "Enter your password.");
         long? n = input.LongN("count");
         string z = step.Obj("target").Obj("el") != null ? TargetLabel(step, lang, false) : (de ? "Feld" : "field");

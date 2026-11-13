@@ -19,7 +19,7 @@ public sealed partial class Recorder
     void RequestSnapshot(nint hwnd, string trigger, long t, int delayMs = 0)
     {
         hwnd = WindowRegistry.Root(hwnd);
-        if (hwnd == 0 || PrivacyMode || State != RecorderState.Recording) return;
+        if (hwnd == 0 || PrivacyActive || State != RecorderState.Recording) return;
         var win = _reg.Peek(hwnd) ?? _reg.Ensure(hwnd, t);
         if (win == null || win.Own || win.Excluded || !win.InScope || WindowRegistry.SurfaceOf(win) != "structured") return;
         lock (_snapped)
@@ -33,7 +33,7 @@ public sealed partial class Recorder
         {
             lock (_gate)
             {
-                if (_w.Closed || res.Status != "ok" || res.El?.Arr("nodes") is not { Count: > 0 } nodes || PrivacyMode) return;
+                if (_w.Closed || res.Status != "ok" || res.El?.Arr("nodes") is not { Count: > 0 } nodes || PrivacyActive) return;
                 var ev = new JsonObject { ["t"] = t, ["tObs"] = res.TEnd, ["type"] = "ui.snapshot", ["trigger"] = trigger, ["win"] = winId, ["title"] = res.El.Str("title"), ["nodes"] = nodes.DeepClone(), ["ms"] = res.Ms };
                 if (res.El.Bool("incomplete")) ev["incomplete"] = true;
                 Emit(ev.Clean());

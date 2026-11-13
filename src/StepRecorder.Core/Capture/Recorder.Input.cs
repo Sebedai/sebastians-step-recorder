@@ -340,6 +340,7 @@ public sealed partial class Recorder
         }
         // Feldinhalt 300 ms nach der letzten Taste eines Laufs
         if (_valuePollDue && now - _lastKeyT >= 300_000 && _pendingKeys.Count == 0) { _valuePollDue = false; PollValue("poll"); }
+        try { TpIdle(now); } catch (Exception ex) { T("terminal: " + ex.Message); }
     }
 
     // ---------------- Wartesignale und Zustand nach Aktionen ----------------
@@ -416,7 +417,7 @@ public sealed partial class Recorder
     }
 
     /// <summary>Wie viel Text der Win32-Kontext enthalten darf (Privatmodus: keiner; streng: nur das Steuerelement).</summary>
-    Win32Detail.TextLevel Win32Level => PrivacyMode ? Win32Detail.TextLevel.None : Options.PrivacyLevel == "strict" ? Win32Detail.TextLevel.Control : Win32Detail.TextLevel.All;
+    Win32Detail.TextLevel Win32Level => PrivacyActive ? Win32Detail.TextLevel.None : Options.PrivacyLevel == "strict" ? Win32Detail.TextLevel.Control : Win32Detail.TextLevel.All;
 
     void QueryElement(string trigger, long refSeq, int vx, int vy, string m, int x, int y, WinEntry? win, long? dwellSeq = null)
     {
@@ -452,7 +453,7 @@ public sealed partial class Recorder
     long _lastKeyFrameT = -10_000_000; string? _lastKeyFrameWin;
     readonly HashSet<uint> _maskedDown = new();
 
-    sealed class MaskedRun { public long T, TEnd, InSeq, InSeqEnd; public int Count, Events; public string Reason = ""; public string? Fg; public long? Focus; }
+    sealed class MaskedRun { public long T, TEnd, InSeq, InSeqEnd; public int Count, Events; public string Reason = ""; public string? Fg; public long? Focus; public string? Rule, PromptLine; public int TpId; }
     MaskedRun? _masked;
     /// <summary>Tasten, deren Druck per Einstellung nicht gespeichert wurde – das Loslassen wird ebenfalls verworfen.</summary>
     readonly HashSet<uint> _offDown = new();
@@ -460,6 +461,7 @@ public sealed partial class Recorder
     void OnKey(in RingRecord r)
     {
         long t = TFromQpc(r.Qpc);
+        TpTrack(r);
         bool up = r.Message is WM_KEYUP or WM_SYSKEYUP;
         var fg = r.Foreground != 0 ? _reg.Ensure((nint)r.Foreground, t) : null;
         if (fg != null && !fg.Own && fg != _fgWin) { /* Vordergrund wird über WinEvents geführt */ }
@@ -480,8 +482,10 @@ public sealed partial class Recorder
         if (_gaps.ContainsKey("outOfScope") && fg is { InScope: true }) EndGap("outOfScope", t);
 
         bool self = IsSelfHotkey(r.Data, up) || (fg?.Own ?? false);
-        _pendingKeys.Add(new PendingKey { R = r, T = t, InSeq = inSeq, Fg = fg, Self = self });
+        var pend = new PendingKey { R = r, T = t, InSeq = inSeq, Fg = fg, Self = self };
+        _pendingKeys.Add(pend);
         _lastKeyT = t;
+        try { TpOnArrival(pend); } catch (Exception ex) { T("terminal: " + ex.Message); }
         if (!up && !self) RequestFocusProbe(t);
         FlushPendingKeys(force: false);
     }
@@ -504,10 +508,13 @@ public sealed partial class Recorder
         while (_pendingKeys.Count > 0)
         {
             var pk = _pendingKeys[0];
+            // Terminal: über den Lauf ist noch nicht entschieden (Passwortabfrage?) – warten, höchstens T_max
+            if (TpHold(pk, now, force)) return;
             var f = _focus;
             bool focusKnown = f != null && f.TObs >= pk.T;
             bool expired = now - pk.T >= Options.HoldMaxMs * 1000L;
-            if (!pk.Self && !focusKnown && !expired && !force && !PrivacyMode) return;
+            bool tpMasked = _tp is { } tpa && pk.Fg?.Hwnd == tpa.Hwnd && pk.T >= tpa.TFrom;
+            if (!pk.Self && !focusKnown && !expired && !force && !PrivacyMode && !tpMasked) return;
             _pendingKeys.RemoveAt(0);
             ProcessKey(pk, focusKnown ? f : (f != null && f.Hwnd == pk.Fg?.Hwnd ? f : null));
         }
@@ -547,6 +554,11 @@ public sealed partial class Recorder
         bool combo = !isMod && (_keys.Ctrl || _keys.Alt || _keys.Win) && !_keys.AltGr;
         bool terminatorKey = key is "Enter" or "NumPadEnter" or "Tab" or "Escape";
 
+        // Passwortabfrage im Terminal (10 §6): Rang 4 – vor der Privattaste, damit Regel und Abfragezeile erhalten bleiben;
+        // auch Tasten abgeschalteter Eingabearten beenden die Abfrage (Eingabetaste, Esc, Strg+C, Strg+D)
+        string? tpReason = null;
+        try { tpReason = TpKeyDown(pk, key, vk, isMod, combo, terminatorKey); } catch (Exception ex) { T("terminal: " + ex.Message); }
+
         // Per Einstellung abgeschaltete Eingabearten: Tastenzustand weiterführen, aber nichts speichern
         if (!pk.Self && Options.Off.Count > 0)
         {
@@ -563,7 +575,9 @@ public sealed partial class Recorder
         string? maskReason = null;
         if (!pk.Self)
         {
-            if (PrivacyMode && !isMod) maskReason = "privacyMode";
+            if (tpReason == "terminalPrompt") maskReason = tpReason;
+            else if (PrivacyMode && !isMod) maskReason = "privacyMode";
+            else if (tpReason != null) maskReason = tpReason;
             else if (ctx == "passwordField" && !isMod && !combo && !terminatorKey) maskReason = "passwordField";
             else if (Options.PrivacyLevel == "strict" && !isMod && !combo && !terminatorKey)
             {
@@ -574,8 +588,9 @@ public sealed partial class Recorder
         }
         if (maskReason != null)
         {
-            if (_masked != null && _masked.Reason != maskReason) FlushMasked();
-            _masked ??= new MaskedRun { T = pk.T, InSeq = pk.InSeq, Reason = maskReason, Fg = pk.Fg?.Id, Focus = _focusSeq == 0 ? null : _focusSeq };
+            var tpa = maskReason == "terminalPrompt" ? _tp : null;
+            if (_masked != null && (_masked.Reason != maskReason || _masked.TpId != (tpa?.Id ?? 0))) FlushMasked();
+            _masked ??= new MaskedRun { T = pk.T, InSeq = pk.InSeq, Reason = maskReason, Fg = pk.Fg?.Id, Focus = _focusSeq == 0 ? null : _focusSeq, TpId = tpa?.Id ?? 0, Rule = tpa?.Rule, PromptLine = tpa?.PromptLine };
             _masked.Count++; _masked.Events++; _masked.TEnd = pk.T; _masked.InSeqEnd = pk.InSeq;
             _maskedDown.Add(vk);
             _keys.Down(vk);
@@ -647,6 +662,11 @@ public sealed partial class Recorder
             ["t"] = mr.T, ["tEnd"] = mr.TEnd, ["type"] = "text.masked", ["count"] = mr.Count, ["inSeq"] = mr.InSeq, ["inSeqEnd"] = mr.InSeqEnd,
             ["events"] = mr.Events, ["reason"] = mr.Reason
         };
+        if (mr.Reason == "terminalPrompt")
+        {
+            ev["rule"] = mr.Rule ?? "T1";
+            if (!string.IsNullOrEmpty(mr.PromptLine)) ev["promptLine"] = mr.PromptLine;
+        }
         if (mr.Fg != null) ev["fg"] = mr.Fg;
         if (mr.Focus != null) ev["focus"] = mr.Focus;
         long seq = Emit(ev);
@@ -656,7 +676,7 @@ public sealed partial class Recorder
 
     void PollValue(string phase)
     {
-        if (PrivacyMode) return;
+        if (PrivacyActive) return;
         _uia.Enqueue(() => _uia.Focused(false), res =>
         {
             lock (_gate)
