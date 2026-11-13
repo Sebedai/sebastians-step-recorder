@@ -219,6 +219,7 @@ sealed partial class ViewerWindow
         ors[0].Checked += (_, _) => DocChange(x => x.Landscape = false); ors[1].Checked += (_, _) => DocChange(x => x.Landscape = true);
         foreach (var o in ors) o.IsEnabled = !ro;
         page.Children.Add(U.Field(Loc.L("Seitenformat", "Page size"), U.Row(pageTrack, orTrack), Loc.L("Bilder passen sich der Seitenbreite an. Mit einer Word-Vorlage gilt im Word-Dokument deren Seiteneinrichtung.", "Images adapt to the page width. With a Word template, the Word document uses the template's page setup.")));
+        PageLayoutFields(page, d);
         var wordRow = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
         if (d.WordTemplate.Length > 0)
         {

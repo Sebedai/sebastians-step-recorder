@@ -283,6 +283,11 @@ sealed partial class ViewerWindow
         };
         row.Children.Add(size);
         box.Children.Add(row);
+        // neue Seite vor diesem Schritt (13, Paket 27)
+        var brk = new CheckBox { Content = Loc.L("Neue Seite vor diesem Schritt (PDF, Word, Druck)", "New page before this step (PDF, Word, print)"), IsChecked = s.PageBreak, IsEnabled = !ro, Margin = new Thickness(0, 0, 0, 10) };
+        brk.Checked += (_, _) => Change(e => StepEdit(e, anchor)["pageBreak"] = true, refill: false);
+        brk.Unchecked += (_, _) => Change(e => StepEdit(e, anchor).Remove("pageBreak"), refill: false);
+        box.Children.Add(brk);
         // Bildunterschrift und Alternativtext je Sprache (13, Paket 25)
         string lang = _view.Language;
         string? LangOf(string key) => (_view.Edits.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().FirstOrDefault(x => x.Long("anchor") == anchor)?.Obj(key)?.Str(lang);

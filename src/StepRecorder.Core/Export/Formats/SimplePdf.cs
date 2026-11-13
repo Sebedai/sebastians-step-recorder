@@ -95,6 +95,7 @@ public sealed partial class SimplePdf
 
     public void NewPage()
     {
+        _chapterAt.Add(_running);
         _cur = new StringBuilder();
         _pages.Add(_cur);
         _links.Add(new());
@@ -298,12 +299,37 @@ public sealed partial class SimplePdf
     /// <summary>Seiten ohne Fußzeile (z. B. Deckblatt), 0-basiert.</summary>
     public HashSet<int> NoFooter { get; } = new();
 
+    /// <summary>Kopf- und Fußzeile in drei Teilen (13, Paket 27); Felder {{Seite}}/{{Page}}, {{Seiten}}/{{Pages}}, {{Kapitel}}/{{Chapter}}.
+    /// Null = bisherige Fußzeile (Text links, „n / N“ rechts), kein Kopf.</summary>
+    public (string L, string C, string R)? HeaderBand { get; set; }
+    public (string L, string C, string R)? FooterBand { get; set; }
+    readonly List<string> _chapterAt = new();
+    string _running = "";
+
+    /// <summary>Laufendes Kapitel ab der aktuellen Seite (für das Feld {{Kapitel}}).</summary>
+    public void SetRunning(string chapter) { _running = chapter; if (_chapterAt.Count > 0) _chapterAt[^1] = chapter; }
+
+    string Fields(string s, int page, int pages)
+        => s.Replace("{{Seite}}", page.ToString()).Replace("{{Page}}", page.ToString()).Replace("{{Seiten}}", pages.ToString()).Replace("{{Pages}}", pages.ToString())
+            .Replace("{{Kapitel}}", page - 1 < _chapterAt.Count ? _chapterAt[page - 1] : "").Replace("{{Chapter}}", page - 1 < _chapterAt.Count ? _chapterAt[page - 1] : "");
+
+    void Band((string L, string C, string R) b, int i, double y)
+    {
+        var grey = (0.5, 0.5, 0.5);
+        string l = Fields(b.L, i + 1, _pages.Count), c = Fields(b.C, i + 1, _pages.Count), r = Fields(b.R, i + 1, _pages.Count);
+        if (l.Length > 0) DrawTextTo(_pages[i], Margin, y, l, 8, false, grey);
+        if (c.Length > 0) DrawTextTo(_pages[i], (PageW - TextWidth(c, 8)) / 2, y, c, 8, false, grey);
+        if (r.Length > 0) DrawTextTo(_pages[i], PageW - Margin - TextWidth(r, 8), y, r, 8, false, grey);
+    }
+
     public byte[] ToBytes()
     {
         // Fußzeilen (vor den Schriften, damit ihre Zeichen in die Teilmengen kommen)
         for (int i = 0; i < _pages.Count; i++)
         {
             if (NoFooter.Contains(i)) continue;
+            if (HeaderBand is { } hb) Band(hb, i, PageH - Math.Max(22, Margin * 0.55));
+            if (FooterBand is { } fb) { Band(fb, i, 25); continue; }
             string pg = $"{i + 1} / {_pages.Count}";
             DrawTextTo(_pages[i], Margin, 25, Footer, 8, false, (0.5, 0.5, 0.5));
             DrawTextTo(_pages[i], PageW - Margin - TextWidth(pg, 8), 25, pg, 8, false, (0.5, 0.5, 0.5));

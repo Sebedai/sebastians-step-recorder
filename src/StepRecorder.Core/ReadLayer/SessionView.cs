@@ -39,6 +39,8 @@ public sealed class ViewStep
     public bool? ShowImage;
     /// <summary>Eigene Bildunterschrift und eigener Alternativtext in der Sprache der Ansicht (13, Paket 25), bereinigt.</summary>
     public string? Caption, Alt;
+    /// <summary>Neue Seite vor diesem Schritt (13, Paket 27).</summary>
+    public bool PageBreak;
     public string? ImageSize;
     public bool Hidden, Redacted, Discarded;
     public List<JsonObject> Comments = new();
@@ -424,6 +426,7 @@ public sealed partial class SessionView : IDisposable
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
                 vs.Caption = LangText(se.Obj("caption")); vs.Alt = LangText(se.Obj("alt"));
+                vs.PageBreak = se.Bool("pageBreak");
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.PreFrame ??= s.Obj("frames").Str("pre");
@@ -486,6 +489,7 @@ public sealed partial class SessionView : IDisposable
                 ApplyChapter(vs, se);
                 if (se["showImage"] != null) vs.ShowImage = se.Bool("showImage");
                 vs.Caption = LangText(se.Obj("caption")); vs.Alt = LangText(se.Obj("alt"));
+                vs.PageBreak = se.Bool("pageBreak");
                 if (se.Str("imageSize") is { Length: > 0 } isz) vs.ImageSize = isz;
             }
             vs.Comments = comments.Where(c => c.Long("anchor") == anchor).Select(c => CleanComment(c, vs)).ToList();

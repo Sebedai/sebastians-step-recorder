@@ -20,6 +20,39 @@ public sealed partial class SimpleDocx
     public string Accent { get; set; } = "1F3864";
     /// <summary>Text der Fußzeile (links); rechts steht die Seitenzahl. null = keine Fußzeile.</summary>
     public string? Footer { get; set; }
+    /// <summary>Kopf- und Fußzeile in drei Teilen mit Feldern (13, Paket 27); null = bisherige Fußzeile.</summary>
+    public (string L, string C, string R)? HeaderBand { get; set; }
+    public (string L, string C, string R)? FooterBand { get; set; }
+
+    /// <summary>Gleicher Rand ringsum in Twips.</summary>
+    public void SetMargins(int twips) { _marL = _marR = _marT = _marB = Math.Clamp(twips, 284, 2835); }
+
+    /// <summary>Absatz einer Kopf- oder Fußzeile: links, Mitte (Tab), rechts (Tab); Felder werden Word-Felder.</summary>
+    string BandXml((string L, string C, string R) b, bool top)
+    {
+        const string rp = "<w:rPr><w:color w:val=\"7A776E\"/><w:sz w:val=\"16\"/></w:rPr>";
+        string Field(string instr) => $"<w:r>{rp}<w:fldChar w:fldCharType=\"begin\"/></w:r><w:r>{rp}<w:instrText xml:space=\"preserve\"> {instr} </w:instrText></w:r><w:r>{rp}<w:fldChar w:fldCharType=\"separate\"/></w:r><w:r>{rp}<w:t>1</w:t></w:r><w:r>{rp}<w:fldChar w:fldCharType=\"end\"/></w:r>";
+        string Part(string s)
+        {
+            var sb = new StringBuilder();
+            var m = System.Text.RegularExpressions.Regex.Split(s, @"(\{\{(?:Seite|Page|Seiten|Pages|Kapitel|Chapter)\}\})");
+            foreach (var t in m)
+            {
+                if (t.Length == 0) continue;
+                sb.Append(t switch
+                {
+                    "{{Seite}}" or "{{Page}}" => Field("PAGE"),
+                    "{{Seiten}}" or "{{Pages}}" => Field("NUMPAGES"),
+                    "{{Kapitel}}" or "{{Chapter}}" => Field("STYLEREF \"heading 1\""),
+                    _ => $"<w:r>{rp}<w:t xml:space=\"preserve\">{X(t)}</w:t></w:r>"
+                });
+            }
+            return sb.ToString();
+        }
+        string border = top ? "<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"4\" w:color=\"D0CEC6\"/>" : "<w:top w:val=\"single\" w:sz=\"4\" w:space=\"4\" w:color=\"D0CEC6\"/>";
+        return $"<w:p><w:pPr><w:pBdr>{border}</w:pBdr><w:tabs><w:tab w:val=\"center\" w:pos=\"{TextWidthTwips / 2}\"/><w:tab w:val=\"right\" w:pos=\"{TextWidthTwips}\"/></w:tabs></w:pPr>"
+            + Part(b.L) + $"<w:r>{rp}<w:tab/></w:r>" + Part(b.C) + $"<w:r>{rp}<w:tab/></w:r>" + Part(b.R) + "</w:p>";
+    }
     int _docPrId = 1;
 
     // ---------------- Seite (09 §4.4) ----------------
@@ -165,7 +198,7 @@ public sealed partial class SimpleDocx
         }
         bool hasPng = _media.Any(m => m.ext == "png"), hasJpg = _media.Any(m => m.ext is "jpg" or "jpeg");
         Add("[Content_Types].xml", $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-<Types xmlns=""http://schemas.openxmlformats.org/package/2006/content-types""><Default Extension=""rels"" ContentType=""application/vnd.openxmlformats-package.relationships+xml""/><Default Extension=""xml"" ContentType=""application/xml""/>{(hasPng ? "<Default Extension=\"png\" ContentType=\"image/png\"/>" : "")}{(hasJpg ? "<Default Extension=\"jpg\" ContentType=\"image/jpeg\"/>" : "")}<Override PartName=""/word/document.xml"" ContentType=""application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml""/><Override PartName=""/word/styles.xml"" ContentType=""application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml""/>{(Footer != null ? "<Override PartName=\"/word/footer1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml\"/>" : "")}<Override PartName=""/docProps/core.xml"" ContentType=""application/vnd.openxmlformats-package.core-properties+xml""/></Types>");
+<Types xmlns=""http://schemas.openxmlformats.org/package/2006/content-types""><Default Extension=""rels"" ContentType=""application/vnd.openxmlformats-package.relationships+xml""/><Default Extension=""xml"" ContentType=""application/xml""/>{(hasPng ? "<Default Extension=\"png\" ContentType=\"image/png\"/>" : "")}{(hasJpg ? "<Default Extension=\"jpg\" ContentType=\"image/jpeg\"/>" : "")}<Override PartName=""/word/document.xml"" ContentType=""application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml""/><Override PartName=""/word/styles.xml"" ContentType=""application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml""/>{(Footer != null || FooterBand != null ? "<Override PartName=\"/word/footer1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml\"/>" : "")}{(HeaderBand != null ? "<Override PartName=\"/word/header1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml\"/>" : "")}<Override PartName=""/docProps/core.xml"" ContentType=""application/vnd.openxmlformats-package.core-properties+xml""/></Types>");
         Add("_rels/.rels", @"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
 <Relationships xmlns=""http://schemas.openxmlformats.org/package/2006/relationships""><Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"" Target=""word/document.xml""/><Relationship Id=""rId2"" Type=""http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties"" Target=""docProps/core.xml""/></Relationships>");
         Add("docProps/core.xml", $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
@@ -174,10 +207,15 @@ public sealed partial class SimpleDocx
 <Relationships xmlns=""http://schemas.openxmlformats.org/package/2006/relationships""><Relationship Id=""rIdStyles"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"" Target=""styles.xml""/>");
         for (int i = 0; i < _media.Count; i++)
             rels.Append($@"<Relationship Id=""rIdImg{i + 1}"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"" Target=""media/{_media[i].name}""/>");
-        if (Footer != null) rels.Append(@"<Relationship Id=""rIdFooter1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"" Target=""footer1.xml""/>");
+        if (Footer != null || FooterBand != null) rels.Append(@"<Relationship Id=""rIdFooter1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer"" Target=""footer1.xml""/>");
+        if (HeaderBand != null) rels.Append(@"<Relationship Id=""rIdHeader1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/header"" Target=""header1.xml""/>");
         rels.Append(LinkRelationships());
         rels.Append("</Relationships>");
-        if (Footer != null)
+        if (HeaderBand is { } hb)
+            Add("word/header1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<w:hdr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" + BandXml(hb, true) + "</w:hdr>");
+        if (FooterBand is { } fb)
+            Add("word/footer1.xml", "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">" + BandXml(fb, false) + "</w:ftr>");
+        else if (Footer != null)
         {
             const string rp = "<w:rPr><w:color w:val=\"7A776E\"/><w:sz w:val=\"16\"/></w:rPr>";
             Add("word/footer1.xml", $"<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<w:ftr xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:p><w:pPr><w:pBdr><w:top w:val=\"single\" w:sz=\"4\" w:space=\"4\" w:color=\"D0CEC6\"/></w:pBdr><w:tabs><w:tab w:val=\"right\" w:pos=\"{TextWidthTwips}\"/></w:tabs></w:pPr>" +
@@ -186,7 +224,7 @@ public sealed partial class SimpleDocx
         Add("word/_rels/document.xml.rels", rels.ToString());
         Add("word/styles.xml", Styles());
         Add("word/document.xml", $@"<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>
-<w:document xmlns:w=""http://schemas.openxmlformats.org/wordprocessingml/2006/main"" xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"" xmlns:wp=""http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing""><w:body>{_body}<w:sectPr>{(Footer != null ? "<w:footerReference w:type=\"default\" r:id=\"rIdFooter1\"/>" : "")}<w:pgSz w:w=""{PageWTwips}"" w:h=""{PageHTwips}""{(PageWTwips > PageHTwips ? @" w:orient=""landscape""" : "")}/><w:pgMar w:top=""1134"" w:right=""1134"" w:bottom=""1134"" w:left=""1134"" w:header=""567"" w:footer=""567"" w:gutter=""0""/></w:sectPr></w:body></w:document>");
+<w:document xmlns:w=""http://schemas.openxmlformats.org/wordprocessingml/2006/main"" xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"" xmlns:wp=""http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing""><w:body>{_body}<w:sectPr>{(HeaderBand != null ? "<w:headerReference w:type=\"default\" r:id=\"rIdHeader1\"/>" : "")}{(Footer != null || FooterBand != null ? "<w:footerReference w:type=\"default\" r:id=\"rIdFooter1\"/>" : "")}<w:pgSz w:w=""{PageWTwips}"" w:h=""{PageHTwips}""{(PageWTwips > PageHTwips ? @" w:orient=""landscape""" : "")}/><w:pgMar w:top=""{_marT}"" w:right=""{_marR}"" w:bottom=""{_marB}"" w:left=""{_marL}"" w:header=""567"" w:footer=""567"" w:gutter=""0""/></w:sectPr></w:body></w:document>");
         foreach (var m in _media)
         {
             var e = zip.CreateEntry("word/media/" + m.name, CompressionLevel.NoCompression);

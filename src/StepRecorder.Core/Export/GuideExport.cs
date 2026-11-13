@@ -100,6 +100,8 @@ public static partial class GuideExport
         public List<(string anchor, string caption)> FigureList = new();
         /// <summary>Impressum, Änderungsverzeichnis (vorn oder hinten), Glossar (hinten) – 13, Paket 26.</summary>
         public List<Part> Front = new(), Back = new();
+        /// <summary>Kopf- und Fußzeile mit eingesetzten Variablen; Seitenfelder bleiben für den Schreiber (13, Paket 27).</summary>
+        public (string L, string C, string R)? HeaderBand, FooterBand;
         /// <summary>Enthält die Anleitung formatierten Text? Dann kommen zusätzliche Stile hinzu.</summary>
         public bool UsesRich => IntroRich != null || OutroRich != null || Blocks.Any(b => b is Chapter { Body: not null } || b is Item it && (it.Body != null || it.NoteRich?.Any(n => n != null) == true));
         public int StepCount => Blocks.OfType<Item>().Count();
@@ -270,6 +272,8 @@ public static partial class GuideExport
         ResolveRefs(d, lang);
         if (s.Figures) foreach (var fi in d.Blocks.OfType<Item>()) if (fi.Caption != null) d.FigureList.Add((fi.Anchor, fi.Caption));
         BuildParts(view, d, lang);
+        if (s.HasHeader) d.HeaderBand = (view.CleanVars(s.HeaderLeft), view.CleanVars(s.HeaderCenter), view.CleanVars(s.HeaderRight));
+        if (s.HasFooterParts) d.FooterBand = (view.CleanVars(s.FooterLeft), view.CleanVars(s.FooterCenter), view.CleanVars(s.FooterRight));
         string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
         d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
@@ -426,14 +430,14 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
-                sb.Append($"<h2 class=\"chapter{(c.Level == 2 ? " sub" : "")}\" id=\"{c.Anchor}\">{(c.Number.Length > 0 ? $"<span class=\"n\">{e(c.Number)}</span>" : "")}{e(c.Title)}</h2>\n");
+                sb.Append($"<h2 class=\"chapter{(c.Level == 2 ? " sub" : "")}\" id=\"{c.Anchor}\"{(d.S.ChapterNewPage && c.Level == 1 ? " style=\"break-before:page\"" : "")}>{(c.Number.Length > 0 ? $"<span class=\"n\">{e(c.Number)}</span>" : "")}{e(c.Title)}</h2>\n");
                 if (c.Body != null) sb.Append(HtmlRich(c.Body, "rt chtext")).Append('\n');
                 else if (c.Text.Length > 0) sb.Append($"<p class=\"chtext\">{P(c.Text)}</p>\n");
                 continue;
             }
             var it = (Item)b;
             bool side = d.S.Layout == "side" && it.Png != null;
-            sb.Append($"<section class=\"step{(side ? " side" : "")}\" id=\"{it.Anchor}\">\n<div>\n");
+            sb.Append($"<section class=\"step{(side ? " side" : "")}\" id=\"{it.Anchor}\"{(it.Step.PageBreak || d.S.StepPerPage ? " style=\"break-before:page\"" : "")}>\n<div>\n");
             sb.Append($"<h3>{(d.Checkboxes ? $"<input type=\"checkbox\" class=\"done\" aria-label=\"{d.L("erledigt", "done")}\">" : "")}{(it.Number.Length > 0 ? $"<span class=\"n\">{e(it.Number)}</span>" : "")}<span>{e(it.Title)}</span></h3>\n");
             void NoteHtml(int ni)
             {
@@ -475,7 +479,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             sb.Append("</ul></section>\n");
         }
         sb.Append(HtmlParts(d.Back));
-        sb.Append($"<footer><span>{e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)}</span><span>{d.L("Erstellt mit", "Created with")} {AppInfo.DisplayName}</span></footer>\n</body>\n</html>\n");
+        sb.Append($"<footer><span>{e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)}</span>{(d.S.CreatedWith ? $"<span>{d.L("Erstellt mit", "Created with")} {AppInfo.DisplayName}</span>" : "")}</footer>\n</body>\n</html>\n");
         return sb.ToString();
     }
 
@@ -554,6 +558,9 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         var x = new SimpleDocx { Title = d.Title, Language = Settings.OutText.Tag(d.Lang), Accent = d.S.AccentHex, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title };
         var (pw, ph) = d.S.PageTwips();
         x.SetPage(pw, ph);
+        if (d.S.MarginMm > 0) x.SetMargins((int)Math.Round(d.S.MarginMm * 56.7));
+        x.HeaderBand = d.HeaderBand; x.FooterBand = d.FooterBand;
+        bool firstItem = true;
         // Eigene Word-Vorlage (09 §7.3): ihre Seiteneinrichtung, Formatvorlagen, Kopf- und Fußzeilen; .dotm wird abgelehnt
         bool templateTitle = false;
         if (d.S.WordTemplateBytes() is { } tpl)
@@ -592,12 +599,15 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
+                if (d.S.ChapterNewPage && c.Level == 1 && !firstItem) x.PageBreak();
                 x.Heading(Heading(c.Number, c.Title), c.Level, marks[b]);
                 if (c.Body != null) x.RichBlocks(c.Body.Doc);
                 else if (c.Text.Length > 0) x.Paragraph(c.Text);
                 continue;
             }
             var it = (Item)b;
+            if ((it.Step.PageBreak || d.S.StepPerPage) && !firstItem) x.PageBreak();
+            firstItem = false;
             void Text()
             {
                 if (d.Compact || d.Checkboxes)
@@ -694,6 +704,9 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         var ink = (0.11, 0.11, 0.10); var muted = (0.42, 0.41, 0.38); var line = (0.85, 0.84, 0.81);
         var (pw, ph) = d.S.PagePoints();
         var pdf = new SimplePdf(pw, ph) { Title = d.Title, Footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title, Language = Settings.OutText.Tag(d.Lang) };
+        if (d.S.MarginMm > 0) { pdf.Margin = Math.Round(d.S.MarginMm * 72 / 25.4, 2); pdf.SetY(pdf.PageH - pdf.Margin); }
+        pdf.HeaderBand = d.HeaderBand; pdf.FooterBand = d.FooterBand;
+        bool AtTop() => pdf.Y >= pdf.PageH - pdf.Margin - 1;
         double cw = pdf.ContentWidth;
         // Bildhöhe höchstens Satzspiegel abzüglich Platz für den Schritttext (A4 hoch: wie bisher 560 · Faktor + 60)
         double maxImgH = pdf.ContentHeight - 100;
@@ -764,6 +777,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
+                if (d.S.ChapterNewPage && c.Level == 1 && !AtTop()) pdf.NewPage();
+                if (c.Level == 1) pdf.SetRunning(Heading(c.Number, c.Title));
                 pdf.EnsureSpace(120);
                 pdf.Space(10);
                 record[c.Anchor] = pdf.PageCount;
@@ -777,6 +792,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 continue;
             }
             var it = (Item)b;
+            if ((it.Step.PageBreak || d.S.StepPerPage) && !AtTop()) pdf.NewPage();
             if (d.Compact || d.Checkboxes)
             {
                 // Kurzfassung/Checkliste: eine Zeile je Schritt, Kästchen statt Nummernmarke

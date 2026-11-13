@@ -33,6 +33,13 @@ public sealed class DocSettings
     /// <summary>Impressum und Änderungsverzeichnis: front (vor dem Inhalt), back (am Ende), off; Glossar am Ende (13, Paket 26).</summary>
     public string Imprint = "front", Revisions = "front";
     public bool Glossary = true;
+    /// <summary>Seite und Layout (13, Paket 27): Rand in mm (0 = bisher), Kopf- und Fußzeile je links/Mitte/rechts mit Feldern
+    /// ({{Seite}}, {{Seiten}}, {{Kapitel}} und alle Variablen), Umbrüche, „Erstellt mit“.</summary>
+    public int MarginMm;
+    public string HeaderLeft = "", HeaderCenter = "", HeaderRight = "", FooterLeft = "", FooterCenter = "", FooterRight = "";
+    public bool ChapterNewPage, StepPerPage, CreatedWith = true;
+    public bool HasHeader => HeaderLeft.Length + HeaderCenter.Length + HeaderRight.Length > 0;
+    public bool HasFooterParts => FooterLeft.Length + FooterCenter.Length + FooterRight.Length > 0;
     /// <summary>Querformat für Word und PDF.</summary>
     public bool Landscape;
     /// <summary>Eigene Word-Vorlage (.dotx/.docx, Base64; 09 §7.3); leer = keine. Höchstens <see cref="WordTemplateMaxBytes"/>.</summary>
@@ -121,12 +128,23 @@ public sealed class DocSettings
         // Übersetzungen
         if (lang != "de" && guide?.Obj("i18n")?.Obj(lang) is { } loc)
         {
+            foreach (var k in new[] { "headerLeft", "headerCenter", "headerRight", "footerLeft", "footerCenter", "footerRight" })
+                if (loc.Str(k) is { Length: > 0 } hv) d.SetBand(k, hv);
             if (loc.Str("subtitle") is { Length: > 0 } a) d.Subtitle = a;
             if (loc.Str("audience") is { Length: > 0 } b) d.Audience = b;
             if (loc.Str("prerequisites") is { Length: > 0 } c) d.Prerequisites = c;
             if (loc.Str("footer") is { Length: > 0 } e) d.Footer = e;
         }
         return d;
+    }
+
+    void SetBand(string key, string v)
+    {
+        switch (key)
+        {
+            case "headerLeft": HeaderLeft = v; break; case "headerCenter": HeaderCenter = v; break; case "headerRight": HeaderRight = v; break;
+            case "footerLeft": FooterLeft = v; break; case "footerCenter": FooterCenter = v; break; case "footerRight": FooterRight = v; break;
+        }
     }
 
     /// <summary>Text aus guide (title, intro, outro) in der gewünschten Sprache.</summary>
@@ -160,6 +178,11 @@ public sealed class DocSettings
         d.Imprint = j.Str("imprint") is "back" or "off" ? j.Str("imprint")! : "front";
         d.Revisions = j.Str("revisions") is "back" or "off" ? j.Str("revisions")! : "front";
         if (j["glossary"] != null) d.Glossary = j.Bool("glossary");
+        d.MarginMm = Math.Clamp(j.Int("marginMm"), 0, 40);
+        d.HeaderLeft = j.Str("headerLeft") ?? ""; d.HeaderCenter = j.Str("headerCenter") ?? ""; d.HeaderRight = j.Str("headerRight") ?? "";
+        d.FooterLeft = j.Str("footerLeft") ?? ""; d.FooterCenter = j.Str("footerCenter") ?? ""; d.FooterRight = j.Str("footerRight") ?? "";
+        d.ChapterNewPage = j.Bool("chapterNewPage"); d.StepPerPage = j.Bool("stepPerPage");
+        if (j["createdWith"] != null) d.CreatedWith = j.Bool("createdWith");
     }
 
     public static (string id, string name)[] Pages => new[] { ("a4", "A4"), ("letter", "Letter") };
@@ -207,6 +230,12 @@ public sealed class DocSettings
         if (Imprint != "front") o["imprint"] = Imprint;
         if (Revisions != "front") o["revisions"] = Revisions;
         if (!Glossary) o["glossary"] = false;
+        if (MarginMm > 0) o["marginMm"] = MarginMm;
+        foreach (var (k, v) in new[] { ("headerLeft", HeaderLeft), ("headerCenter", HeaderCenter), ("headerRight", HeaderRight), ("footerLeft", FooterLeft), ("footerCenter", FooterCenter), ("footerRight", FooterRight) })
+            if (v.Length > 0) o[k] = v;
+        if (ChapterNewPage) o["chapterNewPage"] = true;
+        if (StepPerPage) o["stepPerPage"] = true;
+        if (!CreatedWith) o["createdWith"] = false;
         return o;
     }
 

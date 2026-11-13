@@ -2503,6 +2503,22 @@ Reihenfolge in der Anleitung: Titelseite · Impressum und Änderungen (bei `fron
 |---|---|---|---|
 | DAT-088 | Impressum, Änderungsverzeichnis und Glossar erscheinen nur, wenn Daten da sind, an der gewählten Stelle und je Sprache; ein geschützter Wert darin erscheint nicht. | Soll | `PartsTests` |
 
+### 13.23 Seite und Layout (Paket 27)
+
+| Ort | Schlüssel | Bedeutung | Fehlt = |
+|---|---|---|---|
+| `guide.doc` | `marginMm` | Rand ringsum in mm (10–40) | PDF 50 pt, Word 2 cm |
+| `guide.doc` | `headerLeft`, `headerCenter`, `headerRight`, `footerLeft`, `footerCenter`, `footerRight` | Text mit Feldern `{{Seite}}`/`{{Page}}`, `{{Seiten}}`/`{{Pages}}`, `{{Kapitel}}`/`{{Chapter}}` und allen Variablen; je Sprache unter `guide.i18n.<lang>` | kein Kopf; bisherige Fußzeile (Text links, „n / N“ rechts) |
+| `guide.doc` | `chapterNewPage`, `stepPerPage` | Kapitel bzw. jeder Schritt auf neuer Seite | aus |
+| `guide.doc` | `createdWith` | `false` blendet „Erstellt mit …“ in der HTML-Fußzeile aus | an |
+| `steps[]` | `pageBreak` | `true` = neue Seite vor diesem Schritt | – |
+
+In Word werden die Felder echte Felder (`PAGE`, `NUMPAGES`, `STYLEREF "heading 1"`); mit einer eigenen Word-Vorlage gelten deren Kopf- und Fußzeilen. Layoutvorlagen (Standard, Kompakt, Schulung, Handbuch) setzen nur diese und die Aufbau-Schlüssel, nie Inhalte.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-089 | Ohne die neuen Schlüssel sind PDF und Word unverändert; mit ihnen stehen Felder und Umbrüche wie beschrieben. | Muss | `LegacyOutputTests`, `LayoutBandTests` |
+
 ### 13.19 Markenstil (`guide.auto.style`)
 
 Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).
