@@ -68,7 +68,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 | 28 | Bild-Editor II: Objekte, neue Werkzeuge, Einrasten | V-54 | L | 22 | teilweise (Werkzeuge, Kopieren, Verschieben) |
 | 29 | Redaktionsprüfung I: Stil und Lesbarkeit | V-49 | M | 21 | erledigt |
 | 30 | Redaktionsprüfung II: Fertigstellung und Freigabe | V-49 | M | 27, 29 | erledigt |
-| 31 | Word-Profil mit Formatvorlagen und Listen | V-48 | M | 27 | geplant |
+| 31 | Word-Profil mit Formatvorlagen und Listen | V-48 | M | 27 | erledigt (Zeichenformatvorlagen) |
 | 32 | Barrierearmes PDF | V-53 | L | 25, 27 | geplant |
 | 33 | Übersetzungsübersicht und CSV | V-50 | M | 21 | geplant |
 | 34 | Schritt teilen und Ergebnisschritt | V-50 | M | – | geplant |

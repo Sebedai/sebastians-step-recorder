@@ -248,5 +248,5 @@ public sealed partial class SimpleDocx
 <w:style w:type=""character"" w:styleId=""Hyperlink""><w:name w:val=""Hyperlink""/><w:uiPriority w:val=""99""/><w:unhideWhenUsed/><w:rPr><w:color w:val=""1C1B19""/></w:rPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""ListBullet""><w:name w:val=""List Bullet""/><w:basedOn w:val=""Normal""/><w:pPr><w:ind w:left=""360"" w:hanging=""360""/></w:pPr></w:style>
 <w:style w:type=""paragraph"" w:styleId=""Note""><w:name w:val=""Note""/><w:basedOn w:val=""Normal""/><w:pPr><w:pBdr><w:left w:val=""single"" w:sz=""18"" w:space=""6"" w:color=""E0A800""/></w:pBdr><w:shd w:val=""clear"" w:color=""auto"" w:fill=""FFF8E1""/><w:ind w:left=""200""/></w:pPr></w:style>
-</w:styles>";
+{CharStylesXml()}</w:styles>";
 }

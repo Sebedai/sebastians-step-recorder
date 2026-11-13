@@ -16,16 +16,32 @@ public sealed partial class SimpleDocx
         return "rIdLink" + (i + 1);
     }
 
-    static string RunX(string text, bool bold, bool italic, bool mono = false, string? color = null, bool underline = false, bool key = false)
+    /// <summary>
+    /// Zeichenformatvorlagen für formatierten Text (13, Paket 31): Eingabe, Taste, Bedienelement, Link. Die Läufe tragen nur den
+    /// Verweis auf die Vorlage – eine eigene Word-Vorlage kann <c>SREingabe</c>, <c>SRTaste</c>, <c>SRElement</c>, <c>SRLink</c>
+    /// selbst gestalten. Angelegt werden nur benutzte Vorlagen.
+    /// </summary>
+    readonly SortedSet<string> _charStyles = new(StringComparer.Ordinal);
+
+    static readonly Dictionary<string, (string name, string rpr)> CharStyleDefs = new()
+    {
+        ["SREingabe"] = ("SR Eingabe", "<w:rFonts w:ascii=\"Consolas\" w:hAnsi=\"Consolas\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"F3F3F1\"/>"),
+        ["SRTaste"] = ("SR Taste", "<w:rFonts w:ascii=\"Consolas\" w:hAnsi=\"Consolas\"/><w:sz w:val=\"19\"/><w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"8B93A0\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"F1F2F5\"/>"),
+        ["SRElement"] = ("SR Bedienelement", "<w:b/>"),
+        ["SRLink"] = ("SR Link", "<w:color w:val=\"1F4E9C\"/><w:u w:val=\"single\"/>"),
+    };
+
+    /// <summary>Definitionen der benutzten Zeichenformatvorlagen für <c>styles.xml</c>.</summary>
+    string CharStylesXml() => string.Concat(_charStyles.Select(id => $"<w:style w:type=\"character\" w:customStyle=\"1\" w:styleId=\"{id}\"><w:name w:val=\"{CharStyleDefs[id].name}\"/><w:rPr>{CharStyleDefs[id].rpr}</w:rPr></w:style>"));
+
+    string RunX(string text, bool bold, bool italic, bool mono = false, string? color = null, bool underline = false, bool key = false, bool ui = false)
     {
         var rpr = new StringBuilder();
-        if (mono || key) rpr.Append("<w:rFonts w:ascii=\"Consolas\" w:hAnsi=\"Consolas\"/>");
+        string? cs = ui ? "SRElement" : key ? "SRTaste" : mono ? "SREingabe" : underline && color == "1F4E9C" ? "SRLink" : null;
+        if (cs != null) { _charStyles.Add(cs); rpr.Append($"<w:rStyle w:val=\"{cs}\"/>"); }
         if (bold) rpr.Append("<w:b/>");
         if (italic) rpr.Append("<w:i/>");
-        if (color != null) rpr.Append($"<w:color w:val=\"{color}\"/>");
-        if (key) rpr.Append("<w:sz w:val=\"19\"/><w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"8B93A0\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"F1F2F5\"/>");
-        else if (mono) rpr.Append("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"F3F3F1\"/>");
-        if (underline) rpr.Append("<w:u w:val=\"single\"/>");
+        if (color != null && cs != "SRLink") rpr.Append($"<w:color w:val=\"{color}\"/>");
         var sb = new StringBuilder("<w:r>");
         if (rpr.Length > 0) sb.Append("<w:rPr>").Append(rpr).Append("</w:rPr>");
         sb.Append("<w:t xml:space=\"preserve\">").Append(X(text)).Append("</w:t></w:r>");
@@ -43,7 +59,7 @@ public sealed partial class SimpleDocx
             {
                 case RichKind.Text or RichKind.Placeholder: sb.Append(RunX(x.Text, b, i, color: color)); break;
                 case RichKind.Code: sb.Append(RunX(x.Text, b, i, mono: true, color: color)); break;
-                case RichKind.Ui: sb.Append(RunX(x.Text, true, i, color: color)); break;
+                case RichKind.Ui: sb.Append(RunX(x.Text, false, i, color: color, ui: true)); break;
                 case RichKind.Key:
                 {
                     var keys = x.Text.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);

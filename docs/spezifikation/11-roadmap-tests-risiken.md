@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 31 Word-Profil | Zeichenformatvorlagen SREingabe, SRTaste, SRElement, SRLink für formatierten Text, von einer eigenen Word-Vorlage überschreibbar (die Word-Vorlage selbst gibt es seit 0.13.0) | erledigt; echte Word-Listennummerierung: offen |
 | 30 Fertigstellung und Freigabe | Prüfliste mit Pflichtpunkten, Status Entwurf/Freigegeben mit Fingerabdruck, Wasserzeichen „ENTWURF“ in PDF, Word, HTML | erledigt; Rechtschreib-Durchlauf (Q40) und Befehl `check --readiness`: offen |
 | 29 Redaktionsprüfung I | Stilregeln Q22–Q25, Q43 und Lesbarkeit Q39 für eigene Texte (abschaltbar über `QualityOptions.Style`), vollständige du-Form der automatischen Texte (genehmigte Korrektur) | erledigt; Trefferquote an echten Anleitungen (VE-26): offen |
 | 28 Bild-Editor II | Sprechblase, Stempel, Weichzeichnen, Kopieren/Einfügen von Zeichnungen zwischen Schritten, Duplizieren, Pfeiltasten, Umschalt-Zwang | erledigt; Mehrfachauswahl, Ausrichten, Einrasten am erkannten Text und „Bild kürzen“: offen |
