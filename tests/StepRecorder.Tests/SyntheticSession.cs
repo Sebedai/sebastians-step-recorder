@@ -34,8 +34,10 @@ public static class SyntheticSession
     public const string TerminalCanary = "echo kanarie42";
     /// <summary>Freitext eines Eintrags der Ereignisanzeige (withEventText, Paket 12).</summary>
     public const string EventLogCanary = "System.NullReferenceException: Kanarie-Stack-5T1";
+    /// <summary>Erkannte Abfragezeile im Terminal (withTerminalPrompt, 10 §6).</summary>
+    public const string PromptLine = "[sudo] password for admin:";
 
-    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000, bool withCrash = false, bool withEventText = false, bool withSnapshot = false)
+    public static string Create(string? folder = null, bool withPassword = false, bool withSecret = false, bool withHotkey = false, bool withComment = false, bool withTerminal = false, bool withUac = false, bool withError = false, long enterSettleUs = 400_000, bool withCrash = false, bool withEventText = false, bool withSnapshot = false, bool withTerminalPrompt = false)
     {
         folder ??= Path.Combine(Path.GetTempPath(), "steprec-test-" + Guid.NewGuid().ToString("N")[..8]);
         if (Directory.Exists(folder)) Directory.Delete(folder, true);
@@ -157,6 +159,25 @@ public static class SyntheticSession
             }
             w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w3", ["focus"] = tf, ["ctx"] = "nonText" });
             w.Append(new JsonObject { ["t"] = t + 30_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w3" });
+        }
+        if (withTerminalPrompt)
+        {
+            // Passwortabfrage in Windows Terminal, erkannt nach Regel T1: Privatmodus „terminalPrompt“, maskierter Lauf, Ende mit der Eingabetaste
+            t += 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "window.info", ["win"] = "w4", ["hwnd"] = "0x00004000", ["pid"] = 40, ["process"] = "WindowsTerminal.exe", ["class"] = "CASCADIA_HOSTING_WINDOW_CLASS", ["title"] = "Ubuntu", ["kind"] = "window", ["surface"] = "partial", ["surfaceKind"] = "terminal" });
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "window.foreground", ["win"] = "w4" });
+            long tf = w.Append(new JsonObject { ["t"] = t + 10_000, ["type"] = "focus", ["win"] = "w4", ["ctx"] = "nonText", ["ctxSrc"] = "uia", ["el"] = new JsonObject { ["rid"] = "88.1", ["ct"] = "Text", ["name"] = "Ubuntu" } });
+            t += 300_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "gap", ["gapId"] = "gtp", ["phase"] = "begin", ["cause"] = "privacyMode", ["tFrom"] = t, ["channels"] = new JsonArray("keyboard", "clipboard", "fieldValues"), ["inputLost"] = "none" });
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "privacyMode", ["active"] = true, ["trigger"] = "terminalPrompt", ["rule"] = "T1", ["gapId"] = "gtp" });
+            long tStart = t + 200_000;
+            w.Append(new JsonObject { ["t"] = tStart, ["tEnd"] = tStart + 900_000, ["type"] = "text.masked", ["count"] = 9, ["inSeq"] = ++inSeq, ["inSeqEnd"] = inSeq + 17, ["events"] = 18, ["reason"] = "terminalPrompt", ["rule"] = "T1", ["promptLine"] = PromptLine, ["fg"] = "w4", ["focus"] = tf });
+            inSeq += 17;
+            t = tStart + 1_000_000;
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "gap", ["gapId"] = "gtp", ["phase"] = "end", ["cause"] = "privacyMode", ["tFrom"] = tStart - 200_000, ["tTo"] = t, ["channels"] = new JsonArray("keyboard", "clipboard", "fieldValues"), ["inputLost"] = "none", ["detail"] = new JsonObject { ["trigger"] = "terminalPrompt", ["rule"] = "T1", ["end"] = "enter" } });
+            w.Append(new JsonObject { ["t"] = t, ["type"] = "system", ["kind"] = "privacyMode", ["active"] = false, ["trigger"] = "terminalPrompt", ["rule"] = "T1", ["end"] = "enter", ["gapId"] = "gtp" });
+            w.Append(new JsonObject { ["t"] = t, ["inSeq"] = ++inSeq, ["type"] = "key.down", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["hkl"] = "04070407", ["locks"] = new JsonArray(), ["fg"] = "w4", ["focus"] = tf, ["ctx"] = "nonText" });
+            w.Append(new JsonObject { ["t"] = t + 30_000, ["inSeq"] = ++inSeq, ["type"] = "key.up", ["vk"] = 13, ["sc"] = 28, ["key"] = "Enter", ["fg"] = "w4" });
         }
         if (withUac)
         {

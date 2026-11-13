@@ -25,6 +25,10 @@ public sealed class UiaResult
     public Rectangle? ScreenRect;
     /// <summary>Win32-Kontext (Fenster, ClassNN, Koordinaten) für AutoHotkey, siehe <see cref="Win32Detail"/>.</summary>
     public JsonObject? Win32;
+    /// <summary>Terminal (10 §6.1): letzte nicht leere Zeilen – nur im Arbeitsspeicher, nie ins Protokoll.</summary>
+    public string[]? Lines;
+    /// <summary>Terminal: Zeile mit der Schreibmarke ist leer (<c>null</c>: Schreibmarke nicht ermittelbar).</summary>
+    public bool? CursorBlank;
 }
 
 /// <summary>
@@ -179,6 +183,72 @@ public sealed class UiaService : IDisposable
         try { title = root.Current.Name ?? ""; } catch { }
         r.El = new JsonObject { ["title"] = Trunc(title, 500), ["nodes"] = nodes, ["incomplete"] = incomplete ? true : null };
         r.El.Clean();
+        return r;
+    }
+
+    /// <summary>
+    /// Ende des sichtbaren Terminaltexts (10 §6.1) über das TextPattern: bevorzugt die Zeilen bis zur Schreibmarke (leere Auswahl
+    /// = Schreibmarke, so bei Windows Terminal und der Konsole), sonst die sichtbaren Zeilen. Gelesen wird nur aus dem Element mit
+    /// Fokus (bzw. dem Fenster selbst) desselben Prozesses wie <paramref name="hwnd"/>. Ergebnis in <see cref="UiaResult.Lines"/>
+    /// (höchstens drei nicht leere Zeilen) – kein Ereignis, kein Protokoll. Ohne Textzugriff: Status <c>notAvailable</c>.
+    /// </summary>
+    public UiaResult TerminalTail(nint hwnd, int maxLines = TerminalPrompt.MaxLines)
+    {
+        var r = new UiaResult();
+        var root = AutomationElement.FromHandle(hwnd);
+        if (root == null) { r.Status = "notAvailable"; r.Src = "none"; return r; }
+        int pid = root.Current.ProcessId;
+        AutomationElement? el = null;
+        try
+        {
+            // Fokus im Terminal (Windows Terminal: TermControl) oder ein Vorfahre mit TextPattern
+            var f = AutomationElement.FocusedElement;
+            for (int i = 0; f != null && i < 6 && el == null; i++)
+            {
+                var c = f.Current;
+                if (c.ProcessId != pid) break;
+                if (f.GetCurrentPropertyValue(AutomationElement.IsTextPatternAvailableProperty) is true) { el = f; break; }
+                f = TreeWalker.ControlViewWalker.GetParent(f);
+                if (f == AutomationElement.RootElement) break;
+            }
+        }
+        catch { }
+        if (el == null)
+        {
+            if (root.GetCurrentPropertyValue(AutomationElement.IsTextPatternAvailableProperty) is true) el = root;
+            else el = root.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.IsTextPatternAvailableProperty, true));
+        }
+        if (el == null || !el.TryGetCurrentPattern(TextPattern.Pattern, out var p) || p is not TextPattern tp) { r.Status = "notAvailable"; r.Src = "none"; return r; }
+        string? text = null;
+        try
+        {
+            var sel = tp.GetSelection();
+            if (sel is { Length: > 0 })
+            {
+                var c = sel[0].Clone();
+                c.ExpandToEnclosingUnit(System.Windows.Automation.Text.TextUnit.Line);
+                c.MoveEndpointByUnit(System.Windows.Automation.Text.TextPatternRangeEndpoint.Start, System.Windows.Automation.Text.TextUnit.Line, -(maxLines + 4));
+                text = c.GetText(8000);
+                if (text != null) r.CursorBlank = TerminalPrompt.CursorLineBlank(text);
+            }
+        }
+        catch { text = null; r.CursorBlank = null; }
+        if (string.IsNullOrEmpty(text))
+        {
+            try
+            {
+                var vis = tp.GetVisibleRanges();
+                if (vis is { Length: > 0 })
+                {
+                    var all = vis[0].Clone();
+                    all.MoveEndpointByRange(System.Windows.Automation.Text.TextPatternRangeEndpoint.End, vis[^1], System.Windows.Automation.Text.TextPatternRangeEndpoint.End);
+                    text = all.GetText(20000);
+                }
+            }
+            catch { }
+        }
+        r.Lines = TerminalPrompt.TailLines(text, maxLines);
+        r.Src = "uia";
         return r;
     }
 

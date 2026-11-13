@@ -122,7 +122,7 @@ public sealed partial class Recorder : IDisposable
         _procs = new ProcessWatch(Now, _startUtc, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, Options.AppContext, sources.Contains("eventLogText"));
         // Protokolldateien (Paket 13): nur Zeilen während der Aufnahme, nicht in Pause und Privattaste
         if (sources.Contains("logFiles"))
-            _logs = new LogWatch(Options.LogFiles, Now, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, () => State == RecorderState.Recording && !PrivacyMode);
+            _logs = new LogWatch(Options.LogFiles, Now, ev => { lock (_gate) { if (!_w.Closed && State != RecorderState.Stopped) Emit(ev); } }, () => State == RecorderState.Recording && !PrivacyActive);
         _reg.Registered = (e, t) => _procs.Observe(e, t);
 
         // Hooks setzen → Bestätigung = t0
@@ -197,8 +197,9 @@ public sealed partial class Recorder : IDisposable
     JsonObject KeyStateSync(string reason, string? gapId)
     {
         var down = new JsonArray();
+        _arrDown.Clear();
         foreach (uint vk in new uint[] { 0xA0, 0xA1, 0xA2, 0xA3, 0xA4, 0xA5, 0x5B, 0x5C })
-            if ((GetAsyncKeyState((int)vk) & 0x8000) != 0) { down.Add(new JsonObject { ["vk"] = vk, ["key"] = KeyNames.Name(vk, false) }); _keys.Down(vk); }
+            if ((GetAsyncKeyState((int)vk) & 0x8000) != 0) { down.Add(new JsonObject { ["vk"] = vk, ["key"] = KeyNames.Name(vk, false) }); _keys.Down(vk); _arrDown.Add(vk); }
         var mouse = new JsonArray();
         if ((GetAsyncKeyState(0x01) & 0x8000) != 0) mouse.Add("primary");
         if ((GetAsyncKeyState(0x02) & 0x8000) != 0) mouse.Add("secondary");
@@ -384,6 +385,8 @@ public sealed partial class Recorder : IDisposable
             Emit(KeyStateSync("resume", gid));
             _frames.Paused = false;
             _frames.Immediate("resume", null, forceKey: true);
+            // erkannte Passwortabfrage: eine Pause beendet sie nicht; die 60 s ohne Taste zählen ab dem Fortsetzen (10 §6.2)
+            if (_tp is { } tpa) tpa.LastKeyT = t;
             SetState(RecorderState.Recording);
         }
     }
@@ -516,6 +519,7 @@ public sealed partial class Recorder : IDisposable
         {
             DrainRing();
             FlushPendingKeys(force: true);
+            try { TpEnd("stopped", Now(), flushPending: false); } catch { }
             FlushMasked(); FlushMove();
         }
         StopObservers();

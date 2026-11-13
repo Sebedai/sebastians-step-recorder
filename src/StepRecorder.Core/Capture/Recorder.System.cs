@@ -67,7 +67,7 @@ public sealed partial class Recorder
             var eev = ElementEvent("focus", _focusSeq, res, null, 0, 0, win);
             Emit(eev);
             // Terminal, Remote-Desktop, VM: Inhalt nie als Feldwert (03 §7.4) – nur Eingaben, die der Durchsicht unterliegen
-            if (res.Value != null && !res.IsPassword && !PrivacyMode && (win == null || WindowRegistry.SurfaceOf(win) == "structured"))
+            if (res.Value != null && !res.IsPassword && !PrivacyActive && (win == null || WindowRegistry.SurfaceOf(win) == "structured"))
                 Emit(new JsonObject { ["t"] = res.TEnd, ["type"] = "ui.value", ["el"] = ElementRef(res.El), ["win"] = win?.Id, ["phase"] = "focusIn", ["value"] = res.Value }.Clean());
         }
     }
@@ -182,6 +182,7 @@ public sealed partial class Recorder
                     _fgWin = e;
                     Emit(new JsonObject { ["t"] = t, ["tObs"] = tObs, ["tSrc"] = "sys", ["tErr"] = 16000, ["type"] = "window.foreground", ["win"] = e.Id, ["prev"] = prev?.Id }.Clean());
                     CheckForegroundGaps(e, t);
+                    try { TpForeground(e, t); } catch (Exception ex) { T("terminal: " + ex.Message); }
                     break;
                 }
             case EVENT_OBJECT_SHOW when topLevel:
@@ -238,7 +239,7 @@ public sealed partial class Recorder
     /// </summary>
     string? ReadClipboardContent(List<string> formats)
     {
-        if (!Options.ContentSources().Contains("clipboardContent") || PrivacyMode) return null;
+        if (!Options.ContentSources().Contains("clipboardContent") || PrivacyActive) return null;
         if (!formats.Contains("CF_UNICODETEXT") && !formats.Contains("CF_TEXT")) return null;
         if (formats.Contains("ExcludeClipboardContentFromMonitorProcessing") || formats.Contains("CanIncludeInClipboardHistory") || formats.Contains("CanUploadToCloudClipboard")) return null;
         nint owner = GetClipboardOwner();
@@ -276,14 +277,14 @@ public sealed partial class Recorder
             var ev = new JsonObject { ["t"] = t, ["type"] = "clipboard", ["clip"] = "cb" + ++_clipN, ["seqNo"] = GetClipboardSequenceNumber(), ["kind"] = kind, ["formats"] = new JsonArray(formats.Take(20).Select(f => (JsonNode)f).ToArray()) };
             if (ownerWin != null && !ownerWin.Excluded) ev["ownerWin"] = ownerWin.Id;
             if (sensitive) ev["sensitive"] = true;
-            if (content != null && !PrivacyMode && !sensitive && ownerWin is not { Excluded: true } && kind is "text" or "mixed")
+            if (content != null && !PrivacyActive && !sensitive && ownerWin is not { Excluded: true } && kind is "text" or "mixed")
             {
                 int max = Math.Max(100, Options.ValueMaxChars);
                 ev["size"] = content.Length;
                 ev["content"] = content.Length > max ? content[..max] : content;
                 if (content.Length > max) ev["truncated"] = true;
             }
-            else if (kind != "empty") ev["withheld"] = ownerWin is { Excluded: true } ? "excludedApp" : PrivacyMode ? "privacyMode" : sensitive ? "sensitiveFormat" : "optOut";
+            else if (kind != "empty") ev["withheld"] = ownerWin is { Excluded: true } ? "excludedApp" : PrivacyActive ? "privacyMode" : sensitive ? "sensitiveFormat" : "optOut";
             Emit(ev);
         }
     }

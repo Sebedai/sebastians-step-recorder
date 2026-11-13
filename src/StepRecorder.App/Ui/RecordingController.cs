@@ -74,6 +74,7 @@ sealed class RecordingController
         _rec.StateChanged += s => Application.Current.Dispatcher.BeginInvoke(() => OnState(s));
         _rec.ActionLine += t => Application.Current.Dispatcher.BeginInvoke(() => _bar?.Message(t));
         _rec.Warning += t => Application.Current.Dispatcher.BeginInvoke(() => _bar?.Message(t, true));
+        _rec.TerminalPromptChanged += on => Application.Current.Dispatcher.BeginInvoke(() => OnTerminalPrompt(on));
         _rec.Reminder += (kind, n) => Application.Current.Dispatcher.BeginInvoke(() => Remind(kind, n));
         _rec.ResumeConfirmationNeeded += () => Application.Current.Dispatcher.BeginInvoke(() =>
             _bar?.Message(Loc.L("Aufnahme pausiert (Sperre/Benutzerwechsel) – mit Fortsetzen weiter.", "Recording paused (lock/user switch) – continue with Resume."), true, sticky: true));
@@ -161,13 +162,13 @@ sealed class RecordingController
     void UpdateBar()
     {
         var elapsed = (_pausedAt ?? DateTime.Now) - _started - _pausedTotal;
-        _bar?.SetTime(elapsed, _rec.ActionCount, _rec.State, _rec.PrivacyMode);
+        _bar?.SetTime(elapsed, _rec.ActionCount, _rec.State, Private);
         if (_tray != null)
         {
-            string state = _rec.State == RecorderState.Paused ? "paused" : _rec.PrivacyMode ? "private" : "rec";
+            string state = _rec.State == RecorderState.Paused ? "paused" : Private ? "private" : "rec";
             if (DateTime.Now < _remindUntil && DateTime.Now.Millisecond < 500) state = "remind";
             if (state != _trayState) { _trayState = state; _tray.SetIcon(TrayIcon.Render(state)); }
-            string what = _rec.State == RecorderState.Paused ? Loc.L("pausiert", "paused") : _rec.PrivacyMode ? Loc.L("läuft (privat)", "running (private)") : Loc.L("läuft", "running");
+            string what = _rec.State == RecorderState.Paused ? Loc.L("pausiert", "paused") : Private ? Loc.L("läuft (privat)", "running (private)") : Loc.L("läuft", "running");
             _tray.SetTip(StepRecorder.Data.AppInfo.DisplayName + "\n" + Loc.F("Aufnahme {0} · {1} · {2}", "Recording {0} · {1} · {2}", what, elapsed.ToString("mm\\:ss"), Loc.N(_rec.ActionCount, "1 Schritt", "{0} Schritte", "1 step", "{0} steps")) + "\n" + Loc.L("Klick: Leiste · Rechtsklick: Menü", "Click: bar · Right-click: menu"));
         }
     }
@@ -256,17 +257,31 @@ sealed class RecordingController
         else if (s == RecorderState.Recording)
         {
             if (_pausedAt != null) { _pausedTotal += DateTime.Now - _pausedAt.Value; _pausedAt = null; }
-            _frame?.SetStyle(FrameWindow.RecBrush, dashed: _rec.PrivacyMode);
+            _frame?.SetStyle(FrameWindow.RecBrush, dashed: Private);
         }
         UpdateBar();
     }
 
     public void TogglePause() { if (_sounds) Tones.Pause(); if (_rec.State == RecorderState.Paused) _rec.Resume(); else _rec.Pause(); }
 
+    /// <summary>Privatmodus aus irgendeinem Grund: Privattaste oder erkannte Passwortabfrage im Terminal.</summary>
+    bool Private => _rec.PrivacyMode || _rec.TerminalPromptActive;
+
+    /// <summary>Erkannte Passwortabfrage im Terminal (10 §6.2): Leiste und Rahmen wie im Privatmodus, mit „Passwortabfrage erkannt“.</summary>
+    void OnTerminalPrompt(bool on)
+    {
+        _frame?.SetStyle(FrameWindow.RecBrush, dashed: Private);
+        string text = on ? Loc.L("Passwortabfrage erkannt – Eingabe wird maskiert bis zur Eingabetaste.", "Password prompt detected – input is masked until Enter.")
+                         : Loc.L("Passwortabfrage beendet.", "Password prompt ended.");
+        _bar?.Message(text, on, sticky: on);
+        if (on && (_bar == null || !_bar.IsVisible) && !_hiddenMode) _frame?.ShowTag(text, 5);
+        UpdateBar();
+    }
+
     public void TogglePrivacy()
     {
         _rec.TogglePrivacy();
-        _frame?.SetStyle(FrameWindow.RecBrush, dashed: _rec.PrivacyMode);
+        _frame?.SetStyle(FrameWindow.RecBrush, dashed: Private);
         _bar?.Message(_rec.PrivacyMode ? Loc.L("Privat – Eingaben werden nicht gespeichert.", "Private – input is not being saved.") : Loc.L("Privatmodus aus.", "Private mode off."), _rec.PrivacyMode);
         UpdateBar();
     }
