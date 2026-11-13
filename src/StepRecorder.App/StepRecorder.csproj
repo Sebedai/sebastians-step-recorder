@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetFramework>net11.0-windows10.0.19041.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
@@ -20,7 +20,8 @@
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <Deterministic>true</Deterministic>
-    <NoWarn>$(NoWarn);CA1416;WFAC010</NoWarn>
+    <!-- WFO0003 (früher WFAC010): DPI-Modus steht bewusst im Manifest (WPF, Per-Monitor v2). WFO2000: Listen mit Texten der Oberflächensprache werden absichtlich je Aufruf neu gebaut. -->
+    <NoWarn>$(NoWarn);CA1416;WFAC010;WFO0003;WFO2000</NoWarn>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">
@@ -28,6 +29,11 @@
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- Umgehung für .NET 11: WPF-Einzeldateien stürzen sonst beim Start ab, weil DirectWriteForwarder.dll und
+         System.Printing.dll (gemischter Code) nicht aus dem Bundle geladen werden können (dotnet/wpf#11842).
+         Entfernen, sobald ein .NET-11-Update den Fehler behebt. Folge: Der Inhalt wird beim ersten Start einer
+         Version nach %TEMP%\.net\ entpackt; AppPaths.ExeDir nutzt deshalb Environment.ProcessPath. -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <PublishReadyToRun>false</PublishReadyToRun>
     <DebugType>none</DebugType>
   </PropertyGroup>
@@ -43,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Speech" Version="8.0.0" />
+    <PackageReference Include="System.Speech" Version="11.0.0" />
     <!-- Fluent-Steuerelemente (Windows 11), MIT-Lizenz – siehe THIRD-PARTY-NOTICES.md -->
     <PackageReference Include="WPF-UI" Version="4.3.0" />
   </ItemGroup>

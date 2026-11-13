@@ -91,6 +91,7 @@ public static class Diagnostics
         Add(() => AppPaths.DefaultSessionsFolder(), "<Aufnahmeordner>");
         Add(() => AppPaths.DataDir, "<Datenordner>");
         Add(() => AppPaths.StateDir, "<Zustandsordner>");
+        Add(() => AppPaths.ExeDir, "<Programmordner>");
         Add(() => AppContext.BaseDirectory, "<Programmordner>");
         Add(() => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "<Profil>");
         Add(() => Environment.UserName, "<Benutzer>");

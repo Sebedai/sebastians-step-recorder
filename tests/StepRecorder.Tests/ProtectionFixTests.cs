@@ -106,7 +106,7 @@ public class ProtectionFixTests : IDisposable
             if (e.Str("type") is "key.up" && e.Str("fg") == "w2" && e.Long("vk") != 13) Assert.Equal("Redacted", e.Str("key"));
         }
         var (issues, _) = Validator.Validate(folder, thorough: true);
-        Assert.Empty(issues.Where(i => i.Severity == "error"));
+        Assert.DoesNotContain(issues, i => i.Severity == "error");
     }
 
     [Fact]
