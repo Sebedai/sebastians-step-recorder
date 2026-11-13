@@ -1030,6 +1030,8 @@ Ein Marker ist eine Stelle im **zeitlichen Ablauf**. Davon zu unterscheiden ist 
 
 ### 7.7 Aufnahmeabschnitte, Nahtstellen und ersetzte Schritte
 
+*Stand der Umsetzung:* `trace.md` folgt der wirksamen Folge; die Kopfdaten nennen „Aufnahmeabschnitte“ und „Wirksame Schrittfolge“ (Zahl der Schritte, ersetzt, nicht verwendet, Nahtstellen), Nahtstellen stehen mit dem Wortlaut unten im Ablauf und in der Gliederung (`SeamText`), über eine Nahtstelle steht kein Abstand und kein Leerlauf. „Vollständig“ zeigt ersetzte Schritte als Blöcke `## Ersetzter Schritt …` vor der Nahtstelle und nicht verwendete Neuaufnahmen am Ende – nur mit Art, Zeit und Aktion, ohne Bilder; ungeprüfte Eingaben darin ohne Inhalt. `ai-package.json` zählt unter `replacements` (`count`, `replacedSteps`, `unusedSteps`, `seams`). Der MCP-Server liefert in `get_session` `parts` und `replacements` und Nahtstellen als eigene Einträge der Gliederung.
+
 Eine Sitzung kann aus mehreren **Aufnahmeabschnitten** bestehen ([04](04-datenformat.md#aufnahmeabschnitte)): Der Autor hat später weiter aufgenommen – als **Fortsetzung** oder als **Neuaufnahme**, die frühere Schritte ersetzt („Neu aufnehmen und ersetzen“, [08](08-viewer.md#93-abschnitt-neu-aufnehmen-und-ersetzen); `edits.replacements[]`, [04](04-datenformat.md#edits-replacements)). Was dann als Ablauf gilt, legt die [Schritterkennung](05-schritterkennung.md#wirksame-schrittfolge) fest: die **wirksame Schrittfolge**. Dieses Dokument legt fest, wie `trace.md` sie zeigt.
 
 **Reihenfolge und Nummern**

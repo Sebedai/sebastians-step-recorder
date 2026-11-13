@@ -60,7 +60,7 @@ public static class SessionSanitizer
         // sonst stünde der Wert nach dem Neubau der Schritte wieder im Klartext
         var neuter = new HashSet<long>();
         var rawSteps = (s.LoadSteps()?.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().GroupBy(x => x.Long("anchorSeq")).ToDictionary(g => g.Key, g => g.First());
-        foreach (var st in v.All.Where(x => x.Kind == "type"))
+        foreach (var st in v.AllWithInactive.Where(x => x.Kind == "type"))
         {
             var raw = rawSteps.GetValueOrDefault(st.Anchor);
             string rawText = raw?.Obj("input")?.Str("text") ?? "";
@@ -152,7 +152,7 @@ public static class SessionSanitizer
             if (r.Str("kind") == "range")
             {
                 var rawSteps = (v.Session.LoadSteps()?.Arr("steps") ?? new JsonArray()).OfType<JsonObject>().GroupBy(x => x.Long("anchorSeq")).ToDictionary(g => g.Key, g => g.First());
-                foreach (var st in v.All.Where(x => x.Kind == "type" && x.Redacted))
+                foreach (var st in v.AllWithInactive.Where(x => x.Kind == "type" && x.Redacted))
                     if (rawSteps.GetValueOrDefault(st.Anchor)?.Obj("input")?.Str("text") is { Length: >= 4 } t) Add(t);
             }
         }

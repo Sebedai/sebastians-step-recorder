@@ -2245,6 +2245,8 @@ Regeln:
     "atUtc": "2026-11-12T08:41:30.000000Z" } ] }
 ```
 
+*Stand der Umsetzung:* Abschnitte (`parts[]`, `session.start` mit `part`, `purpose`, `replaces`) und `replacements[]` sind umgesetzt; geschrieben werden sie beim Anhängen einer Neuaufnahme (`SectionAppender`, [03 §1.7](03-aufzeichnungskern.md#weitere-abschnitte)), aufgehoben und wieder angelegt im Viewer (`SectionEdits`). Die Bedingungen von F22 prüft die Leseschicht beim Aufbau der wirksamen Folge (ungültige Einträge bleiben ohne Wirkung, mit Grund `unknownSection`, `order`, `notReplacement`, `duplicate`, `range`, `overlap`, `discarded`, `inUnused`); die Formatprüfung (`validate`) meldet sie nicht eigens. `sections[]` (13.16) wird gelesen, aber von diesem Programm nicht geschrieben – eine verworfene Neuaufnahme entsteht gar nicht erst als Abschnitt. `parts[].discarded` wird nicht geschrieben.
+
 <a id="edits-substitutions"></a>
 ### 13.14 Verallgemeinerungen (`substitutions`)
 

@@ -263,6 +263,8 @@ Vier Angaben des Autors verändern, was die Anleitung zeigt (alle Soll). Sie sta
 
 **Neuaufnahmen.** Hat der Autor Schritte neu aufgenommen und ersetzt ([08](08-viewer.md#93-abschnitt-neu-aufnehmen-und-ersetzen)), zeigt die Anleitung nur die neue Fassung.
 
+*Stand der Umsetzung (EXP-160):* Alle Anleitungsformate lesen `GuideSteps`/`Effective` und damit die wirksame Schrittfolge ([05 §16](05-schritterkennung.md#wirksame-schrittfolge)): Die neuen Schritte stehen an der Stelle des ersten ersetzten, fortlaufend nummeriert; ersetzte Schritte und nicht verwendete Neuaufnahmen erscheinen bei keiner Wahl des Umfangs, nach „Ersetzung aufheben“ stehen wieder die früheren Schritte dort. Die Anleitung selbst zeigt keine Nahtstelle; die Qualitätsprüfung meldet sie als Q18 („Vor diesem Schritt passt der Zustand nicht nahtlos.“) am ersten Schritt dahinter, und Q06 bildet über eine Nahtstelle keinen Abstand.
+
 - Maßgeblich ist die wirksame Schrittfolge aus [05](05-schritterkennung.md#wirksame-schrittfolge): Die neuen Schritte stehen an der Stelle des ersten ersetzten, und die Nummerierung läuft fortlaufend durch.
 - Ersetzte Schritte und Schritte einer nicht verwendeten Neuaufnahme erscheinen in keiner der vier Ausgaben, auch nicht mit „Alle Schritte“. Dasselbe gilt für verworfene Abschnitte ([07](07-aufnahme-bedienung.md#12-stopp-und-übergang-zum-viewer)).
 - Ein Vermerk „neu aufgenommen“ erscheint nicht: Die Anleitung zeigt den Ablauf, wie er sein soll. Wer beide Fassungen braucht, nimmt das KI-Paket in seiner ausführlichsten Detailstufe ([06](06-ki-export-und-mcp.md#77-aufnahmeabschnitte-nahtstellen-und-ersetzte-schritte)).

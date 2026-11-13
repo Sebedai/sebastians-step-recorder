@@ -164,6 +164,7 @@ public static class KiPackage
             ["parts"] = new JsonArray(new JsonObject { ["file"] = "trace.md", ["steps"] = new JsonArray(1, allSteps.Count), ["estimatedTokens"] = new JsonObject { ["text"] = trace.Length / 3, ["images"] = res.ImageTokens } }),
             ["images"] = imagesMeta,
             ["redactions"] = CountRedactions(view.Edits),
+            ["replacements"] = new JsonObject { ["count"] = view.SectionStats().effectiveReplacements, ["replacedSteps"] = view.SectionStats().replaced, ["unusedSteps"] = view.SectionStats().unused, ["seams"] = view.Seams.Count },
             ["review"] = new JsonObject { ["unreviewedInputs"] = res.Unreviewed },
             ["checksums"] = new JsonObject { ["algorithm"] = "SHA-256", ["files"] = checks }
         };
@@ -347,6 +348,7 @@ public static class KiPackage
         var start = s.StartUtc.ToLocalTime();
         long dur = s.DurationUs;
         L((de ? "- Zeitraum: " : "- Period: ") + $"{start:yyyy-MM-dd HH:mm:ss} – {start.AddTicks(dur * 10):HH:mm:ss} ({s.Manifest.Obj("timeZone").Str("id")}) · {(de ? "Dauer" : "Duration")} {Fmt.Time(dur, lang)}");
+        foreach (var hl in SeamText.HeaderLines(view, lang)) L(hl);
         var env = s.Manifest.Obj("environment");
         L((de ? "- System: " : "- System: ") + $"{env.Obj("os").Str("product")} {env.Obj("os").Str("displayVersion")} · {(de ? "Sprache" : "Language")} {env.Obj("locale").Str("ui")} · {(de ? "Tastaturlayout" : "Keyboard layout")} {env.Arr("keyboardLayouts")?.FirstOrDefault()?.Str("name")}");
         var mons = s.Events.FirstOrDefault(e => e.Str("type") == "display.topology")?.Arr("monitors") ?? new JsonArray();
@@ -460,31 +462,49 @@ public static class KiPackage
         L();
         // Gliederung
         L(de ? "## Gliederung" : "## Outline");
+        // Nahtstellen stehen als eigene Zeilen ohne Nummer in der Gliederung (06 §7.7)
+        ViewStep? prevOutline = null;
         foreach (var st in steps.Where(x => x.Importance != "trace"))
+        {
+            foreach (var seam in view.SeamsBetween(prevOutline, st)) L(SeamText.Line(view, seam, lang));
             L($"{st.Number}. {Fmt.Time(st.TFrom, lang)} · {Kind(st.Kind, lang)} · {OneLine(st.Protocol)} [{Lvl(st.EvidenceLevel, lang)}]");
+            prevOutline = st;
+        }
         L();
         L(de ? "## Ablauf" : "## Sequence");
         L();
-        // Ablauf mit Leerlauf-Hinweisen
+        // Ablauf mit Leerlauf-Hinweisen; mit Nahtstellen nur Leerlauf zwischen zwei Schritten desselben Abschnitts
         var timeline = view.Steps.Arr("timeline") ?? new JsonArray();
         var idles = timeline.Where(x => x.Str("kind") == "idle" && x.Long("tTo") - x.Long("tFrom") >= 2_000_000).Select(x => (from: x.Long("tFrom"), to: x.Long("tTo"))).ToList();
+        bool sectioned = view.Seams.Count > 0;
+        void Idle(long a, long b) { L(de ? $"> Leerlauf {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – keine Eingaben." : $"> Idle {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – no input."); L(); }
         int idleIdx = 0;
-        ViewStep? prev = null;
+        ViewStep? prev = null, prevAny = null;
         int traceSkipped = 0;
         foreach (var st in steps)
         {
-            while (idleIdx < idles.Count && idles[idleIdx].to <= st.TFrom)
+            var seams = view.SeamsBetween(prevAny, st);
+            if (!sectioned)
+                while (idleIdx < idles.Count && idles[idleIdx].to <= st.TFrom) { var (a, b) = idles[idleIdx++]; Idle(a, b); }
+            else if (prevAny != null && seams.Count == 0)
+                foreach (var (a, b) in idles.Where(x => x.from >= prevAny.TFrom && x.to <= st.TFrom)) Idle(a, b);
+            foreach (var seam in seams)
             {
-                var (a, b) = idles[idleIdx++];
-                L(de ? $"> Leerlauf {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – keine Eingaben." : $"> Idle {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – no input.");
-                L();
+                if (detail == "full" && seam.Kind == "replacementStart") foreach (var r in seam.Replaced) InactiveBlock(sb, r, lang, de ? "vom Autor ersetzt – nicht Teil des gültigen Ablaufs" : "replaced by the author – not part of the valid sequence");
+                L(SeamText.Line(view, seam, lang)); L();
             }
+            prevAny = st;
             if (st.Importance == "trace" && detail != "full") { traceSkipped++; continue; }
-            Block(sb, view, st, prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail, readable, beforeRefs?.GetValueOrDefault(st.Id));
+            Block(sb, view, st, prev != null && view.SeamBetween(prev, st) ? null : prev, images.TryGetValue(st.Id, out var im) ? im : new(), lang, detail, readable, beforeRefs?.GetValueOrDefault(st.Id));
             prev = st;
         }
-        while (idleIdx < idles.Count) { var (a, b) = idles[idleIdx++]; L(de ? $"> Leerlauf {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – keine Eingaben." : $"> Idle {Fmt.Dur(b - a, lang)} ({Fmt.Time(a, lang)} – {Fmt.Time(b, lang)}) – no input."); L(); }
+        if (!sectioned) while (idleIdx < idles.Count) { var (a, b) = idles[idleIdx++]; Idle(a, b); }
+        else if (prevAny != null) foreach (var (a, b) in idles.Where(x => x.from >= prevAny.TFrom && x.to <= (view.SectionInfo(prevAny.Section)?.TEnd ?? long.MaxValue))) Idle(a, b);
         if (traceSkipped > 0) { L(de ? $"> {traceSkipped} Spurschritte (Mausbewegungen, Titeländerungen u. ä.) sind nur in steps.json enthalten." : $"> {traceSkipped} trace steps (mouse movements, title changes etc.) are only in steps.json."); L(); }
+        // ausführlichste Detailstufe: nicht verwendete Neuaufnahmen am Ende, gekennzeichnet (05 §16.5)
+        if (detail == "full")
+            foreach (var u in view.Inactive.Where(x => x.State == "unused"))
+                InactiveBlock(sb, u, lang, de ? "nicht verwendete Neuaufnahme – nicht Teil des gültigen Ablaufs" : "unused re-recording – not part of the valid sequence");
         L(de ? $"> Aufnahme beendet bei {Fmt.Time(dur, lang)}." : $"> Recording ended at {Fmt.Time(dur, lang)}.");
         return sb.ToString();
     }
@@ -492,6 +512,20 @@ public static class KiPackage
     static string Cd(string lang, string? s, int max = 120) => Fmt.Code(s, max, lang);
     static string Kind(string k, string lang) => KindNames.TryGetValue(k, out var n) ? (lang == "de" ? n.de : n.en) : k;
     static string OneLine(string s) => s.Replace("\n", " ").Replace("\r", "");
+
+    /// <summary>
+    /// Ersetzter oder nicht verwendeter Schritt in „Vollständig“: eigener Block ohne Schrittnummer (06 §7.7). Nur Art, Zeit und Aktion –
+    /// ungeprüfte und geschwärzte Eingaben ohne Inhalt, weil diese Schritte nicht in der Durchsicht stehen.
+    /// </summary>
+    static void InactiveBlock(StringBuilder sb, ViewStep st, string lang, string note)
+    {
+        bool de = lang == "de";
+        sb.Append(de ? $"## {(st.State == "unused" ? "Nicht verwendeter Schritt" : "Ersetzter Schritt")} {st.Id} · {Fmt.Time(st.TFrom, lang)} · {Kind(st.Kind, lang)}"
+                     : $"## {(st.State == "unused" ? "Unused step" : "Replaced step")} {st.Id} · {Fmt.Time(st.TFrom, lang)} · {Kind(st.Kind, lang)}").Append('\n');
+        sb.Append(de ? "- Hinweis: " : "- Note: ").Append(note).Append('\n');
+        string action = st.Redacted ? (de ? "Schritt geschwärzt" : "Step redacted") : st.Unreviewed ? (de ? "Eingabe nicht durchgesehen – Inhalt nicht ausgegeben" : "input not reviewed – content not shown") : OneLine(st.Protocol);
+        sb.Append(de ? "- Aktion: " : "- Action: ").Append(action).Append('\n').Append('\n');
+    }
 
     static void Block(StringBuilder sb, SessionView view, ViewStep st, ViewStep? prev, List<(string file, RenderedImage img)> images, string lang, string detail, bool readable = false, string? beforeRef = null)
     {

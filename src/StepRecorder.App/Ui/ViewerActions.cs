@@ -367,8 +367,8 @@ sealed class ReviewWindow : Window
     {
         Title = Loc.L("Durchsicht der Eingaben", "Input review"); Width = 800; Height = 660; MinHeight = 420; WindowStartupLocation = WindowStartupLocation.CenterOwner; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Bg);
-        var flagged = view.All.Where(s => s.Unreviewed).ToList();
-        var others = view.All.Where(s => s.Kind == "type" && !s.Unreviewed && !s.Json.Obj("input")!.Bool("masked")).ToList();
+        var flagged = view.AllWithInactive.Where(s => s.Unreviewed).ToList();
+        var others = view.AllWithInactive.Where(s => s.Kind == "type" && !s.Unreviewed && !s.Json.Obj("input")!.Bool("masked")).ToList();
         var list = new StackPanel { Margin = new Thickness(28, 24, 28, 24) };
         list.Children.Add(U.Heading(Loc.L("Durchsicht der Eingaben", "Input review"), Theme.FsTitle, new Thickness(0, 0, 0, 4)));
         list.Children.Add(U.Text(flagged.Count == 0 ? Loc.L("Keine auffälligen Eingaben. Bitte die übrigen Eingaben kurz prüfen.", "No conspicuous inputs. Please briefly check the remaining inputs.") : Loc.N(flagged.Count, "1 auffällige Eingabe – bitte entscheiden, ob sie bleiben darf.", "{0} auffällige Eingaben – bitte für jede entscheiden, ob sie bleiben darf.", "1 conspicuous input – please decide whether it may stay.", "{0} conspicuous inputs – please decide for each whether it may stay."), Theme.FsBody, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 18)));
