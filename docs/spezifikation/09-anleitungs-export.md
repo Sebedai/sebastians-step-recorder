@@ -2,7 +2,7 @@
 
 Status: Entwurf 0.1 · Stand: 2026-11-11
 
-Dieses Dokument legt fest, wie aus einer Sitzung eine Anleitung für Menschen wird: als HTML, Markdown, Word-Dokument oder PDF; dazu kommen PowerPoint, Klick-Tour, Fehlerbericht und GIF ([8a](#8a-powerpoint) bis [8d](#8d-gif)). Es beschreibt den Exportdialog, die Optionen, die Eigenschaften jedes Formats, Vorlagen, die Entschärfung aufgezeichneter Texte, die Prüfung vor dem Export mit dem Regelkatalog der Qualitätsprüfung, das Support-Paket und den Export über die Kommandozeile. Das KI-Paket ist kein Anleitungs-Export und steht in [06](06-ki-export-und-mcp.md).
+Dieses Dokument legt fest, wie aus einer Sitzung eine Anleitung für Menschen wird: als HTML, Markdown, Word-Dokument oder PDF; dazu kommen PowerPoint, Klick-Tour, Fehlerbericht, GIF und Video ([8a](#8a-powerpoint) bis [8e](#8e-video-mp4)). Es beschreibt den Exportdialog, die Optionen, die Eigenschaften jedes Formats, Vorlagen, die Entschärfung aufgezeichneter Texte, die Prüfung vor dem Export mit dem Regelkatalog der Qualitätsprüfung, das Support-Paket und den Export über die Kommandozeile. Das KI-Paket ist kein Anleitungs-Export und steht in [06](06-ki-export-und-mcp.md).
 
 ## Inhalt
 
@@ -57,7 +57,7 @@ Aufruf mit `Strg+E` oder über das Exportmenü im Editor. Das Menü bietet nur F
 ```
 ┌─ Exportieren ───────────────────────────────────────────────────────────────────┐
 │ Format:  [HTML] [Markdown] [Word] [PDF] [PowerPoint] [Klick-Tour]               │
-│          [Fehlerbericht] [GIF] [KI-Paket] [AutoHotkey]                          │
+│          [Fehlerbericht] [GIF] [Video] [KI-Paket] [AutoHotkey]                  │
 │                                                                                 │
 │ Art:     [Standard v]                        Sprache:     [Deutsch v]           │
 │ Umfang:  [Hauptschritte v]                   Darstellung: [Ganzer Bildschirm v] │
@@ -74,7 +74,7 @@ Aufruf mit `Strg+E` oder über das Exportmenü im Editor. Das Menü bietet nur F
 
 - **Vorbelegung:** Der Dialog öffnet mit den Optionen, die für das gewählte Format zuletzt galten ([4.5](#45-gespeicherte-export-einstellungen)). Die Sprache ist die des letzten Exports dieser Aufnahme, sonst die der Anleitungstexte. Beim ersten Mal stammen Darstellung und Ausschnittübersicht aus den Dokument-Einstellungen der Aufnahme.
 - **Zielwahl:** „Speichern unter“ zeigt den vollständigen Pfad der Datei (beim KI-Paket und bei AutoHotkey als KI-Paket den des Ordners). „Durchsuchen …“ wählt Ordner und Namen; „Standardort“ kehrt in den Ordner `export/` der Aufnahme zurück. Ein unvollständiger Pfad wird zurückgewiesen. Das Feld „Enthält“ nennt die Dateien, die entstehen.
-- **Optionen je Format:** „Art“ gibt es bei HTML, Markdown, Word und PDF ([9.4](#94-art-der-anleitung)). Umfang, Darstellung und der Umgang mit fehlenden Übersetzungen gelten für alle Anleitungsformate, „Im Bild markieren“ für alle Formate mit Bildern. Das KI-Paket zeigt Detailstufe und Bildgröße ([3.4](#34-ki-paket-im-selben-dialog)), das GIF die Dauer je Schritt, die Klick-Tour den Hinweisring, AutoHotkey die Denkpausen und die Wahl „Als KI-Paket“.
+- **Optionen je Format:** „Art“ gibt es bei HTML, Markdown, Word und PDF ([9.4](#94-art-der-anleitung)). Umfang, Darstellung und der Umgang mit fehlenden Übersetzungen gelten für alle Anleitungsformate, „Im Bild markieren“ für alle Formate mit Bildern. Das KI-Paket zeigt Detailstufe und Bildgröße ([3.4](#34-ki-paket-im-selben-dialog)), GIF und Video die Dauer je Schritt, die Klick-Tour den Hinweisring, AutoHotkey die Denkpausen und die Wahl „Als KI-Paket“.
 - **Qualität:** Bei Anleitungsformaten zeigt eine Zeile die Zusammenfassung der Qualitätsprüfung ([12.1](#121-qualitätsprüfung-regelkatalog)) – „Qualität: N Warnungen, M Hinweise“. „Ansehen (F8)“ schließt den Dialog und öffnet die Hinweisliste im Editor ([08](08-viewer.md#121-qualitätshinweise)). Gibt es keine Befunde, fehlt die Zeile.
 - **Durchsicht:** Sind auffällige Eingaben ungeprüft, fragt das Programm schon vor dem Dialog, ob die Durchsicht jetzt geöffnet werden soll; die Ausgabe entsteht erst danach ([12](#12-export-vorprüfung)). Das KI-Paket ist davon ausgenommen ([06](06-ki-export-und-mcp.md), [10](10-datenschutz-und-sicherheit.md)).
 - „Exportieren“ ist die Standardschaltfläche. Der häufigste Weg ist damit `Strg+E`, Eingabetaste.
@@ -500,6 +500,16 @@ Format `gif`: ein animiertes Bild, das die Schritte nacheinander zeigt – für 
 - **Größenziel** (12, Paket 18; Dialog: ohne, 5, 10 oder 25 MB; Kommandozeile `--gif-max-mb <n>`): Liegt das GIF darüber, wird erst die Breite schrittweise bis 480 Pixel verringert, dann nur jeder zweite, dritte … Schritt gezeigt. Das Ergebnis meldet die Verkleinerung als Hinweis, ein verfehltes Ziel als Warnung.
 - Umfang, Darstellung und Markierungen gelten wie bei den Anleitungsformaten.
 
+## 8e Video (MP4)
+
+Format `mp4`: dieselbe Bildfolge wie das GIF ([8d](#8d-gif)) als H.264-Video im MP4-Container – schärfer und kleiner als das GIF, mit Anhalten und Spulen; für Intranet, Lernplattform, Teams oder Videoportale.
+
+- **Kein Bildschirmvideo** ([00 §4](00-ueberblick.md#4-nicht-ziele)): Das Video entsteht nachträglich aus den Schrittbildern der Aufnahme – Titelbild, dann je Schritt Bild mit Nummer und Überschrift, ohne Anleitungstexte und ohne Ton. Es läuft einmal durch (keine Schleife).
+- **Dauer je Schritt** wie beim GIF: 1,5, 2,5 (Standard) oder 4 Sekunden; das Titelbild steht mindestens 1,5 Sekunden. Kommandozeile: `--seconds <0.5–20>` (gilt auch für das GIF). Ein Größenziel gibt es nicht.
+- **Bild:** bis 1600 Pixel breit, 15 Bilder je Sekunde (jedes Schrittbild wird wiederholt, bis seine Dauer erreicht ist), Breite und Höhe gerade (H.264), höchstens 1920 Pixel breit und 1920 × 1088 Bildpunkte. Qualitätsgesteuerte Kodierung, Schlüsselbild alle fünf Sekunden.
+- **Technik:** Windows Media Foundation (Sink Writer, Software-Encoder für H.264) über eigene Aufrufe – keine fremde Bibliothek, kein ffmpeg. Fehlt Media Foundation oder der H.264-Encoder (Windows N ohne „Media Feature Pack“), bricht der Export mit einer verständlichen Meldung ab; die Kommandozeile endet mit Exit-Code 7 („Voraussetzung fehlt“).
+- Umfang, Darstellung und Markierungen gelten wie bei den Anleitungsformaten; Datei `<Titel>.mp4` im Unterordner `video/` ([13](#13-dateibenennung-und-ablage)).
+
 ## 9 Vorlagen und Branding
 
 Eine **Vorlage** ist ein benannter Satz aller Exportoptionen samt Gestaltung. Sie gilt für alle vier Formate. Umgesetzt sind bisher die **Dokument-Einstellungen** der Aufnahme (Deckblatt, Inhaltsverzeichnis, Nummerierung, Bildgröße und -anordnung, Akzentfarbe, Logo, Fußzeile, Seitenformat, Word-Vorlage; `edits.guide.doc`), die der Editor als Vorlage speichern und anwenden kann und die sich über den Einstellungsaustausch weitergeben lassen, und die **Art der Anleitung** ([9.4](#94-art-der-anleitung)). Die mitgelieferten Vorlagen aus 9.1 und die Wahl einer Vorlage im Exportdialog sind Soll.
@@ -545,7 +555,7 @@ Die Art wählt im Exportdialog, wie viel eine Anleitung enthält. Sie gilt für 
 
 - Auf der Kommandozeile heißt die Option `--template standard|short|checklist` ([14](#14-kommandozeilen-export)); `kurz`, `kurzfassung`, `kompakt` und `checkliste` werden ebenfalls erkannt.
 - **Dateiname:** Kurzfassung und Checkliste hängen „ – Kurzfassung“ bzw. „ – Checkliste“ (englisch „ – short“, „ – checklist“) an den Titel, damit die Standardanleitung nicht überschrieben wird.
-- Für PowerPoint, Klick-Tour, Fehlerbericht, GIF, KI-Paket und AutoHotkey gibt es keine Art.
+- Für PowerPoint, Klick-Tour, Fehlerbericht, GIF, Video, KI-Paket und AutoHotkey gibt es keine Art.
 
 ## 10 Sprache der Schritttexte
 
@@ -690,7 +700,7 @@ Festlegungen:
 
 - **Standardziel** ist der Ordner `export/` in der Sitzung ([04](04-datenformat.md)). Bei gepackten Sitzungen ist es ein Ordner `Name-export/` neben der `.steprec`-Datei.
 - **Dateiname:** `{Titel}.{Endung}`. Bei der Kurzfassung und der Checkliste steht die Art dahinter ([9.4](#94-art-der-anleitung)). Die Vorlage kann `{Datum}`, `{Sprache}` und `{Vorlage}` hinzufügen (Soll), etwa `Datei im Editor speichern (en).pdf`.
-- **Unterordner von `export/`:** `html/`, `markdown/`, `docx/`, `pdf/`, `pptx/`, `tour/`, `fehlerbericht/`, `gif/`, `ahk/` und `ahk-ki/`; das KI-Paket liegt als `ki-paket-<Zeitstempel>/` unmittelbar in `export/`. Bei `.steprec`-Aufnahmen (schreibgeschützt) ist das Standardziel der Ordner neben der Archivdatei.
+- **Unterordner von `export/`:** `html/`, `markdown/`, `docx/`, `pdf/`, `pptx/`, `tour/`, `fehlerbericht/`, `gif/`, `video/`, `ahk/` und `ahk-ki/`; das KI-Paket liegt als `ki-paket-<Zeitstempel>/` unmittelbar in `export/`. Bei `.steprec`-Aufnahmen (schreibgeschützt) ist das Standardziel der Ordner neben der Archivdatei.
 - **Fremde Ordner:** Wählt der Autor einen eigenen Ordner, legen Markdown, Fehlerbericht und AutoHotkey darin einen Unterordner mit dem Titel an, damit `bilder` nicht mit anderem vermischt wird. Ordnerausgaben (KI-Paket, AutoHotkey als KI-Paket) leeren nie einen fremden Ordner: Ist der Zielordner nicht leer und enthält er keinen früheren Export, endet der Export mit einer Meldung (Exit-Code 8 auf der Kommandozeile).
 - Der Titel wird nach den Regeln aus [Abschnitt 11](#11-entschärfung-aufgezeichneter-texte) zu einem gültigen Dateinamen gemacht.
 - **Markdown:** `{Titel}.md` und `{Titel}-bilder/`, beide in der ASCII-Schreibweise aus [6.1](#61-dateien).
@@ -709,7 +719,7 @@ Der Befehl `export` erzeugt eine Anleitung ohne Oberfläche, etwa in Skripten. R
 **Ein Name, eine Bedeutung:** `--profile` gibt es bei `export` nicht. Der Name ist dem Aufnahmeprofil vorbehalten (`record --profile`, `support --profile`, [07](07-aufnahme-bedienung.md#31-aufnahme-über-die-kommandozeile)); das Bildprofil des KI-Pakets heißt auf der Kommandozeile `--image-profile`. Optionen, die nur für Anleitungen gelten – etwa `--template`, `--address`, `--after`, `--steps` –, sind zusammen mit `--format ki` ein Aufruffehler, ebenso die Optionen des KI-Pakets zusammen mit einem Anleitungsformat.
 
 ```
-SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|gif|pptx|tour|bugreport|ki|ahk|ahk-ki> [Optionen]
+SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki> [Optionen]
 ```
 
 | Option | Bedeutung | Standard |
@@ -721,6 +731,7 @@ SebastiansStepRecorder.exe export <Sitzung> --format <html|md|docx|pdf|gif|pptx|
 | `--importance <primary\|secondary\|all>` | Umfang: Hauptschritte · Haupt- und Nebenschritte · alle | `primary` |
 | `--view <screen\|window\|crop>` | Darstellung der Bilder | aus den Dokument-Einstellungen |
 | `--page <a4\|letter>`, `--landscape`, `--portrait` | Seitenformat für Word und PDF ([4.4](#44-dokumentrahmen)); gilt nur für diesen Export, `--landscape` und `--portrait` zusammen sind ein Aufruffehler | aus den Dokument-Einstellungen |
+| `--seconds <n>` | GIF und Video: Anzeigedauer je Schritt in Sekunden (0,5–20) | `2.5` |
 | `--strict` | Warnungen der Qualitätsprüfung und ungeprüfte Eingaben führen zum Abbruch | aus |
 | `--json` | Ergebnis als JSON auf der Standardausgabe | aus |
 
@@ -749,6 +760,7 @@ Die Exit-Codes legt [02](02-architektur.md#betriebsarten) fest:
 | 1 | Allgemeiner Fehler |
 | 2 | Aufruffehler: unbekannte oder unzulässige Option, unbekanntes Format |
 | 3 | Sitzung nicht gefunden, nicht lesbar oder noch nicht abgeschlossen |
+| 7 | Voraussetzung fehlt: Video ohne Media Foundation oder H.264-Encoder ([8e](#8e-video-mp4)) |
 | 8 | Ziel nicht beschreibbar oder ein Ordner, den der Export nicht ersetzen darf |
 | 9 | Abbruch durch `--strict`: Die Vorprüfung meldete Warnungen oder zurückgehaltene Eingaben; es wurde nichts geschrieben |
 
@@ -1036,6 +1048,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-195 | Klick-Tour | Soll | Die Datei enthält kein Skript und keine fremde Adresse; ein Klick auf die Klickfläche führt zum nächsten Schritt; die Druckansicht zeigt alle Schritte. |
 | EXP-196 | Fehlerbericht | Soll | Der Bericht enthält Zusammenfassung, Umgebung, Schritte, erwartetes und tatsächliches Ergebnis und Anhänge, aber nie Pfade, Kommandozeilen oder Prozessnummern; mit ungeprüften Eingaben entsteht er nicht. |
 | EXP-197 | GIF | Kann | Das GIF zeigt Titelbild und alle Schritte in der gewählten Dauer und läuft in Schleife. |
+| EXP-198 | Video (MP4) | Kann | Die Datei beginnt mit einer `ftyp`-Box, enthält `moov` und einen H.264-Videostrom mit gerader Breite und Höhe; ihre Dauer ist Titelbild plus gewählte Dauer je Schritt. Ohne H.264-Encoder entsteht keine Datei, und die Meldung nennt die fehlende Voraussetzung. |
 | EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |
 
 ## 18 Offene Punkte

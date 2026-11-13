@@ -25,7 +25,7 @@ public static class QuickShot
             ["format"] = SessionWriter.FormatName, ["schemaVersion"] = SessionWriter.SchemaVersion, ["sessionId"] = id, ["title"] = title, ["state"] = "recording",
             ["createdUtc"] = Json.Utc(now), ["timeZone"] = new JsonObject { ["id"] = TimeZoneInfo.Local.Id, ["offsetMin"] = (int)TimeZoneInfo.Local.GetUtcOffset(DateTime.Now).TotalMinutes },
             ["parts"] = new JsonArray(new JsonObject { ["part"] = 0, ["startUtc"] = Json.Utc(now), ["tStart"] = 0, ["purpose"] = "initial" }),
-            ["recorder"] = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version, ["arch"] = "x64", ["elevated"] = false, ["captureHost"] = "none" },
+            ["recorder"] = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version, ["arch"] = AppInfo.Arch, ["elevated"] = false, ["captureHost"] = "none" },
             ["environment"] = new JsonObject(), ["topology"] = new JsonObject(), ["settings"] = new JsonObject { ["language"] = lang },
             ["profile"] = new JsonObject { ["name"] = Loc.For(lang, "Bildschirmfoto", "Screenshot"), ["id"] = "screenshot", ["builtIn"] = true },
             ["history"] = new JsonArray(new JsonObject { ["atUtc"] = Json.Utc(now), ["action"] = "created", ["tool"] = "StepRecorder " + AppInfo.Version })

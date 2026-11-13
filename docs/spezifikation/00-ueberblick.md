@@ -53,7 +53,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Z2 | **Vollständige Aufzeichnung** aller Klicks, Mausbewegungen, Tasteneingaben und Tastenkombinationen | Jedes Eingabeereignis steht im Rohprotokoll oder in einem benannten Lückenmarker |
 | Z3 | **Aussagekräftige Bilder** zu jedem Schritt | Vorher-Bild garantiert vor der Eingabe, Nachher-Bild nach Beruhigung, Programm selbst nie im Bild |
 | Z4 | **Lückenlos nachvollziehbar für KI** | KI-Paket und MCP-Server; ein Agent kann Ablauf, Ziele, Wirkungen und Lücken korrekt wiedergeben |
-| Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Zeichenwerkzeugen, Kommentaren, Qualitätsprüfung, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Klick-Tour, Fehlerbericht |
+| Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Zeichenwerkzeugen, Kommentaren, Qualitätsprüfung, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Video (MP4), Klick-Tour, Fehlerbericht |
 | Z6 | **Privatsphäre ab Werk** | Eingaben in erkannte Passwortfelder nie auf der Platte, kein Netzwerkzugriff, sichtbare Aufnahme |
 | Z7 | **Einfach im Normalfall, flexibel bei Bedarf** | Aufnahme mit einer Aktion, höchstens zwei Klicks; Aufnahmebereich und Darstellung frei wählbar |
 | Z8 | **Offen** | Kostenloses Programm, Quellcode einsehbar unter CC BY-ND 4.0 (siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
@@ -63,8 +63,8 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 - **Keine Automatisierung oder Wiedergabe.** Das Tool steuert keine Programme und spielt Abläufe nicht ab. Es erzeugt höchstens **Text**, den andere Werkzeuge ausführen: ein AutoHotkey-Skript oder einen UI-Test-Entwurf für FlaUI, pywinauto oder Playwright ([09 §14a](09-anleitungs-export.md#14a-autohotkey-skript), [§14d](09-anleitungs-export.md#14d-ui-test-entwürfe)). Ausführen ist Sache dieser Werkzeuge und des Nutzers.
 - **Keine Überwachung.** Kein verdeckter Modus, kein Autostart, keine Daueraufzeichnung im Hintergrund, keine zentrale Sammlung. Das ist ein Projektgrundsatz, kein fehlendes Feature. Auch ein Agent startet nie von sich aus eine Aufnahme: Er kann über MCP nur um eine Vorführung bitten (nur mit `--allow-requests`), und der Nutzer bestätigt jede Anfrage ausdrücklich.
 - **Keine eingebaute KI und keine Cloud.** Das Tool ruft keine KI-Dienste auf und sendet nichts über das Netzwerk. KI-Nutzung geschieht außerhalb – über den Export oder den lokalen MCP-Server.
-- **Kein Videorekorder.** Bilder entstehen ereignisgesteuert; eine Abspielfunktion im Viewer zeigt den Ablauf als animierte Bildfolge.
-- **Version 1 nur Windows x64.** Kein macOS, Linux oder ARM64.
+- **Kein Videorekorder.** Bilder entstehen ereignisgesteuert; eine Abspielfunktion im Viewer zeigt den Ablauf als animierte Bildfolge. Auch der Video-Export (MP4) zeichnet nichts auf: Er setzt nur die Schrittbilder zu einer Bildfolge zusammen ([09 §8e](09-anleitungs-export.md#8e-video-mp4)).
+- **Version 1 nur Windows.** Kein macOS oder Linux. Hauptplattform ist x64; ein ARM64-Build (`win-arm64`) wird mitgebaut und veröffentlicht, ist auf ARM-Hardware aber nicht getestet ([02 §11](02-architektur.md#build)).
 
 ## 5. Zielgruppen und Anwendungsfälle
 
@@ -148,7 +148,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 
 | Bereich | Festlegung |
 |---|---|
-| Betriebssystem | Windows 10 22H2 und Windows 11, x64 |
+| Betriebssystem | Windows 10 22H2 und Windows 11, x64 (ARM64: Build vorhanden, auf ARM-Hardware nicht getestet) |
 | Rechte | Läuft als normaler Benutzer; Neustart mit Adminrechten optional, um Fenster mit Adminrechten aufzunehmen |
 | Technologie | C# / .NET 10 (LTS, Support bis November 2028), WPF, self-contained Single-File-EXE ([02](02-architektur.md)). *Stand: gebaut wird mit .NET 8; der Wechsel auf .NET 10 ist offen, weil das SDK fehlt* |
 | Abhängigkeiten | Nur freizügige Lizenzen (MIT, Apache-2.0, BSD) |

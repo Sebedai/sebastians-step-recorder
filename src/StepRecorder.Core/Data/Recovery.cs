@@ -65,4 +65,6 @@ public static class AppInfo
     /// <summary>Name in der Oberfläche.</summary>
     public const string DisplayName = "Sebastians Step Recorder";
     public static string Version => typeof(AppInfo).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.1.0";
+    /// <summary>Prozessarchitektur für manifest.json (<c>x64</c> | <c>arm64</c>).</summary>
+    public static string Arch => System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();
 }

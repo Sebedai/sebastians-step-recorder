@@ -8,6 +8,12 @@ public sealed class ExportTargetException : IOException
     public ExportTargetException(string message) : base(message) { }
 }
 
+/// <summary>Eine Systemvoraussetzung des Exports fehlt (z. B. Media Foundation oder H.264-Encoder für das Video) – Kommandozeile: Exit-Code 7.</summary>
+public sealed class ExportPrerequisiteException : Exception
+{
+    public ExportPrerequisiteException(string message, Exception? inner = null) : base(message, inner) { }
+}
+
 /// <summary>Zielordner für Ordner-Exporte (KI-Paket, AutoHotkey-KI): nie einen fremden Ordner leeren.</summary>
 public static class ExportFolders
 {

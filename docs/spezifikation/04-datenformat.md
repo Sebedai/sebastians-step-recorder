@@ -130,7 +130,7 @@ Das Manifest wird **beim Start der Aufnahme** mit `state: "recording"` angelegt 
 | `durationUs` | µs | ◐ | Länge der Sitzungsuhr; Pflicht außer bei `recording`. |
 | `timeZone` | Objekt | ● | `id` (Windows-Zeitzonenkennung), `offsetMin` (Abstand zu UTC beim Start in Minuten). |
 | `parts` | Objekt[] | ● | Aufnahmeabschnitte mit Uhrenbasis, Ereignisbereich und Zweck, siehe [7.4](#aufnahmeabschnitte). Mindestens einer. |
-| `recorder` | Objekt | ● | `name`, `version`, `commit` ○, `arch` (`x64`), `elevated` (bool), `captureHost` (`process` \| `inProcess`). |
+| `recorder` | Objekt | ● | `name`, `version`, `commit` ○, `arch` (`x64` \| `arm64`, Prozessarchitektur), `elevated` (bool), `captureHost` (`process` \| `inProcess`). |
 | `environment` | Objekt | ● | Systemumgebung, siehe 4.2. |
 | `topology` | Objekt | ● | Monitor-Anordnung beim Start; gleicher Aufbau wie die Nutzdaten von [`display.topology`](#ev-display-topology). |
 | `settings` | Objekt | ● | Wirksame Aufnahme-Einstellungen, siehe 4.3. |

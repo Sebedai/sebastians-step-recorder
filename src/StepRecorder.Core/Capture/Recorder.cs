@@ -96,7 +96,7 @@ public sealed partial class Recorder : IDisposable
         string sessionId = Json.NewUuid7();
         var scopeJson = Options.ScopeJson();
         var settings = Options.SettingsJson(scopeJson);
-        var recorderInfo = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version, ["arch"] = "x64", ["elevated"] = IsElevated(), ["captureHost"] = _host.InProcess ? "inProcess" : "process" };
+        var recorderInfo = new JsonObject { ["name"] = AppInfo.Name, ["version"] = AppInfo.Version, ["arch"] = AppInfo.Arch, ["elevated"] = IsElevated(), ["captureHost"] = _host.InProcess ? "inProcess" : "process" };
         var tz = TimeZoneInfo.Local;
         var tzJson = new JsonObject { ["id"] = tz.Id, ["offsetMin"] = (int)tz.GetUtcOffset(DateTime.Now).TotalMinutes };
         var env = EnvironmentInfo.Collect(_topo);

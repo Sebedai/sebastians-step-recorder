@@ -33,7 +33,7 @@ Status: Entwurf 0.1 · Stand: 2026-11-11
 
 | Randbedingung | Festlegung |
 |---|---|
-| Plattform | Windows 10 22H2 (Build 19045) und Windows 11, x64 |
+| Plattform | Windows 10 22H2 (Build 19045) und Windows 11, x64; ARM64-Build vorhanden, auf ARM-Hardware nicht getestet (Abschnitt [11.1](#build)) |
 | Technologie | C#, .NET 10 (LTS), WPF – *Stand: gebaut wird mit .NET 8, der Wechsel ist offen (Abschnitt 9.1)* |
 | Auslieferung | eine portable EXE mit eingebauter Laufzeit; zusätzlich eine ZIP-Variante |
 | Rechte | läuft ohne Adminrechte (`asInvoker`); kein Installer, kein Dienst, kein Treiber |
@@ -751,7 +751,7 @@ Regeln:
 | Eigenschaft | Einzel-EXE | ZIP-Variante | Zweck |
 |---|---|---|---|
 | `OutputType` | `WinExe` | `WinExe` | GUI-Subsystem (Abschnitt [8.3](#betriebsarten)) |
-| `RuntimeIdentifier` | `win-x64` | `win-x64` | – |
+| `RuntimeIdentifier` | `win-x64` (Standard) oder `win-arm64` | `win-x64` | ARM64 siehe unten |
 | `SelfContained` | `true` | `true` | Laufzeit eingebaut, keine Installation |
 | `PublishSingleFile` | `true` | `false` | eine Datei bzw. Ordner |
 | `IncludeNativeLibrariesForSelfExtract` | `true` | – | Sonst lägen native Laufzeitdateien neben der EXE |
@@ -762,6 +762,14 @@ Regeln:
 | `Deterministic`, `ContinuousIntegrationBuild` | `true` | `true` | Reproduzierbare Builds |
 | `TreatWarningsAsErrors` | `true` | `true` | – |
 | `ConcurrentGarbageCollection` | `true` | `true` | Kürzere Pausen im Hauptprozess; der Host erhält abweichende Werte über seine Umgebung (Abschnitt [3.3](#prozessmodell)) |
+
+**ARM64:** Dieselbe Projektdatei ergibt mit `-r win-arm64` eine ARM64-EXE (Cross-Publish auf einem x64-Rechner; die Laufzeitpakete `win-arm64` werden dabei einmalig wiederhergestellt):
+
+```
+dotnet publish src/StepRecorder.App -c Release -r win-arm64 --self-contained -o <Ordner>
+```
+
+Hooks, Raw Input, UI Automation, Graphics Capture/DXGI und Media Foundation sind unter ARM64 dieselben Schnittstellen; alle Plattformaufrufe nutzen zeigergroße Typen (`nint`), die Strukturen sind für 64 Bit ausgelegt. `manifest.json` trägt in `recorder.arch` die tatsächliche Prozessarchitektur (`x64` | `arm64`). *Stand:* Der ARM64-Build wird übersetzt und veröffentlicht, aber auf ARM-Hardware nicht getestet; die Tests laufen nur unter x64.
 
 In einer Single-File-Anwendung liefert `Assembly.Location` eine leere Zeichenfolge. Pfade werden daher ausschließlich über `AppContext.BaseDirectory` und `Environment.ProcessPath` ermittelt.
 
@@ -778,6 +786,7 @@ In einer Single-File-Anwendung liefert `Assembly.Location` eine leere Zeichenfol
 | Artefakt | Inhalt |
 |---|---|
 | `StepRecorder-<Version>-win-x64.exe` | Einzel-EXE |
+| `StepRecorder-<Version>-win-arm64.exe` | Einzel-EXE für ARM64 (ungetestet auf ARM-Hardware) |
 | `StepRecorder-<Version>-win-x64.zip` | Ordner mit `SebastiansStepRecorder.exe`, Laufzeitdateien, `LICENSE`, `THIRD-PARTY-NOTICES.txt` |
 | `SHA256SUMS.txt` | Prüfsummen aller Artefakte |
 | Stückliste (SBOM) | alle Bestandteile mit Version und Lizenz |
@@ -821,7 +830,8 @@ Der Workflow `.github/workflows/build.yml` („Build“) läuft auf `windows-lat
 | Auslöser | Ablauf |
 |---|---|
 | Push auf `main`, Pull-Request | Wiederherstellen, Bauen in `Release` mit `ContinuousIntegrationBuild=true`, Tests mit `--filter "Category!=Integration"` (der Integrationstest braucht einen interaktiven Desktop mit echten Hooks) |
-| Tag `v*` | Zusätzlich der Auftrag `release`: Veröffentlichen der Einzel-EXE mit der Version aus dem Tag, Prüfung, dass der Ausgabeordner genau `SebastiansStepRecorder.exe` enthält, SHA-256-Prüfsumme in `SHA256SUMS.txt`, GitHub-Release mit beiden Dateien |
+| Push auf `main`, Pull-Request | Parallel der Auftrag `arm64`: Veröffentlichen für `win-arm64` auf dem x64-Läufer, Prüfung des Maschinentyps im PE-Kopf (`0xAA64`), EXE als Build-Artefakt. Tests laufen dafür nicht – ARM-Hardware gibt es im Workflow nicht |
+| Tag `v*` | Zusätzlich der Auftrag `release`: Veröffentlichen der Einzel-EXE für `win-x64` und `win-arm64` mit der Version aus dem Tag, Prüfung, dass jeder Ausgabeordner genau `SebastiansStepRecorder.exe` enthält, SHA-256-Prüfsummen in `SHA256SUMS.txt`, GitHub-Release mit `SebastiansStepRecorder.exe` (x64), `SebastiansStepRecorder-arm64.exe` und `SHA256SUMS.txt` |
 
 Der Workflow hat nur Leserechte; der Release-Auftrag erhält zusätzlich Schreibrecht auf die Inhalte. Es gibt **kein Code-Signing** und keine ZIP-Variante (Abschnitt [11.5](#build), [11, Abschnitt 10](11-roadmap-tests-risiken.md#10-veröffentlichung)).
 

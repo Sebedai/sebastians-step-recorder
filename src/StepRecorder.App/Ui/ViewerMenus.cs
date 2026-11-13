@@ -120,7 +120,7 @@ sealed partial class ViewerWindow
         foreach (var (f, label) in new[]
         {
             ("html", "HTML …"), ("md", "Markdown …"), ("docx", "Word (DOCX) …"), ("pdf", "PDF …"), ("pptx", "PowerPoint …"),
-            ("tour", Loc.L("Klick-Tour …", "Click tour …")), ("bugreport", Loc.L("Fehlerbericht …", "Bug report …")), ("gif", Loc.L("GIF-Animation …", "GIF animation …"))
+            ("tour", Loc.L("Klick-Tour …", "Click tour …")), ("bugreport", Loc.L("Fehlerbericht …", "Bug report …")), ("gif", Loc.L("GIF-Animation …", "GIF animation …")), ("mp4", Loc.L("Video (MP4) …", "Video (MP4) …"))
         })
             if (Exporter.IsKnownFormat(f)) { string ff = f; formats.Items.Add(U.Mi(label, null, () => ShowExportDialog(ff))); }
         formats.Items.Add(Sep());

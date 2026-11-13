@@ -26,9 +26,32 @@ jobs:
         # Der Integrationstest braucht einen interaktiven Desktop (echte Hooks, Mausbewegung)
         run: dotnet test StepRecorder.sln -c Release --no-build --filter "Category!=Integration"
 
+  arm64:
+    # ARM64 wird auf dem x64-Läufer übersetzt (Cross-Publish); Tests laufen nur unter x64 – auf ARM-Hardware ist nichts geprüft
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Publish win-arm64
+        shell: pwsh
+        run: |
+          dotnet publish src/StepRecorder.App/StepRecorder.csproj -c Release -r win-arm64 -p:ContinuousIntegrationBuild=true -o "$env:RUNNER_TEMP\publish-arm64"
+          $exe = "$env:RUNNER_TEMP\publish-arm64\SebastiansStepRecorder.exe"
+          # PE-Kopf: Maschinentyp 0xAA64 = ARM64
+          $b = [IO.File]::ReadAllBytes($exe)
+          $pe = [BitConverter]::ToInt32($b, 0x3c)
+          $machine = [BitConverter]::ToUInt16($b, $pe + 4)
+          if ($machine -ne 0xAA64) { throw ("Keine ARM64-EXE: Maschinentyp 0x{0:X4}" -f $machine) }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SebastiansStepRecorder-win-arm64
+          path: ${{ runner.temp }}/publish-arm64/SebastiansStepRecorder.exe
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, arm64]
     runs-on: windows-latest
     permissions:
       contents: write
@@ -41,16 +64,26 @@ jobs:
         shell: pwsh
         run: |
           $version = "${{ github.ref_name }}".TrimStart('v')
-          # Directory.Build.props leitet die Ausgabe um – deshalb ausdrücklich -o
-          dotnet publish src/StepRecorder.App/StepRecorder.csproj -c Release -p:Version=$version -p:ContinuousIntegrationBuild=true -o "$env:RUNNER_TEMP\publish"
-          # Symboldateien (.pdb) gehören nicht ins Release
-          Get-ChildItem "$env:RUNNER_TEMP\publish" -File -Filter *.pdb | Remove-Item
-          $files = @(Get-ChildItem "$env:RUNNER_TEMP\publish" -File)
-          if ($files.Count -ne 1 -or $files[0].Name -ne 'SebastiansStepRecorder.exe') { throw "Unerwarteter Inhalt: $($files.Name -join ', ')" }
-          $hash = (Get-FileHash $files[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  SebastiansStepRecorder.exe" | Out-File -Encoding ascii "$env:RUNNER_TEMP\publish\SHA256SUMS.txt"
+          $out = "$env:RUNNER_TEMP\release"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          # x64 behält den bisherigen Dateinamen; ARM64 bekommt den Zusatz -arm64
+          foreach ($rid in 'win-x64', 'win-arm64') {
+            $dir = "$env:RUNNER_TEMP\publish-$rid"
+            # Directory.Build.props leitet die Ausgabe um – deshalb ausdrücklich -o
+            dotnet publish src/StepRecorder.App/StepRecorder.csproj -c Release -r $rid -p:Version=$version -p:ContinuousIntegrationBuild=true -o $dir
+            if ($LASTEXITCODE -ne 0) { throw "Veröffentlichen für $rid fehlgeschlagen" }
+            # Symboldateien (.pdb) gehören nicht ins Release
+            Get-ChildItem $dir -File -Filter *.pdb | Remove-Item
+            $files = @(Get-ChildItem $dir -File)
+            if ($files.Count -ne 1 -or $files[0].Name -ne 'SebastiansStepRecorder.exe') { throw "Unerwarteter Inhalt ($rid): $($files.Name -join ', ')" }
+            $name = if ($rid -eq 'win-x64') { 'SebastiansStepRecorder.exe' } else { 'SebastiansStepRecorder-arm64.exe' }
+            Move-Item $files[0].FullName (Join-Path $out $name)
+          }
+          Get-ChildItem $out -File -Filter *.exe | Sort-Object Name | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
+          } | Out-File -Encoding ascii "$out\SHA256SUMS.txt"
       - name: Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "${{ github.ref_name }}" "$env:RUNNER_TEMP\publish\SebastiansStepRecorder.exe" "$env:RUNNER_TEMP\publish\SHA256SUMS.txt" --generate-notes
+        run: gh release create "${{ github.ref_name }}" "$env:RUNNER_TEMP\release\SebastiansStepRecorder.exe" "$env:RUNNER_TEMP\release\SebastiansStepRecorder-arm64.exe" "$env:RUNNER_TEMP\release\SHA256SUMS.txt" --generate-notes
