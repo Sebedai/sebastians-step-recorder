@@ -123,7 +123,7 @@ static class Theme
         app.Resources["RPill"] = new CornerRadius(999);
         app.Resources["FsCaption"] = FsCaption; app.Resources["FsHint"] = FsHint; app.Resources["FsBody"] = FsBody; app.Resources["FsSub"] = FsSub; app.Resources["FsTitle"] = FsTitle;
         app.Resources["ControlHeight"] = ControlHeight;
-        app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/SebastiansStepRecorder;component/Ui/Theme.xaml", UriKind.Relative)));
+        app.Resources.MergedDictionaries.Add((ResourceDictionary)Application.LoadComponent(new Uri("/" + typeof(Theme).Assembly.GetName().Name + ";component/Ui/Theme.xaml", UriKind.Relative)));
         // Menüs beim Öffnen ausrichten (Namen gleich breit, Tastenkürzel in einer Spalte)
         void Align(ItemsControl m) => m.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, () => U.AlignMenu(m));
         EventManager.RegisterClassHandler(typeof(System.Windows.Controls.ContextMenu), System.Windows.Controls.ContextMenu.OpenedEvent, new RoutedEventHandler((s, _) => Align((ItemsControl)s)));
@@ -290,7 +290,9 @@ static class Theme
     public static TextBlock Wordmark(double size, Brush? fg = null)
     {
         var t = new TextBlock { FontFamily = Display, FontSize = size, VerticalAlignment = VerticalAlignment.Center, Foreground = fg ?? Fg };
+#if !ANONYMOUS
         t.Inlines.Add(new System.Windows.Documents.Run("Sebastians ") { FontWeight = FontWeights.Normal, Foreground = Muted });
+#endif
         t.Inlines.Add(new System.Windows.Documents.Run("Step Recorder") { FontWeight = FontWeights.SemiBold });
         return t;
     }

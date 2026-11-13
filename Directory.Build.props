@@ -6,4 +6,18 @@
     <!-- fest auf den Sprachstand von .NET 10: ein neueres SDK (lokal z. B. 11) würde sonst C# 15 erlauben, das die CI mit SDK 10 nicht baut -->
     <LangVersion>14.0</LangVersion>
   </PropertyGroup>
+  <!-- Anonyme Ausgabe: dotnet publish src/StepRecorder.App -c Release -p:Anonymous=true
+       ohne Namen des Urhebers, ohne Projektseite, ohne Quellverweise und lokale Pfade -->
+  <PropertyGroup Condition="'$(Anonymous)' == 'true'">
+    <DefineConstants>$(DefineConstants);ANONYMOUS</DefineConstants>
+    <EnableSourceLink>false</EnableSourceLink>
+    <EnableSourceControlManagerQueries>false</EnableSourceControlManagerQueries>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <PublishRepositoryUrl>false</PublishRepositoryUrl>
+    <PathMap>$(MSBuildThisFileDirectory)=src</PathMap>
+    <DebugType>none</DebugType>
+    <Authors>Step Recorder</Authors>
+    <Company>Step Recorder</Company>
+    <ArtifactsPath>$(LOCALAPPDATA)\StepRecorder-build-anonym</ArtifactsPath>
+  </PropertyGroup>
 </Project>

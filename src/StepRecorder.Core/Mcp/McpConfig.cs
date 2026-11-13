@@ -104,7 +104,7 @@ public static class McpConfig
         if (AppPaths.LooksSynced(o.Root)) w.Add(Loc.L("Der Aufnahmeordner wird synchronisiert.", "The recordings folder is synced."));
         if ((o.ExePath + o.Root).Any(c => c is '%' or '$' or '`')) w.Add(Loc.L("Der Pfad enthält %, $ oder `; in der Kommandozeile können diese Zeichen umgedeutet werden.", "The path contains %, $ or `; these characters may be interpreted by the shell."));
         if (!Path.GetFileName(o.ExePath).Equals(AppInfo.ExeName, StringComparison.OrdinalIgnoreCase))
-            w.Add(Loc.L("Das Programm läuft nicht als SebastiansStepRecorder.exe (Entwicklerstart) – bitte den Pfad der veröffentlichten EXE eintragen.", "The program is not running as SebastiansStepRecorder.exe (developer start) – please use the path of the released EXE."));
+            w.Add(Loc.F("Das Programm läuft nicht als {0} (Entwicklerstart) – bitte den Pfad der veröffentlichten EXE eintragen.", "The program is not running as {0} (developer start) – please use the path of the released EXE.", AppInfo.ExeName));
         return w;
     }
 }

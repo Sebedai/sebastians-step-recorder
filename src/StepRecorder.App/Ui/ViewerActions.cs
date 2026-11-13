@@ -297,7 +297,7 @@ sealed partial class ViewerWindow
             SetClipboard(d, Loc.L("Testbarkeits-Bericht kopiert", "Testability report copied"));
         }, null, "Ghost");
         copy.Margin = new Thickness(16, 12, 16, 0); copy.HorizontalAlignment = HorizontalAlignment.Left;
-        var hint = U.Text(Loc.L("Doppelklick springt zum Schritt. Für die CI: SebastiansStepRecorder.exe testability <Aufnahme> --strict", "Double-click jumps to the step. For CI: SebastiansStepRecorder.exe testability <recording> --strict"), 11.5, fg: Theme.Muted, margin: new Thickness(16, 6, 16, 0));
+        var hint = U.Text(Loc.F("Doppelklick springt zum Schritt. Für die CI: {0} testability <Aufnahme> --strict", "Double-click jumps to the step. For CI: {0} testability <recording> --strict", AppInfo.ExeName), 11.5, fg: Theme.Muted, margin: new Thickness(16, 6, 16, 0));
         var dock = new DockPanel();
         DockPanel.SetDock(copy, Dock.Top); DockPanel.SetDock(hint, Dock.Top);
         dock.Children.Add(copy); dock.Children.Add(hint); dock.Children.Add(list);

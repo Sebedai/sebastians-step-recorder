@@ -13,7 +13,7 @@ public static class ConsoleShim
 
     public static string Content(string exeName) =>
         "@echo off\r\n" +
-        "rem Sebastians Step Recorder fuer Konsolen und Skripte: wartet auf das Ende und gibt den Exit-Code weiter.\r\n" +
+        "rem " + StepRecorder.Data.AppInfo.DisplayName + " fuer Konsolen und Skripte: wartet auf das Ende und gibt den Exit-Code weiter.\r\n" +
         "rem Beispiel: steprec export latest --format md\r\n" +
         $"start \"\" /wait /b \"%~dp0{exeName}\" %*\r\n" +
         "exit /b %ERRORLEVEL%\r\n";

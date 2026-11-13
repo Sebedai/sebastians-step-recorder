@@ -138,11 +138,17 @@ sealed partial class StartWindow
         var about = U.Col(
             U.Text(AppInfo.DisplayName, Theme.FsBody, true),
             U.Meta(Loc.F("Version {0} · offline · kostenlos, auch beruflich", "Version {0} · offline · free, also commercially", AppInfo.Version), new Thickness(0, 2, 0, 8)),
-            U.Para(Loc.L("Lizenz: CC BY-ND 4.0 (Namensnennung – keine Bearbeitungen). © 2026 Sebedai. Enthält Bestandteile unter MIT-Lizenz (.NET, WPF, WPF UI) – siehe THIRD-PARTY-NOTICES.",
-                "Licence: CC BY-ND 4.0 (attribution – no derivatives). © 2026 Sebedai. Contains components under the MIT licence (.NET, WPF, WPF UI) – see THIRD-PARTY-NOTICES.")));
+#if ANONYMOUS
+            U.Para(Loc.L("Lizenz: MIT. Enthält Bestandteile unter MIT-Lizenz (.NET, WPF, WPF UI).", "Licence: MIT. Contains components under the MIT licence (.NET, WPF, WPF UI).")));
+#else
+            U.Para(Loc.L("Lizenz: MIT. © 2026 Sebedai. Enthält Bestandteile unter MIT-Lizenz (.NET, WPF, WPF UI) – siehe THIRD-PARTY-NOTICES.",
+                "Licence: MIT. © 2026 Sebedai. Contains components under the MIT licence (.NET, WPF, WPF UI) – see THIRD-PARTY-NOTICES.")));
+#endif
         var links = new WrapPanel { Margin = new Thickness(-3, 10, 0, 0) };
-        links.Children.Add(U.Btn(Theme.ISearch, Loc.L("Nach Updates suchen", "Check for updates"), () => _ = UpdateCheck.CheckInteractiveAsync(), Loc.L("Einmalig auf GitHub nach einer neuen Version suchen – ohne Kennung, heruntergeladen wird nichts", "Check GitHub once for a new version – no identifier, nothing is downloaded")));
-        links.Children.Add(U.Btn(Theme.IGlobe, Loc.L("Projektseite auf GitHub", "Project page on GitHub"), UpdateCheck.OpenReleases, "github.com/Sebedai/sebastians-step-recorder"));
+#if !ANONYMOUS
+        links.Children.Add(U.Btn(Theme.ISearch, Loc.L("Nach Updates suchen", "Check for updates"), () => _ = UpdateCheck.CheckInteractiveAsync(), Loc.L("Einmalig nach einer neuen Version suchen – ohne Kennung, heruntergeladen wird nichts", "Check once for a new version – no identifier, nothing is downloaded")));
+        links.Children.Add(U.Btn(Theme.IGlobe, Loc.L("Projektseite", "Project page"), UpdateCheck.OpenReleases, UpdateCheck.ReleasesPage));
+#endif
         links.Children.Add(U.Btn(Theme.IWrench, Loc.L("Diagnose-Paket erstellen …", "Create diagnostics package …"), () => DiagnosticsDialog.Create(this), Loc.L("Für eine Fehlermeldung: Protokoll und Systemangaben, ohne Aufnahmen", "For a bug report: log and system information, without recordings")));
         links.Children.Add(U.Btn(Theme.IFolder, Loc.L("Protokollordner", "Log folder"), () => Shell.Reveal(AppLog.FilePath)));
         about.Children.Add(links);

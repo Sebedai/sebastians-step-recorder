@@ -6,7 +6,7 @@ English version: [README.en.md](README.en.md)
 
 Sebastians Step Recorder zeichnet auf, was Sie am Windows-PC tun: jeden Klick, jede Eingabe, jede Tastenkombination – samt Bildschirmfoto und dem Namen des angeklickten Bedienelements. Daraus entstehen Bedienungsanleitungen als PDF, Word, HTML, Markdown oder animiertes GIF, ein Paket für KI-Assistenten oder ein AutoHotkey-Skript, das den Ablauf wiederholt.
 
-Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das Programm ist in seinen eigenen Bildschirmfotos nie zu sehen. **Kostenlos nutzbar** – auch beruflich ([CC BY-ND 4.0](#lizenz)).
+Eine einzelne Datei, keine Installation, keine Adminrechte, kein Internet. Das Programm ist in seinen eigenen Bildschirmfotos nie zu sehen. **Kostenlos und frei** – auch beruflich ([MIT-Lizenz](#lizenz)).
 
 **[⬇ Download: SebastiansStepRecorder.exe](https://github.com/Sebedai/sebastians-step-recorder/releases/latest)**
 
@@ -273,18 +273,12 @@ Ja – entweder als exportierte Datei (PDF, HTML …) oder den ganzen Aufnahmeor
 
 ## Lizenz
 
-[![CC BY-ND 4.0](https://img.shields.io/badge/Lizenz-CC%20BY--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nd/4.0/deed.de)
+[![MIT](https://img.shields.io/badge/Lizenz-MIT-blue.svg)](LICENSE)
 
-Programm und Quellcode stehen unter der Lizenz **[Creative Commons Namensnennung – Keine Bearbeitungen 4.0 International (CC BY-ND 4.0)](https://creativecommons.org/licenses/by-nd/4.0/deed.de)**.
+Programm und Quellcode stehen unter der **MIT-Lizenz**: Sie dürfen das Programm nutzen, verändern, weitergeben und in eigene Projekte übernehmen – privat und beruflich, auch verkaufen. Bedingung: Der Lizenzhinweis aus [LICENSE](LICENSE) bleibt in Kopien und wesentlichen Teilen des Quellcodes erhalten. Es gibt keine Gewährleistung.
 
-| Erlaubt | Nicht erlaubt |
-|---|---|
-| das Programm kostenlos nutzen – privat und beruflich | veränderte Fassungen des Programms oder des Quellcodes weitergeben oder veröffentlichen |
-| es unverändert weitergeben, auch in Firmen | Teile des Quellcodes in eigenen veröffentlichten Projekten verwenden |
-| | den Eindruck erwecken, der Urheber unterstütze eine Weitergabe oder Nutzung |
+Die Lizenz gilt für Programm und Quellcode – nicht für die Anleitungen, Bilder und Pakete, die Sie mit dem Programm erstellen; die gehören Ihnen. Bestandteile Dritter (die .NET-Laufzeit von Microsoft, WPF UI, MIT-Lizenz) stehen in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Bei jeder Weitergabe sind der Urheber (Sebedai), ein Link zu diesem Repository und die Lizenz zu nennen. Die Lizenz gilt für Programm und Quellcode – nicht für die Anleitungen, Bilder und Pakete, die Sie mit dem Programm erstellen; die gehören Ihnen.
-
-Verbindlich ist der Lizenztext in [LICENSE](LICENSE). Bestandteile Dritter (die .NET-Laufzeit von Microsoft, MIT-Lizenz) stehen in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Fehler und Wünsche gerne über [Issues](https://github.com/Sebedai/sebastians-step-recorder/issues).
+**Anonyme Ausgabe:** `build-anonym.ps1` baut `StepRecorder.exe` ohne Namen des Urhebers, ohne Projektseite und ohne Update-Suche (`dotnet publish src/StepRecorder.App -c Release -p:Anonymous=true`).
 
 © 2026 Sebedai

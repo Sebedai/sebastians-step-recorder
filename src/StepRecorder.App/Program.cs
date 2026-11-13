@@ -35,7 +35,7 @@ public static class Program
             if (Cli.ValidateRecordArgs(args) is { } error)
             {
                 Console.Error.WriteLine(error);
-                Console.Error.WriteLine(Settings.Loc.L("Hilfe: SebastiansStepRecorder.exe --help", "Help: SebastiansStepRecorder.exe --help"));
+                Console.Error.WriteLine(Settings.Loc.F("Hilfe: {0} --help", "Help: {0} --help", StepRecorder.Data.AppInfo.ExeName));
                 return 2;
             }
         }

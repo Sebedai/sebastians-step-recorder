@@ -56,7 +56,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Z5 | **Anleitungen schnell erstellen** | Viewer mit Bearbeitung, Zeichenwerkzeugen, Kommentaren, Qualitätsprüfung, Kopierfunktionen; Export HTML, Markdown, DOCX, PDF, PowerPoint, GIF, Video (MP4), Klick-Tour, Fehlerbericht |
 | Z6 | **Privatsphäre ab Werk** | Eingaben in erkannte Passwortfelder nie auf der Platte, kein Netzwerkzugriff, sichtbare Aufnahme |
 | Z7 | **Einfach im Normalfall, flexibel bei Bedarf** | Aufnahme mit einer Aktion, höchstens zwei Klicks; Aufnahmebereich und Darstellung frei wählbar |
-| Z8 | **Offen** | Kostenloses Programm, Quellcode einsehbar unter CC BY-ND 4.0 (siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
+| Z8 | **Offen** | Kostenloses Programm, Quellcode frei unter der MIT-Lizenz (siehe [LICENSE](../../LICENSE)), dokumentierte und versionierte Formate |
 
 ## 4. Nicht-Ziele
 
@@ -106,7 +106,7 @@ Es fehlt die Kombination **portabel + vollständig + datensparsam + KI-tauglich 
 | Aufnahmen vergleichen, Abschnitte ersetzen | nein | teilweise | **Vergleich ja**; Abschnitte ersetzen noch nicht umgesetzt |
 | Persönliche Werte verallgemeinern | nein | nein | **ja** |
 | Support-Paket zum Zurückschicken | nein | nein | **ja**, ohne Versand durch das Programm |
-| Offen | nein | nein | **kostenlos, CC BY-ND 4.0** |
+| Offen | nein | nein | **kostenlos, MIT-Lizenz** |
 
 ## 7. Leitprinzipien
 
@@ -154,7 +154,7 @@ Bei Zielkonflikten entscheiden diese Prinzipien. Kollidieren Vollständigkeit (2
 | Abhängigkeiten | Nur freizügige Lizenzen (MIT, Apache-2.0, BSD) |
 | Netzwerk | Kein Netzwerkzugriff |
 | Sprache | Oberfläche Deutsch und Englisch (Einstellung „System“ folgt Windows; die Sprache der Anleitungstexte ist davon unabhängig); Datenformat-Bezeichner englisch; Spezifikation deutsch |
-| Lizenz des Projekts | CC BY-ND 4.0 für Programm und Quellcode – siehe [LICENSE](../../LICENSE) |
+| Lizenz des Projekts | MIT-Lizenz für Programm und Quellcode (seit 0.14.0; vorher CC BY-ND 4.0); anonyme Ausgabe mit `-p:Anonymous=true` – siehe [LICENSE](../../LICENSE) |
 | Arbeitstitel | StepRecorder, `SebastiansStepRecorder.exe` |
 
 ## 10. Aufbau der Spezifikation

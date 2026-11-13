@@ -6,7 +6,7 @@ Deutsche Fassung: [README.md](README.md)
 
 Sebastians Step Recorder records what you do on your Windows PC: every click, every entry, every key combination – together with a screenshot and the name of the control you clicked. From this it creates user guides as PDF, Word, HTML, Markdown or animated GIF, a package for AI assistants, or an AutoHotkey script that repeats the procedure.
 
-A single file, no installation, no admin rights, no internet. The program never appears in its own screenshots. **Free to use** – including for business ([CC BY-ND 4.0](#license)).
+A single file, no installation, no admin rights, no internet. The program never appears in its own screenshots. **Free and open** – including for business ([MIT License](#license)).
 
 **[⬇ Download: SebastiansStepRecorder.exe](https://github.com/Sebedai/sebastians-step-recorder/releases/latest)**
 
@@ -273,18 +273,12 @@ Yes – either as an exported file (PDF, HTML …) or the whole recording folder
 
 ## License
 
-[![CC BY-ND 4.0](https://img.shields.io/badge/License-CC%20BY--ND%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nd/4.0/deed.en)
+[![MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-The program and source code are licensed under **[Creative Commons Attribution-NoDerivatives 4.0 International (CC BY-ND 4.0)](https://creativecommons.org/licenses/by-nd/4.0/deed.en)**.
+The program and source code are licensed under the **MIT License**: you may use, modify, distribute and include the program in your own projects – privately and commercially, including selling it. Condition: the license notice from [LICENSE](LICENSE) stays in copies and substantial portions of the source code. There is no warranty.
 
-| Allowed | Not allowed |
-|---|---|
-| using the program free of charge – privately and professionally | distributing or publishing modified versions of the program or source code |
-| passing it on unmodified, including within companies | using parts of the source code in your own published projects |
-| | giving the impression that the author endorses a distribution or use |
+The license applies to the program and source code – not to the guides, images and packages you create with the program; those belong to you. Third-party components (the .NET runtime from Microsoft, WPF UI, MIT license) are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Whenever you pass it on, you must credit the author (Sebedai), link to this repository, and name the license. The license applies to the program and source code – not to the guides, images and packages you create with the program; those belong to you.
-
-The binding license text is in [LICENSE](LICENSE). Third-party components (the .NET runtime from Microsoft, MIT license) are listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md). Bugs and wishes are welcome via [Issues](https://github.com/Sebedai/sebastians-step-recorder/issues).
+**Anonymous build:** `build-anonym.ps1` builds `StepRecorder.exe` without the author's name, without the project page and without the update check (`dotnet publish src/StepRecorder.App -c Release -p:Anonymous=true`).
 
 © 2026 Sebedai

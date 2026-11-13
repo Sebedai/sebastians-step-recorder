@@ -71,7 +71,7 @@ Diese Anforderungen gelten für das ganze Produkt. Sie fassen zusammen und verwe
 | NFA-017 | **Offene, stabile Formate:** Sitzungsformat und KI-Paket sind dokumentiert, versioniert, mit JSON-Schemata; neue Programmversionen lesen ältere Sitzungen. | Muss | Migrationstests | DAT-001, DAT-038–040, DAT-045 |
 | NFA-018 | **Reproduzierbarkeit:** Gleiche Eingabe ergibt gleiche Schritte und bytegleiche Exporte; Builds sind deterministisch. | Soll | Golden-Journal-Regression; Build-Vergleich | SCH-001, SCH-002, KI-022, ARC-034 |
 | NFA-019 | **Lizenzen:** Nur Abhängigkeiten mit freizügigen Lizenzen (MIT, Apache-2.0, BSD); Lizenzhinweise Dritter werden mitgeliefert. | Muss | Lizenzprüfung im CI | ARC-026–028 |
-| NFA-020 | **Vertrauenswürdige Auslieferung:** Releases sind signiert, mit Prüfsummen, ohne Verschleierung oder Laufzeitpacker. *Stand: Prüfsummen und Release über GitHub-Workflow (ARC-076); Signierung offen – die Lizenz CC BY-ND 4.0 ist keine OSI-Lizenz, die SignPath Foundation verlangt (Klärung in [11 §9](11-roadmap-tests-risiken.md#9-offene-entscheidungen)).* | Muss (für 1.0) | Release-Checkliste [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | ARC-035, DS-050–052 |
+| NFA-020 | **Vertrauenswürdige Auslieferung:** Releases sind signiert, mit Prüfsummen, ohne Verschleierung oder Laufzeitpacker. *Stand: Prüfsummen und Release über GitHub-Workflow (ARC-076); Signierung offen – mit der MIT-Lizenz (OSI-anerkannt) ist die SignPath Foundation jetzt möglich (Klärung in [11 §9](11-roadmap-tests-risiken.md#9-offene-entscheidungen)).* | Muss (für 1.0) | Release-Checkliste [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | ARC-035, DS-050–052 |
 
 ## 4. Rückverfolgung der Vorgaben
 
@@ -99,7 +99,7 @@ Jede Vorgabe des Auftraggebers ist mindestens einer Anforderung mit Abnahmekrite
 | V-18 | **Flexibel und trotzdem einfach** | NFA-013, BED-001–009 (Start in zwei Klicks), Leitprinzip 6 in [00](00-ueberblick.md#7-leitprinzipien) | Kernabläufe |
 | V-19 | Erkannte Passwortfelder immer maskieren; nicht erkennbare mit Schutznetz (Entscheidung) | NFA-010, DS-007–026 | T-07, DT-Prüfungen |
 | V-20 | Technologie C# / .NET + WPF | ARC-025, [02 §9](02-architektur.md) | Build |
-| V-21 | Öffentliches Projekt unter CC BY-ND 4.0 (siehe LICENSE) | NFA-017, NFA-019, NFA-020, [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | Release-Checkliste |
+| V-21 | Öffentliches Projekt unter der MIT-Lizenz (siehe LICENSE) | NFA-017, NFA-019, NFA-020, [11 §10](11-roadmap-tests-risiken.md#10-veröffentlichung) | Release-Checkliste |
 | V-22 | Kein KI-Aufruf im Tool, vollständig offline | NFA-011, ARC-029, DS-042 | T-12 |
 
 **Freigegebene Zusatzfunktionen** (vom Auftraggeber aus den Verbesserungsvorschlägen übernommen; alle Soll):

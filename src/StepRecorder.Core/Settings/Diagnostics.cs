@@ -118,9 +118,9 @@ public static class Diagnostics
             Add("settings.json", Json.Pretty(SanitizedSettings(AppSettings.Load())));
             Add("state.json", Json.Pretty(SanitizedState(AppState.Load())));
             Add("log.txt", AppLog.ReadTail());
-            Add("LIESMICH.txt", Loc.L(
-                "Diagnose-Paket von Sebastians Step Recorder\r\n\r\nEnthält: Programm- und Systemangaben (info.txt), Einstellungen ohne persönliche Angaben (settings.json),\r\nFenstergrößen (state.json) und das Programmprotokoll (log.txt). Benutzer-, Rechner- und Ordnernamen sind ersetzt.\r\nEnthält keine Aufnahmen, keine Bilder, keine getippten Texte.\r\n\r\nDas Programm hat nichts verschickt – Sie geben diese Datei selbst weiter.\r\n",
-                "Diagnostics package of Sebastians Step Recorder\r\n\r\nContains: program and system information (info.txt), settings without personal data (settings.json),\r\nwindow sizes (state.json) and the program log (log.txt). User, computer and folder names are replaced.\r\nContains no recordings, no images, no typed text.\r\n\r\nThe program has sent nothing – you pass this file on yourself.\r\n"));
+            Add("LIESMICH.txt", Loc.F(
+                "Diagnose-Paket von {0}\r\n\r\nEnthält: Programm- und Systemangaben (info.txt), Einstellungen ohne persönliche Angaben (settings.json),\r\nFenstergrößen (state.json) und das Programmprotokoll (log.txt). Benutzer-, Rechner- und Ordnernamen sind ersetzt.\r\nEnthält keine Aufnahmen, keine Bilder, keine getippten Texte.\r\n\r\nDas Programm hat nichts verschickt – Sie geben diese Datei selbst weiter.\r\n",
+                "Diagnostics package of {0}\r\n\r\nContains: program and system information (info.txt), settings without personal data (settings.json),\r\nwindow sizes (state.json) and the program log (log.txt). User, computer and folder names are replaced.\r\nContains no recordings, no images, no typed text.\r\n\r\nThe program has sent nothing – you pass this file on yourself.\r\n", StepRecorder.Data.AppInfo.DisplayName));
         }
         File.Move(tmp, zipPath, true);
         AppLog.Write("Diagnose-Paket erstellt");

@@ -60,10 +60,18 @@ public static class AppInfo
 {
     /// <summary>Technischer Name (Datenformat, Manifest, Prozess) – nicht ändern.</summary>
     public const string Name = "StepRecorder";
+#if ANONYMOUS
+    // Anonyme Ausgabe (dotnet publish -p:Anonymous=true): ohne Namen des Urhebers und ohne Verweis auf die Projektseite
+    public const string ExeName = "StepRecorder.exe";
+    public const string DisplayName = "Step Recorder";
+    public const bool Anonymous = true;
+#else
     /// <summary>Dateiname des Programms.</summary>
     public const string ExeName = "SebastiansStepRecorder.exe";
     /// <summary>Name in der Oberfläche.</summary>
     public const string DisplayName = "Sebastians Step Recorder";
+    public const bool Anonymous = false;
+#endif
     public static string Version => typeof(AppInfo).Assembly.GetName().Version is { } v ? $"{v.Major}.{v.Minor}.{v.Build}" : "0.1.0";
     /// <summary>Prozessarchitektur für manifest.json (<c>x64</c> | <c>arm64</c>).</summary>
     public static string Arch => System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant();

@@ -12,22 +12,22 @@ static class Cli
 {
     public static string Help => Loc.L(
 """
-Sebastians Step Recorder – portabler Schrittrekorder
+{APP} – portabler Schrittrekorder
 
 Aufruf:
-  SebastiansStepRecorder.exe                         Startfenster
-  SebastiansStepRecorder.exe <Aufnahme>              Aufnahme im Editor öffnen (Ordner, manifest.json oder .steprec)
-  SebastiansStepRecorder.exe record [Optionen]       sofort aufnehmen
+  {EXE}                         Startfenster
+  {EXE} <Aufnahme>              Aufnahme im Editor öffnen (Ordner, manifest.json oder .steprec)
+  {EXE} record [Optionen]       sofort aufnehmen
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <prozess.exe>   --region x,y,b,h|last
       --title <Text>   --goal <Text>   --expected <Text>   --reference <Text>
       --protection balanced|strict   --profile anleitung|support-fall|ki-spur|fehler-nachstellen|eigene   --out <Ordner>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
       --log <Datei>…   Protokolldatei mitlesen (Zeilen während der Aufnahme; prüfpflichtig; nicht in „Streng“)
       gibt am Ende den Aufnahmeordner aus (mit --json als JSON); Exit 5, wenn die Aufnahme verworfen wurde
-  SebastiansStepRecorder.exe record --stop           laufende Aufnahme beenden (gibt den Aufnahmeordner aus)
-  SebastiansStepRecorder.exe record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
-  SebastiansStepRecorder.exe support                 Support-Aufnahme im Startfenster vorbereiten
-  SebastiansStepRecorder.exe export <Aufnahme> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
+  {EXE} record --stop           laufende Aufnahme beenden (gibt den Aufnahmeordner aus)
+  {EXE} record --self-test [--json]   Bildaufnahme, Unsichtbarkeit, UI Automation, Ordner, Tastenkürzel prüfen
+  {EXE} support                 Support-Aufnahme im Startfenster vorbereiten
+  {EXE} export <Aufnahme> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI-Test-Entwürfe)
       [--out <Pfad>] [--lang de|en|fr|es|it|nl] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Anleitungen: [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|kurz|checkliste]
@@ -39,41 +39,41 @@ Aufruf:
                    Bilder: [--before auto|immer|nie] [--no-crop] [--no-after]
       AutoHotkey:  [--real-timing] [--no-images]      AHK für KI: [--with <Aufnahme>]… [--no-ocr]
       KI-Paket und AutoHotkey: [--readable]   für Menschen lesbar, ausführlich kommentiert
-  SebastiansStepRecorder.exe check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
-  SebastiansStepRecorder.exe validate <Aufnahme> [--json] [--thorough]
-  SebastiansStepRecorder.exe testability <Aufnahme> [--json] [--strict] [--lang de|en]   Bedienelemente ohne AutomationId (--strict: Exit 9)
-  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <Pfad>] [--images [--threshold 1-255]]
+  {EXE} check <Aufnahme> [--lang de|en] [--importance …] [--json] [--strict]   Qualitätsprüfung
+  {EXE} validate <Aufnahme> [--json] [--thorough]
+  {EXE} testability <Aufnahme> [--json] [--strict] [--lang de|en]   Bedienelemente ohne AutomationId (--strict: Exit 9)
+  {EXE} compare <A> <B> [--format md|json] [--out <Pfad>] [--images [--threshold 1-255]]
       --images: Bilder vergleichen; mit md und --out zusätzlich Vorher/Nachher-Bilder im Ordner <name>-bilder
-  SebastiansStepRecorder.exe steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
-  SebastiansStepRecorder.exe list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
+  {EXE} steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
+  {EXE} list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
       Statt <Aufnahme> überall auch: latest (neueste Aufnahme im Aufnahmeordner)
-  SebastiansStepRecorder.exe settings export <Datei> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
-  SebastiansStepRecorder.exe settings import <Datei> [--parts …] [--confirm] [--allow-weaker <Kennung>]… [--json]
-  SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…
-  SebastiansStepRecorder.exe mcp [--root <Ordner>] [--allow-edit] [--allow-requests] [--lang de|en]
+  {EXE} settings export <Datei> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
+  {EXE} settings import <Datei> [--parts …] [--confirm] [--allow-weaker <Kennung>]… [--json]
+  {EXE} settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…
+  {EXE} mcp [--root <Ordner>] [--allow-edit] [--allow-requests] [--lang de|en]
       [--max-result-tokens 2000-24000] [--max-image-pixels 250000-3750000] [--max-images 0-6]
-  SebastiansStepRecorder.exe --version
+  {EXE} --version
 
 Exit-Codes: 0 ok · 1 Fehler · 2 Aufruf · 3 Aufnahme nicht gefunden · 4 Prüfung fehlgeschlagen · 5 abgebrochen
             6 Aufnahme läuft · 7 Voraussetzung fehlt · 8 Ziel nicht beschreibbar · 9 --strict-Abbruch
 """,
 """
-Sebastians Step Recorder – portable step recorder
+{APP} – portable step recorder
 
 Usage:
-  SebastiansStepRecorder.exe                         start window
-  SebastiansStepRecorder.exe <recording>             open a recording in the editor (folder, manifest.json or .steprec)
-  SebastiansStepRecorder.exe record [options]        record now
+  {EXE}                         start window
+  {EXE} <recording>             open a recording in the editor (folder, manifest.json or .steprec)
+  {EXE} record [options]        record now
       --scope screen|app|region   --monitor active|all|M1[,M2]   --app <process.exe>   --region x,y,w,h|last
       --title <text>   --goal <text>   --expected <text>   --reference <text>
       --protection balanced|strict   --profile guide|support|aitrace|bugrepro|custom   --out <folder>
       --after-stop viewer|export|supportPackage|folder|none   --skip clicks,wheel,moves,typing,hotkeys,keys   --json
       --log <file>…   read a log file along (lines during the recording; requires review; not in "strict")
       prints the recording folder at the end (JSON with --json); exit 5 if the recording was discarded
-  SebastiansStepRecorder.exe record --stop           stop the running recording (prints its folder)
-  SebastiansStepRecorder.exe record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
-  SebastiansStepRecorder.exe support                 prepare a support recording in the start window
-  SebastiansStepRecorder.exe export <recording> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
+  {EXE} record --stop           stop the running recording (prints its folder)
+  {EXE} record --self-test [--json]   check capture, invisibility, UI Automation, folder, shortcuts
+  {EXE} support                 prepare a support recording in the start window
+  {EXE} export <recording> --format html|md|docx|pdf|gif|mp4|pptx|tour|bugreport|ki|ahk|ahk-ki
                                                  |flaui|pywinauto|playwright|test-ki   (UI test drafts)
       [--out <path>] [--lang de|en|fr|es|it|nl] [--json] [--strict] [--from n] [--to n] [--steps a-b]
       Guides:     [--importance primary|secondary|all] [--view screen|window|crop] [--template standard|short|checklist]
@@ -85,24 +85,24 @@ Usage:
                   images: [--before auto|always|never] [--no-crop] [--no-after]
       AutoHotkey: [--real-timing] [--no-images]      AHK for AI: [--with <recording>]… [--no-ocr]
       AI package and AutoHotkey: [--readable]   readable for people, extensively commented
-  SebastiansStepRecorder.exe check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
-  SebastiansStepRecorder.exe validate <recording> [--json] [--thorough]
-  SebastiansStepRecorder.exe testability <recording> [--json] [--strict] [--lang de|en]   controls without AutomationId (--strict: exit 9)
-  SebastiansStepRecorder.exe compare <A> <B> [--format md|json] [--out <path>] [--images [--threshold 1-255]]
+  {EXE} check <recording> [--lang de|en] [--importance …] [--json] [--strict]   quality check
+  {EXE} validate <recording> [--json] [--thorough]
+  {EXE} testability <recording> [--json] [--strict] [--lang de|en]   controls without AutomationId (--strict: exit 9)
+  {EXE} compare <A> <B> [--format md|json] [--out <path>] [--images [--threshold 1-255]]
       --images: compare images; with md and --out also before/after images in the folder <name>-bilder
-  SebastiansStepRecorder.exe steps <recording> [--json] [--all]   step list with response times
-  SebastiansStepRecorder.exe list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
+  {EXE} steps <recording> [--json] [--all]   step list with response times
+  {EXE} list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
       Instead of <recording> you can always write: latest (newest recording in the recordings folder)
-  SebastiansStepRecorder.exe settings export <file> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
-  SebastiansStepRecorder.exe settings import <file> [--parts …] [--confirm] [--allow-weaker <id>]… [--json]
-  SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <id>]…
-  SebastiansStepRecorder.exe mcp [--root <folder>] [--allow-edit] [--allow-requests] [--lang de|en]
+  {EXE} settings export <file> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
+  {EXE} settings import <file> [--parts …] [--confirm] [--allow-weaker <id>]… [--json]
+  {EXE} settings reset [--templates] [--confirm] [--allow-weaker <id>]…
+  {EXE} mcp [--root <folder>] [--allow-edit] [--allow-requests] [--lang de|en]
       [--max-result-tokens 2000-24000] [--max-image-pixels 250000-3750000] [--max-images 0-6]
-  SebastiansStepRecorder.exe --version
+  {EXE} --version
 
 Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check failed · 5 cancelled
             6 recording in progress · 7 prerequisite missing · 8 target not writable · 9 --strict abort
-""");
+""").Replace("{EXE}", AppInfo.ExeName).Replace("{APP}", AppInfo.DisplayName);
 
     public static int Run(string[] args)
     {
@@ -138,7 +138,7 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
         catch (Exception ex) { Console.Error.WriteLine(Loc.L("Fehler: ", "Error: ") + ex.Message); AppLog.Error("CLI", ex); if (Environment.GetEnvironmentVariable("STEPRECORDER_TRACE") == "1") Console.Error.WriteLine(ex); return 1; }
     }
 
-    static int Usage(string? error) { Console.Error.WriteLine(error ?? Loc.L("Aufruf unvollständig.", "Incomplete command.")); Console.Error.WriteLine(Loc.L("Hilfe: SebastiansStepRecorder.exe --help", "Help: SebastiansStepRecorder.exe --help")); return 2; }
+    static int Usage(string? error) { Console.Error.WriteLine(error ?? Loc.L("Aufruf unvollständig.", "Incomplete command.")); Console.Error.WriteLine(Loc.F("Hilfe: {0} --help", "Help: {0} --help", AppInfo.ExeName)); return 2; }
 
     /// <summary>Sitzungsangabe: Pfad oder <c>latest</c> (neueste Aufnahme im Aufnahmeordner).</summary>
     static string S(string arg) => SessionCatalog.Resolve(arg, AppPaths.DefaultSessionsFolder());

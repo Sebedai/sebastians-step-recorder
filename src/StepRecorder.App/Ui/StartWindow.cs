@@ -146,10 +146,10 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         // ---------- Fuß: Schutzhinweis, belegte Kürzel, bei Bedarf neue Version ----------
         var foot = new DockPanel { Margin = new Thickness(0, 20, 0, 0) };
-        var update = U.Btn(Theme.IGlobe, Loc.L("Neue Version verfügbar", "New version available"), UpdateCheck.OpenReleases, Loc.L("Release-Seite auf GitHub öffnen", "Open release page on GitHub"), "Link");
+        var update = U.Btn(Theme.IGlobe, Loc.L("Neue Version verfügbar", "New version available"), UpdateCheck.OpenReleases, Loc.L("Release-Seite öffnen", "Open release page"), "Link");
         update.Visibility = Visibility.Collapsed; update.Margin = new Thickness(0, -4, -8, -4);
         DockPanel.SetDock(update, Dock.Right); foot.Children.Add(update);
-        if (AppSettings.Load().CheckUpdates)
+        if (UpdateCheck.Available && AppSettings.Load().CheckUpdates)
             Loaded += async (_, _) =>
             {
                 var r = await UpdateCheck.CheckAsync();

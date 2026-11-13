@@ -275,7 +275,7 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 
 | Nr. | Frage | Empfehlung | Spätestens |
 |---|---|---|---|
-| O-01 | Projektlizenz | *Entschieden:* CC BY-ND 4.0 für Programm und Quellcode ([LICENSE](../../LICENSE)). Folge: keine OSI-Lizenz, siehe O-10 | erledigt |
+| O-01 | Projektlizenz | *Entschieden (2026-11-13):* MIT-Lizenz für Programm und Quellcode (vorher CC BY-ND 4.0) ([LICENSE](../../LICENSE)). Folge: OSI-anerkannte Lizenz, siehe O-10 | erledigt |
 | O-02 | Endgültiger Produktname | Namensrecherche (Marken, Domains, GitHub) | vor M8 |
 | O-03 | Hauptauslieferung Einzel-EXE oder ZIP | Beides; Einzel-EXE als Standard, wenn VE-11 Start < 2 s bestätigt | M0 |
 | O-04 | Konsolen-Startprogramm für `mcp` nötig? | Nur falls VE-07 scheitert | M0 |
@@ -284,7 +284,7 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 | O-07 | Quellcode-Hosting und Mitwirkung | GitHub (Releases, Issues, SignPath-Anbindung). *Stand: GitHub, Workflow `build.yml` baut, testet und veröffentlicht bei Tag `v*`; Anbindung der Signierung offen* | M0 |
 | O-08 | .NET 10 statt .NET 8 | Das .NET-10-SDK installieren (`winget install Microsoft.DotNet.SDK.10`), `global.json` und die Zielplattform beider Projekte anheben, `PublishReadyToRun` neu bewerten, alle Tests wiederholen. Bis dahin läuft alles auf .NET 8 (SDK 8.0.4xx) | erledigt – Zielplattform .NET 10; `PublishReadyToRun` bleibt aus (über 100 MB statt 76 MB). .NET 11 erst nach Behebung von [dotnet/wpf#11842](https://github.com/dotnet/wpf/issues/11842) (Single-File-WPF stürzt in 11.0.0 ab) |
 | O-09 | Regel T1: Kennwortabfragen im Terminal erkennen (DS-022, DS-023) | Vorversuch, ob Windows Terminal und die klassische Konsole die Cursorzeile über UI Automation liefern (`Read-Host`, `runas`, `sudo` in WSL, `ssh`; p95 unter 100 ms). Bei Erfolg Umsetzung mit maskierter Zeile bis zur Eingabetaste, sonst bleibt es bei Durchsichtspflicht und „Streng“. *Stand:* umgesetzt (T1–T3, `UiaService.TerminalTail`, Abbruch der Erkennung je Fenster nach Fehlern); der Vorversuch selbst steht aus | Vorversuch offen |
-| O-10 | Code-Signierung und Lizenz | Die SignPath Foundation verlangt nach bisherigem Kenntnisstand eine OSI-anerkannte Lizenz; CC BY-ND 4.0 ist keine. Zu klären: Lizenzwechsel, ein anderer Signierdienst oder ein eigenes Zertifikat. Bis dahin sind Releases unsigniert (Prüfsumme in `SHA256SUMS.txt`) | offen, vor M8 |
+| O-10 | Code-Signierung und Lizenz | Die SignPath Foundation verlangt nach bisherigem Kenntnisstand eine OSI-anerkannte Lizenz – mit MIT erfüllt. Zu klären: Antrag bei SignPath. Bis dahin sind Releases unsigniert (Prüfsumme in `SHA256SUMS.txt`) | offen, vor M8 |
 | O-11 | Zurückgestellte Funktionen | Abschnitt neu aufnehmen und ersetzen; Lesezeichen, Textbausteine; Seitenformat (Letter, quer) und eigene Word-Vorlage; weitere Sprachen der automatischen Texte; Video-Export; ARM64; Bedienhilfen (Namen für Sprachausgabe); Terminal-Regeln T2 und T3. *Entschieden und umgesetzt* (13.11.2026), Stand in [2.1](#21-stand-der-umsetzung); visueller Vergleich und Befehlspalette über den Fahrplan ([12](12-entwickler-fahrplan.md), Pakete 19 und 15) | erledigt |
 | O-12 | Programmpfade und Befehlszeilen (12, A-1/A-2): Der Code speichert den vollständigen Programmpfad und die bereinigte Befehlszeile aufgenommener Programme; [10 §3](10-datenschutz-und-sicherheit.md#3-dateninventar) verspricht `%USERPROFILE%` und schließt Befehlszeilen fremder Prozesse aus | *Entschieden und umgesetzt:* Pfade mit Platzhalter `%USERPROFILE%`, Befehlszeile nur mit „Erweitertem Programmkontext“ | erledigt |
 | O-13 | Fremder Prozessspeicher (12, A-3): Listen- und Baumeinträge werden mit `VirtualAllocEx`/`ReadProcessMemory` gelesen; P9 schließt das aus | *Entschieden und umgesetzt:* Texte über UI Automation, Fensternachrichten nur für Zahlen | erledigt |
@@ -299,7 +299,7 @@ Jede Zeile wird in M6 mindestens einmal mit T-02, T-03 (verkürzt) und T-05 durc
 
 **Release-Checkliste (ab M8):**
 
-- [x] Lizenzdatei (`LICENSE`, CC BY-ND 4.0), `THIRD-PARTY-NOTICES.md` mit allen Abhängigkeiten und Lizenztexten
+- [x] Lizenzdatei (`LICENSE`, MIT), `THIRD-PARTY-NOTICES.md` mit allen Abhängigkeiten und Lizenztexten
 - [x] Englische README (`README.en.md`) mit Zweck, Datenschutz-Grundsätzen, Erklärung der Hooks („warum Virenscanner warnen könnten“)
 - [ ] Benutzerdoku (Deutsch, Englisch): Aufnehmen, Viewer, Export, KI-Paket, MCP-Einrichtung
 - [ ] `CONTRIBUTING.md`, Verhaltenskodex, `SECURITY.md` (Meldeweg für Sicherheitslücken)

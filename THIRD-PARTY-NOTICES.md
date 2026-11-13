@@ -1,6 +1,6 @@
 # Bestandteile Dritter / Third-party notices
 
-`SebastiansStepRecorder.exe` enthält die .NET-Laufzeitumgebung, die Windows Presentation Foundation (WPF) und das Paket System.Speech (für das Diktat) von Microsoft. Sie stehen unter der MIT-Lizenz; die Lizenz von Sebastians Step Recorder (CC BY-ND 4.0) gilt für diese Bestandteile nicht.
+`SebastiansStepRecorder.exe` enthält die .NET-Laufzeitumgebung, die Windows Presentation Foundation (WPF) und das Paket System.Speech (für das Diktat) von Microsoft. Sie stehen unter der MIT-Lizenz; sie behalten ihre eigenen Lizenzhinweise.
 
 ```
 The MIT License (MIT)

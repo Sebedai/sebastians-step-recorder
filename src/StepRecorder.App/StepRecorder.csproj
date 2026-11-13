@@ -15,13 +15,22 @@
     <Version>0.14.0</Version>
     <Product>Sebastians Step Recorder</Product>
     <AssemblyTitle>Sebastians Step Recorder</AssemblyTitle>
-    <Copyright>© 2026 Sebedai · Lizenz: CC BY-ND 4.0</Copyright>
+    <Copyright>© 2026 Sebedai · MIT-Lizenz</Copyright>
     <!-- Standard win-x64; ARM64: dotnet publish -r win-arm64 (02 §11) – die Angabe auf der Kommandozeile hat Vorrang -->
     <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
     <SatelliteResourceLanguages>de;en</SatelliteResourceLanguages>
     <Deterministic>true</Deterministic>
     <!-- WFO0003 (früher WFAC010): DPI-Modus steht bewusst im Manifest (WPF, Per-Monitor v2). WFO2000: Listen mit Texten der Oberflächensprache werden absichtlich je Aufruf neu gebaut. -->
     <NoWarn>$(NoWarn);CA1416;WFAC010;WFO0003;WFO2000</NoWarn>
+  </PropertyGroup>
+
+  <!-- Anonyme Ausgabe (siehe Directory.Build.props): eigener Programmname, kein Urheber -->
+  <PropertyGroup Condition="'$(Anonymous)' == 'true'">
+    <AssemblyName>StepRecorder</AssemblyName>
+    <Product>Step Recorder</Product>
+    <AssemblyTitle>Step Recorder</AssemblyTitle>
+    <Copyright>MIT License</Copyright>
+    <ApplicationManifest>app.anonymous.manifest</ApplicationManifest>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)' == 'Release'">

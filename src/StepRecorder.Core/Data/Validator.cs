@@ -20,7 +20,11 @@ public static class Validator
         void Warn(string c, string msg, long? seq = null) => issues.Add(new Issue(c, "warning", msg, seq));
 
         // F01
-        if (m.Str("format") is not ("steprec" or "sebedais.steprec")) Err("F01", Loc.L("manifest.format fehlt oder falsch", "manifest.format missing or wrong"));
+        if (m.Str("format") is not ("steprec"
+#if !ANONYMOUS
+            or "sebedais.steprec"
+#endif
+            )) Err("F01", Loc.L("manifest.format fehlt oder falsch", "manifest.format missing or wrong"));
         var start = s.Events.FirstOrDefault();
         if (start?.Str("type") != "session.start") Err("F04", Loc.L("Journal beginnt nicht mit session.start", "Journal does not start with session.start"));
         else if (start.Str("sessionId") != m.Str("sessionId")) Err("F01", Loc.L("sessionId in Manifest und session.start verschieden", "sessionId differs between manifest and session.start"));
