@@ -622,12 +622,17 @@ Eigene Texte können formatiert sein ([04 §13.18](04-datenformat.md#1318-format
 | `[[Strg+S]]` | Tasten | `<kbd>` je Taste | `<kbd>` | Rahmen, schattiert | Tastenkästchen |
 | `[[ui:Speichern]]` | Name eines Bedienelements | `<b class="ui">` | fett | fett | fett |
 | `[Text](https://…)` | Link – nur http, https, mailto | `<a rel="noopener noreferrer">` | Link | Hyperlink (extern) | Link-Anmerkung |
+| `[[ref:s1203]]`, `[[ref:k1203]]` | Querverweis auf den Schritt bzw. das Kapitel mit diesem Anker (Paket 23) | „Schritt 2.3“ als Sprung `#s5` | Link `#s5` | Text | Text |
+| `{{Produkt}}` | Variable (Paket 23) | Wert | Wert | Wert | Wert |
+| Zeilen mit `\|` am Anfang | Tabelle; Trennzeile `\|---\|` = Kopfzeile; höchstens 12 Spalten | `<table>` mit `th scope="col"` | Pipe-Tabelle | Tabelle mit wiederholter Kopfzeile | Gitter, Kopfzeile auf Folgeseiten wiederholt |
 | `- ` / `1. ` am Zeilenanfang | Aufzählung, Nummerierung | `<ul>`, `<ol>` | Liste | Absätze mit Marke | Marke und Einzug |
 
 - Leerzeile trennt Absätze, ein Zeilenumbruch bleibt ein Umbruch. `\` vor `* ` [ ]` (am Zeilenanfang auch vor `-` und Ziffern) macht ein Zeichen wörtlich; sonst ist ein Backslash wörtlich, damit Windows-Pfade unverändert bleiben.
 - **PowerPoint, GIF, Fehlerbericht** zeigen den Text ohne Formatierung; Listen erscheinen dort als Zeilen mit „•“ bzw. „1.“.
 - **KI-Paket, MCP, AutoHotkey, Suche und Qualitätsprüfung** lesen den sichtbaren Text ohne Auszeichnung.
 - Zusätzliche Stile (HTML) und Schriften (PDF) kommen nur in Anleitungen, die formatierten Text enthalten; alle anderen Ausgaben bleiben bytegleich.
+- **Querverweise** zeigen die Nummer, die der Schritt in genau dieser Anleitung hat (nach Umsortieren, Ausblenden, Kapiteln); ohne Nummerierung den Titel in Anführungszeichen. Ein Ziel, das nicht in der Anleitung steht, ergibt „??“ (nie dessen Titel) und den Befund Q32. Ein Verweis auf einen zusammengefassten Schritt zeigt auf den führenden Schritt. KI-Paket, MCP und Suche lesen „→“.
+- **Variablen** stehen in `guide.vars` (je Sprache `guide.i18n.<lang>.vars`); eingebaut sind `{{Titel}}`/`{{Title}}`, `{{Untertitel}}`, `{{Version}}`, `{{Autor}}`, `{{Datum}}`, `{{Zielgruppe}}` (eingebaute Namen gewinnen). Sie wirken in allen eigenen Texten – Titel, Anleitungstext, Kapitel, Hinweise, Einleitung, Abschluss –, auch ohne Formatierung. Unbekannte Namen bleiben als `{{Name}}` stehen (Befund Q31). Einfache Klammern `{Benutzer}` bleiben Platzhalter der Verallgemeinerung.
 - **Schutz:** siehe [10 §10.4](10-datenschutz-und-sicherheit.md#104-die-leseschicht-erzwingt), Regel L14.
 
 ## 12 Export-Vorprüfung
@@ -696,6 +701,8 @@ Die Qualitätsprüfung ist der Teil der Vorprüfung, der nicht nach Schutz fragt
 | Q18 | Hinweis | „Vor diesem Schritt passt der Zustand nicht nahtlos.“ | `seam` – etwa nach einer Neuaufnahme oder einer angehängten Aufnahme | Bilder vergleichen · Hinweisschritt einfügen | Art der Nahtstelle |
 | Q19 | Hinweis | „Für diesen Schritt wurde keine Wirkung beobachtet.“ | `noEffect` | Prüfen, ob der Schritt nötig ist · ausblenden | – |
 | Q20 | Hinweis | „Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.“ | `stepNumberInComment` | Kommentar prüfen | – |
+| Q31 | Warnung | „Eine Variable ist nicht festgelegt …“ bzw. „Im Text steht noch ein Platzhalter (TODO, ???, XXX).“ – nur eigene Texte | `var`, `todo` | Text bearbeiten | – |
+| Q32 | Warnung | „Ein Querverweis zeigt auf einen Schritt oder ein Kapitel, das nicht in der Anleitung steht.“ | `ref` | Text bearbeiten | – |
 | Q21 | Hinweis | „Die Anwendung brauchte nach diesem Schritt … bis sie bereit war.“ – Wartezeit (bereit, sonst Bild ruhig, sonst erste Reaktion) eines Hauptschritts ab 2 s (`Timing.SlowMs`; Paket 9 aus [12](12-entwickler-fahrplan.md)) | Schritt | Zum Schritt | – |
 
 Wirkung der Schwere – dieselbe wie in der Tabelle oben:
@@ -1071,6 +1078,7 @@ Ein Fenster trägt den Titel `<b>Rechnung</b> [neu]_2026`. Im Schritttext ersche
 | EXP-195 | Klick-Tour | Soll | Die Datei enthält kein Skript und keine fremde Adresse; ein Klick auf die Klickfläche führt zum nächsten Schritt; die Druckansicht zeigt alle Schritte. |
 | EXP-196 | Fehlerbericht | Soll | Der Bericht enthält Zusammenfassung, Umgebung, Schritte, erwartetes und tatsächliches Ergebnis und Anhänge, aber nie Pfade, Kommandozeilen oder Prozessnummern; mit ungeprüften Eingaben entsteht er nicht. |
 | EXP-197 | GIF | Kann | Das GIF zeigt Titelbild und alle Schritte in der gewählten Dauer und läuft in Schleife. |
+| EXP-200 | Querverweise, Variablen, Tabellen | Soll | `[[ref:s…]]` zeigt nach dem Umsortieren die aktuelle Nummer; ein ausgeblendetes Ziel ergibt „??“ ohne Titel; `{{Produkt}}` erscheint mit dem Wert der Exportsprache; eine Tabelle erscheint in HTML, Markdown, Word und PDF mit Kopfzeile. |
 | EXP-199 | Formatierter Text | Soll | Fett, kursiv, Eingabe, Tasten, Bedienelemente, Links und Listen erscheinen in HTML, Markdown, Word, PDF und Klick-Tour wie in 11.1; PowerPoint ohne Formatierung; KI-Paket und MCP ohne Auszeichnung. |
 | EXP-198 | Video (MP4) | Kann | Die Datei beginnt mit einer `ftyp`-Box, enthält `moov` und einen H.264-Videostrom mit gerader Breite und Höhe; ihre Dauer ist Titelbild plus gewählte Dauer je Schritt. Ohne H.264-Encoder entsteht keine Datei, und die Meldung nennt die fehlende Voraussetzung. |
 | EXP-180 | Exportvorgabe aus dem Aufnahmeprofil | Soll | Nach dem Stopp einer Aufnahme mit einem Profil, das Format und Vorlage festlegt, öffnet sich der Exportdialog mit diesen Werten; es entsteht keine Datei, bevor „Exportieren“ gewählt ist. |

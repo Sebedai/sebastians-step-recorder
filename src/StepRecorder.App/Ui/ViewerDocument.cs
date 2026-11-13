@@ -143,6 +143,9 @@ sealed partial class ViewerWindow
         texts.Children.Add(U.Field(Loc.L("Voraussetzungen", "Prerequisites"), CommitBox(d.Prerequisites, v => LocDocChange("prerequisites", v), Loc.L("Eine pro Zeile, z. B. Zugang zum Portal", "One per line, e.g. Access to the portal"), true),
             Loc.L("Erscheint als Aufzählung vor dem ersten Schritt.", "Appears as a list before the first step.")));
         texts.Children.Add(U.Field(Loc.L("Abschluss", "Closing"), RichBox(GS("outro"), GuideFmt(guide, "outro", lang), (v, rich) => QuietChange(e => { SetGuideText(e, "outro", v); SetGuideFmt(e, "outro", rich); }), Loc.L("z. B. Fertig! Bei Fragen: Servicedesk, Tel. …", "e.g. Done! Questions? Service desk, phone …"), 64)));
+        // Variablen (13, Paket 23): in jedem Text als {{Name}}; eingebaut sind Titel, Untertitel, Version, Autor, Datum, Zielgruppe
+        texts.Children.Add(U.Field(Loc.L("Variablen", "Variables"), CommitBox(VarsText(), v => QuietChange(e => SetVars(e, v)), Loc.L("Je Zeile Name = Wert, z. B. Produkt = Kasse 3000", "One per line, name = value, e.g. Product = Till 3000"), true),
+            Loc.L("Im Text als {{Produkt}} – auch über „＋“ im Textfeld. Eingebaut: {{Titel}}, {{Untertitel}}, {{Version}}, {{Autor}}, {{Datum}}, {{Zielgruppe}}.", "In texts as {{Product}} – also via “＋” in the text field. Built in: {{Title}}, {{Subtitle}}, {{Version}}, {{Author}}, {{Date}}, {{Audience}}.")));
 
         // Aufbau
         var build = Section(Loc.L("Aufbau", "Structure"));

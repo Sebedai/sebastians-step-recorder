@@ -620,6 +620,8 @@ Ebenso erscheinen **ausgeblendete Kommentare** in keiner Ausgabe – weder in de
 
 **Formatieren** ([13](13-handbuch-fahrplan.md), Paket 21): Anleitungstext, Hinweise, Kapiteleinleitung, Einleitung und Abschluss sind formatierbare Felder. Eine Leiste über dem Feld (bei Hinweisen und Dokumenttexten nur, solange das Feld den Fokus hat) bietet fett (`Strg+B`), kursiv (`Strg+I`), Eingabe (`Strg+E`), Taste, Bedienelement, Aufzählung (`Strg+Umschalt+L`), Nummerierung (`Strg+Umschalt+N`), Link (`Strg+K`), „Formatierung entfernen“ und „</>“ für die Auszeichnung als Text. Eingefügt wird nur reiner Text; Unterstreichen, Schriftgröße und Ausrichtung gibt es bewusst nicht. Ohne Formatierung speichert das Feld reinen Text wie bisher. Die Überschrift bleibt ein einfaches Textfeld.
 
+**Einfügen** (Knopf „＋“ in der Leiste, Paket 23): *Querverweis* (Liste aller Schritte und Kapitel mit ihren gedruckten Nummern; im Feld erscheint der Verweis unterstrichen mit der aktuellen Nummer), *Variable* (eigene und eingebaute, dazu „Variablen bearbeiten …“) und *Tabelle …* (Dialog mit Zeilen, Spalten und Kopfzeile; danach lassen sich die Zellen direkt im Feld bearbeiten und formatieren). Die eigenen Variablen stehen im Dokumentbereich unter „Einleitung und Texte“ als Zeilen `Name = Wert`, je Sprache der Ansicht.
+
 ### 9.2 Aktionen
 
 | Aktion | Kürzel | Wirkung in der Anleitung |
@@ -1472,6 +1474,7 @@ Während einer Aufnahme gelten die systemweiten Kürzel aus [07](07-aufnahme-bed
 | VIE-240 | Drucken | Soll | `Strg+P` druckt die Anleitung wie das PDF, nach der Durchsicht, mit Seitenbereich; Abbrechen hinterlässt nichts. |
 | VIE-242 | Schrittnummer im Bild | Soll | Mit „Schrittnummer“ zeigt das Bild von Schritt 1.2 eine Marke „1.2“ an der Klickstelle, in Editor und Anleitung gleich; nach dem Umsortieren stimmt die Nummer; das KI-Paket zeigt keine Nummer. |
 | VIE-243 | Farben, Stil und Nummern | Soll | Zwölf Farben, freie Farbe und Pipette; „Stil“ ändert Linienart, Spitzen, Füllung, Hintergrund, Form, Zählweise und Deckkraft der gewählten Zeichnung; nach dem Löschen der Nummer 2 heißen die Nummern 1, 2 statt 1, 3; „Stil übertragen“ ändert alle Zeichnungen derselben Art. |
+| VIE-244 | Querverweis, Variable, Tabelle einfügen | Soll | „＋ → Querverweis → Schritt 1“ zeigt im Feld „Schritt 1“ und speichert `[[ref:s…]]` mit `fmt: 1`; eine eingefügte Tabelle lässt sich im Feld bearbeiten und erscheint in der Seitenansicht; `Produkt = Kasse` im Dokumentbereich ergibt `guide.vars`. |
 | VIE-241 | Formatierbare Textfelder | Soll | `Strg+B` im Anleitungstext zeigt sofort Fettdruck; nach dem Verlassen ist der Text mit `fmt: 1` gespeichert und erscheint fett in der Seitenansicht; ein Text ohne Formatierung wird ohne Kennzeichen gespeichert; Einfügen aus Word bringt nur den Text. |
 | VIE-238 | Terminal, Remote-Desktop, virtuelle Maschinen | Muss | Getipptes in diesen Fenstern ist prüfpflichtig; in der Schutzstufe „Streng“ ist es vollständig maskiert. Kennwortabfragen im Terminal werden nicht automatisch erkannt. |
 

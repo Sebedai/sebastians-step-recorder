@@ -29,6 +29,22 @@ public sealed class RichText
         return new RichText(new RichDoc(inl.Count == 0 ? Array.Empty<RichBlock>() : new[] { new RichBlock(RichBlockKind.Paragraph, inl) }), degraded);
     }
 
+    /// <summary>
+    /// Querverweise beschriften (13, Paket 23): <paramref name="label"/> liefert zum Ziel die Beschriftung aus der Anleitung
+    /// („Schritt 2.3“) oder null – dann steht „??“, nie der Titel eines nicht gezeigten Schritts.
+    /// </summary>
+    public RichText ResolveRefs(Func<string, (string Label, string? Anchor)?> label)
+    {
+        if (!Doc.References().Any()) return this;
+        return new RichText(Doc.Map(x =>
+        {
+            if (x.Kind != RichKind.Ref) return x;
+            var r = x.Target != null ? label(x.Target) : null;
+            // Ziel danach: Sprungmarke im Dokument (z. B. „s4“) oder keins
+            return x with { Text = r?.Label ?? "??", Target = r?.Anchor };
+        }), Degraded);
+    }
+
     /// <summary>Hängt bereinigte reine Zeilen als weiteren Absatz an (z. B. Ziel und erwartetes Ergebnis unter der Einleitung).</summary>
     public RichText AppendPlain(string cleanPlain)
     {

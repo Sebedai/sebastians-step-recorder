@@ -54,6 +54,7 @@ public sealed partial class SimpleDocx
                     sb.Append($"<w:hyperlink r:id=\"{LinkRel(url)}\" w:history=\"1\">").Append(RunX(x.Text, b, i, color: "1F4E9C", underline: true)).Append("</w:hyperlink>");
                     break;
                 case RichKind.Link: sb.Append(RunX(x.Text, b, i, color: color)); break;
+                case RichKind.Ref: sb.Append(RunX(x.Text, b, i, color: color)); break;
                 case RichKind.Break: sb.Append("<w:r><w:br/></w:r>"); break;
             }
         }
@@ -66,6 +67,7 @@ public sealed partial class SimpleDocx
         foreach (var b in doc.Blocks)
         {
             if (b.Kind == RichBlockKind.Paragraph) { _body.Append("<w:p>").Append(pPr ?? "").Append(RichRuns(b.Inlines!, italic, color)).Append("</w:p>"); continue; }
+            if (b.Kind == RichBlockKind.Table) { TableX(b); continue; }
             for (int k = 0; k < b.Items!.Count; k++)
             {
                 string label = b.Kind == RichBlockKind.Bullet ? "•" : (b.Start + k) + ".";
@@ -81,6 +83,7 @@ public sealed partial class SimpleDocx
         bool first = true;
         foreach (var b in doc.Blocks)
         {
+            if (b.Kind == RichBlockKind.Table) { if (first) { _body.Append("<w:p>").Append(ppr).Append(Run(label, true, false, color)).Append("</w:p>"); first = false; } TableX(b); continue; }
             var lines = b.Kind == RichBlockKind.Paragraph ? new[] { ((string?)null, b.Inlines!) } : b.Items!.Select((it, k) => ((string?)(b.Kind == RichBlockKind.Bullet ? "•" : (b.Start + k) + "."), it)).ToArray();
             foreach (var (lab, inl) in lines)
             {
@@ -91,6 +94,35 @@ public sealed partial class SimpleDocx
             }
         }
         if (first) _body.Append("<w:p>").Append(ppr).Append(Run(label, true, false, color)).Append("</w:p>");
+    }
+
+    /// <summary>Tabelle mit Rahmen; die Kopfzeile wiederholt sich auf jeder Seite und ist schattiert.</summary>
+    void TableX(RichBlock b)
+    {
+        int cols = Math.Max(1, b.Columns);
+        int tw = 9000, cw = tw / cols;
+        var sb = new StringBuilder("<w:tbl><w:tblPr><w:tblW w:w=\"" + tw + "\" w:type=\"dxa\"/><w:tblBorders>");
+        foreach (var side in new[] { "top", "left", "bottom", "right", "insideH", "insideV" }) sb.Append($"<w:{side} w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"B8BEC8\"/>");
+        sb.Append("</w:tblBorders><w:tblCellMar><w:left w:w=\"80\" w:type=\"dxa\"/><w:right w:w=\"80\" w:type=\"dxa\"/></w:tblCellMar></w:tblPr><w:tblGrid>");
+        for (int c = 0; c < cols; c++) sb.Append($"<w:gridCol w:w=\"{cw}\"/>");
+        sb.Append("</w:tblGrid>");
+        for (int r = 0; r < b.Rows!.Count; r++)
+        {
+            bool head = r == 0 && b.Header;
+            sb.Append("<w:tr>");
+            if (head) sb.Append("<w:trPr><w:tblHeader/></w:trPr>");
+            for (int c = 0; c < cols; c++)
+            {
+                sb.Append($"<w:tc><w:tcPr><w:tcW w:w=\"{cw}\" w:type=\"dxa\"/>");
+                if (head) sb.Append("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"EEF0F3\"/>");
+                sb.Append("</w:tcPr><w:p><w:pPr><w:spacing w:before=\"40\" w:after=\"40\"/></w:pPr>");
+                if (c < b.Rows[r].Count) sb.Append(head ? RichRuns(b.Rows[r][c].Select(x => x.Kind is RichKind.Text or RichKind.Placeholder ? x with { Style = x.Style | RichStyle.Bold } : x)) : RichRuns(b.Rows[r][c]));
+                sb.Append("</w:p></w:tc>");
+            }
+            sb.Append("</w:tr>");
+        }
+        sb.Append("</w:tbl><w:p><w:pPr><w:spacing w:after=\"60\"/></w:pPr></w:p>");
+        _body.Append(sb);
     }
 
     /// <summary>Beziehungen der externen Links für <c>document.xml.rels</c>.</summary>

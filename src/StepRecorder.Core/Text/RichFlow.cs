@@ -19,6 +19,9 @@ public sealed record RichFlowStyle(FontFamily Mono, Brush CodeBack, Brush KeyBac
 /// </summary>
 public static class RichFlow
 {
+    /// <summary>Beschriftung von Querverweisen im Editor (Ziel → „Schritt 2.3“); ohne bleibt „→ Schritt“.</summary>
+    public static Func<string, string?>? RefLabel { get; set; }
+
     public static FlowDocument ToFlow(RichDoc doc, RichFlowStyle st)
     {
         var fd = new FlowDocument { PagePadding = new Thickness(0) };
@@ -37,6 +40,7 @@ public static class RichFlow
                 foreach (var line in SplitLines(bl.Inlines!)) fd.Blocks.Add(Line(line));
                 continue;
             }
+            if (bl.Kind == RichBlockKind.Table) { fd.Blocks.Add(ToTable(bl, st)); continue; }
             var list = new List { MarkerStyle = bl.Kind == RichBlockKind.Bullet ? TextMarkerStyle.Disc : TextMarkerStyle.Decimal, Margin = new Thickness(0), Padding = new Thickness(22, 0, 0, 0) };
             if (bl.Kind == RichBlockKind.Numbered && bl.Start != 1) list.StartIndex = bl.Start;
             foreach (var item in bl.Items!)
@@ -49,6 +53,29 @@ public static class RichFlow
         }
         if (fd.Blocks.Count == 0) fd.Blocks.Add(new Paragraph { Margin = new Thickness(0) });
         return fd;
+    }
+
+    /// <summary>Tabelle als WPF-Tabelle; die Kopfzeile ist fett und in <c>Tag</c> als „header“ gekennzeichnet.</summary>
+    static Table ToTable(RichBlock bl, RichFlowStyle st)
+    {
+        int cols = Math.Max(1, bl.Columns);
+        var t = new Table { CellSpacing = 0, Margin = new Thickness(0, 2, 0, 2), BorderBrush = Brushes.Gray, BorderThickness = new Thickness(0.5) };
+        for (int c = 0; c < cols; c++) t.Columns.Add(new TableColumn());
+        var group = new TableRowGroup();
+        for (int r = 0; r < bl.Rows!.Count; r++)
+        {
+            var row = new TableRow();
+            if (r == 0 && bl.Header) { row.Tag = "header"; row.FontWeight = FontWeights.Bold; }
+            for (int c = 0; c < cols; c++)
+            {
+                var p = new Paragraph { Margin = new Thickness(0) };
+                if (c < bl.Rows[r].Count) foreach (var x in bl.Rows[r][c]) p.Inlines.Add(ToInline(x, st));
+                row.Cells.Add(new TableCell(p) { BorderBrush = Brushes.Gray, BorderThickness = new Thickness(0.5), Padding = new Thickness(4, 2, 4, 2) });
+            }
+            group.Rows.Add(row);
+        }
+        t.RowGroups.Add(group);
+        return t;
     }
 
     static IEnumerable<List<RichInline>> SplitLines(IReadOnlyList<RichInline> inl)
@@ -70,6 +97,7 @@ public static class RichFlow
             RichKind.Key => new Run(x.Text) { Background = st.KeyBack },
             RichKind.Ui => new Run(x.Text) { Foreground = st.UiFore, FontWeight = FontWeights.SemiBold },
             RichKind.Link => new Hyperlink(new Run(x.Text)) { Tag = x.Target, Foreground = st.LinkFore, ToolTip = x.Target },
+            RichKind.Ref => new Run(RefLabel?.Invoke(x.Target ?? "") ?? "→ " + x.Target) { Tag = "ref:" + x.Target, Foreground = st.LinkFore, TextDecorations = TextDecorations.Underline },
             RichKind.Break => new LineBreak(),
             _ => new Run(x.Text)
         };
@@ -133,6 +161,29 @@ public static class RichFlow
                     return;
                 }
                 case Section s: foreach (var c in s.Blocks) Visit(c); return;
+                case Table t:
+                {
+                    Flush();
+                    var rows = new List<IReadOnlyList<IReadOnlyList<RichInline>>>();
+                    bool header = false;
+                    foreach (var g in t.RowGroups)
+                        foreach (var tr in g.Rows)
+                        {
+                            if (rows.Count == 0 && tr.Tag as string == "header") header = true;
+                            var cells = new List<IReadOnlyList<RichInline>>();
+                            foreach (var cell in tr.Cells)
+                            {
+                                var inl = new List<RichInline>();
+                                foreach (var pp in cell.Blocks.OfType<Paragraph>()) { if (inl.Count > 0) inl.Add(new RichInline(RichKind.Text, " ")); foreach (var i in pp.Inlines) Collect(i, inl, st, null); }
+                                // Kopfzeile: fett ist Darstellung, nicht Auszeichnung
+                                if (header && rows.Count == 0) inl = inl.Select(x => x with { Style = x.Style & ~RichStyle.Bold }).ToList();
+                                cells.Add(Merge(inl.Where(x => x.Kind != RichKind.Break).ToList()));
+                            }
+                            if (cells.Count > 0) rows.Add(cells.Take(RichDoc.MaxColumns).ToList());
+                        }
+                    if (rows.Count > 0) blocks.Add(new RichBlock(RichBlockKind.Table, Rows: rows, Header: header && rows.Count > 1));
+                    return;
+                }
                 default:
                 {
                     // Tabellen, Bilder usw. lässt das Feld nicht zu; falls doch: als Text
@@ -162,6 +213,8 @@ public static class RichFlow
             }
             case Span sp: foreach (var c in sp.Inlines) Collect(c, into, st, link); return;
             case LineBreak: into.Add(new RichInline(RichKind.Break, "\n")); return;
+            case Run rr when rr.Tag is string tag && tag.StartsWith("ref:", StringComparison.Ordinal) && RichDoc.IsRefTarget(tag[4..]):
+                into.Add(new RichInline(RichKind.Ref, RichDoc.RefPending, RichStyle.None, tag[4..])); return;
             case Run r:
             {
                 string text = r.Text.Replace("\r", "").Replace("\n", " ");

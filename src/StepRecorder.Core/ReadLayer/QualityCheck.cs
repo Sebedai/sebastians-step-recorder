@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using StepRecorder.Data;
 using StepRecorder.Export;
 using StepRecorder.Steps;
+using StepRecorder.Text;
 
 namespace StepRecorder.ReadLayer;
 
@@ -44,6 +45,7 @@ public sealed class QualityOptions
 public static class QualityCheck
 {
     static readonly Regex StepRef = new(@"(?i)\b(schritt|step)\s*\d+", RegexOptions.CultureInvariant);
+    static readonly Regex Leftover = new(@"\bTODO\b|\bXXX\b|\?\?\?", RegexOptions.CultureInvariant);
 
     public static List<QualityFinding> Run(SessionView view, QualityOptions? o = null)
     {
@@ -73,6 +75,8 @@ public static class QualityCheck
         bool reordered = (view.Edits.Arr("order")?.Count ?? 0) > 0 || view.All.Any(s => s.Hidden) || view.Manual.Count > 0 || (view.Edits.Arr("merges")?.Count ?? 0) > 0 || (view.Edits.Obj("guide")?.Arr("append")?.Count ?? 0) > 0;
         var timeline = view.Steps.Arr("timeline") ?? new JsonArray();
         var personal = o.PersonalValues ?? DefaultPersonalValues();
+        var shownTargets = steps.Select(x => "s" + x.Anchor).Concat(steps.Where(x => x.ChapterTitle is { Length: > 0 }).Select(x => "k" + x.Anchor)).ToHashSet();
+        foreach (var m in steps.Where(x => x.Members != null)) foreach (var mm in m.Members!) shownTargets.Add("s" + mm.Anchor);
 
         foreach (var s in steps)
         {
@@ -163,6 +167,16 @@ public static class QualityCheck
             // Q20
             if (reordered && s.Comments.Any(c => StepRef.IsMatch(c.Str("text") ?? "")))
                 Add("Q20", "hint", s, null, "Ein Kommentar nennt eine Schrittnummer, die sich verschoben haben kann.", "A comment mentions a step number that may have shifted.", "editText");
+            // Q31: Variable nicht aufgelöst, liegengebliebene Platzhalter (13, Paket 23) – nur eigene Texte
+            string own = (s.AuthorTitle ?? "") + "\n" + (s.AuthorBody ?? "") + "\n" + (s.ChapterTitle ?? "") + "\n" + (s.ChapterText ?? "") + "\n" + string.Join("\n", s.Comments.Select(c => c.Str("text")));
+            if (view.UnknownVars(own).Any())
+                Add("Q31", "warning", s, "var", "Eine Variable ist nicht festgelegt und erscheint als {{…}}.", "A variable is not defined and appears as {{…}}.", "editText");
+            else if (Leftover.IsMatch(own))
+                Add("Q31", "warning", s, "todo", "Im Text steht noch ein Platzhalter (TODO, ???, XXX).", "The text still contains a placeholder (TODO, ???, XXX).", "editText");
+            // Q32: Querverweis ohne sichtbares Ziel
+            var refs = new[] { s.BodyRich, s.ChapterRich }.Concat(s.NoteRich?.Values ?? Enumerable.Empty<RichText>()).Where(r => r != null).SelectMany(r => r!.Doc.References());
+            if (refs.Any(t => !shownTargets.Contains(t)))
+                Add("Q32", "warning", s, "ref", "Ein Querverweis zeigt auf einen Schritt oder ein Kapitel, das nicht in der Anleitung steht (erscheint als „??“).", "A cross-reference points to a step or chapter that is not in the guide (appears as “??”).", "editText");
             prev = s;
         }
 

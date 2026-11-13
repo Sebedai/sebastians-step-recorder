@@ -2449,6 +2449,8 @@ Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-
 
 - Ein Text mit `by: "mcp"` (geschrieben von einem Agenten) bleibt immer wörtlich, auch mit Kennzeichen; ein unbekannter Wert von `fmt` gilt als „nicht formatiert“.
 - Neue optionale Felder: `schemaVersion` bleibt „1.0“. Programme bis 0.13 zeigen formatierte Texte mit ihren Zeichen (`**fett**`), verlieren aber nichts.
+- **Variablen** (Paket 23): `guide.vars` = `{ "Produkt": "Kasse 3000" }`, je Sprache `guide.i18n.<lang>.vars` (überschreibt). Namen: Buchstabe, dann bis zu 39 Buchstaben, Ziffern, Leerzeichen, `_ . -`. `{{Name}}` wirkt in allen eigenen Texten, auch ohne `fmt`; in formatiertem Text wird der Wert maskiert eingesetzt (seine Sterne bleiben Sterne). Werte durchlaufen Schwärzung und Verallgemeinerung.
+- **Querverweise und Tabellen** sind Teil der Auszeichnung (`fmt: 1`), siehe [09 §11.1](09-anleitungs-export.md#111-formatierter-text-des-autors).
 - Der Editor setzt das Kennzeichen nur, wenn der Text tatsächlich Formatierung enthält; sonst speichert er reinen Text ohne Kennzeichen.
 
 | Nr. | Anforderung | Priorität | Abnahme |

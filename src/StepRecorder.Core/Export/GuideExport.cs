@@ -167,10 +167,10 @@ public static partial class GuideExport
         if (!o.Numbering) s.Numbering = "none";
         if (o.Page is "a4" or "letter") s.Page = o.Page;
         if (o.Landscape is { } land) s.Landscape = land;
-        d.Title = view.Clean(DocSettings.GuideText(guide, "title", lang) is { Length: > 0 } lt ? lt : view.Title);
-        d.Subtitle = view.Clean(s.Subtitle);
+        d.Title = view.CleanVars(DocSettings.GuideText(guide, "title", lang) is { Length: > 0 } lt ? lt : view.Title);
+        d.Subtitle = view.CleanVars(s.Subtitle);
         d.Intro = Intro(view, lang);
-        d.Outro = view.Clean(DocSettings.GuideText(guide, "outro", lang) ?? "");
+        d.Outro = view.CleanVars(DocSettings.GuideText(guide, "outro", lang) ?? "");
         if (view.GuideRich("intro", lang) is { } ir) d.IntroRich = ir.AppendPlain(GoalLines(view, lang));
         d.OutroRich = view.GuideRich("outro", lang);
         // Formate ohne Formatierung (PowerPoint, GIF, Fehlerbericht) lesen den sichtbaren Text
@@ -255,6 +255,7 @@ public static partial class GuideExport
         }
         }
 
+        ResolveRefs(d, lang);
         string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
         d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
@@ -290,7 +291,7 @@ public static partial class GuideExport
     static string Intro(SessionView view, string lang)
     {
         var parts = new List<string>();
-        if (DocSettings.GuideText(view.Edits.Obj("guide"), "intro", lang) is { Length: > 0 } intro) parts.Add(view.Clean(intro));
+        if (DocSettings.GuideText(view.Edits.Obj("guide"), "intro", lang) is { Length: > 0 } intro) parts.Add(view.CleanVars(intro));
         var goal = view.Goal();
         if (goal?.Str("description") is { } d) parts.Add(Settings.OutText.T(lang, "Ziel: ", "Goal: ") + d);
         if (goal?.Str("expected") is { } e) parts.Add(Settings.OutText.T(lang, "Erwartetes Ergebnis: ", "Expected result: ") + e);

@@ -15,7 +15,7 @@ namespace StepRecorder.App.Ui;
 /// unverändert). Einfügen von außen nur als reiner Text. Tasten: Strg+B, Strg+I, Strg+E (Eingabe), Strg+K (Link), Strg+Umschalt+L/N
 /// (Listen), Esc verwirft, Strg+Eingabe schließt ab. Umschalter „&lt;/&gt;“ zeigt die Auszeichnung als Text.
 /// </summary>
-sealed class RichEdit : Border
+sealed partial class RichEdit : Border
 {
     readonly RichTextBox _box = new() { AcceptsReturn = true, AcceptsTab = false, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, IsDocumentEnabled = false, AllowDrop = false, Padding = new Thickness(6, 6, 6, 6) };
     readonly TextBox _source = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, VerticalContentAlignment = VerticalAlignment.Top, Visibility = Visibility.Collapsed, FontFamily = Theme.Mono, FontSize = Theme.FsHint };
@@ -55,6 +55,8 @@ sealed class RichEdit : Border
         BarButton("•", Loc.L("Aufzählung (Strg+Umschalt+L)", "Bulleted list (Ctrl+Shift+L)"), () => EditingCommands.ToggleBullets.Execute(null, _box));
         BarButton("1.", Loc.L("Nummerierung (Strg+Umschalt+N)", "Numbered list (Ctrl+Shift+N)"), () => EditingCommands.ToggleNumbering.Execute(null, _box));
         BarButton("🔗", Loc.L("Link (Strg+K) – nur http, https, mailto", "Link (Ctrl+K) – http, https, mailto only"), AddLink);
+        var insert = BarButton("＋", Loc.L("Einfügen: Querverweis, Variable, Tabelle", "Insert: cross-reference, variable, table"), () => { });
+        insert.Click += (_, _) => ShowInsertMenu(insert);
         BarButton("⌫", Loc.L("Formatierung der Auswahl entfernen", "Remove formatting from the selection"), ClearFormat);
         BarButton("</>", Loc.L("Als Auszeichnung bearbeiten (**fett**, *kursiv*, `Eingabe`, [[Strg+S]], [[ui:OK]], [Text](https://…))", "Edit as markup (**bold**, *italic*, `input`, [[Ctrl+S]], [[ui:OK]], [text](https://…))"), ToggleSource);
         if (!barAlways) { _bar.Visibility = Visibility.Collapsed; IsKeyboardFocusWithinChanged += (_, _) => _bar.Visibility = IsKeyboardFocusWithin || _sourceMode ? Visibility.Visible : Visibility.Collapsed; }
@@ -76,7 +78,7 @@ sealed class RichEdit : Border
     static UIElement Dock(UIElement e) { DockPanel.SetDock(e, System.Windows.Controls.Dock.Top); return e; }
     static Brush Freeze(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
 
-    void BarButton(string label, string tip, Action click, FontWeight? weight = null, FontStyle? style = null, bool mono = false)
+    Button BarButton(string label, string tip, Action click, FontWeight? weight = null, FontStyle? style = null, bool mono = false)
     {
         var tb = new TextBlock { Text = label, FontSize = 13, FontWeight = weight ?? FontWeights.SemiBold, FontStyle = style ?? FontStyles.Normal, HorizontalAlignment = HorizontalAlignment.Center };
         if (mono) tb.FontFamily = Theme.Mono;
@@ -84,6 +86,7 @@ sealed class RichEdit : Border
         System.Windows.Automation.AutomationProperties.SetName(b, tip);
         b.Click += (_, _) => { if (!_sourceMode || label == "</>") click(); _box.Focus(); };
         _bar.Children.Add(b);
+        return b;
     }
 
     static bool Blocked(ICommand c) => c == EditingCommands.ToggleUnderline || c == EditingCommands.ToggleSubscript || c == EditingCommands.ToggleSuperscript

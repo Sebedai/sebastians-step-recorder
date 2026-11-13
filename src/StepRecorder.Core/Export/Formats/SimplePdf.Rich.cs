@@ -129,6 +129,7 @@ public sealed partial class SimplePdf
         foreach (var b in doc.Blocks)
         {
             if (b.Kind == RichBlockKind.Paragraph) h += MeasureRich(b.Inlines!, width, size) + paraGap;
+            else if (b.Kind == RichBlockKind.Table) h += MeasureTable(b, width, size) + paraGap + 4;
             else foreach (var it in b.Items!) h += MeasureRich(it, width - 14, size) + 2;
         }
         return h;
@@ -191,6 +192,7 @@ public sealed partial class SimplePdf
             var b = doc.Blocks[bi];
             bool last = bi == doc.Blocks.Count - 1;
             if (b.Kind == RichBlockKind.Paragraph) { RichParagraph(b.Inlines!, size, indent, last ? spacingAfter : 4, color, width); continue; }
+            if (b.Kind == RichBlockKind.Table) { RichTable(b, size, indent, width, color); Y -= last ? spacingAfter : 6; continue; }
             for (int k = 0; k < b.Items!.Count; k++)
             {
                 string label = b.Kind == RichBlockKind.Bullet ? "•" : (b.Start + k) + ".";
@@ -201,6 +203,100 @@ public sealed partial class SimplePdf
                 DrawTextTo(_cur, Margin + indent + 2, Y - size * 1.35 + size * 0.25, label, size, false, color ?? (0.1, 0.1, 0.1), false, false);
                 RichParagraph(b.Items[k], size, indent + 14, last && k == b.Items.Count - 1 ? spacingAfter : 2, color, width - 14);
             }
+        }
+    }
+
+    const double CellPad = 4;
+
+    /// <summary>Spaltenbreiten: nach dem längsten Wort und der Gesamtlänge je Spalte verteilt, mindestens 40 pt.</summary>
+    static double[] ColumnWidths(RichBlock b, double width, double size)
+    {
+        int cols = Math.Max(1, b.Columns);
+        var want = new double[cols];
+        var min = new double[cols];
+        foreach (var r in b.Rows!)
+            for (int c = 0; c < r.Count && c < cols; c++)
+            {
+                var segs = Segments(r[c]);
+                double total = segs.Sum(s => s.Width(size)) + segs.Count * TextWidth(" ", size);
+                want[c] = Math.Max(want[c], total);
+                min[c] = Math.Max(min[c], segs.Count == 0 ? 0 : segs.Max(s => s.Width(size)));
+            }
+        double avail = width - cols * 2 * CellPad;
+        var w = new double[cols];
+        double sumWant = want.Sum();
+        if (sumWant <= avail) { for (int c = 0; c < cols; c++) w[c] = want[c] + (avail - sumWant) / cols * 0; }
+        else
+        {
+            for (int c = 0; c < cols; c++) w[c] = Math.Max(Math.Min(min[c], avail / cols * 1.6), 40);
+            double rest = avail - w.Sum();
+            double extra = want.Select((x, c) => Math.Max(0, x - w[c])).Sum();
+            if (rest > 0 && extra > 0) for (int c = 0; c < cols; c++) w[c] += rest * Math.Max(0, want[c] - w[c]) / extra;
+            double scale = avail / w.Sum();
+            if (scale < 1) for (int c = 0; c < cols; c++) w[c] *= scale;
+        }
+        for (int c = 0; c < cols; c++) w[c] = Math.Max(w[c], 12);
+        return w;
+    }
+
+    static double RowHeight(IReadOnlyList<IReadOnlyList<RichInline>> row, double[] w, double size, bool head)
+    {
+        double h = size * 1.35;
+        for (int c = 0; c < row.Count && c < w.Length; c++) h = Math.Max(h, MeasureRich(head ? Bolden(row[c]) : row[c], w[c], size));
+        return h + 2 * CellPad;
+    }
+
+    static IReadOnlyList<RichInline> Bolden(IReadOnlyList<RichInline> inl) => inl.Select(x => x.Kind is RichKind.Text or RichKind.Placeholder ? x with { Style = x.Style | RichStyle.Bold } : x).ToList();
+
+    static double MeasureTable(RichBlock b, double width, double size)
+    {
+        var w = ColumnWidths(b, width, size);
+        return b.Rows!.Select((r, i) => RowHeight(r, w, size, i == 0 && b.Header)).Sum();
+    }
+
+    /// <summary>Tabelle: Zellen mit Rahmen, Kopfzeile schattiert und auf jeder neuen Seite wiederholt.</summary>
+    public void RichTable(RichBlock b, double size, double indent, double width, (double r, double g, double b)? color = null)
+    {
+        var w = ColumnWidths(b, width, size);
+        double tableW = w.Sum() + w.Length * 2 * CellPad;
+        var line = (0.72, 0.75, 0.79);
+        void DrawRow(IReadOnlyList<IReadOnlyList<RichInline>> row, bool head)
+        {
+            double h = RowHeight(row, w, size, head);
+            double top = Y, x = Margin + indent;
+            if (head) FillRect(x, top - h, tableW, h, (0.93, 0.94, 0.95));
+            for (int c = 0; c < w.Length; c++)
+            {
+                double cw = w[c] + 2 * CellPad;
+                StrokeRect(x, top - h, cw, h, line, 0.6);
+                if (c < row.Count)
+                {
+                    double savedY = Y; Y = top - CellPad;
+                    double savedMargin = Margin; Margin = x + CellPad;
+                    try
+                    {
+                        foreach (var l in LayoutLines(Segments(head ? Bolden(row[c]) : row[c]), w[c], size))
+                        {
+                            double lh = LineHeight(l, size);
+                            Y -= lh;
+                            DrawLine(l, Margin, Y + size * 0.25 + (lh - size * 1.35) / 2, size, color ?? (0.1, 0.1, 0.1));
+                        }
+                    }
+                    finally { Margin = savedMargin; Y = savedY; }
+                }
+                x += cw;
+            }
+            Y = top - h;
+        }
+        for (int r = 0; r < b.Rows!.Count; r++)
+        {
+            bool head = r == 0 && b.Header;
+            double h = RowHeight(b.Rows[r], w, size, head);
+            int page = PageCount;
+            EnsureSpace(h);
+            // neue Seite: Kopfzeile wiederholen
+            if (PageCount != page && b.Header && r > 0) DrawRow(b.Rows[0], true);
+            DrawRow(b.Rows[r], head);
         }
     }
 

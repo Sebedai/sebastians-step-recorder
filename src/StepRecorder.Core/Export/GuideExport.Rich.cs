@@ -9,7 +9,7 @@ public static partial class GuideExport
     /// <summary>Zusätzliche Stile für formatierten Text – nur eingefügt, wenn eine Anleitung ihn enthält (bestehende Ausgaben bleiben gleich).</summary>
     const string RichCss = "kbd{font:600 .82em \"Segoe UI\",system-ui,sans-serif;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 .4em;background:var(--soft);white-space:nowrap}\n" +
         "code{font-family:Consolas,\"Cascadia Mono\",monospace;font-size:.92em;background:var(--soft);border-radius:3px;padding:0 .25em}\n" +
-        "b.ui{font-weight:650}\n.rt p{margin:0 0 6px}.rt p:last-child{margin-bottom:8px}.rt ul,.rt ol{margin:2px 0 8px;padding-left:22px}.rt li{margin:2px 0}\n" +
+        "b.ui{font-weight:650}\n.rt table{border-collapse:collapse;margin:4px 0 10px;font-size:.95em}.rt th,.rt td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}.rt th{background:var(--soft);font-weight:650}\na.ref{text-decoration:none;border-bottom:1px dotted currentColor}\n.rt p{margin:0 0 6px}.rt p:last-child{margin-bottom:8px}.rt ul,.rt ol{margin:2px 0 8px;padding-left:22px}.rt li{margin:2px 0}\n" +
         ".note .rt p,.box .rt p{margin:0 0 4px}.note .rt p:last-child,.box .rt p:last-child{margin:0}.note .rt ul,.note .rt ol{margin:2px 0 0}\na{color:var(--accent)}\n";
 
     static string HtmlInline(IEnumerable<RichInline> inl)
@@ -26,6 +26,8 @@ public static partial class GuideExport
                 RichKind.Key => string.Join("+", x.Text.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(k => "<kbd>" + e(k) + "</kbd>")),
                 RichKind.Link when x.Target != null && RichDoc.IsAllowedLink(x.Target, out var u) => $"<a href=\"{e(u)}\" rel=\"noopener noreferrer\">{e(x.Text)}</a>",
                 RichKind.Link => e(x.Text),
+                RichKind.Ref when x.Target is { Length: > 1 } t && t[0] == '#' => $"<a class=\"ref\" href=\"{e(t)}\">{e(x.Text)}</a>",
+                RichKind.Ref => e(x.Text),
                 RichKind.Break => "<br>",
                 _ => ""
             };
@@ -45,12 +47,32 @@ public static partial class GuideExport
         {
             if (b.Kind == RichBlockKind.Paragraph) { sb.Append("<p>"); if (lead) { sb.Append(leadHtml); lead = false; } sb.Append(HtmlInline(b.Inlines!)).Append("</p>"); continue; }
             if (lead) { sb.Append("<p>").Append(leadHtml).Append("</p>"); lead = false; }
+            if (b.Kind == RichBlockKind.Table) { sb.Append(HtmlTable(b)); continue; }
             sb.Append(b.Kind == RichBlockKind.Bullet ? "<ul>" : b.Start != 1 ? $"<ol start=\"{b.Start}\">" : "<ol>");
             foreach (var it in b.Items!) sb.Append("<li>").Append(HtmlInline(it)).Append("</li>");
             sb.Append(b.Kind == RichBlockKind.Bullet ? "</ul>" : "</ol>");
         }
         if (lead) sb.Append("<p>").Append(leadHtml).Append("</p>");
         return sb.Append("</div>").ToString();
+    }
+
+    static string HtmlTable(RichBlock b)
+    {
+        var sb = new StringBuilder("<table>");
+        int cols = Math.Max(1, b.Columns);
+        for (int r = 0; r < b.Rows!.Count; r++)
+        {
+            bool head = r == 0 && b.Header;
+            sb.Append(head ? "<thead><tr>" : "<tr>");
+            for (int c = 0; c < cols; c++)
+            {
+                string cell = c < b.Rows[r].Count ? HtmlInline(b.Rows[r][c]) : "";
+                sb.Append(head ? "<th scope=\"col\">" : "<td>").Append(cell).Append(head ? "</th>" : "</td>");
+            }
+            sb.Append(head ? "</tr></thead><tbody>" : "</tr>");
+        }
+        if (!b.Header) sb.Insert("<table>".Length, "<tbody>");
+        return sb.Append("</tbody></table>").ToString();
     }
 
     /// <summary>Stile für formatierten Text vor <c>&lt;/style&gt;</c> einsetzen, wenn die Anleitung welchen enthält.</summary>
@@ -74,6 +96,8 @@ public static partial class GuideExport
                 RichKind.Key => string.Join("+", x.Text.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries).Select(k => "<kbd>" + Fmt.HtmlEscape(k) + "</kbd>")),
                 RichKind.Link when x.Target != null && RichDoc.IsAllowedLink(x.Target, out var u) => "[" + MdText(x.Text) + "](" + u + ")",
                 RichKind.Link => MdText(x.Text),
+                RichKind.Ref when x.Target is { Length: > 1 } t && t[0] == '#' => "[" + MdText(x.Text) + "](" + t + ")",
+                RichKind.Ref => MdText(x.Text),
                 RichKind.Break => "\\\n",
                 _ => ""
             };
@@ -109,6 +133,17 @@ public static partial class GuideExport
                 foreach (var line in MdInlineRich(b.Inlines!).Split('\n')) sb.Append(ind).Append(line).Append('\n');
                 continue;
             }
+            if (b.Kind == RichBlockKind.Table)
+            {
+                int cols = Math.Max(1, b.Columns);
+                string Row(IReadOnlyList<IReadOnlyList<RichInline>> row) => "| " + string.Join(" | ", Enumerable.Range(0, cols).Select(c => c < row.Count ? MdInlineRich(row[c]).Replace("\\\n", " ").Replace("|", "\\|") : "")) + " |";
+                int start = 0;
+                if (b.Header) { sb.Append(ind).Append(Row(b.Rows![0])).Append('\n'); start = 1; }
+                else sb.Append(ind).Append("| " + string.Join(" | ", Enumerable.Repeat(" ", cols)) + " |").Append('\n');
+                sb.Append(ind).Append("|" + string.Concat(Enumerable.Repeat("---|", cols))).Append('\n');
+                for (int ri = start; ri < b.Rows!.Count; ri++) sb.Append(ind).Append(Row(b.Rows[ri])).Append('\n');
+                continue;
+            }
             for (int k = 0; k < b.Items!.Count; k++)
             {
                 string m = b.Kind == RichBlockKind.Bullet ? "- " : (b.Start + k) + ". ";
@@ -126,6 +161,7 @@ public static partial class GuideExport
         foreach (var b in r.Doc.Blocks)
         {
             if (b.Kind == RichBlockKind.Paragraph) { lines.Add(RichDoc.InlineText(b.Inlines!)); continue; }
+            if (b.Kind == RichBlockKind.Table) { foreach (var row in b.Rows!) lines.Add(string.Join("  |  ", row.Select(RichDoc.InlineText))); continue; }
             for (int k = 0; k < b.Items!.Count; k++) lines.Add((b.Kind == RichBlockKind.Bullet ? "• " : (b.Start + k) + ". ") + RichDoc.InlineText(b.Items[k]));
         }
         return string.Join("\n", lines);

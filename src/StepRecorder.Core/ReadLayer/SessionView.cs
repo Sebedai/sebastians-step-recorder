@@ -229,6 +229,7 @@ public sealed partial class SessionView : IDisposable
     /// <summary>Wendet Overlay neu an (nach jeder Bearbeitung aufrufen).</summary>
     public void Rebuild()
     {
+        _vars = null;
         _subst.Clear(); _redactedStrings.Clear(); _rangeRedactions.Clear(); _imageRedactions.Clear();
         _redactedKeySeqs.Clear(); _redactedInputAnchors.Clear(); _hiddenComments.Clear();
         foreach (var r in Edits.Arr("redactions") ?? new JsonArray())
@@ -494,9 +495,9 @@ public sealed partial class SessionView : IDisposable
         var txt = own ?? (AuthorTextFallback ? other : null);
         if (txt != null)
         {
-            vs.AuthorTitle = Clean(txt.Str("title"));
+            vs.AuthorTitle = CleanVars(txt.Str("title"));
             if (IsRich(txt) && txt.Str("body") is { } rb) { vs.BodyRich = SealRich(rb); vs.AuthorBody = vs.BodyRich.Plain; }
-            else vs.AuthorBody = Clean(txt.Str("body"));
+            else vs.AuthorBody = CleanVars(txt.Str("body"));
         }
     }
 
@@ -507,11 +508,11 @@ public sealed partial class SessionView : IDisposable
         var loc = Language != "de" ? ch.Obj(Language) : null;
         string? title = loc?.Str("title") is { Length: > 0 } lt ? lt : ch.Str("title");
         if (title is not { Length: > 0 }) return;
-        vs.ChapterTitle = Clean(title);
+        vs.ChapterTitle = CleanVars(title);
         bool own = loc?.Str("text") is { Length: > 0 };
         string? text = own ? loc!.Str("text") : ch.Str("text");
         if (IsRich(own ? loc : ch) && text != null) { vs.ChapterRich = SealRich(text); vs.ChapterText = vs.ChapterRich.Plain; }
-        else vs.ChapterText = Clean(text);
+        else vs.ChapterText = CleanVars(text);
     }
 
     Glossary? _glossary;
@@ -686,9 +687,9 @@ public sealed partial class SessionView : IDisposable
         c.TranslationMissing = own == null && other != null;
         if (txt != null)
         {
-            c.AuthorTitle = Clean(txt.Str("title"));
+            c.AuthorTitle = CleanVars(txt.Str("title"));
             if (IsRich(txt) && txt.Str("body") is { } rb) { c.BodyRich = SealRich(rb); c.AuthorBody = c.BodyRich.Plain; }
-            else c.AuthorBody = Clean(txt.Str("body"));
+            else c.AuthorBody = CleanVars(txt.Str("body"));
         }
         else c.AuthorTitle = lead.AuthorTitle;
         return c;

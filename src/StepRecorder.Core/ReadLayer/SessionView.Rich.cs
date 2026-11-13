@@ -36,16 +36,17 @@ public sealed partial class SessionView
     /// </summary>
     public RichText SealRich(string? raw)
     {
-        string s0 = Controls.Replace((raw ?? "").Replace("\r\n", "\n").Replace('\r', '\n'), "");
+        // Variablen zuerst (maskiert eingesetzt): ihre Werte durchlaufen Schwärzung und Verallgemeinerung wie jeder andere Text
+        string s0 = Controls.Replace(ExpandVars((raw ?? "").Replace("\r\n", "\n").Replace('\r', '\n'), escape: true), "");
         string clean = Clean(s0);
         string s1 = CleanMarked(s0);
         if (Unmark(s1) != clean) s1 = clean;
         var doc = RichDoc.Parse(s1);
         // Linkziele: nur, wenn kein geschützter Wert darin steckt
-        doc = Map(doc, x => x.Kind == RichKind.Link && (x.Target == null || Clean(x.Target) != x.Target) ? x with { Kind = RichKind.Text, Target = null } : x);
+        doc = doc.Map(x => x.Kind == RichKind.Link && (x.Target == null || Clean(x.Target) != x.Target) ? x with { Kind = RichKind.Text, Target = null } : x);
         string p1 = doc.Projection(), p2 = Clean(p1);
         if (p2 == p1) return new RichText(doc, false);
-        var d2 = Map(doc, x => x with { Text = Clean(x.Text) });
+        var d2 = doc.Map(x => x.Kind == RichKind.Ref ? x : x with { Text = Clean(x.Text) });
         if (d2.Projection() == p2) return new RichText(d2, false);
         return RichText.FromPlain(p2, degraded: true);
     }
@@ -60,18 +61,13 @@ public sealed partial class SessionView
             o["text"] = r.Plain;
             (vs.NoteRich ??= new())[id] = r;
         }
+        else if (c.Str("text") is { } plain && plain.Contains("{{")) o["text"] = CleanVars(plain);
         return o;
     }
 
     /// <summary>Text eines Feldes: formatiert, wenn gekennzeichnet, sonst <c>null</c> (dann gilt der bereinigte reine Text).</summary>
     public RichText? RichOf(string? raw, bool rich) => rich && raw != null ? SealRich(raw) : null;
 
-    static RichDoc Map(RichDoc d, Func<RichInline, RichInline> f)
-        => new(d.Blocks.Select(b => b with
-        {
-            Inlines = b.Inlines?.Select(f).ToList(),
-            Items = b.Items?.Select(i => (IReadOnlyList<RichInline>)i.Select(f).ToList()).ToList()
-        }).ToList());
 
     /// <summary>Formatierte Fassung eines Dokumenttexts (Einleitung, Abschluss) in der Sprache der Ansicht, oder <c>null</c>.</summary>
     public RichText? GuideRich(string key, string lang)

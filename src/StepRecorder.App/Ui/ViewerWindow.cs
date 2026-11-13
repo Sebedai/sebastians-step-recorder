@@ -73,6 +73,8 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
         _imgCaptionPill = new Border { Padding = new Thickness(0), Child = _imgCaption, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 16, 0, 0), IsHitTestVisible = false };
         Load();
         BuildLayout();
+        Activated += (_, _) => InstallTextSources();
+        InstallTextSources();
         RestoreLayoutState();
         Fill();
         try { AutoCleanupOnOpen(); } catch (Exception ex) { UiApp.Log("Aufräumen: " + ex); }

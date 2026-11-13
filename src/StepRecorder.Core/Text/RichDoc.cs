@@ -3,7 +3,7 @@ using System.Text;
 namespace StepRecorder.Text;
 
 /// <summary>Art eines Inline-Elements des formatierten Texts.</summary>
-public enum RichKind { Text, Code, Key, Ui, Link, Break, Placeholder }
+public enum RichKind { Text, Code, Key, Ui, Link, Break, Placeholder, Ref }
 
 /// <summary>Fett/kursiv eines Textlaufs.</summary>
 [Flags] public enum RichStyle { None = 0, Bold = 1, Italic = 2 }
@@ -11,14 +11,24 @@ public enum RichKind { Text, Code, Key, Ui, Link, Break, Placeholder }
 /// <summary>
 /// Ein Inline-Element: Textlauf (mit Stil), Eingabe/Code, Tastenkombination (<see cref="Text"/> = Tasten mit „+“), Name eines
 /// Bedienelements, Link (Beschriftung in <see cref="Text"/>, Ziel in <see cref="Target"/>), Zeilenumbruch oder ein von der Leseschicht
-/// eingesetzter Platzhalter (Schwärzung, Verallgemeinerung – nie Auszeichnung).
+/// eingesetzter Platzhalter (Schwärzung, Verallgemeinerung – nie Auszeichnung) oder ein Querverweis (<see cref="RichKind.Ref"/>:
+/// Ziel in <see cref="Target"/>, z. B. <c>s1203</c> für den Schritt mit Anker 1203, <c>k1203</c> für das dort beginnende Kapitel;
+/// <see cref="Text"/> ist die Beschriftung, die erst die Anleitung mit der gedruckten Nummer füllt).
 /// </summary>
 public sealed record RichInline(RichKind Kind, string Text, RichStyle Style = RichStyle.None, string? Target = null);
 
-public enum RichBlockKind { Paragraph, Bullet, Numbered }
+public enum RichBlockKind { Paragraph, Bullet, Numbered, Table }
 
-/// <summary>Absatz, Aufzählung oder nummerierte Liste. Listen tragen je Punkt eine Inline-Folge.</summary>
-public sealed record RichBlock(RichBlockKind Kind, IReadOnlyList<RichInline>? Inlines = null, IReadOnlyList<IReadOnlyList<RichInline>>? Items = null, int Start = 1);
+/// <summary>
+/// Absatz, Aufzählung, nummerierte Liste oder Tabelle. Listen tragen je Punkt eine Inline-Folge; Tabellen Zeilen aus Zellen
+/// (<see cref="Rows"/>), mit <see cref="Header"/> ist die erste Zeile die Kopfzeile.
+/// </summary>
+public sealed record RichBlock(RichBlockKind Kind, IReadOnlyList<RichInline>? Inlines = null, IReadOnlyList<IReadOnlyList<RichInline>>? Items = null, int Start = 1,
+    IReadOnlyList<IReadOnlyList<IReadOnlyList<RichInline>>>? Rows = null, bool Header = false)
+{
+    /// <summary>Spaltenzahl einer Tabelle (größte Zeile).</summary>
+    public int Columns => Rows?.Max(r => r.Count) ?? 0;
+}
 
 /// <summary>
 /// Formatierter Text (13, Paket 21; 09 §11.1): eine kleine Auszeichnung in den vorhandenen Textfeldern, nur für Texte mit dem Kennzeichen
@@ -66,6 +76,23 @@ public sealed class RichDoc
         {
             string line = lines[i];
             if (line.Trim().Length == 0) { FlushPara(); i++; continue; }
+            // Tabelle: zusammenhängende Zeilen, die mit „|“ beginnen (13, Paket 23)
+            if (line.StartsWith('|'))
+            {
+                FlushPara();
+                var rows = new List<IReadOnlyList<IReadOnlyList<RichInline>>>();
+                bool header = false;
+                while (i < lines.Length && lines[i].StartsWith('|'))
+                {
+                    var cells = SplitCells(lines[i]);
+                    if (rows.Count == 1 && !header && cells.All(c => c.Trim().Length > 0 && c.Trim().All(ch => ch is '-' or ':'))) { header = true; i++; continue; }
+                    if (cells.Count > MaxColumns) cells = cells.Take(MaxColumns - 1).Append(string.Join(" | ", cells.Skip(MaxColumns - 1))).ToList();
+                    rows.Add(cells.Select(c => (IReadOnlyList<RichInline>)ParseInline(c.Trim())).ToList());
+                    i++;
+                }
+                blocks.Add(new RichBlock(RichBlockKind.Table, Rows: rows, Header: header && rows.Count > 1));
+                continue;
+            }
             if (ListMarker(line, out var kind, out int start, out string first))
             {
                 FlushPara();
@@ -90,6 +117,28 @@ public sealed class RichDoc
         return new RichDoc(blocks);
     }
 
+    public const int MaxColumns = 12;
+
+    /// <summary>Zellen einer Tabellenzeile: an „|“ geteilt, außer maskiert (<c>\|</c>) oder in einem Platzhalter; äußere Striche entfallen.</summary>
+    static List<string> SplitCells(string line)
+    {
+        var cells = new List<string>();
+        var cur = new StringBuilder();
+        string s = line.TrimEnd();
+        int start = s.StartsWith('|') ? 1 : 0, end = s.Length;
+        if (end > start && s[end - 1] == '|' && (end < 2 || s[end - 2] != '\\')) end--;
+        for (int i = start; i < end; i++)
+        {
+            char c = s[i];
+            if (c == '\\' && i + 1 < end && s[i + 1] == '|') { cur.Append("\\|"); i++; continue; }
+            if (c == MarkOpen) { int e = s.IndexOf(MarkClose, i + 1); if (e > i) { cur.Append(s, i, e - i + 1); i = e; continue; } }
+            if (c == '|') { cells.Add(cur.ToString()); cur.Clear(); continue; }
+            cur.Append(c);
+        }
+        cells.Add(cur.ToString());
+        return cells;
+    }
+
     static bool ListMarker(string line, out RichBlockKind kind, out int start, out string text)
     {
         kind = RichBlockKind.Bullet; start = 1; text = "";
@@ -108,7 +157,7 @@ public sealed class RichDoc
     // Inline
     // ---------------------------------------------------------------------------------
 
-    static bool IsEscapable(char c) => c is '*' or '`' or '[' or ']';
+    static bool IsEscapable(char c) => c is '*' or '`' or '[' or ']' or '|';
     static bool IsPunctOrSpace(char c) => char.IsWhiteSpace(c) || char.IsPunctuation(c) || char.IsSymbol(c);
 
     public static List<RichInline> ParseInline(string s) => ParseInline(s, RichStyle.None, allowLinks: true);
@@ -154,6 +203,7 @@ public sealed class RichDoc
                 {
                     string inner = s[(i + 2)..e];
                     if (inner.StartsWith("ui:", StringComparison.Ordinal) && inner.Length > 3) { Flush(); res.Add(new RichInline(RichKind.Ui, StripMarks(inner[3..]), style)); i = e + 2; continue; }
+                    if (inner.StartsWith("ref:", StringComparison.Ordinal) && IsRefTarget(inner[4..])) { Flush(); res.Add(new RichInline(RichKind.Ref, RefPending, style, inner[4..])); i = e + 2; continue; }
                     if (!inner.Contains(':') && inner.Trim().Length > 0 && inner.Length <= 60) { Flush(); res.Add(new RichInline(RichKind.Key, StripMarks(inner.Trim()), style)); i = e + 2; continue; }
                 }
             }
@@ -186,6 +236,35 @@ public sealed class RichDoc
         Flush();
         return Merge(res);
     }
+
+    /// <summary>Beschriftung eines noch nicht aufgelösten Querverweises (KI-Paket, Suche, Editor ohne Nummern).</summary>
+    public const string RefPending = "→";
+
+    /// <summary>Ziel eines Querverweises: <c>s</c> (Schritt) oder <c>k</c> (Kapitel) und ein Anker (bei eingefügten Schritten negativ).</summary>
+    public static bool IsRefTarget(string t) => t.Length is >= 2 and <= 21 && t[0] is 's' or 'k' && long.TryParse(t.AsSpan(1), System.Globalization.NumberStyles.AllowLeadingSign, System.Globalization.CultureInfo.InvariantCulture, out _);
+
+    /// <summary>Alle Querverweisziele des Dokuments.</summary>
+    public IEnumerable<string> References() => AllInlines().Where(x => x.Kind == RichKind.Ref && x.Target != null).Select(x => x.Target!);
+
+    /// <summary>Alle Inline-Elemente (Absätze, Listenpunkte, Tabellenzellen).</summary>
+    public IEnumerable<RichInline> AllInlines()
+    {
+        foreach (var b in Blocks)
+        {
+            if (b.Inlines != null) foreach (var x in b.Inlines) yield return x;
+            if (b.Items != null) foreach (var it in b.Items) foreach (var x in it) yield return x;
+            if (b.Rows != null) foreach (var r in b.Rows) foreach (var c in r) foreach (var x in c) yield return x;
+        }
+    }
+
+    /// <summary>Jedes Inline-Element abbilden (Absätze, Listen, Tabellen).</summary>
+    public RichDoc Map(Func<RichInline, RichInline> f)
+        => new(Blocks.Select(b => b with
+        {
+            Inlines = b.Inlines?.Select(f).ToList(),
+            Items = b.Items?.Select(i => (IReadOnlyList<RichInline>)i.Select(f).ToList()).ToList(),
+            Rows = b.Rows?.Select(r => (IReadOnlyList<IReadOnlyList<RichInline>>)r.Select(c => (IReadOnlyList<RichInline>)c.Select(f).ToList()).ToList()).ToList()
+        }).ToList());
 
     static string StripMarks(string s) => s.Replace(MarkOpen.ToString(), "").Replace(MarkClose.ToString(), "");
 
@@ -295,7 +374,12 @@ public sealed class RichDoc
     /// <summary>Sichtbarer Text ohne Auszeichnung (Schutzprüfung, KI-Paket, Suche): Umbrüche und Blockgrenzen als <c>\n</c>.</summary>
     public string Projection() => string.Join("\n", Blocks.Select(BlockText));
 
-    static string BlockText(RichBlock b) => b.Kind == RichBlockKind.Paragraph ? InlineText(b.Inlines!) : string.Join("\n", b.Items!.Select(InlineText));
+    static string BlockText(RichBlock b) => b.Kind switch
+    {
+        RichBlockKind.Paragraph => InlineText(b.Inlines!),
+        RichBlockKind.Table => string.Join("\n", b.Rows!.Select(r => string.Join("\t", r.Select(InlineText)))),
+        _ => string.Join("\n", b.Items!.Select(InlineText))
+    };
 
     public static string InlineText(IEnumerable<RichInline> inl) => string.Concat(inl.Select(x => x.Text));
 
@@ -313,7 +397,8 @@ public sealed class RichDoc
             {
                 char c = line[i];
                 if (c is MarkOpen or MarkClose) continue;
-                if (IsEscapable(c)) sb.Append('\\');
+                // „|“ nur am Zeilenanfang (sonst würde die Zeile eine Tabelle) – Texte mit Strichen bleiben gut lesbar
+                if (IsEscapable(c) && (c != '|' || i == 0 || line[i - 1] == '\\')) sb.Append('\\');
                 else if (i == 0 && (c == '-' || char.IsAsciiDigit(c)) && NeedsLineEscape(line)) sb.Append('\\');
                 sb.Append(c);
             }
@@ -332,6 +417,18 @@ public sealed class RichDoc
             if (b > 0) sb.Append("\n\n");
             var bl = Blocks[b];
             if (bl.Kind == RichBlockKind.Paragraph) sb.Append(InlineMarkup(bl.Inlines!, true));
+            else if (bl.Kind == RichBlockKind.Table)
+            {
+                int cols = Math.Max(1, bl.Columns);
+                for (int r = 0; r < bl.Rows!.Count; r++)
+                {
+                    if (r > 0) sb.Append('\n');
+                    sb.Append('|');
+                    for (int c = 0; c < cols; c++)
+                        sb.Append(' ').Append(c < bl.Rows[r].Count ? CellMarkup(bl.Rows[r][c]) : "").Append(" |");
+                    if (r == 0 && bl.Header) { sb.Append('\n').Append('|'); for (int c = 0; c < cols; c++) sb.Append("---|"); }
+                }
+            }
             else
                 for (int k = 0; k < bl.Items!.Count; k++)
                 {
@@ -341,6 +438,17 @@ public sealed class RichDoc
                 }
         }
         return sb.ToString();
+    }
+
+    /// <summary>Zelleninhalt: ohne Umbrüche, „|“ maskiert, nie leer an einer Stelle, die die Zeile beenden würde.</summary>
+    static string CellMarkup(IReadOnlyList<RichInline> inl)
+        => InlineMarkup(inl.Select(x => x.Kind == RichKind.Break ? new RichInline(RichKind.Text, " ") : x).ToList(), false).Replace("\n", " ");
+
+    /// <summary>Tabelle aus reinen Zelltexten als Auszeichnung (Tabellen-Dialog des Editors).</summary>
+    public static string TableMarkup(IReadOnlyList<IReadOnlyList<string>> cells, bool header)
+    {
+        var rows = cells.Select(r => (IReadOnlyList<IReadOnlyList<RichInline>>)r.Select(c => (IReadOnlyList<RichInline>)new List<RichInline> { new(RichKind.Text, (c ?? "").Replace("\r", "").Replace("\n", " ")) }).ToList()).ToList();
+        return new RichDoc(new[] { new RichBlock(RichBlockKind.Table, Rows: rows, Header: header && rows.Count > 1) }).ToMarkup();
     }
 
     public static string InlineMarkup(IReadOnlyList<RichInline> inl, bool lineStartEscape = true)
@@ -367,6 +475,7 @@ public sealed class RichDoc
                 RichKind.Key => "[[" + x.Text + "]]",
                 RichKind.Ui => "[[ui:" + x.Text + "]]",
                 RichKind.Link => "[" + EscapeInline(x.Text, false) + "](" + x.Target + ")",
+                RichKind.Ref => "[[ref:" + x.Target + "]]",
                 RichKind.Break => "\n",
                 _ => x.Text
             };

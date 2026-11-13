@@ -1179,7 +1179,14 @@ sealed partial class ViewerWindow
         if (_list.Items.Count < 2) return;
         _list.SelectedIndex = 1;
         // formatierter Anleitungstext (Paket 21)
-        if (Sel is { } rs) { SaveText(rs.Anchor, rs.AuthorTitle ?? rs.Title, Loc.L("Geben Sie **notiz.txt** ein und bestätigen Sie mit [[Eingabe]].\n- Dateityp: `Textdateien`\n- Ordner: [[ui:Dokumente]]", "Type **notiz.txt** and confirm with [[Enter]].\n- File type: `Text files`\n- Folder: [[ui:Documents]]"), true); Flush(); }
+        if (Sel is { } rs)
+        {
+            // dazu Querverweis und Tabelle (Paket 23)
+            string back = _view.GuideSteps().FirstOrDefault(x => x.Kind != "move") is { } f0 ? "[[ref:s" + f0.Anchor + "]]" : "";
+            SaveText(rs.Anchor, rs.AuthorTitle ?? rs.Title, Loc.L("Geben Sie **notiz.txt** ein und bestätigen Sie mit [[Eingabe]] (wie in " + back + ").\n- Dateityp: `Textdateien`\n- Ordner: [[ui:Dokumente]]\n\n| Taste | Wirkung |\n|---|---|\n| [[Strg+S]] | Speichern |\n| [[Esc]] | Abbrechen |",
+                "Type **notiz.txt** and confirm with [[Enter]] (as in " + back + ").\n- File type: `Text files`\n- Folder: [[ui:Documents]]\n\n| Key | Effect |\n|---|---|\n| [[Ctrl+S]] | Save |\n| [[Esc]] | Cancel |"), true);
+            Flush();
+        }
         _tabBtns[1].IsChecked = true; Flush(); save();
         _tabBtns[0].IsChecked = true;
         if (_currentMeta != null)
