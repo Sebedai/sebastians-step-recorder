@@ -76,6 +76,16 @@ public static partial class GuideExport
     }
 
     /// <summary>Stile für formatierten Text vor <c>&lt;/style&gt;</c> einsetzen, wenn die Anleitung welchen enthält.</summary>
+    /// <summary>Unterkapitel (13, Paket 24): kleinere Überschrift, im Verzeichnis eingerückt – nur in Anleitungen mit Unterkapiteln.</summary>
+    const string SubChapterCss = "h2.chapter.sub{font-size:1.2em;margin:28px 0 6px;padding-bottom:5px;border-bottom-width:1px}\nnav.toc li.sub{padding-left:16px}\n";
+
+    static string WithCss(string html, bool uses, string css)
+    {
+        if (!uses) return html;
+        int i = html.IndexOf("</style>", StringComparison.Ordinal);
+        return i < 0 ? html : html[..i] + css + html[i..];
+    }
+
     static string WithRichCss(string html, bool uses)
     {
         if (!uses) return html;

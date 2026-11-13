@@ -78,7 +78,7 @@ public static partial class GuideExport
         /// <summary>Formatierter Hinweis an Position <paramref name="i"/> oder null.</summary>
         public RichText? NoteBody(int i) => NoteRich != null && i < NoteRich.Count ? NoteRich[i] : null;
     }
-    sealed record Chapter(string Number, string Anchor, string Title, string Text, RichText? Body = null);
+    sealed record Chapter(string Number, string Anchor, string Title, string Text, RichText? Body = null, int Level = 1);
 
     /// <summary>Alles, was ein Dokument braucht – einmal gesammelt, für alle Formate gleich.</summary>
     sealed class Doc
@@ -148,7 +148,7 @@ public static partial class GuideExport
                 if (new FileInfo(outPath).Length > 25L << 20) res.Notices.Add(lang == "de" ? "Die Klick-Tour ist größer als 25 MB – zum Verschicken ggf. den Bildausschnitt „Ausschnitt um die Aktion“ oder weniger Schritte wählen." : "The click tour is larger than 25 MB – for sending, consider the \"detail\" view or fewer steps.");
                 break;
             case "pptx": Pptx(doc, outPath, o); break;
-            default: File.WriteAllText(outPath, WithRichCss(Html(doc, o), doc.UsesRich), new UTF8Encoding(false)); break;
+            default: File.WriteAllText(outPath, WithCss(WithRichCss(Html(doc, o), doc.UsesRich), doc.Blocks.Any(b => b is Chapter { Level: 2 }), SubChapterCss), new UTF8Encoding(false)); break;
         }
         res.Files.Add(outPath); res.Path = outPath;
         return res;
@@ -181,7 +181,8 @@ public static partial class GuideExport
         string viewMode = o.View ?? s.View;
         bool overview = o.Overview ?? s.Overview;
 
-        int chap = 0, inChap = 0, flat = 0, pre = 0;
+        var num = new Numbering(s.Numbering);
+        int flat = 0, sections = 0;
         AddSteps(view, null);
         // angehängte Aufnahmen: je Aufnahme ein Kapitel (sofern sie nicht selbst mit einem Kapitel beginnt)
         if (o.IncludeAppended)
@@ -205,19 +206,20 @@ public static partial class GuideExport
             if (st.Kind == "move") continue;
             if (first && autoChapter != null && st.ChapterTitle == null)
             {
-                chap++; inChap = 0;
-                d.Blocks.Add(new Chapter(s.Numbering == "none" ? "" : chap.ToString(), $"k{chap}", autoChapter, ""));
+                string cn = num.Chapter(1);
+                d.Blocks.Add(new Chapter(cn, num.ChapterAnchor, autoChapter, ""));
             }
             first = false;
             if (st.ChapterTitle is { Length: > 0 } ct)
             {
-                chap++; inChap = 0;
-                d.Blocks.Add(new Chapter(s.Numbering == "none" ? "" : chap.ToString(), $"k{chap}", ct, st.ChapterText ?? "", st.ChapterRich));
+                string cn = num.Chapter(st.ChapterLevel);
+                d.Blocks.Add(new Chapter(cn, num.ChapterAnchor, ct, st.ChapterText ?? "", st.ChapterRich, num.Level));
             }
-            flat++;
-            string number = NumberFor(s.Numbering, chap, ref inChap, flat, ref pre);
+            // Textabschnitt: keine Nummer, kein Bild, eigene Sprungmarke
+            string number = st.TextSection ? "" : num.Step();
+            string anchorId = st.TextSection ? $"t{++sections}" : $"s{++flat}";
             byte[]? png = null, afterPng = null; int w = 0, h = 0, aw = 0, ah = 0; RectangleF? hot = null;
-            if (o.Images && !st.Redacted && st.ShowImage != false)
+            if (o.Images && !st.Redacted && st.ShowImage != false && !st.TextSection)
             {
                 string variant = StepImages.GuideVariant(st, viewMode);
                 var mask = ReadLayer.MouseMarks.Mask(o.MouseMarks, o.KeyMarks);
@@ -248,7 +250,7 @@ public static partial class GuideExport
             var shown = st.Comments.Where(c => (c.Str("text") ?? "").Length > 0).ToList();
             var notes = shown.Select(c => (c.Str("kind") ?? "note", c.Str("text") ?? "")).ToList();
             List<RichText?>? noteRich = st.NoteRich == null ? null : shown.Select(c => c.Str("id") is { } id && st.NoteRich.TryGetValue(id, out var r) ? r : null).ToList();
-            var item = new Item(st, number, $"s{flat}", st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah,
+            var item = new Item(st, number, anchorId, st.AuthorTitle ?? st.Title, st.AuthorBody ?? st.Guide, png, w, h, notes, st.ImageSize ?? s.ImageSize, hot, afterPng, aw, ah,
                 st.AuthorBody != null && !st.Redacted ? st.BodyRich : null, noteRich);
             d.Blocks.Add(item);
             if (autoChapter != null) d.Foreign.Add(item);
@@ -387,7 +389,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             bool open = false;
             foreach (var b in d.Blocks)
             {
-                if (b is Chapter c) { if (open) sb.Append("</ol></li>\n"); sb.Append($"<li><a href=\"#{c.Anchor}\"><span class=\"n\">{e(c.Number)}</span>{e(c.Title)}</a><ol>\n"); open = true; }
+                if (b is Chapter c) { if (open) sb.Append("</ol></li>\n"); sb.Append($"<li{(c.Level == 2 ? " class=\"sub\"" : "")}><a href=\"#{c.Anchor}\"><span class=\"n\">{e(c.Number)}</span>{e(c.Title)}</a><ol>\n"); open = true; }
                 else if (b is Item it) sb.Append($"<li><a href=\"#{it.Anchor}\"><span class=\"n\">{e(it.Number)}</span>{e(it.Title)}</a></li>\n");
             }
             if (open) sb.Append("</ol></li>\n");
@@ -402,7 +404,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
-                sb.Append($"<h2 class=\"chapter\" id=\"{c.Anchor}\">{(c.Number.Length > 0 ? $"<span class=\"n\">{e(c.Number)}</span>" : "")}{e(c.Title)}</h2>\n");
+                sb.Append($"<h2 class=\"chapter{(c.Level == 2 ? " sub" : "")}\" id=\"{c.Anchor}\">{(c.Number.Length > 0 ? $"<span class=\"n\">{e(c.Number)}</span>" : "")}{e(c.Title)}</h2>\n");
                 if (c.Body != null) sb.Append(HtmlRich(c.Body, "rt chtext")).Append('\n');
                 else if (c.Text.Length > 0) sb.Append($"<p class=\"chtext\">{P(c.Text)}</p>\n");
                 continue;
@@ -547,7 +549,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         for (int i = 0; i < d.Blocks.Count; i++) marks[d.Blocks[i]] = SimpleDocx.TocBookmark(i + 1);
         if (d.ShowToc)
         {
-            x.Toc(d.L("Inhalt", "Contents"), d.Blocks.Select(b => b is Chapter c ? (Heading(c.Number, c.Title), 1, marks[b]) : (Heading(((Item)b).Number, ((Item)b).Title), 2, marks[b])));
+            x.Toc(d.L("Inhalt", "Contents"), d.Blocks.Select(b => b is Chapter c ? (Heading(c.Number, c.Title), c.Level, marks[b]) : (Heading(((Item)b).Number, ((Item)b).Title), 2, marks[b])));
             if (d.S.Cover) x.PageBreak();
         }
         if (d.IntroRich != null) { x.Heading(d.L("Über diese Anleitung", "About this guide"), 1); x.RichBlocks(d.IntroRich.Doc); }
@@ -557,7 +559,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         {
             if (b is Chapter c)
             {
-                x.Heading(Heading(c.Number, c.Title), 1, marks[b]);
+                x.Heading(Heading(c.Number, c.Title), c.Level, marks[b]);
                 if (c.Body != null) x.RichBlocks(c.Body.Doc);
                 else if (c.Text.Length > 0) x.Paragraph(c.Text);
                 continue;
@@ -690,7 +692,8 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 string key = b is Chapter c ? c.Anchor : ((Item)b).Anchor;
                 string num = b is Chapter c1 ? c1.Number : ((Item)b).Number, title = b is Chapter c2 ? c2.Title : ((Item)b).Title;
                 bool isChap = b is Chapter;
-                double size = isChap ? 11 : 10, indent = isChap || !d.HasChapters ? 0 : 18, lh = size * 1.6;
+                bool subChap = b is Chapter { Level: 2 };
+                double size = isChap && !subChap ? 11 : 10, indent = subChap ? 9 : isChap || !d.HasChapters ? 0 : 18, lh = size * 1.6;
                 pdf.EnsureSpace(lh);
                 pdf.SetY(pdf.Y - lh);
                 string pg = known != null && known.TryGetValue(key, out var p) ? p.ToString() : "00";
@@ -726,9 +729,9 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 pdf.Space(10);
                 record[c.Anchor] = pdf.PageCount;
                 pdf.Dest(c.Anchor);
-                pdf.Bookmark(Heading(c.Number, c.Title), 0, c.Anchor);
-                pdf.Paragraph(Heading(c.Number, c.Title), 17, true, 0, 4, acc);
-                pdf.Line(pdf.Margin, pdf.Y, pdf.Margin + cw, pdf.Y, acc, 1.2);
+                pdf.Bookmark(Heading(c.Number, c.Title), c.Level == 2 ? 1 : 0, c.Anchor);
+                pdf.Paragraph(Heading(c.Number, c.Title), c.Level == 2 ? 14 : 17, true, 0, 4, acc);
+                pdf.Line(pdf.Margin, pdf.Y, pdf.Margin + cw, pdf.Y, acc, c.Level == 2 ? 0.6 : 1.2);
                 pdf.Space(10);
                 if (c.Body != null) pdf.RichBlocks(c.Body.Doc, 10.5, 0, 10, ink);
                 else if (c.Text.Length > 0) pdf.Paragraph(c.Text, 10.5, false, 0, 10, ink);

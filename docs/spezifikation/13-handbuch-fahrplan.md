@@ -61,7 +61,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 | 21 | Formatierter Text | V-47 | L | 20 | erledigt |
 | 22 | Bild-Editor I: Schrittmarken, Nummern, Farben, Stilvorlagen | V-54, V-51 | L | 20 | erledigt |
 | 23 | Querverweise, Variablen, Tabellen | V-47 | M | 21 | erledigt |
-| 24 | Gliederung: Unterkapitel, Textabschnitte, Kapitel ordnen | V-46, V-50 | M–L | 21 | geplant |
+| 24 | Gliederung: Unterkapitel, Textabschnitte, Kapitel ordnen | V-46, V-50 | M–L | 21 | erledigt |
 | 25 | Bildunterschriften, Abbildungsverzeichnis, Warnhinweise | V-46 | M | 24 | geplant |
 | 26 | Glossar, Änderungsverzeichnis, Impressum, Störungsbehebung | V-46 | M | 25 | geplant |
 | 27 | Seite und Layout: Ränder, Kopf-/Fußzeile, Umbrüche, Layoutvorlagen | V-48 | L | 24 | geplant |

@@ -88,7 +88,7 @@ public static partial class GuideExport
         {
             if (b is Chapter c)
             {
-                sb.Append("## ").Append(MdText(Heading(c.Number, c.Title))).Append("\n\n");
+                sb.Append(c.Level == 2 ? "### " : "## ").Append(MdText(Heading(c.Number, c.Title))).Append("\n\n");
                 if (c.Body != null) { AppendRichMd(sb, c.Body, ""); sb.Append('\n'); }
                 else if (c.Text.Length > 0) { AppendParagraph(sb, c.Text, null, ""); sb.Append('\n'); }
                 continue;

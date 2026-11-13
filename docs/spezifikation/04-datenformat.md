@@ -2457,6 +2457,21 @@ Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-
 |---|---|---|---|
 | DAT-084 | Auszeichnung wird nur bei `fmt: 1` und nicht bei `by: "mcp"` gedeutet; alle übrigen Texte bleiben wörtlich. | Muss | Ein alter Text mit `*`, `[`, `` ` `` ergibt dieselbe Ausgabe wie vorher (`LegacyOutputTests`); ein Agententext mit `**x**` zeigt die Sterne |
 
+### 13.20 Gliederung (Paket 24)
+
+| Ort | Schlüssel | Bedeutung | Fehlt = |
+|---|---|---|---|
+| `steps[].chapter` | `level` | `2` = Unterkapitel (nur nach einem Kapitel wirksam) | Kapitel |
+| `steps[].chapter` | `hidden` | `true` = Kapitel samt seinen Schritten (bis zum nächsten Kapitel gleicher oder höherer Ebene) nicht in der Anleitung | sichtbar |
+| `inserted[]` | `type` | `"text"` = Textabschnitt: Überschrift und Text ohne Nummer und ohne Bild | nummerierter Schritt |
+| `guide.doc` | `numbering` | zusätzlich `perChapter` (je Kapitel ab 1) | `chapter` |
+
+**Überschriftenregel** (genehmigte Korrektur, [13](13-handbuch-fahrplan.md)): Eine Kapitelüberschrift steht vor dem ersten *gezeigten* Schritt ihres Bereichs und entfällt nur, wenn der Bereich keinen gezeigten Schritt hat. Bis 0.13 ging sie verloren, sobald ihr erster Schritt ausgeblendet, ein Nebenschritt oder Mitglied einer Zusammenfassung war. Zählung mit Unterkapiteln: Kapitel „2“, Unterkapitel „2.3“ (teilt den Zähler der zweiten Ebene mit losen Schritten), Schritte darin „2.3.1“; Sprungmarken `k2`, `k2-3`, Textabschnitte `t1`.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-086 | Ohne `level`, `hidden`, `type` und `perChapter` bleibt jede Ausgabe gleich (bis auf die Überschriftenregel). | Muss | `LegacyOutputTests`, `OutlineTests` |
+
 ### 13.19 Markenstil (`guide.auto.style`)
 
 Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).

@@ -467,7 +467,7 @@ sealed partial class ViewerWindow
             var col = U.Col(head, meta); col.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(col, 1); g.Children.Add(col);
             if (s.ChapterTitle != null)
             {
-                var chap = new TextBlock { Text = "§  " + s.ChapterTitle, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg2, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = Loc.F("Kapitelbeginn: {0}", "Chapter start: {0}", s.ChapterTitle) };
+                var chap = new TextBlock { Text = (s.ChapterLevel == 2 ? "§§  " : "§  ") + s.ChapterTitle + (s.ChapterHidden ? "  ·  " + Loc.L("ausgeblendet", "hidden") : ""), TextDecorations = s.ChapterHidden ? TextDecorations.Strikethrough : null, FontSize = Theme.FsCaption, FontWeight = FontWeights.SemiBold, Foreground = Theme.Fg2, TextTrimming = TextTrimming.CharacterEllipsis, Margin = new Thickness(0, 0, 0, 4), ToolTip = Loc.F("Kapitelbeginn: {0}", "Chapter start: {0}", s.ChapterTitle) };
                 col.Children.Insert(0, chap);
             }
             _list.Items.Add(new ListBoxItem { Content = g, Tag = s, ToolTip = s.AuthorTitle ?? s.Title });

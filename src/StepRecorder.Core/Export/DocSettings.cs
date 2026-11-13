@@ -139,7 +139,7 @@ public sealed class DocSettings
         if (j["cover"] != null) d.Cover = j.Bool("cover");
         if (j["toc"] != null) d.Toc = j.Bool("toc");
         if (j["showDate"] != null) d.ShowDate = j.Bool("showDate");
-        d.Numbering = j.Str("numbering") is "flat" or "none" or "chapter" ? j.Str("numbering")! : "chapter";
+        d.Numbering = j.Str("numbering") is "flat" or "none" or "chapter" or "perChapter" ? j.Str("numbering")! : "chapter";
         d.ImageSize = j.Str("imageSize") is "s" or "m" or "l" or "full" ? j.Str("imageSize")! : "m";
         d.Layout = j.Str("layout") == "side" ? "side" : "below";
         if (j.Str("accent") is { Length: 7 } a && a[0] == '#') d.Accent = a;

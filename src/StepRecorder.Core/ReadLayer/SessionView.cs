@@ -29,6 +29,12 @@ public sealed class ViewStep
     public Dictionary<string, StepRecorder.Text.RichText>? NoteRich;
     /// <summary>Vor diesem Schritt beginnt ein Kapitel (Bedienungsanleitung).</summary>
     public string? ChapterTitle, ChapterText;
+    /// <summary>Ebene des hier beginnenden Kapitels: 1 = Kapitel, 2 = Unterkapitel (13, Paket 24).</summary>
+    public int ChapterLevel = 1;
+    /// <summary>Das hier beginnende Kapitel ist samt seinen Schritten aus der Anleitung ausgeblendet.</summary>
+    public bool ChapterHidden;
+    /// <summary>Eingefügter Textabschnitt (<c>inserted[].type: "text"</c>): Überschrift und Text ohne Schrittnummer und ohne Bild.</summary>
+    public bool TextSection;
     /// <summary>Bild im Dokument zeigen (null = Standard) und Bildgröße (s|m|l|full, null = wie im Dokument).</summary>
     public bool? ShowImage;
     public string? ImageSize;
@@ -462,7 +468,7 @@ public sealed partial class SessionView : IDisposable
             if (anchor >= 0) continue;
             var vs = new ViewStep
             {
-                Manual = true, Id = "m" + (-anchor), Anchor = anchor, After = ins.Long("after"), Kind = "manual", Importance = "primary",
+                Manual = true, Id = "m" + (-anchor), Anchor = anchor, After = ins.Long("after"), Kind = "manual", Importance = "primary", TextSection = ins.Str("type") == "text",
                 Title = Clean(ins.Str("title") ?? OutText.T(Language, "Hinweis", "Note")), Guide = Clean(ins.Str("body") ?? ""),
                 PreFrame = ins.Str("image"), TFrom = list.FirstOrDefault(x => x.Anchor == ins.Long("after"))?.TTo ?? 0
             };
@@ -509,6 +515,8 @@ public sealed partial class SessionView : IDisposable
         string? title = loc?.Str("title") is { Length: > 0 } lt ? lt : ch.Str("title");
         if (title is not { Length: > 0 }) return;
         vs.ChapterTitle = CleanVars(title);
+        vs.ChapterLevel = ch.Int("level") == 2 ? 2 : 1;
+        vs.ChapterHidden = ch.Bool("hidden");
         bool own = loc?.Str("text") is { Length: > 0 };
         string? text = own ? loc!.Str("text") : ch.Str("text");
         if (IsRich(own ? loc : ch) && text != null) { vs.ChapterRich = SealRich(text); vs.ChapterText = vs.ChapterRich.Plain; }
@@ -658,7 +666,46 @@ public sealed partial class SessionView : IDisposable
             "all" => q,
             _ => q.Where(s => s.Importance != "trace" || s.Kind == "gap")
         };
-        return q.ToList();
+        return ApplyOutline(q.ToList(), includeManual);
+    }
+
+    /// <summary>
+    /// Gliederung der Anleitung (13, Paket 24): Schritte ausgeblendeter Kapitel entfallen; eine Kapitelüberschrift, deren erster Schritt
+    /// nicht gezeigt wird (ausgeblendet, Nebenschritt, Mitglied einer Zusammenfassung), steht vor dem nächsten gezeigten Schritt ihres
+    /// Bereichs – sie entfällt nur, wenn der Bereich keinen gezeigten Schritt hat (genehmigte Korrektur; früher ging sie verloren).
+    /// </summary>
+    List<ViewStep> ApplyOutline(List<ViewStep> shown, bool includeManual)
+    {
+        bool anyChapter = All.Any(s => s.ChapterTitle != null) || Manual.Any(s => s.ChapterTitle != null);
+        if (!anyChapter) return shown;
+        var byAnchor = new Dictionary<long, int>();
+        for (int i = 0; i < shown.Count; i++) byAnchor.TryAdd(shown[i].Anchor, i);
+        var full = Effective(importance: "all", includeManual: includeManual, ordered: true).Where(s => !s.Discarded).ToList();
+        var drop = new HashSet<long>();
+        var result = new List<ViewStep>(shown);
+        ViewStep? pending = null;
+        int? hiddenLevel = null;
+        foreach (var s in full)
+        {
+            if (s.ChapterTitle is { Length: > 0 })
+            {
+                if (hiddenLevel != null && s.ChapterLevel <= hiddenLevel) hiddenLevel = null;
+                if (hiddenLevel == null && s.ChapterHidden) hiddenLevel = s.ChapterLevel;
+                pending = hiddenLevel == null ? s : null;   // eine neue Überschrift ersetzt eine noch nicht gesetzte (ihr Bereich blieb leer)
+            }
+            if (hiddenLevel != null) { drop.Add(s.Anchor); continue; }
+            if (!byAnchor.TryGetValue(s.Anchor, out int idx)) continue;
+            if (pending != null && pending.Anchor != s.Anchor)
+            {
+                var c = result[idx] == shown[idx] ? result[idx].Clone() : result[idx];
+                c.ChapterTitle = pending.ChapterTitle; c.ChapterText = pending.ChapterText; c.ChapterRich = pending.ChapterRich;
+                c.ChapterLevel = pending.ChapterLevel; c.ChapterHidden = false;
+                result[idx] = c;
+            }
+            pending = null;
+        }
+        // Schritte, deren eigene Überschrift ein ausgeblendetes Kapitel beginnt, sind schon in drop; gezeigte Schritte ohne Eintrag in full (Bereich) bleiben
+        return drop.Count == 0 ? result : result.Where(s => !drop.Contains(s.Anchor)).ToList();
     }
 
     /// <summary>Der zusammengefasste Schritt eines führenden Schritts (null, wenn er keine Gruppe führt).</summary>

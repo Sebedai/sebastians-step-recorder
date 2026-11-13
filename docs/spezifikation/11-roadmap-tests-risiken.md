@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 24 Gliederung | Unterkapitel, Zählweise je Kapitel, Kapitel ausblenden und verschieben, Textabschnitte mit Vorlagen (Sicherheitshinweise, Häufige Fragen, Kontakt), Überschriftenregel korrigiert | erledigt; einklappbare Kapitelzeilen und Ziehen ganzer Kapitel folgen |
 | 23 Querverweise, Variablen, Tabellen | Querverweise auf Schritte und Kapitel mit der gedruckten Nummer, Variablen (eigene je Sprache und eingebaute), Tabellen in allen Formaten, Einfügen-Menü im Textfeld, Regeln Q31 und Q32 | erledigt; eine Tabelle in Word von Hand geöffnet: offen |
 | 22 Bild-Editor I | Schrittnummer im Bild wie in der Anleitung, Markenstile (Klassisch, Nummern, Dezent, Kräftig), zwölf Farben, freie Farbe, Pipette, Farbe je Werkzeug, Stil von Zeichnungen (Linienart, Spitzen, Füllung, Hintergrund, Nummernform, Zählweise, Deckkraft), Nummern zählen neu, Stil übertragen, Ziel markieren | erledigt; Mehrfachauswahl, Eigenschaftsleiste und eigene Stilvorlagen folgen mit Paket 28 |
 | 21 Formatierter Text | Auszeichnung in Autorentexten (fett, kursiv, Eingabe, Tasten, Bedienelemente, Links, Listen), Schutzreihenfolge in der Leseschicht, Darstellung in HTML, Markdown, Word, PDF, Klick-Tour; formatierbare Felder im Editor | erledigt; Bedienung mit Bildschirmleser von Hand offen |

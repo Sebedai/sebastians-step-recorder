@@ -16,24 +16,51 @@ public static partial class GuideExport
         var s = DocSettings.From(guide, view.Language);
         string mode = numbering ?? s.Numbering;
         var map = new Dictionary<long, string>();
-        int chap = 0, inChap = 0, flat = 0, pre = 0;
+        var num = new Numbering(mode);
         foreach (var st in view.GuideSteps(importance ?? "primary"))
         {
             if (st.Kind == "move") continue;
-            if (st.ChapterTitle is { Length: > 0 }) { chap++; inChap = 0; }
-            flat++;
-            map[st.Anchor] = NumberFor(mode, chap, ref inChap, flat, ref pre);
+            if (st.ChapterTitle is { Length: > 0 }) num.Chapter(st.ChapterLevel);
+            map[st.Anchor] = st.TextSection ? "" : num.Step();
         }
         return map;
     }
 
-    /// <summary>Nummer eines Schritts nach Zählweise: keine, fortlaufend oder je Kapitel („2.3“).</summary>
-    static string NumberFor(string mode, int chap, ref int inChap, int flat, ref int pre) => mode switch
+    /// <summary>
+    /// Zählung der Anleitung (13, Paket 24). Ohne Unterkapitel genau wie bisher: <c>chapter</c> „2.3“ (vor dem ersten Kapitel 1, 2, …),
+    /// <c>flat</c> fortlaufend, <c>none</c> keine. Neu: <c>perChapter</c> zählt je Kapitel ab 1; Unterkapitel teilen in <c>chapter</c> den
+    /// Zähler der zweiten Ebene mit losen Schritten („1.2“ ist nie zugleich Schritt und Unterkapitel), ihre Schritte heißen „1.2.1“.
+    /// </summary>
+    sealed class Numbering(string mode)
     {
-        "none" => "",
-        "flat" => flat.ToString(),
-        _ => chap == 0 ? (++pre).ToString() : $"{chap}.{++inChap}"
-    };
+        int _chap, _l2, _l3, _scope, _flat, _pre;
+        bool _inSub;
+        public int Level { get; private set; } = 1;
+        public string ChapterAnchor => Level == 2 && _chap > 0 ? $"k{_chap}-{_l2}" : $"k{_chap}";
+
+        public string Chapter(int level)
+        {
+            if (level == 2 && _chap > 0)
+            {
+                _inSub = true; _l3 = 0; _scope = 0; Level = 2;
+                return mode == "none" ? "" : $"{_chap}.{++_l2}";
+            }
+            _chap++; _l2 = _l3 = _scope = 0; _inSub = false; Level = 1;
+            return mode == "none" ? "" : _chap.ToString();
+        }
+
+        public string Step()
+        {
+            _flat++;
+            return mode switch
+            {
+                "none" => "",
+                "flat" => _flat.ToString(),
+                "perChapter" => (++_scope).ToString(),
+                _ => _chap == 0 ? (++_pre).ToString() : _inSub ? $"{_chap}.{_l2}.{++_l3}" : $"{_chap}.{++_l2}"
+            };
+        }
+    }
 
     /// <summary>
     /// Querverweise der Anleitung beschriften (13, Paket 23): <c>s…</c> → „Schritt 2.3“, <c>k…</c> → „Kapitel 2“; ohne Nummerierung

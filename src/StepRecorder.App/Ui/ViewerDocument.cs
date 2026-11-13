@@ -158,9 +158,9 @@ sealed partial class ViewerWindow
         build.Children.Add(Check(Loc.L("Eigene Titelseite", "Own title page"), d.Cover, v => DocChange(x => x.Cover = v, quiet: false), Loc.L("Eigene erste Seite mit Logo, Titel, Untertitel, Version, Autor und Datum", "Own first page with logo, title, subtitle, version, author and date")));
         build.Children.Add(Check(Loc.L("Inhaltsverzeichnis", "Table of contents"), d.Toc, v => DocChange(x => x.Toc = v), Loc.L("Mit Kapiteln und Schritten; im PDF mit Seitenzahlen. Erscheint ab 3 Kapiteln oder 6 Schritten.", "With chapters and steps; in the PDF with page numbers. Appears from 3 chapters or 6 steps.")));
         build.Children.Add(Check(Loc.L("Datum anzeigen", "Show date"), d.ShowDate, v => DocChange(x => x.ShowDate = v, quiet: false), Loc.L("Stand-Datum auf der Titelseite bzw. im Kopf", "Date of issue on the title page or in the header")));
-        int numIdx = d.Numbering switch { "flat" => 1, "none" => 2, _ => 0 };
-        var (numTrack, nums) = U.Segmented("dnum", numIdx, (null, "1.1, 1.2 …"), (null, "1, 2, 3 …"), (null, Loc.L("Keine", "None")));
-        for (int i = 0; i < 3; i++) { string v = new[] { "chapter", "flat", "none" }[i]; nums[i].Checked += (_, _) => DocChange(x => x.Numbering = v); }
+        int numIdx = d.Numbering switch { "flat" => 1, "perChapter" => 2, "none" => 3, _ => 0 };
+        var (numTrack, nums) = U.Segmented("dnum", numIdx, (null, "1.1, 1.2 …"), (null, "1, 2, 3 …"), (null, Loc.L("je Kapitel 1, 2 …", "per chapter 1, 2 …")), (null, Loc.L("Keine", "None")));
+        for (int i = 0; i < 4; i++) { string v = new[] { "chapter", "flat", "perChapter", "none" }[i]; nums[i].Checked += (_, _) => DocChange(x => x.Numbering = v); }
         build.Children.Add(U.Field(Loc.L("Nummerierung der Schritte", "Step numbering"), numTrack, Loc.L("„1.1“ zählt innerhalb der Kapitel – Kapitel legen Sie am Schritt unter „Einordnung“ an.", "“1.1” counts within chapters – you create chapters on the step under “Placement”."), new Thickness(0, 8, 0, 16)));
 
         // Bilder
