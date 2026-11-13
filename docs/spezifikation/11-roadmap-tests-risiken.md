@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 38 Präsentation und Stapel-Export | Vollbild-Präsentation (bei Freigabe sichtbar ohne laufende Aufnahme), Veröffentlichen mehrerer Formate und Sprachen (F12, Kommandozeile `--format a,b --lang de,en`); Version 0.15.0 | erledigt |
 | 37 Kapitelvorschläge | Vorschläge bei Programmwechsel mit Titeln aus Fenstertiteln, Dialog zum Prüfen und Übernehmen | erledigt |
 | 34 Schritt teilen | Schritt teilen (Text auf zwei Schritte, zweiter mit Nachher-Bild) und Ergebnisschritt, als eingefügte Schritte | erledigt; Teilen an einzelnen Tastendrücken mit eigenen Zwischenbildern: offen |
 | 33 Übersetzungsübersicht | Tabelle Deutsch/Englisch aller eigenen Texte, Bearbeiten in der Zelle, CSV-Export mit Formelschutz und Import nur geänderter, ungeschützter Zellen | erledigt |

@@ -61,6 +61,8 @@ sealed partial class ViewerWindow
             new("nudgeRight10", "image", Loc.L("Zeichnung 10 px nach rechts", "Drawing 10 px right"), Key.Right, S, () => NudgeMark(10, 0), () => _selAnn != null, Listed: false),
             new("nudgeUp10", "image", Loc.L("Zeichnung 10 px nach oben", "Drawing 10 px up"), Key.Up, S, () => NudgeMark(0, -10), () => _selAnn != null, Listed: false),
             new("nudgeDown10", "image", Loc.L("Zeichnung 10 px nach unten", "Drawing 10 px down"), Key.Down, S, () => NudgeMark(0, 10), () => _selAnn != null, Listed: false),
+            new("present", "general", Loc.L("Präsentieren", "Present"), Key.F5, S, () => { InlineCommit(now: true); new PresentationWindow(_view, Sel?.Anchor).Show(); }, InText: true),
+            new("publish", "copy", Loc.L("Veröffentlichen (mehrere Formate und Sprachen) …", "Publish (several formats and languages) …"), Key.F12, N, PublishBatch, InText: true),
             new("suggestChapters", "steps", Loc.L("Kapitel vorschlagen …", "Suggest chapters …"), Key.None, N, SuggestChapters),
             new("splitStep", "steps", Loc.L("Schritt teilen …", "Split step …"), Key.None, N, SplitStep),
             new("resultStep", "steps", Loc.L("Ergebnis als eigenen Schritt", "Result as a separate step"), Key.None, N, ResultStep),

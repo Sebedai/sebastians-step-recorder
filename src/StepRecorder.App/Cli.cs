@@ -181,6 +181,29 @@ Exit codes: 0 ok · 1 error · 2 usage · 3 recording not found · 4 check faile
 
     static int Export(string[] a)
     {
+        // Stapel (13, Paket 38): --format pdf,docx und/oder --lang de,en → je Kombination ein Durchgang, --out ist ein Ordner
+        int fi = Array.IndexOf(a, "--format"), li = Array.IndexOf(a, "--lang");
+        string? bfv = fi >= 0 && fi + 1 < a.Length ? a[fi + 1] : null, blv = li >= 0 && li + 1 < a.Length ? a[li + 1] : null;
+        if (bfv?.Contains(',') == true || blv?.Contains(',') == true)
+        {
+            var formats = BatchExport.ParseList(bfv ?? "html", Exporter.IsKnownFormat);
+            var langs = BatchExport.ParseList(blv ?? AppSettings.Load().Language, OutText.IsSupported);
+            int oi = Array.IndexOf(a, "--out");
+            if (formats == null) return Usage(Loc.F("Unbekanntes Format: {0}", "Unknown format: {0}", bfv));
+            if (langs == null) return Usage("--lang: " + string.Join(" | ", OutText.Languages));
+            if (oi < 0 || oi + 1 >= a.Length) return Usage(Loc.L("Mehrere Formate oder Sprachen: --out <Ordner> angeben.", "Several formats or languages: specify --out <folder>."));
+            int bworst = 0;
+            foreach (var job in BatchExport.Plan(formats, langs, Path.GetFullPath(a[oi + 1])))
+            {
+                Directory.CreateDirectory(job.Folder);
+                var args = a.ToArray();
+                if (fi >= 0) args[fi + 1] = job.Format; else args = args.Append("--format").Append(job.Format).ToArray();
+                if (li >= 0) args[li + 1] = job.Language; else args = args.Append("--lang").Append(job.Language).ToArray();
+                args[oi + 1] = job.Folder + Path.DirectorySeparatorChar;
+                bworst = Math.Max(bworst, Export(args));
+            }
+            return bworst;
+        }
         var c = CliArgs.Parse(a, 1, new[] { "--format", "--out", "--lang", "--importance", "--view", "--template", "--detail", "--image-profile", "--before", "--after", "--from", "--to", "--steps", "--md-dialect", "--gif-max-mb", "--page", "--seconds" },
             new[] { "--json", "--strict", "--zip", "--no-events", "--real-timing", "--no-images", "--no-ocr", "--readable", "--no-crop", "--no-after", "--front-matter", "--md-legacy", "--landscape", "--portrait" }, "--with");
         if (c.Error != null) return Usage(c.Error);

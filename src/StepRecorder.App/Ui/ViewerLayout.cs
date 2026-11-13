@@ -1245,6 +1245,8 @@ sealed partial class ViewerWindow
             RemoveCrop(cs); Flush();
         }
         _zoom.FitNow();
+        // Präsentationsansicht (Paket 38)
+        { var pw = new PresentationWindow(_view, _view.GuideSteps().FirstOrDefault(x => x.Kind != "move")?.Anchor) { WindowState = WindowState.Normal, Width = 1280, Height = 800, Topmost = false }; pw.Show(); Flush(); pw.Close(); Flush(); }
         // Markenstil „Nummern“: Schrittnummer wie in der Anleitung an der Klickstelle (Paket 22)
         int keepIndex = _list.SelectedIndex;
         _list.SelectedIndex = 0; Flush();

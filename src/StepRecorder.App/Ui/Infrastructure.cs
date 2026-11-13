@@ -30,8 +30,23 @@ static class Invisibility
     public static void Apply(Window w)
     {
         var h = new WindowInteropHelper(w).EnsureHandle();
+        if (Exempted(h)) return;
         Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE);
     }
+
+    /// <summary>
+    /// Ausnahme nur für die Präsentationsansicht (13, Paket 38): bei Bildschirmfreigabe sichtbar, solange keine Aufnahme läuft.
+    /// Läuft eine Aufnahme, gilt die Ausnahme nie.
+    /// </summary>
+    static readonly HashSet<IntPtr> _exempt = new();
+
+    public static void Exempt(IntPtr h, bool on)
+    {
+        if (on) { _exempt.Add(h); if (Exempted(h)) Win32.SetWindowDisplayAffinity(h, Win32.WDA_NONE); }
+        else _exempt.Remove(h);
+    }
+
+    static bool Exempted(IntPtr h) => _exempt.Contains(h) && UiApp.Instance?.Recording == null;
 
     public static void Sweep()
     {
@@ -39,7 +54,7 @@ static class Invisibility
         Win32.EnumWindows((h, _) =>
         {
             Win32.GetWindowThreadProcessId(h, out uint p);
-            if (p == pid && Win32.GetWindowDisplayAffinity(h, out uint aff) && aff != Win32.WDA_EXCLUDEFROMCAPTURE)
+            if (p == pid && !Exempted(h) && Win32.GetWindowDisplayAffinity(h, out uint aff) && aff != Win32.WDA_EXCLUDEFROMCAPTURE)
             {
                 if (Win32.IsWindowVisible(h)) Violations++;
                 Win32.SetWindowDisplayAffinity(h, Win32.WDA_EXCLUDEFROMCAPTURE);

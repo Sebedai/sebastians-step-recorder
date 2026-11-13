@@ -8,7 +8,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <RootNamespace>StepRecorder</RootNamespace>
-    <Version>0.14.0</Version>
+    <Version>0.15.0</Version>
     <!-- WFO2000: Listen mit Texten der Oberflächensprache (Loc) werden absichtlich je Aufruf neu gebaut. -->
     <NoWarn>$(NoWarn);CA1416;WFO2000</NoWarn>
   </PropertyGroup>

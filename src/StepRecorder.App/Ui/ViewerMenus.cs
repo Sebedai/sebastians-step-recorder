@@ -135,7 +135,7 @@ sealed partial class ViewerWindow
         return new()
         {
             Item("newRecording"), Item("open"), Item("library"), recent, Sep(),
-            Item("preview"), Item("print"), Item("export"), formats, Sep(),
+            Item("preview"), Item("print"), Item("export"), formats, Item("publish"), Item("present"), Sep(),
             Item("rename", enabled: !ro), more, Item("pack", enabled: !ro), Item("showFolder"), Sep(),
             Item("settings"), Item("close"),
         };

@@ -295,6 +295,7 @@ sealed class UiApp : Application
     /// <param name="onFinished">Statt des üblichen „nach dem Stopp“: eigener Abschluss (z. B. Fortsetzung anhängen); null = verworfen.</param>
     public void StartRecording(RecordingOptions o, Action<string?>? onFinished = null)
     {
+        PresentationWindow.CloseAll();   // nie in den Bildern einer Aufnahme
         if (Recording != null) return;
         HideReadyTray();
         HideStart();
