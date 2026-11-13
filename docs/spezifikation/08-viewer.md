@@ -481,6 +481,9 @@ Die Ausgabe der Wiedergabe als GIF oder Video ist Kann.
 | Schwärzen | `X` | Bereich schwarz abdecken | Ausdehnung | Muss |
 | Verpixeln | `P` | Bereich in Verpixel- oder Unschärfe-Optik abdecken | Optik, Ausdehnung | Muss |
 | Kommentar-Pin | – | Nummerierter Pin mit Text | Nummer | Soll, noch nicht vorhanden |
+| Sprechblase | `B` | Kasten mit Text und Spitze (Paket 28) | Farbe, Schriftgröße; Spitze am fünften Griff | Soll |
+| Stempel | `G` | Vektorzeichen im Kreis: Haken, Kreuz, Warnung, Info, Frage, Stern, Plus, Minus | Art beim Wählen des Werkzeugs, Farbe, Größe am Griff | Soll |
+| Weichzeichnen | – | Wie Verpixeln, sieht unscharf aus; der Inhalt ist zerstört (`redactions[].style: blur`) | Ausdehnung | Soll |
 | Spotlight | `U` | Alles außer einem Bereich abdunkeln | Die Strichstärke bestimmt die Abdunklung: dünn 0,4, mittel 0,55, dick 0,7 | Kann |
 | Freihand | `F` | Freie Linie; beim Loslassen wird sie geglättet | Farbe, Stärke | Kann |
 
@@ -501,6 +504,8 @@ Bedienung der Werkzeuge:
 - Ein Werkzeug bleibt gewählt, bis ein anderes gewählt oder `Esc` gedrückt wird. Über einem vorhandenen Objekt greift die Maus dieses Objekt; auf freier Fläche entsteht ein neues.
 - Gewählte Objekte: verschieben, Größe ändern, `Entf` löscht, `Strg+D` verdoppelt, Pfeiltasten verschieben um 1 Pixel (mit `Umschalt` um 10).
 - Text: Klick setzt die Schreibmarke; `Esc` oder ein Klick daneben beendet die Eingabe.
+
+**Bearbeiten von Zeichnungen** (Paket 28): `Strg+C`/`Strg+V` kopiert eine ausgewählte Zeichnung und fügt sie in diesem oder einem anderen Schritt ein (bei anderer Bildgröße an die gleiche relative Stelle), `Strg+D` verdoppelt, Pfeiltasten verschieben um 1 Bildpunkt, mit `Umschalt` um 10. `Umschalt` beim Zeichnen: Linien in 45°-Schritten, Rahmen und Ellipsen quadratisch.
 
 **Farben und Stil** ([13](13-handbuch-fahrplan.md), Paket 22): Die Palette hat zwölf Farben (Rot, Orange, Grün, Blau, Schwarz, Weiß, Gelb, Türkis, Violett, Pink, Braun, Grau), dazu „Weitere Farbe …“ (freie Farbwahl), die Pipette (nächster Klick ins Bild nimmt die Farbe auf) und ein Feld mit der zuletzt gewählten eigenen Farbe. Jedes Werkzeug merkt sich seine Farbe. Der Knopf **Stil** öffnet je nach Art: Linienart, Spitzen, Füllung, Hintergrund des Textes, Form und Zählweise von Nummern, Deckkraft – für die ausgewählte Zeichnung oder, ohne Auswahl, für neue Zeichnungen des Werkzeugs; dazu „Stil auf alle Zeichnungen dieser Art übertragen“. **Bild → Ziel markieren** legt aus dem erkannten Zielrahmen bearbeitbare Zeichnungen an (Rahmen und Nummer), auch für mehrere gewählte Schritte.
 

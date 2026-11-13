@@ -219,8 +219,12 @@ sealed partial class ViewerWindow
         Tool("magnifier", G(Theme.IMagnifier), Loc.L("Lupe (L) – Bereich aufziehen; die vergrößerte Linse lässt sich getrennt verschieben, der Griff an der Linse ändert den Zoom", "Magnifier (L) – drag an area; the enlarged lens can be moved separately, the handle on the lens changes the zoom"));
         Tool("text", G(Theme.IText), Loc.L("Text (T)", "Text (T)"));
         Tool("badge", badgeIcon, Loc.L("Nummer (N)", "Number (N)"));
+        Tool("callout", G(Theme.IComment), Loc.L("Sprechblase (B) – Kasten aufziehen, Text eingeben; die Spitze lässt sich am Griff verschieben", "Speech bubble (B) – drag a box, enter text; move the tip with its handle"));
+        Tool("stamp", G(Theme.ICheck), Loc.L("Stempel (G) – Haken, Kreuz, Warnung, Info, Frage, Stern, Plus, Minus; Klick setzt ihn", "Stamp (G) – check, cross, warning, info, question, star, plus, minus; click places it"));
+        _toolBtns["stamp"].Checked += (_, _) => ChooseStamp(_toolBtns["stamp"]);
         Tool("redact", G(Theme.IRedact), Loc.L("Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket", "Redact (X) – applies from this image onwards, also in the export and AI package"));
         Tool("pixelate", G(Theme.IPixelate), Loc.L("Verpixeln (P) – wie Schwärzen, aber unauffälliger; gilt ab diesem Bild für alle folgenden", "Pixelate (P) – like redact, but less conspicuous; applies from this image onwards"));
+        Tool("blur", G(Theme.ISpot), Loc.L("Weichzeichnen – wie Verpixeln, sieht unscharf aus; der Inhalt ist zerstört, gilt ab diesem Bild für alle folgenden", "Blur – like pixelate, looks blurred; the content is destroyed, applies from this image onwards"));
         Tool("crop", G(Theme.ICrop), Loc.L("Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export", "Crop (C) – drag a rectangle; applies to the images of this step, also in the export"));
         Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 6, 6, 6) };
         pal.Children.Add(PalSep());
@@ -948,6 +952,13 @@ sealed partial class ViewerWindow
             return;
         }
         _dragStart = pos;
+        if (_tool == "stamp")
+        {
+            var sp = ToImage(pos);
+            AddAnnotation("stamp", new JsonArray((int)sp.X, (int)sp.Y, Math.Max(32, _fontSize * 2.4)), _stamp);
+            _dragStart = null;
+            return;
+        }
         if (_tool is "text" or "badge")
         {
             var p = ToImage(pos);
@@ -966,7 +977,7 @@ sealed partial class ViewerWindow
             "freehand" => new Polyline { Stroke = stroke, StrokeThickness = _stroke, StrokeLineJoin = PenLineJoin.Round, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Points = new PointCollection { pos } },
             "ellipse" => new Ellipse { Stroke = stroke, StrokeThickness = _stroke },
             "redact" => new Rectangle { Fill = Brushes.Black, Stroke = Brushes.Black, StrokeThickness = 1 },
-            "pixelate" => new Rectangle { Fill = new DrawingBrush { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, Px(12), Px(12)), ViewportUnits = BrushMappingMode.Absolute, Drawing = new GeometryDrawing(new SolidColorBrush(Color.FromArgb(150, 120, 125, 135)), null, new RectangleGeometry(new Rect(0, 0, 1, 1))) }, Stroke = Brushes.Gray, StrokeThickness = Px(1) },
+            "pixelate" or "blur" => new Rectangle { Fill = new DrawingBrush { TileMode = TileMode.Tile, Viewport = new Rect(0, 0, Px(12), Px(12)), ViewportUnits = BrushMappingMode.Absolute, Drawing = new GeometryDrawing(new SolidColorBrush(Color.FromArgb(150, 120, 125, 135)), null, new RectangleGeometry(new Rect(0, 0, 1, 1))) }, Stroke = Brushes.Gray, StrokeThickness = Px(1) },
             "crop" => new Rectangle { Stroke = Theme.Accent, StrokeThickness = Px(2), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(30, 255, 255, 255)) },
             "highlight" => new Rectangle { Fill = new SolidColorBrush(Color.FromArgb(90, ((SolidColorBrush)stroke).Color.R, ((SolidColorBrush)stroke).Color.G, ((SolidColorBrush)stroke).Color.B)) },
             "spotlight" => new Rectangle { Stroke = Brushes.White, StrokeThickness = Px(1.5), StrokeDashArray = new DoubleCollection { 4, 3 }, Fill = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)) },
@@ -1007,6 +1018,7 @@ sealed partial class ViewerWindow
             if ((pl.Points[^1] - b).Length >= Px(2)) { pl.Points.Add(b); _freePts.Add(PF(ToImage(b))); }
             return;
         }
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) b = Constrain(a, b);
         if (_rubber is Line l) { l.X1 = a.X; l.Y1 = a.Y; l.X2 = b.X; l.Y2 = b.Y; }
         else { Canvas.SetLeft(_rubber, Math.Min(a.X, b.X)); Canvas.SetTop(_rubber, Math.Min(a.Y, b.Y)); _rubber.Width = Math.Abs(b.X - a.X); _rubber.Height = Math.Abs(b.Y - a.Y); }
     }
@@ -1036,7 +1048,9 @@ sealed partial class ViewerWindow
         }
         if (_dragStart == null) return;
         _overlay.ReleaseMouseCapture();
-        var a = ToImage(_dragStart.Value); var b = ToImage(e.GetPosition(_overlay));
+        var endPos = e.GetPosition(_overlay);
+        if (Keyboard.Modifiers.HasFlag(ModifierKeys.Shift)) endPos = Constrain(_dragStart.Value, endPos);
+        var a = ToImage(_dragStart.Value); var b = ToImage(endPos);
         _dragStart = null; _rubber = null;
         if (_tool == "freehand")
         {
@@ -1049,7 +1063,8 @@ sealed partial class ViewerWindow
         int x = (int)Math.Min(a.X, b.X), y = (int)Math.Min(a.Y, b.Y), w = (int)Math.Abs(b.X - a.X), h = (int)Math.Abs(b.Y - a.Y);
         switch (_tool)
         {
-            case "redact" or "pixelate": AddImageRedaction(x, y, w, h, _tool == "pixelate" ? "pixelate" : "black"); return;
+            case "redact" or "pixelate" or "blur": AddImageRedaction(x, y, w, h, _tool is "pixelate" or "blur" ? _tool : "black"); return;
+            case "callout": AddCallout(x, y, w, h); return;
             case "crop": SetCrop(x, y, w, h); return;
             case "arrow" or "line": AddAnnotation(_tool, new JsonArray((int)a.X, (int)a.Y, (int)b.X, (int)b.Y), null); return;
             case "spotlight": AddAnnotation("spotlight", new JsonArray(x, y, w, h), null, new JsonObject { ["dim"] = WidthToDim(_stroke) }); return;
@@ -1065,6 +1080,23 @@ sealed partial class ViewerWindow
                 }
             default: AddAnnotation(_tool, new JsonArray(x, y, w, h), null); return;
         }
+    }
+
+    /// <summary>Umschalt beim Zeichnen: Linien in 45°-Schritten, Rahmen und Ellipsen quadratisch.</summary>
+    Point Constrain(Point a, Point b)
+    {
+        double dx = b.X - a.X, dy = b.Y - a.Y;
+        if (_tool is "arrow" or "line")
+        {
+            double ang = Math.Round(Math.Atan2(dy, dx) / (Math.PI / 4)) * (Math.PI / 4), len = Math.Sqrt(dx * dx + dy * dy);
+            return new Point(a.X + Math.Cos(ang) * len, a.Y + Math.Sin(ang) * len);
+        }
+        if (_tool is "rect" or "ellipse" or "highlight" or "spotlight" or "callout")
+        {
+            double m = Math.Max(Math.Abs(dx), Math.Abs(dy));
+            return new Point(a.X + Math.Sign(dx == 0 ? 1 : dx) * m, a.Y + Math.Sign(dy == 0 ? 1 : dy) * m);
+        }
+        return b;
     }
 
     void AddAnnotation(string type, JsonNode geom, string? text, JsonObject? extraStyle = null)

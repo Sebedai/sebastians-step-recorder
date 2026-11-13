@@ -49,6 +49,20 @@ sealed partial class ViewerWindow
         void Prev() { if (_list.SelectedIndex > 0) _list.SelectedIndex--; }
         return new List<ViewerCmd>
         {
+            // Zeichnungen (13, Paket 28): nur mit ausgewählter Zeichnung bzw. gefüllter Zwischenablage
+            new("copyMark", "image", Loc.L("Zeichnung kopieren", "Copy drawing"), Key.C, C, CopyMark, () => _selAnn != null),
+            new("pasteMark", "image", Loc.L("Zeichnung einfügen", "Paste drawing"), Key.V, C, PasteMark, () => _markClip != null && _currentMeta != null),
+            new("dupMark", "image", Loc.L("Zeichnung duplizieren", "Duplicate drawing"), Key.D, C, DuplicateMark, () => _selAnn != null),
+            new("nudgeLeft", "image", Loc.L("Zeichnung nach links", "Drawing left"), Key.Left, N, () => NudgeMark(-1, 0), () => _selAnn != null, Listed: false),
+            new("nudgeRight", "image", Loc.L("Zeichnung nach rechts", "Drawing right"), Key.Right, N, () => NudgeMark(1, 0), () => _selAnn != null, Listed: false),
+            new("nudgeUp", "image", Loc.L("Zeichnung nach oben", "Drawing up"), Key.Up, N, () => NudgeMark(0, -1), () => _selAnn != null, Listed: false),
+            new("nudgeDown", "image", Loc.L("Zeichnung nach unten", "Drawing down"), Key.Down, N, () => NudgeMark(0, 1), () => _selAnn != null, Listed: false),
+            new("nudgeLeft10", "image", Loc.L("Zeichnung 10 px nach links", "Drawing 10 px left"), Key.Left, S, () => NudgeMark(-10, 0), () => _selAnn != null, Listed: false),
+            new("nudgeRight10", "image", Loc.L("Zeichnung 10 px nach rechts", "Drawing 10 px right"), Key.Right, S, () => NudgeMark(10, 0), () => _selAnn != null, Listed: false),
+            new("nudgeUp10", "image", Loc.L("Zeichnung 10 px nach oben", "Drawing 10 px up"), Key.Up, S, () => NudgeMark(0, -10), () => _selAnn != null, Listed: false),
+            new("nudgeDown10", "image", Loc.L("Zeichnung 10 px nach unten", "Drawing 10 px down"), Key.Down, S, () => NudgeMark(0, 10), () => _selAnn != null, Listed: false),
+            new("toolCallout", "image", Loc.L("Sprechblase", "Speech bubble"), Key.B, N, () => SelectTool("callout")),
+            new("toolStamp", "image", Loc.L("Stempel", "Stamp"), Key.G, N, () => SelectTool("stamp")),
             // Kopieren und Exportieren
             new("copyImage", "copy", Loc.L("Bild kopieren", "Copy image"), Key.C, C, CopyImage),
             new("copyImageText", "copy", Loc.L("Bild mit Text kopieren", "Copy image with text"), Key.C, CS, CopyImageWithText),

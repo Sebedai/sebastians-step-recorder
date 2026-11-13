@@ -471,10 +471,89 @@ public static class StepImages
                         }
                         break;
                     }
+                case "callout" when AnnotationGeometry.Rect(a) is { } cbox && AnnotationGeometry.Tip(a) is { } ctip:
+                    {
+                        var rect = new RectangleF(S(cbox.X - src.X), S(cbox.Y - src.Y), S(cbox.Width), S(cbox.Height));
+                        var tipP = new PointF(S(ctip.X - src.X), S(ctip.Y - src.Y));
+                        using var path = CalloutPath(rect, tipP);
+                        using (var fill = new SolidBrush(color)) g.FillPath(fill, path);
+                        using (var edge = new Pen(Color.FromArgb(200, 255, 255, 255), Math.Max(1.5f, (float)scale * 1.5f))) g.DrawPath(edge, path);
+                        using var font = new Font("Segoe UI", (float)(st?.Dbl("fontSize", 16) ?? 16) * (float)scale, FontStyle.Bold, GraphicsUnit.Pixel);
+                        var inner = RectangleF.Inflate(rect, -6 * (float)scale, -4 * (float)scale);
+                        bool light = color.GetBrightness() > 0.6f;
+                        using var tb = new SolidBrush(light ? Color.FromArgb(30, 30, 30) : Color.White);
+                        g.DrawString(a.Str("text") ?? "", font, tb, inner, new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center, Trimming = StringTrimming.EllipsisWord });
+                        break;
+                    }
+                case "stamp" when geom is JsonArray sp && sp.Count >= 3:
+                    DrawStamp(g, a.Str("text") ?? "check", new PointF(S(sp[0]!.GetValue<double>() - src.X), S(sp[1]!.GetValue<double>() - src.Y)), S(sp[2]!.GetValue<double>()), color);
+                    break;
                 case "freehand" when geom is JsonArray pts && pts.Count >= 2:
                     g.DrawLines(pen, pts.Select(q => new PointF(S(q![0]!.GetValue<double>() - src.X), S(q[1]!.GetValue<double>() - src.Y))).ToArray());
                     break;
             }
+        }
+    }
+
+    /// <summary>Sprechblase: abgerundeter Kasten mit Spitze zum Punkt <paramref name="tip"/>.</summary>
+    static GraphicsPath CalloutPath(RectangleF r, PointF tip)
+    {
+        var p = new GraphicsPath();
+        float rad = Math.Min(10, Math.Min(r.Width, r.Height) / 3);
+        p.AddArc(r.X, r.Y, 2 * rad, 2 * rad, 180, 90); p.AddArc(r.Right - 2 * rad, r.Y, 2 * rad, 2 * rad, 270, 90);
+        p.AddArc(r.Right - 2 * rad, r.Bottom - 2 * rad, 2 * rad, 2 * rad, 0, 90); p.AddArc(r.X, r.Bottom - 2 * rad, 2 * rad, 2 * rad, 90, 90); p.CloseFigure();
+        if (!r.Contains(tip))
+        {
+            // Spitze: Dreieck vom Kastenmittelpunkt-nahen Rand zur Spitze
+            var c = new PointF(r.X + r.Width / 2, r.Y + r.Height / 2);
+            float w = Math.Max(8, Math.Min(r.Width, r.Height) / 3);
+            bool horiz = Math.Abs(tip.X - c.X) / Math.Max(1, r.Width) > Math.Abs(tip.Y - c.Y) / Math.Max(1, r.Height);
+            PointF a1, a2;
+            if (horiz) { float x = tip.X > c.X ? r.Right - 1 : r.X + 1; float y = Math.Clamp(tip.Y, r.Y + w, r.Bottom - w); a1 = new(x, y - w / 2); a2 = new(x, y + w / 2); }
+            else { float y = tip.Y > c.Y ? r.Bottom - 1 : r.Y + 1; float x = Math.Clamp(tip.X, r.X + w, r.Right - w); a1 = new(x - w / 2, y); a2 = new(x + w / 2, y); }
+            p.AddPolygon(new[] { a1, tip, a2 });
+        }
+        p.FillMode = FillMode.Winding;
+        return p;
+    }
+
+    /// <summary>Stempel als Vektorzeichen in einem farbigen Kreis.</summary>
+    static void DrawStamp(Graphics g, string kind, PointF c, float size, Color color)
+    {
+        float r = size / 2;
+        using (var b = new SolidBrush(color)) g.FillEllipse(b, c.X - r, c.Y - r, size, size);
+        using (var edge = new Pen(Color.White, Math.Max(1.5f, size / 14))) g.DrawEllipse(edge, c.X - r, c.Y - r, size, size);
+        using var pen = new Pen(Color.White, Math.Max(2, size / 9)) { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
+        float u = r * 0.5f;
+        switch (kind)
+        {
+            case "check": g.DrawLines(pen, new[] { new PointF(c.X - u, c.Y), new PointF(c.X - u * 0.25f, c.Y + u * 0.7f), new PointF(c.X + u, c.Y - u * 0.6f) }); break;
+            case "cross": g.DrawLine(pen, c.X - u * 0.75f, c.Y - u * 0.75f, c.X + u * 0.75f, c.Y + u * 0.75f); g.DrawLine(pen, c.X + u * 0.75f, c.Y - u * 0.75f, c.X - u * 0.75f, c.Y + u * 0.75f); break;
+            case "plus": g.DrawLine(pen, c.X - u, c.Y, c.X + u, c.Y); g.DrawLine(pen, c.X, c.Y - u, c.X, c.Y + u); break;
+            case "minus": g.DrawLine(pen, c.X - u, c.Y, c.X + u, c.Y); break;
+            case "warn":
+            case "info":
+                {
+                    bool warn = kind == "warn";
+                    float top = warn ? c.Y - u : c.Y - u * 0.15f, bottom = warn ? c.Y + u * 0.25f : c.Y + u;
+                    g.DrawLine(pen, c.X, top, c.X, bottom);
+                    float dotY = warn ? c.Y + u * 0.8f : c.Y - u * 0.75f, dr = pen.Width * 0.6f;
+                    using var wb = new SolidBrush(Color.White); g.FillEllipse(wb, c.X - dr, dotY - dr, 2 * dr, 2 * dr);
+                    break;
+                }
+            case "question":
+                {
+                    using var font = new Font("Segoe UI", size * 0.62f, FontStyle.Bold, GraphicsUnit.Pixel);
+                    g.DrawString("?", font, Brushes.White, new RectangleF(c.X - r, c.Y - r, size, size), new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center });
+                    break;
+                }
+            case "star":
+                {
+                    var pts = new PointF[10];
+                    for (int i = 0; i < 10; i++) { double ang = -Math.PI / 2 + i * Math.PI / 5; float rr = i % 2 == 0 ? u * 1.2f : u * 0.5f; pts[i] = new PointF(c.X + (float)(Math.Cos(ang) * rr), c.Y + (float)(Math.Sin(ang) * rr)); }
+                    using var wb = new SolidBrush(Color.White); g.FillPolygon(wb, pts);
+                    break;
+                }
         }
     }
 

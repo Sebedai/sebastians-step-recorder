@@ -1929,7 +1929,7 @@ Die Wahl wirkt nur auf Anzeige und Export. Die gespeicherten Bilder bleiben voll
 | `id` | string | Eindeutig in der Datei. |
 | `frame` | string | Bild, auf dem gezeichnet wird (Pflicht). |
 | `anchor` | int | Zugehöriger Schritt, falls vorhanden. |
-| `type` | enum | `arrow`, `line`, `rect`, `ellipse`, `highlight`, `text`, `badge`, `freehand`, `magnifier`, `spotlight`. |
+| `type` | enum | `arrow`, `line`, `rect`, `ellipse`, `highlight`, `text`, `badge`, `freehand`, `magnifier`, `spotlight`; ab Paket 28 `callout` (Sprechblase, `geom` `[x, y, w, h, tx, ty]` mit Spitze bei `tx, ty`, Text in `text`) und `stamp` (Stempel, `geom` `[x, y, Größe]`, Art in `text`: `check`, `cross`, `warn`, `info`, `question`, `star`, `plus`, `minus`). Ältere Versionen ignorieren unbekannte Arten. |
 | `geom` | – | Je Typ: `arrow`/`line` `[x1, y1, x2, y2]`; `rect`/`ellipse`/`highlight`/`spotlight` `[x, y, w, h]`; `text`/`badge` `[x, y]`; `freehand` Punktliste `[[x, y], …]` (der Editor glättet beim Loslassen; höchstens 400 Punkte); `magnifier` `{ "src": [x, y, w, h], "at": [x, y], "zoom": 2 }`. Rechtecke dürfen mit negativer Breite oder Höhe gespeichert sein; Leser normalisieren. |
 | `text` | string | Bei `text` und `badge`. Bei automatisch zählenden Nummern schreibt der Editor die aktuelle Zahl hinein, damit ältere Versionen und das KI-Paket sie zeigen. |
 | `auto`, `start` | bool, int | Nur `badge` ([13](13-handbuch-fahrplan.md) Paket 22): `auto: true` = Nummer zählt automatisch (je Bild in der Reihenfolge des Anlegens, neu nach Einfügen und Löschen); `start` = ab dieser Nummer neu zählen. Ohne `auto` ist die Beschriftung fest. |

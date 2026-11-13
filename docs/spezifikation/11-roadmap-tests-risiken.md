@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 28 Bild-Editor II | Sprechblase, Stempel, Weichzeichnen, Kopieren/Einfügen von Zeichnungen zwischen Schritten, Duplizieren, Pfeiltasten, Umschalt-Zwang | erledigt; Mehrfachauswahl, Ausrichten, Einrasten am erkannten Text und „Bild kürzen“: offen |
 | 27 Seite und Layout | Rand, Kopf- und Fußzeile mit Feldern (Seite, Seiten, Kapitel, Variablen), Seitenumbrüche (Kapitel, Schritt, einzeln), „Erstellt mit“ abschaltbar, Layoutvorlagen; Version 0.14.0 | erledigt; vier einzelne Ränder und Dateieigenschaften folgen |
 | 26 Bausteine | Impressum, Änderungsverzeichnis und Glossar je Sprache mit Platzierung, Störungsbehebung als Textabschnitt mit Tabelle | erledigt; Glossarbegriffe im Text markieren (Q38): offen |
 | 25 Bildunterschriften, Warnhinweise | Bildunterschriften (automatisch oder eigen) mit Abbildungsverzeichnis, Alternativtext je Sprache, Warnhinweise mit Signalwort (GEFAHR, WARNUNG, VORSICHT, HINWEIS) wahlweise vor dem Schritttext, Hinweise je Sprache, Regel Q34 | erledigt; Gefahrenhinweis nach ISO 3864 mit Folgen und Abhilfe als eigene Felder: offen |

@@ -141,7 +141,7 @@ public sealed partial class SessionView : IDisposable
     readonly List<(Regex rx, string placeholder)> _subst = new();
     readonly HashSet<string> _redactedStrings = new(StringComparer.Ordinal);
     readonly List<(long from, long to, bool images)> _rangeRedactions = new();
-    readonly List<(string m, int fromN, int toN, Rectangle rect, bool pixelate)> _imageRedactions = new();
+    readonly List<(string m, int fromN, int toN, Rectangle rect, string style)> _imageRedactions = new();
     /// <summary>Tastenereignisse (key.down samt zugehörigem key.up), deren Zeichen geschwärzt sind.</summary>
     readonly HashSet<long> _redactedKeySeqs = new();
     /// <summary>Anker der Tipp-Schritte, deren Eingabe (ganz oder teilweise) geschwärzt ist.</summary>
@@ -267,7 +267,7 @@ public sealed partial class SessionView : IDisposable
                         var rc = a.Arr("rect");
                         if (rc == null || rc.Count < 4) continue;
                         _imageRedactions.Add((a.Str("m") ?? "", FrameNo(a.Str("from")), FrameNo(a.Str("to")) is int t && t > 0 ? t : int.MaxValue,
-                            new Rectangle(rc[0]!.GetValue<int>(), rc[1]!.GetValue<int>(), rc[2]!.GetValue<int>(), rc[3]!.GetValue<int>()), r.Str("style") == "pixelate"));
+                            new Rectangle(rc[0]!.GetValue<int>(), rc[1]!.GetValue<int>(), rc[2]!.GetValue<int>(), rc[3]!.GetValue<int>()), r.Str("style") is "pixelate" or "blur" ? r.Str("style")! : "black"));
                     }
                     break;
             }
@@ -818,7 +818,9 @@ public sealed partial class SessionView : IDisposable
         using var g = Graphics.FromImage(bmp);
         foreach (var r in _imageRedactions.Where(r => r.m == m && no >= r.fromN && no <= r.toN))
         {
-            if (r.pixelate) Pixelate(bmp, g, r.rect); else g.FillRectangle(Brushes.Black, r.rect);
+            if (r.style == "pixelate") Pixelate(bmp, g, r.rect);
+            else if (r.style == "blur") Blur(bmp, g, r.rect);
+            else g.FillRectangle(Brushes.Black, r.rect);
         }
         foreach (var sb in Edits.Arr("substitutions") ?? new JsonArray())
         {
@@ -849,6 +851,25 @@ public sealed partial class SessionView : IDisposable
         var im = g.InterpolationMode; var pm = g.PixelOffsetMode;
         g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.NearestNeighbor; g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
         g.DrawImage(small, r);
+        g.InterpolationMode = im; g.PixelOffsetMode = pm;
+    }
+
+    /// <summary>
+    /// Weichzeichnen (13, Paket 28): erst grob verpixeln (die Information ist damit zerstört), dann weich hochskalieren – sieht wie
+    /// Unschärfe aus, lässt sich aber nicht zurückrechnen.
+    /// </summary>
+    static void Blur(Bitmap bmp, Graphics g, Rectangle r)
+    {
+        r = Rectangle.Intersect(r, new Rectangle(0, 0, bmp.Width, bmp.Height));
+        if (r.Width < 2 || r.Height < 2) return;
+        int block = Math.Max(14, Math.Min(r.Width, r.Height) / 4);
+        int sw = Math.Max(1, r.Width / block), sh = Math.Max(1, r.Height / block);
+        using var part = bmp.Clone(r, bmp.PixelFormat);
+        using var small = new Bitmap(sw, sh);
+        using (var gs = Graphics.FromImage(small)) { gs.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear; gs.DrawImage(part, new Rectangle(0, 0, sw, sh)); }
+        var im = g.InterpolationMode; var pm = g.PixelOffsetMode;
+        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic; g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.Half;
+        using (var ia = new System.Drawing.Imaging.ImageAttributes()) { ia.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY); g.DrawImage(small, r, 0, 0, sw, sh, GraphicsUnit.Pixel, ia); }
         g.InterpolationMode = im; g.PixelOffsetMode = pm;
     }
 

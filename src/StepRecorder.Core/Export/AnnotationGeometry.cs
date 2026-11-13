@@ -16,7 +16,7 @@ public static class AnnotationGeometry
     static double D(JsonNode? n) => n is JsonValue v ? (v.TryGetValue<double>(out var d) ? d : v.TryGetValue<long>(out var l) ? l : v.TryGetValue<int>(out var i) ? i : 0) : 0;
 
     /// <summary>Rechteck einer flächigen Markierung (rect, ellipse, highlight, spotlight).</summary>
-    public static RectangleF? Rect(JsonObject a) => a["geom"] is JsonArray g && g.Count >= 4 && a.Str("type") is "rect" or "ellipse" or "highlight" or "spotlight"
+    public static RectangleF? Rect(JsonObject a) => a["geom"] is JsonArray g && g.Count >= 4 && a.Str("type") is "rect" or "ellipse" or "highlight" or "spotlight" or "callout"
         ? Norm(new RectangleF((float)D(g[0]), (float)D(g[1]), (float)D(g[2]), (float)D(g[3]))) : null;
 
     static RectangleF Norm(RectangleF r) => RectangleF.FromLTRB(Math.Min(r.Left, r.Right), Math.Min(r.Top, r.Bottom), Math.Max(r.Left, r.Right), Math.Max(r.Top, r.Bottom));
@@ -45,6 +45,9 @@ public static class AnnotationGeometry
             case "arrow" or "line" when g is JsonArray l && l.Count >= 4:
                 return Norm(RectangleF.FromLTRB((float)D(l[0]), (float)D(l[1]), (float)D(l[2]), (float)D(l[3])));
             case "rect" or "ellipse" or "highlight" or "spotlight": return Rect(a);
+            case "callout" when Rect(a) is { } cb && Tip(a) is { } tp: return RectangleF.Union(cb, new RectangleF(tp.X, tp.Y, 1, 1));
+            case "stamp" when g is JsonArray sp && sp.Count >= 3:
+                { float sz = (float)D(sp[2]); return new RectangleF((float)D(sp[0]) - sz / 2, (float)D(sp[1]) - sz / 2, sz, sz); }
             case "text" or "badge" when g is JsonArray p && p.Count >= 2:
                 {
                     float fs = (float)(a.Obj("style")?.Dbl("fontSize", 18) ?? 18);
@@ -61,6 +64,15 @@ public static class AnnotationGeometry
                 return MagnifierParts(a) is { } m ? RectangleF.Union(m.Source, m.Lens) : null;
         }
         return null;
+    }
+
+    /// <summary>Spitze einer Sprechblase (<c>[x, y, w, h, tx, ty]</c>); fehlt sie, unter der Mitte.</summary>
+    public static PointF? Tip(JsonObject a)
+    {
+        if (a.Str("type") != "callout" || a["geom"] is not JsonArray g || g.Count < 4) return null;
+        if (g.Count >= 6) return new PointF((float)D(g[4]), (float)D(g[5]));
+        var r = Rect(a)!.Value;
+        return new PointF(r.X + r.Width / 2, r.Bottom + 30);
     }
 
     static float DistToSegment(PointF p, PointF a, PointF b)
@@ -114,6 +126,10 @@ public static class AnnotationGeometry
                 return new() { new((float)D(l[0]), (float)D(l[1])), new((float)D(l[2]), (float)D(l[3])) };
             case "rect" or "ellipse" or "highlight" or "spotlight" when Rect(a) is { } r:
                 return new() { new(r.Left, r.Top), new(r.Right, r.Top), new(r.Right, r.Bottom), new(r.Left, r.Bottom) };
+            case "callout" when Rect(a) is { } cr && Tip(a) is { } ct:
+                return new() { new(cr.Left, cr.Top), new(cr.Right, cr.Top), new(cr.Right, cr.Bottom), new(cr.Left, cr.Bottom), ct };
+            case "stamp" when Bounds(a) is { } sb:
+                return new() { new(sb.Right, sb.Bottom) };
             case "magnifier" when MagnifierParts(a) is { } m:
                 return new() { new(m.Source.Left, m.Source.Top), new(m.Source.Right, m.Source.Top), new(m.Source.Right, m.Source.Bottom), new(m.Source.Left, m.Source.Bottom), new(m.Lens.Right, m.Lens.Bottom) };
         }
@@ -128,6 +144,18 @@ public static class AnnotationGeometry
         {
             case "arrow" or "line" when g is JsonArray l && l.Count >= 4:
                 return handle == 0 ? new JsonArray(R(p.X), R(p.Y), l[2]!.DeepClone(), l[3]!.DeepClone()) : new JsonArray(l[0]!.DeepClone(), l[1]!.DeepClone(), R(p.X), R(p.Y));
+            case "callout" when g is JsonArray cg && Rect(a) is { } cr && Tip(a) is { } tip:
+                {
+                    if (handle == 4) return new JsonArray(cg[0]!.DeepClone(), cg[1]!.DeepClone(), cg[2]!.DeepClone(), cg[3]!.DeepClone(), R(p.X), R(p.Y));
+                    var opp = handle switch { 0 => new PointF(cr.Right, cr.Bottom), 1 => new PointF(cr.Left, cr.Bottom), 2 => new PointF(cr.Left, cr.Top), _ => new PointF(cr.Right, cr.Top) };
+                    var n = RectangleF.FromLTRB(Math.Min(opp.X, p.X), Math.Min(opp.Y, p.Y), Math.Max(opp.X, p.X), Math.Max(opp.Y, p.Y));
+                    return new JsonArray(R(n.X), R(n.Y), R(Math.Max(30, n.Width)), R(Math.Max(20, n.Height)), R(tip.X), R(tip.Y));
+                }
+            case "stamp" when g is JsonArray sg && sg.Count >= 3:
+                {
+                    float size = Math.Max(Math.Abs(p.X - (float)D(sg[0])), Math.Abs(p.Y - (float)D(sg[1]))) * 2;
+                    return new JsonArray(sg[0]!.DeepClone(), sg[1]!.DeepClone(), R(Math.Clamp(size, 12, 400)));
+                }
             case "rect" or "ellipse" or "highlight" or "spotlight" when Rect(a) is { } r:
                 {
                     var opp = handle switch { 0 => new PointF(r.Right, r.Bottom), 1 => new PointF(r.Left, r.Bottom), 2 => new PointF(r.Left, r.Top), _ => new PointF(r.Right, r.Top) };
@@ -163,6 +191,11 @@ public static class AnnotationGeometry
         {
             case JsonArray arr when a.Str("type") == "freehand":
                 return new JsonArray(arr.OfType<JsonArray>().Select(q => (JsonNode)new JsonArray(R(D(q[0]) + dx), R(D(q[1]) + dy))).ToArray());
+            case JsonArray arr when a.Str("type") == "callout" && arr.Count >= 4:
+                {
+                    var tip = Tip(a)!.Value;
+                    return new JsonArray(R(D(arr[0]) + dx), R(D(arr[1]) + dy), arr[2]!.DeepClone(), arr[3]!.DeepClone(), R(tip.X + dx), R(tip.Y + dy));
+                }
             case JsonArray arr when a.Str("type") is "arrow" or "line" && arr.Count >= 4:
                 return new JsonArray(R(D(arr[0]) + dx), R(D(arr[1]) + dy), R(D(arr[2]) + dx), R(D(arr[3]) + dy));
             case JsonArray arr when arr.Count >= 2:
@@ -220,6 +253,15 @@ public static class AnnotationGeometry
         return new JsonObject { ["src"] = new JsonArray(R(src.X), R(src.Y), R(src.Width), R(src.Height)), ["at"] = new JsonArray(R(ax), R(ay)), ["zoom"] = zoom };
     }
 
+    /// <summary>Stempelarten (Vektorzeichen ohne Schriftabhängigkeit).</summary>
+    public static readonly string[] Stamps = { "check", "cross", "warn", "info", "question", "star", "plus", "minus" };
+
+    public static string StampName(string? kind, bool de) => kind switch
+    {
+        "check" => de ? "Haken" : "check", "cross" => de ? "Kreuz" : "cross", "warn" => de ? "Warnung" : "warning", "info" => "Info",
+        "question" => de ? "Frage" : "question", "star" => de ? "Stern" : "star", "plus" => "Plus", "minus" => "Minus", _ => kind ?? ""
+    };
+
     /// <summary>Beschreibung für das KI-Paket (Markierungen erscheinen dort nicht im Bild).</summary>
     public static string Describe(JsonObject a, string lang)
     {
@@ -237,6 +279,8 @@ public static class AnnotationGeometry
             "highlight" when Rect(a) is { } r => de ? $"Hervorhebung {Box(r)}" : $"Highlight {Box(r)}",
             "spotlight" when Rect(a) is { } r => de ? $"Spotlight auf {Box(r)} – übriges Bild abgedunkelt" : $"Spotlight on {Box(r)} – rest of the image dimmed",
             "text" when g is JsonArray p && p.Count >= 2 => de ? $"Text{text} bei {P(D(p[0]), D(p[1]))}" : $"Text{text} at {P(D(p[0]), D(p[1]))}",
+            "callout" when Rect(a) is { } cr => de ? $"Sprechblase{text} {Box(cr)}" : $"Speech bubble{text} {Box(cr)}",
+            "stamp" when Bounds(a) is { } sb => de ? $"Stempel „{StampName(a.Str("text"), true)}“ bei {P(sb.X + sb.Width / 2, sb.Y + sb.Height / 2)}" : $"Stamp “{StampName(a.Str("text"), false)}” at {P(sb.X + sb.Width / 2, sb.Y + sb.Height / 2)}",
             "badge" when g is JsonArray p && p.Count >= 2 => de ? $"Nummer{text} bei {P(D(p[0]), D(p[1]))}" : $"Number{text} at {P(D(p[0]), D(p[1]))}",
             "freehand" when Bounds(a) is { } b => de ? $"Freihandlinie, {Points(a).Count} Punkte, Bereich {Box(b)}" : $"Freehand line, {Points(a).Count} points, area {Box(b)}",
             "magnifier" when MagnifierParts(a) is { } m => de ? $"Lupe: Bereich {Box(m.Source)} {m.Zoom:0.##}-fach vergrößert bei {P(m.Lens.X + m.Lens.Width / 2, m.Lens.Y + m.Lens.Height / 2)}" : $"Magnifier: area {Box(m.Source)} enlarged {m.Zoom:0.##}× at {P(m.Lens.X + m.Lens.Width / 2, m.Lens.Y + m.Lens.Height / 2)}",

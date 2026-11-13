@@ -65,7 +65,7 @@ Aufwand wie in [12](12-entwickler-fahrplan.md): S ≈ ein Arbeitsabschnitt, M �
 | 25 | Bildunterschriften, Abbildungsverzeichnis, Warnhinweise | V-46 | M | 24 | erledigt |
 | 26 | Glossar, Änderungsverzeichnis, Impressum, Störungsbehebung | V-46 | M | 25 | erledigt |
 | 27 | Seite und Layout: Ränder, Kopf-/Fußzeile, Umbrüche, Layoutvorlagen | V-48 | L | 24 | erledigt (0.14.0) |
-| 28 | Bild-Editor II: Objekte, neue Werkzeuge, Einrasten | V-54 | L | 22 | geplant |
+| 28 | Bild-Editor II: Objekte, neue Werkzeuge, Einrasten | V-54 | L | 22 | teilweise (Werkzeuge, Kopieren, Verschieben) |
 | 29 | Redaktionsprüfung I: Stil und Lesbarkeit | V-49 | M | 21 | geplant |
 | 30 | Redaktionsprüfung II: Fertigstellung und Freigabe | V-49 | M | 27, 29 | geplant |
 | 31 | Word-Profil mit Formatvorlagen und Listen | V-48 | M | 27 | geplant |
