@@ -315,7 +315,8 @@ static class U
     /// <summary>Auswahlleiste (wie WinUI „SelectorBar“); liefert die Leiste und die RadioButtons in Reihenfolge.</summary>
     public static (Border track, RadioButton[] items) Segmented(string group, int selected, params (string? glyph, string text)[] items)
     {
-        var panel = new StackPanel { Orientation = Orientation.Horizontal };
+        // bricht bei schmalen Fenstern in eine zweite Zeile um, statt abgeschnitten zu werden
+        var panel = new WrapPanel { Orientation = Orientation.Horizontal };
         var list = new List<RadioButton>();
         for (int i = 0; i < items.Length; i++)
         {
@@ -332,53 +333,45 @@ static class U
     {
         var footer = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
         foreach (var b in buttons) { b.Margin = new Thickness(8, 0, 0, 0); b.MinWidth = Math.Max(b.MinWidth, 110); footer.Children.Add(b); }
-        return new Border { Background = Theme.Bg, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(24, 16, 24, 16), Child = footer };
+        // über Mica: leicht abgesetzte Fläche mit Haarlinie (wie die Befehlsleiste eines WinUI-Dialogs)
+        return new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(0, 1, 0, 0), Padding = new Thickness(24, 16, 24, 16), Child = footer };
     }
 
     /// <summary>Dialog-Grundgerüst: Inhalt oben, Schaltflächen rechts unten in einer Fußzeile.</summary>
     public static void Dialog(Window w, string? heading, UIElement body, params Button[] buttons)
     {
-        var root = new DockPanel();
-        if (buttons.Length > 0) { var foot = Footer(buttons); DockPanel.SetDock(foot, Dock.Bottom); root.Children.Add(foot); }
         var content = new StackPanel { Margin = new Thickness(24, 20, 24, 20) };
         if (heading != null) content.Children.Add(Heading(heading));
         content.Children.Add(body);
-        root.Children.Add(content);
-        w.Content = root;
+        w.Content = buttons.Length > 0 ? Stack(content, Footer(buttons)) : content;
         Anim.Appear(content, 0, 4, 200);
     }
 
     /// <summary>
-    /// Dialoginhalt immer ganz zeigen, ohne Scrollen: Ist er höher als <see cref="Window.MaxHeight"/> erlaubt, wird er gleichmäßig
-    /// verkleinert – und vorher so verbreitert, dass er nach dem Verkleinern wieder die ganze Fensterbreite füllt.
+    /// Inhalt über einer festen Fußzeile – in dieser Reihenfolge auch für die Tab-Taste (ein DockPanel mit angedockter
+    /// Fußzeile würde die Schaltflächen zuerst ansteuern).
     /// </summary>
-    public static void FitDialog(Window w)
+    public static Grid Stack(UIElement fill, UIElement bottom, UIElement? top = null)
     {
-        if (w.Content is not FrameworkElement dlg) return;
-        w.Content = null;
-        double design = Math.Max(200, w.Width - 16);
-        dlg.Width = design;
-        var box = new Viewbox { Child = dlg, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
-        w.Content = box;
-        w.Loaded += (_, _) =>
-        {
-            // Maße der Client-Fläche (der Viewbox selbst meldet schon die verkleinerte Größe)
-            if (VisualTreeHelper.GetChildrenCount(w) == 0 || VisualTreeHelper.GetChild(w, 0) is not FrameworkElement client) return;
-            double availW = client.ActualWidth, availH = client.ActualHeight;
-            if (availW <= 0 || availH <= 0) return;
-            double width = design;
-            for (int i = 0; i < 3; i++)
-            {
-                dlg.Width = width;
-                dlg.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                double h = dlg.DesiredSize.Height;
-                if (h <= availH + 0.5) break;
-                double wanted = Math.Min(availW * h / availH, design * 1.6);
-                if (Math.Abs(wanted - width) < 2) break;
-                width = wanted;
-            }
-            dlg.Width = width;
-        };
+        var g = new Grid();
+        if (top != null) { g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); g.Children.Add(top); }
+        g.RowDefinitions.Add(new RowDefinition());
+        g.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        int r = top != null ? 1 : 0;
+        Grid.SetRow(fill, r); Grid.SetRow(bottom, r + 1);
+        g.Children.Add(fill); g.Children.Add(bottom);
+        return g;
+    }
+
+    /// <summary>Links füllend, rechts in Inhaltsbreite – Tab-Reihenfolge links vor rechts.</summary>
+    public static Grid LeftRight(UIElement left, UIElement right)
+    {
+        var g = new Grid();
+        g.ColumnDefinitions.Add(new ColumnDefinition());
+        g.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(right, 1);
+        g.Children.Add(left); g.Children.Add(right);
+        return g;
     }
 
     /// <summary>Kopf eines Abschnitts (alter Name; gleiche Gestaltung wie <see cref="SectionLabel"/>).</summary>
@@ -402,12 +395,19 @@ static class Msg
     public static MessageBoxResult Show(string text, string title = StepRecorder.Data.AppInfo.DisplayName, MessageBoxButton buttons = MessageBoxButton.OK, MessageBoxImage icon = MessageBoxImage.None)
     {
         // Texte kommen schon in der Oberflächensprache (Loc.L beim Aufrufer)
-        var w = new Window { Title = title, Width = text.Length > 420 ? 640 : 500, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
+        var w = new DialogWindow { Title = title, Width = text.Length > 420 ? 640 : 500, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false };
         Theme.Prepare(w);
         var owner = Application.Current?.Windows.OfType<Window>().FirstOrDefault(x => x.IsActive && x.IsVisible && x is not RecordingBar and not FrameWindow && x != w);
         if (owner != null) { w.Owner = owner; w.WindowStartupLocation = WindowStartupLocation.CenterOwner; }
         else { w.WindowStartupLocation = WindowStartupLocation.CenterScreen; w.Topmost = true; w.ShowInTaskbar = true; }
-        var result = buttons switch { MessageBoxButton.YesNo => MessageBoxResult.No, MessageBoxButton.OKCancel or MessageBoxButton.YesNoCancel => MessageBoxResult.Cancel, _ => MessageBoxResult.OK };
+        // Ergebnis bei Esc oder Schließen: die vorsichtige Wahl
+        var result = buttons switch
+        {
+            MessageBoxButton.YesNo => MessageBoxResult.No,
+            MessageBoxButton.OKCancel or MessageBoxButton.YesNoCancel or MessageBoxButton.RetryCancel or MessageBoxButton.CancelTryContinue => MessageBoxResult.Cancel,
+            MessageBoxButton.AbortRetryIgnore => MessageBoxResult.Abort,
+            _ => MessageBoxResult.OK
+        };
         var (glyph, bg, fg) = icon switch
         {
             MessageBoxImage.Warning => (Theme.IWarn, Theme.WarnSoft, Theme.Warn),
@@ -437,12 +437,17 @@ static class Msg
             if (primary) b.IsDefault = true;
             return b;
         }
-        string yes = Settings.Loc.L("Ja", "Yes"), no = Settings.Loc.L("Nein", "No"), cancel = Settings.Loc.L("Abbrechen", "Cancel");
+        string yes = Settings.Loc.L("Ja", "Yes"), no = Settings.Loc.L("Nein", "No"), cancel = Settings.Loc.L("Abbrechen", "Cancel"),
+            retry = Settings.Loc.L("Wiederholen", "Retry"), ignore = Settings.Loc.L("Ignorieren", "Ignore"), cont = Settings.Loc.L("Weiter", "Continue");
+        // RetryCancel, AbortRetryIgnore und CancelTryContinue gibt es seit .NET 10 (wie im Windows-Meldungsfenster)
         var btns = buttons switch
         {
             MessageBoxButton.YesNo => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false) },
             MessageBoxButton.YesNoCancel => new[] { Make(yes, MessageBoxResult.Yes, true), Make(no, MessageBoxResult.No, false), Make(cancel, MessageBoxResult.Cancel, false) },
             MessageBoxButton.OKCancel => new[] { Make("OK", MessageBoxResult.OK, true), Make(cancel, MessageBoxResult.Cancel, false) },
+            MessageBoxButton.RetryCancel => new[] { Make(retry, MessageBoxResult.Retry, true), Make(cancel, MessageBoxResult.Cancel, false) },
+            MessageBoxButton.AbortRetryIgnore => new[] { Make(retry, MessageBoxResult.Retry, true), Make(ignore, MessageBoxResult.Ignore, false), Make(cancel, MessageBoxResult.Abort, false) },
+            MessageBoxButton.CancelTryContinue => new[] { Make(retry, MessageBoxResult.TryAgain, true), Make(cont, MessageBoxResult.Continue, false), Make(cancel, MessageBoxResult.Cancel, false) },
             _ => new[] { Make("OK", MessageBoxResult.OK, true) }
         };
         U.Dialog(w, null, body, btns);

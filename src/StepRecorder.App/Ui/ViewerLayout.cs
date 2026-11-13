@@ -86,8 +86,8 @@ sealed partial class ViewerWindow
         var export = CmdButton("export", Loc.L("Exportieren …", "Export …"), 0, "Primary");
         export.Margin = new Thickness(10, 0, 0, 0);
         foreach (var e in new UIElement[] { _undoBtn, _redoBtn, U.VSep(), play, preview, review, U.VSep(), copy, export }) cmds.Children.Add(e);
-        var bar = new DockPanel();
-        DockPanel.SetDock(cmds, Dock.Right); bar.Children.Add(cmds); bar.Children.Add(menuBar);
+        // Menüleiste links, Befehlsknöpfe rechts – Tab-Taste in derselben Reihenfolge
+        var bar = U.LeftRight(menuBar, cmds);
         var top = new Border { Padding = new Thickness(8, 0, 16, 8), Child = bar };
 
         // ---------------- Schrittliste ----------------
@@ -196,7 +196,7 @@ sealed partial class ViewerWindow
         FrameworkElement Bound(FrameworkElement e, DependencyProperty p) { e.SetBinding(p, new System.Windows.Data.Binding("Foreground") { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(RadioButton), 1) }); return e; }
         var badgeIcon = Bound(new Border { Width = 18, Height = 18, CornerRadius = new CornerRadius(9), BorderThickness = new Thickness(1.5), Child = new TextBlock { Text = "1", FontSize = 11, FontWeight = FontWeights.Bold, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center } }, Border.BorderBrushProperty);
         var ellipseIcon = Bound(new Ellipse { Width = 18, Height = 13, StrokeThickness = 1.6 }, Shape.StrokeProperty);
-        Tool("select", G(Theme.IPointer), Loc.L("Auswählen (V) – Markierung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text", "Select (V) – click a markup, drag to move, Del deletes, double-click edits text"));
+        Tool("select", G(Theme.IPointer), Loc.L("Auswählen (V) – Zeichnung anklicken, ziehen zum Verschieben, Entf löscht, Doppelklick ändert Text", "Select (V) – click a markup, drag to move, Del deletes, double-click edits text"));
         Tool("arrow", G(Theme.IArrow), Loc.L("Pfeil (A)", "Arrow (A)"));
         var lineIcon = Bound(new Line { X1 = 1, Y1 = 15, X2 = 17, Y2 = 3, StrokeThickness = 1.8, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 18, Height = 18 }, Shape.StrokeProperty);
         Tool("line", lineIcon, Loc.L("Linie (Umschalt+A)", "Line (Shift+A)"));
@@ -234,7 +234,7 @@ sealed partial class ViewerWindow
         }
         pal.Children.Add(widthGrid);
         pal.Children.Add(PalSep());
-        var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, Loc.L("Ausgewählte Markierung löschen (Entf) – ohne Auswahl: alle Markierungen dieses Bildes", "Delete the selected markup (Del) – without a selection: all markup on this image"));
+        var del = U.Ghost(Theme.IDelete, null, DeleteSelectedOrAll, Loc.L("Ausgewählte Zeichnung löschen (Entf) – ohne Auswahl: alle Zeichnungen dieses Bildes", "Delete the selected markup (Del) – without a selection: all markup on this image"));
         del.Margin = new Thickness(0); del.MinWidth = 36; del.HorizontalAlignment = HorizontalAlignment.Stretch;
         pal.Children.Add(del);
         var palette = new Border
@@ -934,7 +934,7 @@ sealed partial class ViewerWindow
         {
             var p = ToImage(pos);
             string text = _tool == "badge" ? ((_view.Edits.Arr("annotations")?.Count(a => a.Str("frame") == _currentMeta.FrameId && a.Str("type") == "badge") ?? 0) + 1).ToString() : "";
-            if (_tool == "text") { var d = new InputDialog(Loc.L("Text der Markierung", "Text of the marker"), "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
+            if (_tool == "text") { var d = new InputDialog(Loc.L("Text der Zeichnung", "Text of the drawing"), "") { Owner = this }; if (d.ShowDialog() != true || d.Value.Trim().Length == 0) { _dragStart = null; return; } text = d.Value; }
             AddAnnotation(_tool, new JsonArray((int)p.X, (int)p.Y), text);
             _dragStart = null;
             return;
@@ -1146,7 +1146,7 @@ sealed partial class ViewerWindow
     void EditAnnotationText(JsonObject a)
     {
         var id = a.Str("id"); if (id == null) return;
-        var d = new InputDialog(Loc.L("Text der Markierung", "Text of the marker"), a.Str("text") ?? "") { Owner = this };
+        var d = new InputDialog(Loc.L("Text der Zeichnung", "Text of the drawing"), a.Str("text") ?? "") { Owner = this };
         if (d.ShowDialog() != true || d.Value.Trim().Length == 0) return;
         Change(e => { if (AnnotationEdit(e, id) is { } x) x["text"] = d.Value; }, refill: false);
     }
@@ -1212,10 +1212,10 @@ sealed partial class ViewerWindow
         {
             _selAnn = null;
             Change(e => { if (e["annotations"] is JsonArray arr && AnnotationEdit(e, id) is { } a) arr.Remove(a); }, refill: false);
-            _status.Text = Loc.L("Markierung gelöscht – rückgängig mit Strg+Z", "Markup deleted – undo with Ctrl+Z");
+            _status.Text = Loc.L("Zeichnung gelöscht – rückgängig mit Strg+Z", "Drawing deleted – undo with Ctrl+Z");
             return;
         }
-        if (_currentMeta == null || !AnnotationsFor(_currentMeta.FrameId).Any()) { _status.Text = Loc.L("Dieses Bild hat keine eigenen Markierungen.", "This image has no markup of its own."); return; }
-        if (Msg.Show(Loc.L("Alle eigenen Markierungen dieses Bildes entfernen?", "Remove all own markup from this image?"), Loc.L("Markierungen", "Markup"), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) ClearAnnotations();
+        if (_currentMeta == null || !AnnotationsFor(_currentMeta.FrameId).Any()) { _status.Text = Loc.L("Dieses Bild hat keine Zeichnungen.", "This image has no drawings."); return; }
+        if (Msg.Show(Loc.L("Alle Zeichnungen dieses Bildes löschen?", "Delete all drawings in this image?"), Loc.L("Zeichnungen", "Drawings"), MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) ClearAnnotations();
     }
 }

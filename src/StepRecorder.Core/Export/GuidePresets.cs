@@ -8,8 +8,8 @@ public static class GuidePresets
 {
     public static readonly (string id, string de, string en, string hintDe, string hintEn)[] All =
     {
-        ("standard", "Standard", "Standard", "Wie in den Dokument-Einstellungen festgelegt", "As set in the document settings"),
-        ("short", "Kurzfassung", "Short version", "Ohne Bilder und Deckblatt, Schritte fortlaufend nummeriert", "No images or cover, steps numbered consecutively"),
+        ("standard", "Standard", "Standard", "Wie im Editor unter „Titelseite und Einleitung“ festgelegt", "As set in the editor under “Title page and introduction”"),
+        ("short", "Kurzfassung", "Short version", "Ohne Bilder und Titelseite, Schritte fortlaufend nummeriert", "No images or title page, steps numbered consecutively"),
         ("checklist", "Checkliste", "Checklist", "Kurzfassung mit einem Kästchen je Schritt – zum Ausdrucken und Abhaken", "Short version with a tick box per step – for printing"),
     };
 

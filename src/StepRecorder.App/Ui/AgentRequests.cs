@@ -86,7 +86,7 @@ static class RecordingRequestDialog
     public static string Ask(RecordingRequest rq)
     {
         string result = "decline";
-        var w = new Window { Title = Loc.L("Anfrage eines KI-Agenten", "Request from an AI agent"), Width = 620, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, Topmost = true, WindowStartupLocation = WindowStartupLocation.CenterScreen, ShowInTaskbar = true };
+        var w = new DialogWindow { Title = Loc.L("Anfrage eines KI-Agenten", "Request from an AI agent"), Width = 620, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, Topmost = true, WindowStartupLocation = WindowStartupLocation.CenterScreen, ShowInTaskbar = true };
         Theme.Prepare(w, Theme.Surface);
         string agentText = rq.Goal + (rq.Expected is { Length: > 0 } e ? "\n\n" + Loc.L("Erwartet: ", "Expected: ") + e : "") + (rq.Title is { Length: > 0 } t ? "\n\n" + Loc.L("Titel: ", "Title: ") + t : "");
         var box = new TextBox

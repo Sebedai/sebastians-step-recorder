@@ -370,7 +370,7 @@ Beim Durchgang durch den Code sind Abweichungen zwischen Grundsätzen und Umsetz
 | A-9 | Terminals gelten im Code als `partial`, in 03 als undurchsichtig | `WindowRegistry.SurfaceOf` | 03 §7.4 | Spezifikation nachziehen, Wirkung auf die Durchsicht beschreiben | erledigt (Paket V): 03 §7.4 nennt den Stand |
 | A-10 | `record` gibt am Ende keinen Sitzungspfad aus; `record --stop` wartet ohne laufende Aufnahme 30 s und endet mit 1 | `UiApp`, `SingleInstance.SendStop` | 02 §8.4, §8.6 (Exit-Code 7) | Code, in Paket 8 | erledigt (Paket V): Abschlusszeile, `--json`, Exit 5 und 7 |
 
-Außerdem bleibt offen: die Entpack-Umgehung der Einzeldatei unter .NET 11 wieder zu entfernen, sobald dotnet/wpf#11842 behoben ist (O-08); gebaut wird seit 2026-11-12 mit dem SDK 11.0.100.
+Laufzeit: gebaut wird mit .NET 10 (LTS, O-08); .NET 11 bleibt zurückgestellt, solange WPF-Einzeldateien dort nicht starten (dotnet/wpf#11842).
 
 ## 7. Offene Entscheidungen
 

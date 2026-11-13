@@ -7,27 +7,28 @@ using StepRecorder.Settings;
 namespace StepRecorder.App.Ui;
 
 /// <summary>
-/// Exportdialog: Format, Ziel („Speichern unter“), Sprache, Art, Umfang, Darstellung bzw. Detailstufe und Bildprofil.
+/// Exportdialog: links die Formate in drei Gruppen (Anleitung · Vorführen und melden · KI und Automatisierung), rechts
+/// Beschreibung, Ziel („Speichern unter“) und nur die Optionen, die zum Format passen; Seltenes unter „Weitere Optionen“.
 /// Liefert eine vollständige <see cref="ExportRequest"/>; ausgeführt wird sie vom Editor.
 /// </summary>
-sealed class ExportDialog : Window
+sealed class ExportDialog : DialogWindow
 {
-    sealed record Fmt(string Id, string Glyph, string Name, string Sub);
+    sealed record Fmt(string Id, string Glyph, string Name, string Sub, string Group);
 
     static List<Fmt> Formats() => new List<Fmt>
     {
-        new("html", Theme.IGlobe, "HTML", Loc.L("eine Datei", "single file")),
-        new("md", Theme.ICode, "Markdown", Loc.L("Text + Bilder", "text + images")),
-        new("docx", Theme.IDoc, "Word", Loc.L("bearbeitbar", "editable")),
-        new("pdf", Theme.IPdf, "PDF", Loc.L("zum Drucken", "for printing")),
-        new("pptx", Theme.IDoc, "PowerPoint", Loc.L("Folien", "slides")),
-        new("tour", Theme.IMouse, Loc.L("Klick-Tour", "Click tour"), Loc.L("zum Durchklicken", "click through")),
-        new("bugreport", Theme.IError, Loc.L("Fehlerbericht", "Bug report"), Loc.L("für Tickets", "for tickets")),
-        new("gif", Theme.IPlay, "GIF", Loc.L("animiert", "animated")),
-        new("mp4", "", Loc.L("Video", "Video"), Loc.L("MP4", "MP4")),
-        new("ki", Theme.IRobot, Loc.L("KI-Paket", "AI package"), Loc.L("für KI", "for AI")),
-        new("ahk", Theme.IScript, "AutoHotkey", Loc.L("Skript", "script")),
-        new("uitest", Theme.IChecklist, Loc.L("UI-Test", "UI test"), Loc.L("Entwurf", "draft")),
+        new("html", Theme.IGlobe, "HTML", Loc.L("eine Datei für den Browser", "single file for the browser"), "guide"),
+        new("docx", Theme.IDoc, "Word", Loc.L("zum Weiterbearbeiten", "for further editing"), "guide"),
+        new("pdf", Theme.IPdf, "PDF", Loc.L("zum Drucken und Weitergeben", "to print and share"), "guide"),
+        new("md", Theme.ICode, "Markdown", Loc.L("für Wiki und Git", "for wiki and Git"), "guide"),
+        new("pptx", Theme.IDoc, "PowerPoint", Loc.L("Folien zum Schulen", "slides for training"), "guide"),
+        new("tour", Theme.IMouse, Loc.L("Klick-Tour", "Click tour"), Loc.L("im Browser durchklicken", "click through in a browser"), "share"),
+        new("gif", Theme.IPlay, "GIF", Loc.L("animiert, für Chat und E-Mail", "animated, for chat and email"), "share"),
+        new("mp4", Theme.IPlay, Loc.L("Video", "Video"), Loc.L("MP4 zum Abspielen und Hochladen", "MP4 to play and upload"), "share"),
+        new("bugreport", Theme.IError, Loc.L("Fehlerbericht", "Bug report"), Loc.L("für Ticket und Issue", "for ticket and issue"), "share"),
+        new("ki", Theme.IRobot, Loc.L("KI-Paket", "AI package"), Loc.L("für ChatGPT, Claude & Co.", "for ChatGPT, Claude & co."), "ai"),
+        new("ahk", Theme.IScript, "AutoHotkey", Loc.L("Ablauf als Skript", "sequence as a script"), "ai"),
+        new("uitest", Theme.IChecklist, Loc.L("UI-Test", "UI test"), Loc.L("Entwurf für FlaUI, pywinauto, Playwright", "draft for FlaUI, pywinauto, Playwright"), "ai"),
     }.Where(f => f.Id == "uitest" || Exporter.IsKnownFormat(f.Id)).ToList();
 
     /// <summary>Ziele des Formats „UI-Test“ (Pakete 16 und 17).</summary>
@@ -37,6 +38,16 @@ sealed class ExportDialog : Window
         Items = { Loc.L("FlaUI (C#, xUnit)", "FlaUI (C#, xUnit)"), Loc.L("pywinauto (Python, pytest)", "pywinauto (Python, pytest)"), Loc.L("Playwright (TypeScript, nur Browser-Schritte)", "Playwright (TypeScript, browser steps only)"), Loc.L("Test-KI-Paket (alle Entwürfe, Modell und Regeln für KI)", "Test AI package (all drafts, model and rules for AI)") },
         SelectedIndex = 0
     };
+
+    static string GroupName(string id) => id switch
+    {
+        "share" => Loc.L("Vorführen und melden", "Show and report"),
+        "ai" => Loc.L("KI und Automatisierung", "AI and automation"),
+        _ => Loc.L("Anleitung", "Guide")
+    };
+
+    /// <summary>„Weitere Optionen“ aufgeklappt (gilt für die Sitzung des Programms).</summary>
+    static bool _moreOpen;
 
     readonly List<Fmt> _fmts;
     readonly RadioButton[] _formatBtns;
@@ -48,8 +59,9 @@ sealed class ExportDialog : Window
 
     readonly ComboBox _lang = new() { ItemsSource = OutText.NativeNames };
     readonly ComboBox _preset = new();
-    readonly ComboBox _imp = new() { Items = { Loc.L("Hauptschritte", "Main steps"), Loc.L("Haupt- und Nebenschritte", "Main and secondary steps"), Loc.L("Alle Schritte", "All steps") }, SelectedIndex = 0 };
-    readonly ComboBox _view = new() { Items = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Ausschnitt um die Aktion", "Detail around the action") }, SelectedIndex = 0 };
+    readonly ComboBox _imp = new() { Items = { Loc.L("Hauptschritte", "Main steps"), Loc.L("Haupt- und Nebenschritte", "Main and secondary steps"), Loc.L("Alle Schritte, mit Spur", "All steps, with trace") }, SelectedIndex = 0 };
+    // dieselben Namen wie im Editor unter Ansicht › Bildausschnitt
+    readonly ComboBox _view = new() { Items = { Loc.L("Ganzer Bildschirm", "Full screen"), Loc.L("Anwendungsfenster", "Application window"), Loc.L("Bereich um die Aktion", "Area around the action") }, SelectedIndex = 0 };
     readonly ComboBox _missing = new() { Items = { Loc.L("Automatischer Text der Exportsprache", "Automatic text in the export language"), Loc.L("Eigener Text der anderen Sprache", "Own text in the other language") }, SelectedIndex = 0 };
     readonly ComboBox _detail = new() { Items = { Loc.L("Kompakt", "Compact"), Loc.L("Standard", "Standard"), Loc.L("Vollständig", "Complete") }, SelectedIndex = 1 };
     readonly ComboBox _profile = new() { Items = { Loc.L("Kompatibel (≤ 1568 px)", "Compatible (≤ 1568 px)"), Loc.L("Hochauflösend (≤ 2576 px)", "High resolution (≤ 2576 px)"), Loc.L("Original", "Original") }, SelectedIndex = 0 };
@@ -61,7 +73,7 @@ sealed class ExportDialog : Window
     readonly ComboBox _gifSize = new() { Items = { Loc.L("Ohne Größenziel", "No size target"), "5 MB", Loc.L("10 MB (Pull Requests)", "10 MB (pull requests)"), "25 MB" }, SelectedIndex = 0 };
     static readonly string[] MdDialects = { "plain", "github", "obsidian" };
     static readonly double[] GifSizes = { 0, 5, 10, 25 };
-    readonly CheckBox _zip = new() { Content = Loc.L("Zusätzlich als ZIP-Datei verpacken", "Also pack as ZIP file"), Margin = new Thickness(0, 2, 0, 0) };
+    readonly CheckBox _zip = new() { Content = Loc.L("Zusätzlich als ZIP-Datei verpacken", "Also pack as ZIP file"), Margin = new Thickness(0, 0, 0, 12) };
     readonly CheckBox _timing = new() { Content = Loc.L("Auch die Denkpausen der Aufnahme übernehmen", "Also keep the pauses of the recording"), Margin = new Thickness(0, 0, 0, 8) };
     readonly CheckBox _ahkKi = new() { Content = Loc.L("Als KI-Paket: Anleitung für KI, ablauf.json, Bildausschnitte, Texterkennung", "As AI package: AI instructions, ablauf.json, image details, text recognition") };
     readonly CheckBox _overview = new() { Content = Loc.L("Kleine Übersicht des ganzen Bildschirms einblenden", "Show a small overview of the whole screen"), IsChecked = true, Margin = new Thickness(0, 6, 0, 0) };
@@ -80,7 +92,7 @@ sealed class ExportDialog : Window
     bool HasGuideAfter => Format is "html" or "md" or "docx" or "pdf";
 
     readonly StackPanel _info = new();
-    readonly TextBlock _estimate = U.Text("", 12.5, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 0));
+    readonly TextBlock _estimate = U.Text("", Theme.FsHint, fg: Theme.Muted, margin: new Thickness(0, 0, 0, 0));
     readonly System.Windows.Threading.DispatcherTimer _estimateDelay = new() { Interval = TimeSpan.FromMilliseconds(150) };
     CancellationTokenSource? _estimateCts;
 
@@ -107,7 +119,7 @@ sealed class ExportDialog : Window
             _estimate.Text = t.Result.text; _estimate.Foreground = t.Result.warn ? Theme.Warn : Theme.Fg2;
         }, TaskScheduler.FromCurrentSynchronizationContext());
     }
-    readonly Border _qualityRow = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(12, 8, 8, 8), CornerRadius = new CornerRadius(6), Margin = new Thickness(0, -6, 0, 14) };
+    readonly Border _qualityRow = new() { Visibility = Visibility.Collapsed, Padding = new Thickness(12, 8, 8, 8), CornerRadius = new CornerRadius(Theme.RControl), Margin = new Thickness(0, -6, 0, 14) };
     bool _hasQuality;
 
     /// <summary>Zeile „Qualität: …“ mit Sprung in die Qualitätsprüfung (nur bei Anleitungsformaten sichtbar).</summary>
@@ -118,7 +130,7 @@ sealed class ExportDialog : Window
         link.Margin = new Thickness(0);
         var dock = new DockPanel();
         DockPanel.SetDock(link, Dock.Right); dock.Children.Add(link);
-        var label = U.Text(text, 12.5, fg: warn ? Theme.Warn : Theme.Fg2, margin: new Thickness(8, 0, 0, 0)); label.VerticalAlignment = VerticalAlignment.Center;
+        var label = U.Text(text, Theme.FsHint, fg: warn ? Theme.Warn : Theme.Fg2, margin: new Thickness(8, 0, 0, 0)); label.VerticalAlignment = VerticalAlignment.Center;
         var icon = U.Icon(Theme.IChecklist, 13, warn ? Theme.Warn : Theme.Muted); icon.VerticalAlignment = VerticalAlignment.Center;
         dock.Children.Add(U.Row(icon, label));
         _qualityRow.Child = dock;
@@ -127,7 +139,7 @@ sealed class ExportDialog : Window
     }
     readonly TextBlock _impHint = Hint(), _viewHint = Hint(), _detailHint = Hint(), _profileHint = Hint(), _presetHint = Hint();
 
-    static TextBlock Hint() => U.Text("", 11.5, fg: Theme.Muted, margin: new Thickness(0, 5, 0, 0));
+    static TextBlock Hint() => U.Text("", Theme.FsCaption, fg: Theme.Muted, margin: new Thickness(0, 5, 0, 0));
 
     /// <summary>Ordnerwahl für „Speichern unter“: null = unverändert, "" = wieder Standardort der Aufnahme, sonst gewählter Ordner.</summary>
     public string? FolderChoice { get; private set; }
@@ -163,21 +175,33 @@ sealed class ExportDialog : Window
     public ExportDialog(ExportRequest initial, Func<ExportRequest, string?, string> defaultTarget, string? initialTarget = null)
     {
         _defaultTarget = defaultTarget;
-        Title = Loc.L("Exportieren", "Export"); Width = 840; SizeToContent = SizeToContent.Height; WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.NoResize; ShowInTaskbar = false;
+        // feste Größe: beim Wechsel des Formats springt das Fenster nicht; rechts wird bei Bedarf gescrollt
+        var wa = Theme.ActiveWorkArea();
+        Title = Loc.L("Exportieren", "Export"); Width = Math.Min(960, wa.Width - 40); Height = Math.Min(800, wa.Height - 40); MinWidth = Math.Min(760, Width); MinHeight = Math.Min(480, Height);
+        WindowStartupLocation = WindowStartupLocation.CenterOwner; ResizeMode = ResizeMode.CanResize; ShowInTaskbar = false;
         Theme.Prepare(this, Theme.Surface);
         _fmts = Formats();
         string start = Exporter.Normalize(initial.Format) is "ahk-ki" ? "ahk" : Exporter.Normalize(initial.Format);
         if (Array.IndexOf(TestTargets, start) is int ti && ti >= 0) { _testTarget.SelectedIndex = ti; start = "uitest"; }
         int sel = Math.Max(0, _fmts.FindIndex(f => f.Id == start));
-        var grid = new System.Windows.Controls.Primitives.UniformGrid { Columns = Math.Min(_fmts.Count, 7), Margin = new Thickness(-4, 0, -4, 12) };
+        // Formate als Liste in Gruppen (wie die Navigation im Startfenster)
+        var nav = new StackPanel { Width = 236, Margin = new Thickness(0, 0, 8, 16) };
         var btns = new List<RadioButton>();
+        string? group = null;
         for (int i = 0; i < _fmts.Count; i++)
         {
             var f = _fmts[i];
-            var content = U.Col(U.Icon(f.Glyph, 22), new TextBlock { Text = f.Name, FontWeight = FontWeights.SemiBold, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 8, 0, 0), TextTrimming = TextTrimming.CharacterEllipsis },
-                new TextBlock { Text = f.Sub, FontSize = 11, Opacity = 0.75, HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 1, 0, 0) });
-            var rb = new RadioButton { GroupName = "fmt", Style = Theme.Style("Choice"), Content = content, IsChecked = i == sel };
-            btns.Add(rb); grid.Children.Add(rb);
+            if (f.Group != group)
+            {
+                group = f.Group;
+                nav.Children.Add(U.Text(GroupName(group), Theme.FsCaption, true, Theme.Muted, new Thickness(14, nav.Children.Count == 0 ? 2 : 14, 0, 4)));
+            }
+            var icon = U.Icon(f.Glyph, 18); icon.VerticalAlignment = VerticalAlignment.Center; icon.Margin = new Thickness(0, 0, 14, 0);
+            var sub = U.Text(f.Sub, Theme.FsCaption, fg: Theme.Muted); sub.TextTrimming = TextTrimming.CharacterEllipsis;
+            var text = U.Col(U.Text(f.Name, Theme.FsBody), sub); text.VerticalAlignment = VerticalAlignment.Center;
+            var rb = new RadioButton { GroupName = "fmt", Style = Theme.Style("NavItem"), Content = U.Row(icon, text), IsChecked = i == sel, Height = 50, Margin = new Thickness(0, 0, 0, 2), ToolTip = $"{f.Name} – {f.Sub}" };
+            System.Windows.Automation.AutomationProperties.SetName(rb, f.Name);
+            btns.Add(rb); nav.Children.Add(rb);
         }
         _formatBtns = btns.ToArray();
         foreach (var (id, de, en, _, _) in GuidePresets.All) _preset.Items.Add(Loc.L(de, en));
@@ -208,14 +232,12 @@ sealed class ExportDialog : Window
         var browse = U.Btn(Theme.IFolder, Loc.L("Durchsuchen …", "Browse …"), Browse, null, "Ghost");
         _resetTarget = U.Btn(null, Loc.L("Standardort", "Default location"), () => { _targetCustom = _userEdited = false; FolderChoice = ""; UpdateTarget(); }, Loc.L("Wieder im Ordner „export“ der Aufnahme speichern", "Save in the recording's \"export\" folder again"), "Link");
         _target.TextChanged += (_, _) => { if (!_syncTarget) { _targetCustom = _userEdited = true; _resetTarget.Visibility = Visibility.Visible; } };
-        var targetRow = new DockPanel();
-        DockPanel.SetDock(browse, Dock.Right); targetRow.Children.Add(browse);
-        targetRow.Children.Add(_target);
+        var targetRow = U.LeftRight(_target, browse);   // Feld vor „Durchsuchen …“ (auch für die Tab-Taste)
         var targetField = U.Field(Loc.L("Speichern unter", "Save as"), U.Col(targetRow, _resetTarget));
         _resetTarget.HorizontalAlignment = HorizontalAlignment.Left; _resetTarget.Margin = new Thickness(-4, 2, 0, 0);
         if (initialTarget != null) { _syncTarget = true; _target.Text = initialTarget; _syncTarget = false; _targetCustom = true; }
 
-        var infoBox = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(6), Padding = new Thickness(16, 12, 16, 14), Margin = new Thickness(0, 0, 0, 16), Child = _info };
+        var infoBox = new Border { Background = Theme.Surface, BorderBrush = Theme.CardLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RCard), Padding = new Thickness(16, 12, 16, 14), Margin = new Thickness(0, 0, 0, 16), Child = _info };
 
         var options = new Grid();
         options.ColumnDefinitions.Add(new ColumnDefinition()); options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(16) }); options.ColumnDefinitions.Add(new ColumnDefinition());
@@ -224,11 +246,10 @@ sealed class ExportDialog : Window
         var fLang = U.Field(Loc.L("Sprache", "Language"), _lang);
         var fPreset = U.Field(Loc.L("Art", "Type"), U.Col(_preset, _presetHint));
         var fImp = U.Field(Loc.L("Umfang", "Scope"), U.Col(_imp, _impHint));
-        var fView = U.Field(Loc.L("Darstellung", "Images"), U.Col(_view, _viewHint, _overview));
+        var fView = U.Field(Loc.L("Bildausschnitt", "Image area"), U.Col(_view, _viewHint, _overview));
         var fMissing = U.Field(Loc.L("Fehlt eine Übersetzung", "If a translation is missing"), _missing);
         var fDetail = U.Field(Loc.L("Detailstufe", "Level of detail"), U.Col(_detail, _detailHint));
         var fProfile = U.Field(Loc.L("Bildgröße", "Image size"), U.Col(_profile, _profileHint));
-        var zipHost = new StackPanel { Children = { _zip }, Margin = new Thickness(0, 24, 0, 0) };
         _estimate.TextWrapping = TextWrapping.Wrap;
         var connect = U.Btn(Theme.IRobot, Loc.L("Mit KI verbinden …", "Connect to AI …"), () => AiConnect.Show(this), Loc.L("Statt eines Pakets: die KI liest Aufnahmen direkt über den MCP-Server", "Instead of a package: the AI reads recordings directly via the MCP server"), "Link");
         connect.Margin = new Thickness(-4, 4, 0, 0); connect.HorizontalAlignment = HorizontalAlignment.Left;
@@ -236,8 +257,8 @@ sealed class ExportDialog : Window
         _estimateDelay.Tick += (_, _) => RunEstimate();
         Loaded += (_, _) => ScheduleEstimate();
         Closed += (_, _) => _estimateCts?.Cancel();
-        G(fLang, 0, 0); G(fPreset, 0, 2); G(fImp, 1, 0); G(fView, 1, 2); G(fMissing, 2, 0);
-        G(fDetail, 1, 0); G(fProfile, 1, 2); G(zipHost, 2, 2);
+        // Zeile 1: Sprache und Art (Anleitungen) bzw. Detailstufe (KI-Paket); Zeile 2: Umfang und Bildausschnitt (Anleitungen)
+        G(fLang, 0, 0); G(fPreset, 0, 2); G(fDetail, 0, 2); G(fImp, 1, 0); G(fView, 1, 2);
         var gifOpts = U.Field(Loc.L("Ablauf", "Timing"), U.Col(_gifSec, _gifSize), Loc.L("Das GIF zeigt ein Titelbild und dann jeden Schritt mit Nummer und Überschrift. Mit Größenziel werden erst die Breite, dann die Zahl der Schritte verringert.", "The GIF shows a title image, then every step with number and heading. With a size target, first the width and then the number of steps is reduced."));
         _gifSize.Margin = new Thickness(0, 8, 0, 0);
         var gifHint = (TextBlock)gifOpts.Children[^1];
@@ -252,7 +273,20 @@ sealed class ExportDialog : Window
         Grid.SetColumn(fBefore, 0); Grid.SetColumn(fGuideAfter, 0); Grid.SetColumn(fMore, 2);
         imageOpts.Children.Add(fBefore); imageOpts.Children.Add(fGuideAfter); imageOpts.Children.Add(fMore);
         var readableOpts = U.Col(_readable, _readableHint); readableOpts.Margin = new Thickness(0, 0, 0, 12);
-        var marksOpts = U.Field(Loc.L("Im Bild markieren", "Mark in the image"), U.Col(_markMouse, _markKeys), Loc.L("Wie im Editor unter „Markierungen“; dort lässt sich das auch je Schritt ein- und ausschalten.", "As under \"Markers\" in the editor, where it can also be switched per step."));
+        var marksOpts = U.Field(Loc.L("Mausmarken im Bild", "Mouse marks in the image"), U.Col(_markMouse, _markKeys), Loc.L("Wie im Editor unter Ansicht › Mausmarken; dort lässt sich das auch je Schritt ein- und ausschalten.", "As under View › Mouse marks in the editor, where it can also be switched per step."));
+        // Seltenes: Übersetzung, Mausmarken, Bildgröße und ZIP des KI-Pakets
+        var more = U.Col(fMissing, marksOpts, fProfile, _zip);
+        more.Margin = new Thickness(0, 8, 0, 0);
+        Button? moreToggle = null;
+        void SetMore(bool open)
+        {
+            _moreOpen = open;
+            more.Visibility = open ? Visibility.Visible : Visibility.Collapsed;
+            moreToggle!.Content = U.IconText(open ? Theme.IArrowUp : Theme.IDown, open ? Loc.L("Weniger Optionen", "Fewer options") : Loc.L("Weitere Optionen", "More options"));
+        }
+        moreToggle = U.Btn(Theme.IDown, Loc.L("Weitere Optionen", "More options"), () => SetMore(more.Visibility != Visibility.Visible), null, "Link");
+        moreToggle.HorizontalAlignment = HorizontalAlignment.Left; moreToggle.Margin = new Thickness(-8, 0, 0, 0);
+        SetMore(_moreOpen);
 
         void Upd()
         {
@@ -269,10 +303,12 @@ sealed class ExportDialog : Window
             mdOpts.Visibility = Format == "md" ? Visibility.Visible : Visibility.Collapsed;
             _overview.Visibility = _view.SelectedIndex == 2 ? Visibility.Visible : Visibility.Collapsed;
             marksOpts.Visibility = guide && Format != "bugreport" ? Visibility.Visible : Visibility.Collapsed;
-            fPreset.Visibility = HasPreset ? Visibility.Visible : Visibility.Hidden;
+            fPreset.Visibility = HasPreset ? Visibility.Visible : Visibility.Collapsed;
             fImp.Visibility = fView.Visibility = guide ? Visibility.Visible : Visibility.Collapsed;
             fMissing.Visibility = guide && Format is not ("gif" or "mp4") ? Visibility.Visible : Visibility.Collapsed;
-            fDetail.Visibility = fProfile.Visibility = zipHost.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            fDetail.Visibility = fProfile.Visibility = _zip.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
+            // „Weitere Optionen“ nur, wenn es dort für dieses Format etwas gibt
+            moreToggle!.Visibility = new UIElement[] { fMissing, marksOpts, fProfile, _zip }.Any(x => x.Visibility == Visibility.Visible) ? Visibility.Visible : Visibility.Collapsed;
             kiExtra.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             fBefore.Visibility = fMore.Visibility = ki ? Visibility.Visible : Visibility.Collapsed;
             fGuideAfter.Visibility = HasGuideAfter && Preset == "standard" ? Visibility.Visible : Visibility.Collapsed;
@@ -307,7 +343,7 @@ sealed class ExportDialog : Window
             {
                 1 => Loc.L("Zusätzlich Nebenschritte wie Scrollen, Navigationstasten und Fensterwechsel.", "Also secondary steps such as scrolling, navigation keys and window switches."),
                 2 => Loc.L("Zusätzlich die Spur, z. B. Mausbewegungen ohne Aktion und Titeländerungen.", "Also the trace, e.g. mouse movements without action and title changes."),
-                _ => Loc.L("Nur was eine Anleitung braucht: Klicks, Eingaben, Tastenkürzel, Kommentare.", "Only what a guide needs: clicks, input, shortcuts, comments.")
+                _ => Loc.L("Nur was eine Anleitung braucht: Klicks, Eingaben, Tastenkürzel, Hinweise.", "Only what a guide needs: clicks, input, shortcuts, notes.")
             };
             _viewHint.Text = _view.SelectedIndex switch
             {
@@ -350,7 +386,20 @@ sealed class ExportDialog : Window
         foreach (var chk in new[] { _crop, _afterImg, _readable }) { chk.Checked += (_, _) => Upd(); chk.Unchecked += (_, _) => Upd(); }
         Upd();
         var ok = U.Primary(Loc.L("Exportieren", "Export"), Accept, Theme.IExport);
-        U.Dialog(this, Loc.L("Exportieren", "Export"), U.Col(grid, infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, mdOpts, marksOpts, ahkOpts, testOpts, readableOpts), ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        var right = U.Col(infoBox, _qualityRow, targetField, options, imageOpts, kiExtra, gifOpts, mdOpts, ahkOpts, testOpts, readableOpts, moreToggle, more);
+        right.Margin = new Thickness(16, 0, 28, 20);
+        var body = new Grid();
+        body.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        body.ColumnDefinitions.Add(new ColumnDefinition());
+        var navScroll = new ScrollViewer { Content = nav, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Padding = new Thickness(16, 0, 0, 0) };
+        var rightScroll = new ScrollViewer { Content = right, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
+        Grid.SetColumn(rightScroll, 1);
+        body.Children.Add(navScroll); body.Children.Add(rightScroll);
+        var heading = U.Heading(Loc.L("Exportieren", "Export"), Theme.FsTitle, new Thickness(28, 8, 28, 16));
+        var foot = U.Footer(ok, U.Btn(Loc.L("Abbrechen", "Cancel"), () => DialogResult = false));
+        Content = U.Stack(body, foot, heading);
+        // die Bildlaufleisten-Spalten nicht in die Tab-Reihenfolge nehmen
+        navScroll.Focusable = rightScroll.Focusable = false;
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Enter && Keyboard.FocusedElement is not TextBox) { Accept(); e.Handled = true; } };
     }
 
@@ -414,8 +463,8 @@ sealed class ExportDialog : Window
         _info.Children.Clear();
         string imp = _imp.SelectedIndex switch { 1 => Loc.L("Haupt- und Nebenschritte", "main and secondary steps"), 2 => Loc.L("alle Schritte", "all steps"), _ => Loc.L("alle Hauptschritte", "all main steps") };
         string guideContent = Preset == "standard" || !HasPreset
-            ? Loc.F("Titel, Einleitung, Voraussetzungen, Kapitel und {0} – jeweils mit Überschrift, Anleitungstext, Bild und Hinweiskästen; Deckblatt, Inhaltsverzeichnis, Bildgröße und Farbe stellen Sie im Editor im Reiter „Dokument“ ein", "Title, introduction, prerequisites, chapters and {0} – each with heading, instructions, image and note boxes; set cover, table of contents, image size and colour in the editor's \"Document\" tab", imp)
-            : Loc.F("Titel und {0} mit Überschrift und Anleitungstext, ohne Bilder und Deckblatt, fortlaufend nummeriert", "Title and {0} with heading and instructions, without images or cover, numbered consecutively", imp) + (Preset == "checklist" ? Loc.L("; je Schritt ein Kästchen zum Abhaken", "; a tick box per step") : "");
+            ? Loc.F("Titel, Einleitung, Voraussetzungen, Kapitel und {0} – jeweils mit Überschrift, Anleitungstext, Bild und Hinweisen; Titelseite, Inhaltsverzeichnis, Bildgröße und Farbe stellen Sie im Editor unter „Titelseite und Einleitung“ ein", "Title, introduction, prerequisites, chapters and {0} – each with heading, instructions, image and notes; set title page, table of contents, image size and colour in the editor under “Title page and introduction”", imp)
+            : Loc.F("Titel und {0} mit Überschrift und Anleitungstext, ohne Bilder und Titelseite, fortlaufend nummeriert", "Title and {0} with heading and instructions, without images or title page, numbered consecutively", imp) + (Preset == "checklist" ? Loc.L("; je Schritt ein Kästchen zum Abhaken", "; a tick box per step") : "");
         (string title, string use, (string file, string what)[] files) = Format switch
         {
             "md" => (Loc.L("Markdown – Text und ein Bilderordner", "Markdown – text and an image folder"), Loc.L("Für Wikis, Git-Repositories, Confluence oder Notiz-Apps wie Obsidian.", "For wikis, Git repositories, Confluence or note apps like Obsidian."),
@@ -453,8 +502,9 @@ sealed class ExportDialog : Window
             _ => (Loc.L("HTML – eine einzige Datei für den Browser", "HTML – a single file for the browser"), Loc.L("Zum Verschicken per E-Mail, für das Intranet oder zum Ansehen ohne weitere Programme.", "For email, the intranet or viewing without other programs."),
                 new[] { (Loc.L("<Titel>.html", "<title>.html"), guideContent + Loc.L(". Die Bilder stecken in der Datei – es gibt nur diese eine Datei.", ". Images are inside the file – there is only this one file.")) })
         };
-        _info.Children.Add(U.Text(title, 14, true, margin: new Thickness(0, 0, 0, 2)));
-        _info.Children.Add(U.Text(use, 12.5, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)));
+        _info.Children.Add(U.Text(title, Theme.FsBody, true, margin: new Thickness(0, 0, 0, 2)));
+        var useText = U.Text(use, Theme.FsHint, fg: Theme.Fg2, margin: new Thickness(0, 0, 0, 10)); useText.TextWrapping = TextWrapping.Wrap;
+        _info.Children.Add(useText);
         _info.Children.Add(U.Overline(Loc.L("Enthält", "Contains"), new Thickness(0, 0, 0, 4)));
         foreach (var (file, what) in files)
         {
@@ -464,7 +514,7 @@ sealed class ExportDialog : Window
             var icon = U.Icon(file.EndsWith('\\') ? Theme.IFolder : Theme.IDoc, 12, Theme.AccentText); icon.VerticalAlignment = VerticalAlignment.Top; icon.Margin = new Thickness(0, 2, 7, 0);
             var name = new TextBlock { Text = file, FontFamily = Theme.Mono, FontSize = 12, Foreground = Theme.Fg, TextTrimming = TextTrimming.CharacterEllipsis, ToolTip = file, Margin = new Thickness(0, 1, 8, 0) };
             var left = new DockPanel(); DockPanel.SetDock(icon, Dock.Left); left.Children.Add(icon); left.Children.Add(name);
-            var desc = U.Text(what, 12.5, fg: Theme.Fg2); Grid.SetColumn(desc, 1);
+            var desc = U.Text(what, Theme.FsHint, fg: Theme.Fg2); desc.TextWrapping = TextWrapping.Wrap; Grid.SetColumn(desc, 1);
             g.Children.Add(left); g.Children.Add(desc);
             _info.Children.Add(g);
         }
@@ -508,7 +558,7 @@ sealed class ExportDialog : Window
 }
 
 /// <summary>Fortschritt eines laufenden Exports mit „Abbrechen“ (erscheint erst, wenn der Export länger dauert).</summary>
-sealed class ExportProgressWindow : Window
+sealed class ExportProgressWindow : DialogWindow
 {
     readonly ProgressBar _bar = new() { Height = 6, Minimum = 0, Maximum = 1, IsIndeterminate = true, Margin = new Thickness(0, 4, 0, 10) };
     readonly TextBlock _text = U.Text(Loc.L("Wird vorbereitet …", "Preparing …"), 12.5, fg: Theme.Muted);
@@ -579,7 +629,7 @@ static class ExportResultDialog
 {
     public static void Show(Window owner, ExportResult r, string format)
     {
-        var w = new Window { Title = Loc.L("Export erstellt", "Export created"), Width = 600, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Export erstellt", "Export created"), Width = 600, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         bool isFile = File.Exists(r.Path);
         // Skripte nie per Doppelklick-Verhalten öffnen – das würde sie ausführen

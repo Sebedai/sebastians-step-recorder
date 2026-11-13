@@ -40,8 +40,8 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
     readonly WrapPanel _chips = new() { VerticalAlignment = VerticalAlignment.Center };
     Button _recLink = null!, _goalLink = null!;
     Border _strip = null!;
-    /// <summary>Mindestbreite des Inhalts; schmalere Fenster verkleinern ihn gleichmäßig.</summary>
-    const double MinContentWidth = 1000;
+    /// <summary>Ab dieser Inhaltsbreite steht „Zuletzt“ neben der Auswahl, darunter rutscht es unter sie.</summary>
+    const double WideContent = 880;
 
     int ProfileIndex => Math.Max(0, Array.FindIndex(_profiles, r => r.IsChecked == true));
 
@@ -121,8 +121,28 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.4, GridUnitType.Star) });
         columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(24) });
         columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star), MinWidth = 290 });
-        columns.Children.Add(main);
-        Grid.SetColumn(side, 2); columns.Children.Add(side);
+        columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        columns.Children.Add(main); columns.Children.Add(side);
+        // Bei wenig Platz bricht die Seite um, statt zu schrumpfen: „Zuletzt“ unter die Auswahl, Moduskarten in zwei Reihen
+        void Reflow(double w)
+        {
+            if (w <= 0) return;
+            bool wide = w >= WideContent;
+            Grid.SetColumn(side, wide ? 2 : 0); Grid.SetRow(side, wide ? 0 : 1); Grid.SetColumnSpan(side, wide ? 1 : 3);
+            Grid.SetColumnSpan(main, wide ? 1 : 3);
+            side.Margin = new Thickness(0, wide ? 0 : 24, 0, 0);
+            columns.ColumnDefinitions[1].Width = new GridLength(wide ? 24 : 0);
+            columns.ColumnDefinitions[2].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
+            columns.ColumnDefinitions[2].MinWidth = wide ? 290 : 0;
+            double mainW = wide ? w - 24 - Math.Max(290, (w - 24) / 3.4) : w;
+            int cols = mainW >= 600 ? 4 : 2;
+            if (modes.Columns != cols)
+            {
+                modes.Columns = cols;
+                foreach (var r in _profiles) r.Margin = new Thickness(4, 0, 4, cols == 2 ? 8 : 0);
+            }
+        }
 
         // ---------- Fuß: Schutzhinweis, belegte Kürzel, bei Bedarf neue Version ----------
         var foot = new DockPanel { Margin = new Thickness(0, 20, 0, 0) };
@@ -147,12 +167,10 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         var root = new StackPanel { Margin = new Thickness(28, 8, 32, 20) };
         root.Children.Add(header); root.Children.Add(columns); root.Children.Add(foot);
-        // Immer ganz sichtbar, ohne Scrollen: Breite folgt dem Fenster; reicht die Höhe nicht, wird gleichmäßig verkleinert –
-        // und der Inhalt so verbreitert, dass er nach dem Verkleinern wieder die ganze Fensterbreite füllt.
-        var fit = new Viewbox { Child = root, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, VerticalAlignment = VerticalAlignment.Top };
-        var host = new Grid(); host.Children.Add(fit);
-        host.SizeChanged += (_, e) => FitWidth(root, e.NewSize);
-        _newPage = host;
+        // Schrift bleibt immer in voller Größe: reicht die Höhe nicht, scrollt die Seite
+        var scroll = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
+        scroll.SizeChanged += (_, e) => Reflow(e.NewSize.Width - root.Margin.Left - root.Margin.Right);
+        _newPage = scroll;
         // Fenster: Windows-Titelleiste (WPF-UI), darunter Navigation links und die Seite rechts
         var titleBar = new Wpf.Ui.Controls.TitleBar { Title = AppInfo.DisplayName, Icon = new Wpf.Ui.Controls.ImageIcon { Source = Theme.LogoImage(32), Width = 16, Height = 16 } };
         var body = new DockPanel();
@@ -165,8 +183,9 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         Anim.Appear(root, 0, 4, 220);
         // Fenster so hoch öffnen, wie der Inhalt braucht (höchstens der Arbeitsbereich)
-        root.Width = Math.Max(MinContentWidth, Width - NavWidth);
-        root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        double pageW = Width - NavWidth - 2 * SystemParameters.ResizeFrameVerticalBorderWidth;
+        Reflow(pageW - root.Margin.Left - root.Margin.Right);
+        root.Measure(new Size(pageW, double.PositiveInfinity));
         Height = Math.Min(wa.Height - 24, Math.Max(MinHeight, root.DesiredSize.Height + 48 + 2 * SystemParameters.ResizeFrameHorizontalBorderHeight + 8));
         SizeChanged += (_, _) => AdaptNav();
         PreviewKeyDown += (_, e) =>
@@ -176,28 +195,6 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
             if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control) { ShowPage("sessions"); e.Handled = true; }
         };
         Activated += (_, _) => { if (_page == "new") { UpdateProfile(); FillRecent(); UpdateLastRegionLink(); } };
-    }
-
-    /// <summary>
-    /// Inhaltsbreite so wählen, dass der (bei Platzmangel verkleinerte) Inhalt die Fensterbreite ausfüllt:
-    /// passt die Höhe, gilt die Fensterbreite; sonst wird die Breite im Verhältnis Inhaltshöhe ÷ Fensterhöhe vergrößert.
-    /// Zwei Messrunden genügen, weil die Inhaltshöhe mit der Breite nur wenig schwankt (Umbrüche).
-    /// </summary>
-    static void FitWidth(FrameworkElement root, Size host)
-    {
-        if (host.Width <= 0 || host.Height <= 0) return;
-        double w = Math.Max(MinContentWidth, host.Width);
-        for (int i = 0; i < 2; i++)
-        {
-            root.Width = w;
-            root.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-            double h = root.DesiredSize.Height;
-            double scale = Math.Min(1, Math.Min(host.Width / w, host.Height / h));
-            double wanted = Math.Max(MinContentWidth, Math.Min(host.Width / scale, host.Width * 1.6));
-            if (Math.Abs(wanted - w) < 2) break;
-            w = wanted;
-        }
-        root.Width = w;
     }
 
     // =====================================================================================
@@ -306,7 +303,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
     void ShowCustomDialog()
     {
-        var w = new Window { Title = Loc.L("Eigener Detailgrad", "Custom level of detail"), Width = Math.Min(820, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Eigener Detailgrad", "Custom level of detail"), Width = Math.Min(820, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         U.Dialog(w, Loc.L("Eigener Detailgrad", "Custom level of detail"), BuildCustomContent(), U.Primary(Loc.L("Fertig", "Done"), () => w.Close()));
         w.ShowDialog();
@@ -327,7 +324,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         void G(UIElement e, int r, int c) { Grid.SetRow(e, r); Grid.SetColumn(e, c); grid.Children.Add(e); }
         G(U.Field(Loc.L("Was wird gezeigt?", "What is shown?"), goal), 0, 0); G(U.Field(Loc.L("Erwartetes Ergebnis", "Expected result"), expected), 0, 2);
         G(U.Field(Loc.L("Bezug", "Reference"), reference, margin: new Thickness(0)), 1, 0); G(U.Field(Loc.L("Titel der Aufnahme", "Recording title"), title, margin: new Thickness(0)), 1, 2);
-        var w = new Window { Title = Loc.L("Ziel und Titel", "Goal and title"), Width = Math.Min(720, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Ziel und Titel", "Goal and title"), Width = Math.Min(720, Theme.ActiveWorkArea().Width - 40), SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         var body = U.Col(U.Hint(Loc.L("Optional. Hilft beim Verstehen der Aufnahme – für Menschen und für KI.", "Optional. Helps to understand the recording – for people and for AI."), new Thickness(0, -6, 0, 18)), grid);
         U.Dialog(w, Loc.L("Ziel der Aufnahme", "Recording goal"), body,

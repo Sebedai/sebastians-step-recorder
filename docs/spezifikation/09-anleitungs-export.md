@@ -55,27 +55,28 @@ Der Anleitungs-Export erzeugt aus einer Sitzung ein Dokument, das ein Leser ohne
 Aufruf mit `Strg+E` oder über das Exportmenü im Editor. Das Menü bietet nur Formate an, die das Programm erzeugen kann. Die Oberfläche ist zweisprachig; die Beschriftungen folgen der Programmsprache.
 
 ```
-┌─ Exportieren ───────────────────────────────────────────────────────────────────┐
-│ Format:  [HTML] [Markdown] [Word] [PDF] [PowerPoint] [Klick-Tour]               │
-│          [Fehlerbericht] [GIF] [Video] [KI-Paket] [AutoHotkey]                  │
-│                                                                                 │
-│ Art:     [Standard v]                        Sprache:     [Deutsch v]           │
-│ Umfang:  [Hauptschritte v]                   Darstellung: [Ganzer Bildschirm v] │
-│ Fehlt eine Übersetzung: [Automatischer Text der Exportsprache v]                │
-│ Im Bild markieren: [x] Mausaktionen   [x] Tastatur                              │
-│ ─────────────────────────────────────────────────────────────────────────────── │
-│ Qualität: 2 Warnungen, 5 Hinweise                               [Ansehen (F8)]  │
-│ Speichern unter: [C:\...\export\html\Editor – notiz.html] [Durchsuchen …]     │
-│                                                       [Standardort]             │
-│ Enthält: <Titel>.html – Titel, Einleitung, … Die Bilder stecken in der Datei.   │
-│                                                    [Exportieren]  [Abbrechen]   │
-└─────────────────────────────────────────────────────────────────────────────────┘
+┌─ Exportieren ─────────────────────────────────────────────────────────────────────┐
+│ Anleitung                │ HTML – eine einzige Datei für den Browser              │
+│ ▌HTML        eine Datei  │ Zum Verschicken per E-Mail, für das Intranet …         │
+│  Word        bearbeitbar │ Enthält: <Titel>.html – Titel, Einleitung, …           │
+│  PDF         Drucken     │ Qualität: 2 Warnungen, 5 Vorschläge     [Ansehen (F8)] │
+│  Markdown    Wiki, Git   │ Speichern unter: [C:\...\export\html\…] [Durchsuchen …]│
+│  PowerPoint  Folien      │ Sprache: [Deutsch v]        Art: [Standard v]          │
+│ Vorführen und melden     │ Umfang:  [Hauptschritte v]  Bildausschnitt: [Ganzer …] │
+│  Klick-Tour · GIF ·      │ Nachher-Bild: Nie · Bei Änderung · Immer               │
+│  Fehlerbericht           │ ˅ Weitere Optionen                                     │
+│ KI und Automatisierung   │   (Fehlt eine Übersetzung, Mausmarken im Bild,         │
+│  KI-Paket · AutoHotkey   │    beim KI-Paket Bildgröße und ZIP)                    │
+│                                                     [Exportieren]  [Abbrechen]   │
+└───────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+- **Aufbau:** Links stehen die Formate als Liste in drei Gruppen: *Anleitung* (HTML, Word, PDF, Markdown, PowerPoint), *Vorführen und melden* (Klick-Tour, GIF, Fehlerbericht) und *KI und Automatisierung* (KI-Paket, AutoHotkey). Rechts stehen die Beschreibung, das Ziel und nur die Optionen, die zum gewählten Format passen. Seltenes steht unter „Weitere Optionen“; ob der Bereich offen ist, merkt sich das Programm bis zum Beenden. Das Fenster hat eine feste Größe und springt beim Wechsel des Formats nicht; rechts wird bei Bedarf gescrollt. Die Tab-Taste geht von den Formaten über die Optionen zu „Exportieren“ und „Abbrechen“.
 
 - **Vorbelegung:** Der Dialog öffnet mit den Optionen, die für das gewählte Format zuletzt galten ([4.5](#45-gespeicherte-export-einstellungen)). Die Sprache ist die des letzten Exports dieser Aufnahme, sonst die der Anleitungstexte. Beim ersten Mal stammen Darstellung und Ausschnittübersicht aus den Dokument-Einstellungen der Aufnahme.
 - **Zielwahl:** „Speichern unter“ zeigt den vollständigen Pfad der Datei (beim KI-Paket und bei AutoHotkey als KI-Paket den des Ordners). „Durchsuchen …“ wählt Ordner und Namen; „Standardort“ kehrt in den Ordner `export/` der Aufnahme zurück. Ein unvollständiger Pfad wird zurückgewiesen. Das Feld „Enthält“ nennt die Dateien, die entstehen.
-- **Optionen je Format:** „Art“ gibt es bei HTML, Markdown, Word und PDF ([9.4](#94-art-der-anleitung)). Umfang, Darstellung und der Umgang mit fehlenden Übersetzungen gelten für alle Anleitungsformate, „Im Bild markieren“ für alle Formate mit Bildern. Das KI-Paket zeigt Detailstufe und Bildgröße ([3.4](#34-ki-paket-im-selben-dialog)), GIF und Video die Dauer je Schritt, die Klick-Tour den Hinweisring, AutoHotkey die Denkpausen und die Wahl „Als KI-Paket“.
-- **Qualität:** Bei Anleitungsformaten zeigt eine Zeile die Zusammenfassung der Qualitätsprüfung ([12.1](#121-qualitätsprüfung-regelkatalog)) – „Qualität: N Warnungen, M Hinweise“. „Ansehen (F8)“ schließt den Dialog und öffnet die Hinweisliste im Editor ([08](08-viewer.md#121-qualitätshinweise)). Gibt es keine Befunde, fehlt die Zeile.
+- **Optionen je Format:** „Art“ gibt es bei HTML, Markdown, Word und PDF ([9.4](#94-art-der-anleitung)). Umfang, Bildausschnitt (in diesem Dokument „Darstellung“) und der Umgang mit fehlenden Übersetzungen gelten für alle Anleitungsformate, „Mausmarken im Bild“ für alle Formate mit Bildern. Das KI-Paket zeigt Detailstufe und Bildgröße ([3.4](#34-ki-paket-im-selben-dialog)), GIF und Video die Dauer je Schritt (das GIF auch ein Größenziel), Markdown Dialekt, Kopfdaten und frühere Form, der UI-Test das Testgerüst, die Klick-Tour den Hinweisring, AutoHotkey die Denkpausen und die Wahl „Als KI-Paket“.
+- **Qualität:** Bei Anleitungsformaten zeigt eine Zeile die Zusammenfassung der Qualitätsprüfung ([12.1](#121-qualitätsprüfung-regelkatalog)) – „Qualität: N Warnungen, M Vorschläge“ (Schweregrade der Befunde; „Vorschlag“, damit es nicht mit den Hinweisen der Anleitung verwechselt wird). „Ansehen (F8)“ schließt den Dialog und öffnet die Befundliste im Editor ([08](08-viewer.md#121-qualitätshinweise)). Gibt es keine Befunde, fehlt die Zeile.
 - **Durchsicht:** Sind auffällige Eingaben ungeprüft, fragt das Programm schon vor dem Dialog, ob die Durchsicht jetzt geöffnet werden soll; die Ausgabe entsteht erst danach ([12](#12-export-vorprüfung)). Das KI-Paket ist davon ausgenommen ([06](06-ki-export-und-mcp.md), [10](10-datenschutz-und-sicherheit.md)).
 - „Exportieren“ ist die Standardschaltfläche. Der häufigste Weg ist damit `Strg+E`, Eingabetaste.
 - **Hintergrund, Fortschritt, Abbruch:** Der Export läuft in einer eigenen Leseansicht der Aufnahme im Hintergrund; der Editor ist währenddessen gesperrt. Dauert er länger als 0,7 s, erscheint ein Fortschrittsfenster („<Format> wird erstellt …“, „N von M“ und Phase) mit „Abbrechen“. Gearbeitet wird in einem Arbeitsordner; erst die fertige Ausgabe gelangt an ihr Ziel ([Abschnitt 13](#13-dateibenennung-und-ablage)). Ein Abbruch hinterlässt nichts am Ziel, die Statuszeile meldet ihn.

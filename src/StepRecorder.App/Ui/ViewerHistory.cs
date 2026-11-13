@@ -14,7 +14,7 @@ sealed partial class ViewerWindow
     {
         if (_view.Session.ReadOnly) { Msg.Show(Loc.L("Ein .steprec-Archiv hat keine Bearbeitungsstände.", "A .steprec archive has no edit history.")); return; }
         var list = EditHistory.List(_path);
-        var w = new Window { Title = Loc.L("Bearbeitungsstände", "Edit history"), Width = 640, Height = Math.Min(620, Theme.ActiveWorkArea().Height - 80), ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Bearbeitungsstände", "Edit history"), Width = 640, Height = Math.Min(620, Theme.ActiveWorkArea().Height - 80), ShowInTaskbar = false, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         var keep = new CheckBox { Content = Loc.L("Schwärzungen, Verallgemeinerungen und Durchsicht wie jetzt behalten", "Keep redactions, generalizations and review as they are now"), IsChecked = true, Margin = new Thickness(0, 10, 0, 0) };
         var items = new StackPanel();

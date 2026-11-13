@@ -42,6 +42,8 @@ public class DetailPresetTests
     }
 }
 
+// Nicht parallel zu den Sprachtests (Loc.Set schaltet die Oberflächensprache kurz um)
+[Collection("Loc")]
 public class ManualExportTests : IDisposable
 {
     readonly string _folder = SyntheticSession.Create();

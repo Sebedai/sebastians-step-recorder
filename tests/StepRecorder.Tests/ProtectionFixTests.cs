@@ -7,6 +7,8 @@ using StepRecorder.ReadLayer;
 namespace StepRecorder.Tests;
 
 /// <summary>Korrekturen an Schutzfunktionen (Etappe 0.1): Zielordner, Tastenereignisse, interne Kommentare, Terminal.</summary>
+// Nicht parallel zu den Sprachtests (Loc.Set schaltet die Oberflächensprache kurz um)
+[Collection("Loc")]
 public class ProtectionFixTests : IDisposable
 {
     readonly string _root = Path.Combine(Path.GetTempPath(), "steprec-prot-" + Guid.NewGuid().ToString("N")[..8]);

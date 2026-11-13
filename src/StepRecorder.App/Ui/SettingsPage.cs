@@ -40,7 +40,7 @@ static class SettingsPage
         string Title = Loc.L("Einstellungen", "Settings");
         var s = AppSettings.Load();
         int current = Math.Clamp(tab, 0, TabIds.Length - 1);
-        var page = new StackPanel { Width = 880, HorizontalAlignment = HorizontalAlignment.Left };
+        var page = new StackPanel { MaxWidth = 880, HorizontalAlignment = HorizontalAlignment.Stretch };
         // Solange die Einstellungen offen sind, ist das eigene Sofort-Kürzel abgemeldet (sonst gälte es bei der Prüfung als „belegt“)
         bool hkPaused = false;
         page.Loaded += (_, _) => { if (!hkPaused && UiApp.Instance.Recording == null) { hkPaused = true; UiApp.Instance.UnregisterGlobalHotkeys(); } };

@@ -53,7 +53,7 @@ Diese Anforderungen gelten für das ganze Produkt. Sie fassen zusammen und verwe
 | ID | Anforderung | Priorität | Abnahmekriterium | Einzelregelungen |
 |---|---|---|---|---|
 | NFA-001 | **Portabilität:** Das Programm läuft als einzelne EXE (oder entpacktes ZIP) ohne Installation, ohne Adminrechte, ohne Registry-Einträge, ohne Dienst. | Muss | T-01 | ARC-031–033, ARC-038, ARC-039, ARC-050 |
-| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 11 als eingebettete Laufzeit; Prozessor mindestens x86-64-v2. | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
+| NFA-002 | **Plattform:** Windows 10 22H2 und Windows 11, x64; .NET 10 (LTS) als eingebettete Laufzeit. | Muss | Testmatrix [11 §7](11-roadmap-tests-risiken.md#7-testmatrix) | ARC-025 |
 | NFA-003 | **Vollständigkeit:** Jedes Eingabeereignis steht im Rohprotokoll oder ist durch einen Lückenmarker mit Ursache erklärt. | Muss | T-02; `validate` | AUF-087, AUF-088, DAT-018, SCH-005, SCH-035 |
 | NFA-004 | **Ehrlichkeit:** Jeder Schritt trägt eine Belegstufe; nichts wird erfunden, Unsicheres wird als solches ausgewiesen. | Muss | T-09 | SCH-027, SCH-028, SCH-033, KI-008, KI-016, MCP-031 |
 | NFA-005 | **Reaktionszeit des Systems:** Die Aufnahme verzögert keine Eingabe spürbar; 99,9 % der Hook-Aufrufe unter 1 ms. | Muss | VE-01 | ARC-003, ARC-004, AUF-012, DS-021 |

@@ -46,7 +46,7 @@ sealed partial class ViewerWindow
 }
 
 /// <summary>Dialog „Aufräumen“: Vorschläge prüfen und übernehmen, aufgeräumte Schritte wieder einblenden.</summary>
-sealed class CleanupWindow : Window
+sealed class CleanupWindow : DialogWindow
 {
     readonly ViewerWindow _v;
     readonly List<(CheckBox cb, CleanupSuggestion s)> _sug = new();

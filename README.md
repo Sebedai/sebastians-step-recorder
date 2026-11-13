@@ -233,8 +233,7 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 
 ## Systemvoraussetzungen und Hinweise
 
-- **Windows 10 (ab Version 2004) oder Windows 11, 64 Bit** (x64; für Windows on ARM gibt es zusätzlich `SebastiansStepRecorder-arm64.exe`, noch ohne Test auf ARM-Geräten). Keine Installation, kein .NET nötig – alles steckt in der EXE (ca. 79 MB, mit .NET 11). Der Prozessor muss den Befehlssatz x86-64-v2 beherrschen (etwa ab 2009) – das erfüllt jeder Rechner, den Windows 10 oder 11 offiziell unterstützt.
-- **Erster Start einer neuen Version:** Die EXE entpackt ihre Bestandteile einmalig in den Temp-Ordner (`%TEMP%\.net\SebastiansStepRecorder`, rund 180 MB) und startet danach von dort schneller. Das ist eine vorübergehende Umgehung eines Fehlers in .NET 11; Ihre Einstellungen und Aufnahmen bleiben, wo sie sind.
+- **Windows 10 (ab Version 2004) oder Windows 11, 64 Bit** (x64; für Windows on ARM gibt es zusätzlich `SebastiansStepRecorder-arm64.exe`, noch ohne Test auf ARM-Geräten). Keine Installation, kein .NET nötig – alles steckt in der EXE (ca. 76 MB, mit .NET 10).
 - **Windows Server und ältere Windows-10-Versionen** (z. B. Windows Server 2019) können eigene Fenster nicht aus Bildschirmfotos ausschließen. Das Programm erkennt das und bietet an, **mit ausgeblendeter Anzeige** aufzunehmen: Leiste und Rahmen bleiben unsichtbar, die Bedienung läuft über Tastenkürzel und das Symbol im Infobereich.
 - **Texterkennung** (für die Suche nach persönlichen Daten) nutzt die in Windows eingebaute OCR. Fehlt das Sprachpaket, lässt es sich unter *Einstellungen → Zeit und Sprache → Sprache* nachinstallieren.
 - **Wo liegen die Daten?** Ist der Ordner der EXE beschreibbar, liegen Einstellungen und Aufnahmen daneben (Ordner `Sessions`) – ideal für einen USB-Stick. Sonst unter `%APPDATA%\StepRecorder` und `%LOCALAPPDATA%\StepRecorder`. Der Aufnahmeordner ist in den Einstellungen änderbar.

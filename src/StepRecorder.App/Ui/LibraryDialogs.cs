@@ -24,7 +24,7 @@ static class PackDialog
         int unreviewed = SessionCatalog.Details(folder)?.Unreviewed ?? 0;
         int protections = redactions + generalizations + internalComments + unreviewed;
 
-        var w = new Window { Title = Loc.L("Packen", "Pack"), Width = 640, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        var w = new DialogWindow { Title = Loc.L("Packen", "Pack"), Width = 640, SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, WindowStartupLocation = WindowStartupLocation.CenterOwner };
         Theme.Prepare(w, Theme.Surface);
         RadioButton Card(string glyph, string title, string text, IEnumerable<string> notes, bool enabled)
         {

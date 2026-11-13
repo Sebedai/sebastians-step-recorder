@@ -272,7 +272,7 @@ sealed partial class ViewerWindow
     {
         using var v = SessionView.Open(_path, headless: true, lang: _view.Language);
         var findings = TestCodeGen.Testability(v, Loc.Lang);
-        var w = new Window { Title = Loc.F("Testbarkeit · {0} Befunde", "Testability · {0} findings", findings.Count), Width = 960, Height = 620, Owner = this };
+        var w = new DialogWindow { Title = Loc.F("Testbarkeit · {0} Befunde", "Testability · {0} findings", findings.Count), Width = 960, Height = 620, Owner = this };
         Theme.Prepare(w, Theme.Surface);
         var list = new ListBox { BorderThickness = new Thickness(0), Background = Theme.Surface, Margin = new Thickness(16, 12, 16, 16) };
         System.Windows.Automation.AutomationProperties.SetName(list, Loc.L("Befunde", "Findings"));
@@ -307,7 +307,7 @@ sealed partial class ViewerWindow
 }
 
 /// <summary>Einfacher Eingabedialog (Text, optional Titel und Kommentarart).</summary>
-sealed class InputDialog : Window
+sealed class InputDialog : DialogWindow
 {
     readonly TextBox _value = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 100, MaxHeight = 280, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top };
     readonly TextBox? _title;
@@ -358,7 +358,7 @@ sealed class InputDialog : Window
 }
 
 /// <summary>Durchsicht der Eingaben: jede auffällige Eingabe braucht eine eigene Entscheidung.</summary>
-sealed class ReviewWindow : Window
+sealed class ReviewWindow : DialogWindow
 {
     public List<(ViewStep step, string status)> Decisions { get; } = new();
     public List<(ReviewItem item, string status)> ItemDecisions { get; } = new();

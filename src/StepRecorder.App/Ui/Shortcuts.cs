@@ -21,6 +21,14 @@ static class Shortcuts
         return new() { new(Loc.L("Während der Aufnahme (überall)", "While recording (everywhere)"), items) };
     }
 
+    /// <summary>Kompakte Tastenkappe mit dem ganzen Kürzel – überall dieselbe (Hilfe, F1, Aufnahmeleiste).</summary>
+    public static Border Keycap(string keys) => new()
+    {
+        Background = Theme.Field, BorderBrush = Theme.CardLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RSmall), Padding = new Thickness(6, 1, 6, 2),
+        VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right,
+        Child = new TextBlock { Text = keys, FontSize = Theme.FsCaption, Foreground = Theme.Fg }
+    };
+
     /// <summary>Übersicht als Oberfläche: Gruppen in Spalten, je Zeile Befehl und Tastenkappe.</summary>
     public static FrameworkElement View(IEnumerable<Group> groups, int columns = 2)
     {
@@ -37,13 +45,7 @@ static class Shortcuts
             {
                 rows.RowDefinitions.Add(new RowDefinition());
                 var l = U.Text(label, Theme.FsHint, fg: Theme.Fg2, margin: new Thickness(0, 3, 12, 3)); l.VerticalAlignment = VerticalAlignment.Center; l.TextWrapping = TextWrapping.Wrap;
-                // kompakte Tastenkappe mit dem ganzen Kürzel (gut lesbar, braucht wenig Breite)
-                var k = new Border
-                {
-                    Background = Theme.Field, BorderBrush = Theme.CardLine, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(Theme.RSmall), Padding = new Thickness(6, 1, 6, 2),
-                    VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Right, Margin = new Thickness(0, 2, 0, 2),
-                    Child = new TextBlock { Text = keys, FontSize = Theme.FsCaption, Foreground = Theme.Fg }
-                };
+                var k = Keycap(keys); k.Margin = new Thickness(0, 2, 0, 2);
                 Grid.SetRow(l, r); Grid.SetRow(k, r); Grid.SetColumn(k, 1);
                 rows.Children.Add(l); rows.Children.Add(k); r++;
             }
@@ -56,7 +58,7 @@ static class Shortcuts
     /// <summary>Eigenes Fenster mit der Übersicht (Aufnahmeleiste, Infobereich).</summary>
     public static void ShowWindow(Window? owner, IEnumerable<Group> groups, string title)
     {
-        var w = new Window { Title = title, Width = 620, SizeToContent = SizeToContent.Height, WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, Topmost = owner == null };
+        var w = new DialogWindow { Title = title, Width = 620, SizeToContent = SizeToContent.Height, WindowStartupLocation = owner != null ? WindowStartupLocation.CenterOwner : WindowStartupLocation.CenterScreen, ResizeMode = ResizeMode.NoResize, ShowInTaskbar = false, Owner = owner, Topmost = owner == null };
         Theme.Prepare(w, Theme.Surface);
         var list = groups.ToList();
         var body = U.Col(View(list, 1), U.Hint(Loc.L("Alle Befehle der Aufnahme gibt es auch per Rechtsklick auf das Symbol im Infobereich. Ändern: Einstellungen → Tastenkürzel.", "All recording commands are also available by right-clicking the icon in the notification area. Change: Settings → Shortcuts.")));

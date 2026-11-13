@@ -393,7 +393,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
             else if (!all.Any) foreach (var k in MouseMarks.Keys.Where(k => k != "approachPath")) auto[k] = true;
             if (auto.Count == 0) se.Remove("auto");
         }, refill: false);
-        _status.Text = show ? Loc.F("Mausmarkierungen bei Schritt {0} eingeblendet", "Mouse markers shown for step {0}", s.Number) : Loc.F("Mausmarkierungen bei Schritt {0} ausgeblendet", "Mouse markers hidden for step {0}", s.Number);
+        _status.Text = show ? Loc.F("Mausmarken bei Schritt {0} eingeblendet", "Mouse marks shown for step {0}", s.Number) : Loc.F("Mausmarken bei Schritt {0} ausgeblendet", "Mouse marks hidden for step {0}", s.Number);
     }
 
     static string EffectSummary(JsonObject eff)

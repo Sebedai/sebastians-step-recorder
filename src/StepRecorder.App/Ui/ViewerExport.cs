@@ -182,7 +182,7 @@ sealed partial class ViewerWindow
         prog.CancelRequested += () => { try { cts.Cancel(); } catch (ObjectDisposedException) { } };
         var progress = new Progress<ExportProgress>(prog.Report);
         string path = _path, lang = req.Language ?? _view.Language;
-        bool headless = Exporter.Normalize(req.Format) == "ki";
+        bool headless = Exporter.Normalize(req.Format) == "ki", retry = false;
         var task = Task.Run(() =>
         {
             using var view = SessionView.Open(path, headless: headless, lang: lang);
@@ -202,6 +202,7 @@ sealed partial class ViewerWindow
         }
         catch (OperationCanceledException) { _status.Text = Loc.L("Export abgebrochen – am Ziel wurde nichts verändert.", "Export cancelled – nothing was changed at the target."); }
         catch (ExportTargetException ex) { Msg.Show(ex.Message, Loc.L("Exportieren", "Export"), MessageBoxButton.OK, MessageBoxImage.Warning); }
+        catch (Exception ex) when (TargetLocked(ex, req.Target)) { retry = AskRetryLocked(req); }
         catch (Exception ex) { UiApp.ShowError(ex); }
         finally
         {
@@ -210,5 +211,33 @@ sealed partial class ViewerWindow
             if (root != null) root.IsHitTestVisible = true;
             Cursor = null;
         }
+        if (retry) RunExport(req);
+    }
+
+    /// <summary>
+    /// Ist das Ziel von einem anderen Programm gesperrt? Beim Ersetzen meldet Windows dann oft nur „Zugriff verweigert“ –
+    /// deshalb wird bei dieser Meldung nachgesehen, ob sich die Zieldatei exklusiv öffnen lässt. Echte Rechteprobleme
+    /// (schreibgeschützter Ordner) bleiben normale Fehler.
+    /// </summary>
+    static bool TargetLocked(Exception ex, string? target)
+    {
+        static bool Sharing(IOException io) => (io.HResult & 0xFFFF) is 32 or 33;   // Freigabe- bzw. Sperrverletzung
+        if (ex is IOException io && Sharing(io)) return true;
+        if (ex is not UnauthorizedAccessException || string.IsNullOrEmpty(target) || !File.Exists(target)) return false;
+        try { using var f = File.Open(target, FileMode.Open, FileAccess.ReadWrite, FileShare.None); return false; }
+        catch (IOException probe) { return Sharing(probe); }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Zieldatei ist noch geöffnet (z. B. in Word oder einem PDF-Programm): mit den Knöpfen „Wiederholen“ und „Abbrechen“
+    /// fragen (seit .NET 10 eigene MessageBox-Schaltflächen) – nach dem Schließen genügt ein Klick.
+    /// </summary>
+    bool AskRetryLocked(ExportRequest req)
+    {
+        string file = string.IsNullOrEmpty(req.Target) ? Loc.L("Die Datei", "The file") : Loc.F("„{0}“", "“{0}”", Path.GetFileName(req.Target.TrimEnd('\\', '/')));
+        return Msg.Show(Loc.F("Die Zieldatei ist noch geöffnet\n\n{0} ist in einem anderen Programm geöffnet, zum Beispiel in Word oder einem PDF-Programm. Schließen Sie die Datei dort und wählen Sie „Wiederholen“.",
+                "The target file is still open\n\n{0} is open in another program, for example Word or a PDF viewer. Close the file there and choose “Retry”.", file),
+            Loc.L("Exportieren", "Export"), MessageBoxButton.RetryCancel, MessageBoxImage.Warning) == MessageBoxResult.Retry;
     }
 }
