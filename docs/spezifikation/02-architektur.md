@@ -630,7 +630,7 @@ Versionen und Lizenzen entsprechen dem Stand der Recherche vom 2026-11-11. Die g
 | Bereich | Wahl | Lizenz | Begründung |
 |---|---|---|---|
 | Laufzeit | **.NET 10 (LTS)**, Support bis 2028-11-14 | MIT | .NET 8 und 9 sind seit 2026-11-10 ohne Support. .NET 11 (STS) endet etwa zur selben Zeit, kann WPF in 11.0.0 aber nicht als Einzeldatei ausliefern ([dotnet/wpf#11842](https://github.com/dotnet/wpf/issues/11842)) – gewählt ist .NET 10 (Entscheidung 2026-11-13) |
-| Sprache | C# 15 (.NET-11-SDK), `Nullable` aktiv | – | – |
+| Sprache | C# 14 (Sprachstand von .NET 10, fest in `Directory.Build.props`), `Nullable` aktiv | – | – |
 | Oberfläche | **WPF** | MIT | Ausgereift für Windows-Oberflächen mit eigener Zeichenfläche (Viewer, Annotationen); Teil der Laufzeit |
 | Oberflächenstil | **WPF UI** (Fluent-Steuerelemente, Hell/Dunkel/Hochkontrast, Windows-Akzentfarbe, Mica und eigene Titelleiste für Start und Editor); eigene Stile nur noch für Aufnahmeleiste, Overlays, Werkzeugpalette und Auswahlkarten. Das eingebaute Fluent-Thema von WPF (`ThemeMode`) ist weiterhin als experimentell gekennzeichnet und wird nicht verwendet | MIT | Windows-11-typisches Aussehen mit einer gepflegten Bibliothek statt selbst gezeichneter Steuerelemente; Kontrastmodus (BED-112) über die mitgelieferten Hochkontrast-Themen |
 | Bindungslogik | CommunityToolkit.Mvvm 8.4.x | MIT | Quellgeneratoren statt Laufzeitreflexion |

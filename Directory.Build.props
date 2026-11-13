@@ -3,6 +3,7 @@
   <PropertyGroup>
     <UseArtifactsOutput>true</UseArtifactsOutput>
     <ArtifactsPath>$(LOCALAPPDATA)\StepRecorder-build</ArtifactsPath>
-    <LangVersion>latest</LangVersion>
+    <!-- fest auf den Sprachstand von .NET 10: ein neueres SDK (lokal z. B. 11) würde sonst C# 15 erlauben, das die CI mit SDK 10 nicht baut -->
+    <LangVersion>14.0</LangVersion>
   </PropertyGroup>
 </Project>
