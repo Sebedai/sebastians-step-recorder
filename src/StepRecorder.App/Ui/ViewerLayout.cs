@@ -347,8 +347,9 @@ sealed partial class ViewerWindow
         DockPanel.SetDock(statusBar, Dock.Bottom); root.Children.Add(statusBar);
         root.Children.Add(grid);
         Content = root;
-        Closing += (_, _) => { InlineCommit(now: true); SaveUiState(); };
+        Closing += (_, _) => { InlineCommit(now: true); SaveUiState(); _undoTimer?.Stop(); SaveUndoNow(); };
         Closed += (_, _) => _closed = true;
+        LoadUndo();
         UpdateUndo();
     }
 
@@ -359,6 +360,7 @@ sealed partial class ViewerWindow
 
     void UpdateUndo()
     {
+        ScheduleUndoSave();
         if (_undoBtn == null) return;
         _undoBtn.IsEnabled = _undo.Count > 0; _redoBtn.IsEnabled = _redo.Count > 0;   // gedimmt über den Stil
     }

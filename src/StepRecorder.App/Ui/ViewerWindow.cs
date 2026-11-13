@@ -608,6 +608,8 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
                 Loc.L("Endgültig schwärzen", "Redact permanently"), MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes) return;
         int n = Redactor.ApplyTextRedactionsDestructive(_view.Session.Path, _view.Edits);
         _view.SaveEdits();
+        // der Verlauf (auch der gespeicherte Rückgängig-Stapel) ist mit gelöscht – ältere Stände sollen nicht zurückkommen
+        _undo.Clear(); _redo.Clear(); UpdateUndo();
         var anchor = Sel?.Id;
         Load(); _thumbs.Clear(); Fill(anchor);
         Msg.Show(Loc.N(n, "1 Stelle endgültig geschwärzt.", "{0} Stellen endgültig geschwärzt.", "1 item redacted permanently.", "{0} items redacted permanently."));
