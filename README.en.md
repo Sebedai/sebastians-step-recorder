@@ -106,6 +106,9 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Select several steps** with Ctrl+click or Shift+click and edit them together.
 - **Insert your own steps:** text-only steps or image steps from a file, the clipboard or a new screenshot.
 - **Replace or re-capture an image** when the interface has changed – the original can be restored at any time.
+- **Re-record and replace a section** (Ctrl+R): mark steps and demonstrate the section again – the new steps take the place of the old ones. The old ones are kept, the seam is marked, Ctrl+Z undoes the replacement.
+- **Bookmarks** (Ctrl+Shift+L): mark steps with a star and filter by them.
+- **Text snippets** (Ctrl+Shift+B): insert frequently used texts into notes and step texts; managed under *Settings → General*.
 - **Find and replace** (Ctrl+H) across all headings, texts, notes and chapters.
 - **Automatically cleaned up:** When first opened, the editor hides superfluous steps – the click into a field right before typing, duplicate clicks on the same element, a window switch away and straight back, and entries that were deleted again. Nothing is deleted: Ctrl+Z undoes it, and under *⋯ → Clean up* you can see every suggestion with its reason.
 - **Better texts:** Menus appear as a path ("File › Save as"), ribbon buttons with their group. A **glossary** in the settings replaces technical names with your own (e.g. "SAP Easy Access=SAP start page").
@@ -142,6 +145,9 @@ On the **"Document"** tab, the steps become a proper user guide:
 - **Appearance:** accent color, addressing the reader formally ("Sie") or informally ("du") in the automatic texts, footer with page number.
 - **Templates:** save logo, color, footer and structure once as a template – new recordings can automatically get your corporate look.
 - **Several recordings in one manual:** append further recordings or continue a recording directly; they appear as separate chapters.
+- **Page:** A4 or Letter, portrait or landscape (Word and PDF).
+- **Your own Word template:** a `.dotx` or `.docx` with your company's header and footer, fonts, styles and margins; the content appears at the marked place (`StepRecorderContent`). Templates with macros are rejected.
+- **Guide languages:** German, English, French, Spanish, Italian or Dutch – the automatic step texts and all headings of the guide.
 
 ---
 
@@ -154,6 +160,7 @@ On the **"Document"** tab, the steps become a proper user guide:
 | **HTML** | a single file, images embedded, images can be enlarged by clicking | e-mail, intranet, viewing without any other program |
 | **Markdown** | text plus image folder `<name>-bilder/`, ASCII file names, note boxes for GitHub/GitLab or Obsidian, optional front matter (YAML); the same recording gives the same file | wikis, Git repositories, Docusaurus, MkDocs, Obsidian |
 | **GIF** | animated short version: title image, then each step with number and heading; with a size target (e.g. 10 MB for pull requests) | teams, chat, wiki, quick preview |
+| **Video (MP4)** | the same image sequence as an H.264 video, created with Windows Media Foundation | training platforms, presentations, chat |
 | **AI package** | trace, steps, images and reading guide for AI assistants | ChatGPT, Claude & co. |
 | **AutoHotkey** | AutoHotkey v2 script that repeats the procedure | automating recurring procedures |
 | **UI test** | test draft for FlaUI (C#), pywinauto (Python) or Playwright (browser steps), optionally as a test AI package | automated UI tests |
@@ -170,7 +177,8 @@ All exports are created without additional software. The program sends nothing �
 ## Privacy
 
 - **Password fields** are always masked; the dots are visible in the image, and the trace only contains the number of characters.
-- **Private key** (Ctrl+Shift+F8): inputs are only counted, not stored – e.g. for passwords in terminals.
+- **Private key** (Ctrl+Shift+F8): input is only counted, not stored.
+- **Password prompts in terminals** (`ssh`, `sudo`, `Read-Host -AsSecureString` …) are recognised from the terminal's text and masked until Enter; the bar shows "Password prompt detected". Everything else typed in a terminal must be reviewed before sharing.
 - **Exclusion list:** password managers such as KeePass, 1Password or Bitwarden are never recorded; the list can be extended.
 - **Review before export:** conspicuous inputs (keys, IBANs, card numbers, passwords in commands) must be checked before sharing.
 - **Redact:** redact or pixelate areas in the image, redact texts everywhere, replace personal values (e.g. user name) with placeholders.
@@ -199,7 +207,7 @@ All exports are created without additional software. The program sends nothing �
   | `SebastiansStepRecorder.exe <recording folder>` | open a recording in the editor |
   | `SebastiansStepRecorder.exe record [--scope screen\|app\|region] [--profile …] [--title …]` | start recording immediately |
   | `SebastiansStepRecorder.exe record --stop` | stop the running recording |
-  | `SebastiansStepRecorder.exe export <recording> --format pdf\|docx\|html\|md\|gif\|ki\|ahk` | export |
+  | `SebastiansStepRecorder.exe export <recording> --format pdf\|docx\|html\|md\|gif\|mp4\|ki\|ahk\|flaui\|pywinauto\|playwright [--lang de\|en\|fr\|es\|it\|nl]` | export |
   | `SebastiansStepRecorder.exe compare <A> <B> [--images]` | compare two recordings (with image differences) |
   | `SebastiansStepRecorder.exe list` · `steps <recording>` | list recordings or steps (`--json`) |
   | `SebastiansStepRecorder.exe testability <recording> --strict` | report controls without an AutomationId (exit 9 for CI) |
@@ -225,7 +233,7 @@ All exports are created without additional software. The program sends nothing �
 
 ## System requirements and notes
 
-- **Windows 10 (version 2004 or later) or Windows 11, 64-bit.** No installation, no .NET needed – everything is inside the EXE (approx. 73 MB).
+- **Windows 10 (version 2004 or later) or Windows 11, 64-bit** (x64; for Windows on ARM there is also `SebastiansStepRecorder-arm64.exe`, not yet tested on ARM devices). No installation, no .NET needed – everything is inside the EXE (approx. 73 MB).
 - **Windows Server and older Windows 10 versions** (e.g. Windows Server 2019) cannot exclude their own windows from screenshots. The program detects this and offers to record **with the display hidden:** bar and frame stay invisible, and operation works via shortcuts and the notification-area icon.
 - **Text recognition** (for the search for personal data) uses the OCR built into Windows. If the language pack is missing, you can install it under *Settings → Time & language → Language*.
 - **Where is the data?** If the EXE's folder is writable, settings and recordings are stored next to it (folder `Sessions`) – ideal for a USB stick. Otherwise they are under `%APPDATA%\StepRecorder` and `%LOCALAPPDATA%\StepRecorder`. The recordings folder can be changed in the settings.

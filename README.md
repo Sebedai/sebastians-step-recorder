@@ -106,6 +106,9 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Mehrere Schritte** mit Strg+Klick bzw. Umschalt+Klick auswählen und gemeinsam bearbeiten.
 - **Eigene Schritte einfügen:** reine Textschritte oder Bildschritte aus Datei, Zwischenablage oder einem neuen Bildschirmfoto.
 - **Bild ersetzen oder neu aufnehmen**, wenn sich die Oberfläche geändert hat – das Original lässt sich jederzeit wiederherstellen.
+- **Abschnitt neu aufnehmen und ersetzen** (Strg+R): Schritte markieren, den Abschnitt neu vorführen – die neuen Schritte treten an die Stelle der alten. Die alten bleiben erhalten, die Nahtstelle ist gekennzeichnet, Strg+Z nimmt die Ersetzung zurück.
+- **Lesezeichen** (Strg+Umschalt+L): Schritte mit einem Stern merken und danach filtern.
+- **Textbausteine** (Strg+Umschalt+B): oft gebrauchte Texte für Hinweise und Schritttexte einfügen; verwaltet unter *Einstellungen → Allgemein*.
 - **Suchen und Ersetzen** (Strg+H) über alle Überschriften, Texte, Hinweise und Kapitel.
 - **Automatisch aufgeräumt:** Beim ersten Öffnen blendet der Editor überflüssige Schritte aus – den Klick ins Feld direkt vor der Eingabe, doppelte Klicks auf dasselbe Element, Fensterwechsel hin und sofort zurück und Eingaben, die wieder gelöscht wurden. Nichts wird gelöscht: Strg+Z macht es rückgängig, unter *Prüfen → Aufräumen* sehen Sie jeden Vorschlag mit Begründung.
 - **Bessere Texte:** Menüs erscheinen als Pfad („Datei › Speichern unter“), Schaltflächen im Menüband mit ihrer Gruppe. Eine **Begriffsliste** in den Einstellungen ersetzt technische Namen durch Ihre eigenen (z. B. „SAP Easy Access=SAP-Startseite“).
@@ -142,6 +145,9 @@ Ganz oben in der Schrittliste steht **„Titelseite und Einleitung“**: Dort wi
 - **Gestaltung:** Akzentfarbe, Anrede „Sie“ oder „du“ in den automatischen Texten, Fußzeile mit Seitenzahl.
 - **Vorlagen:** Logo, Farbe, Fußzeile und Aufbau einmal als Vorlage speichern – neue Aufnahmen erhalten den Firmenlook auf Wunsch automatisch.
 - **Mehrere Aufnahmen zu einem Handbuch:** weitere Aufnahmen anhängen oder eine Aufnahme direkt fortsetzen; sie erscheinen als eigene Kapitel.
+- **Seite:** A4 oder Letter, Hoch- oder Querformat (Word und PDF).
+- **Eigene Word-Vorlage:** eine `.dotx` oder `.docx` mit Kopf- und Fußzeile, Schriften, Formatvorlagen und Rändern Ihrer Firma; der Inhalt erscheint an der markierten Stelle (`StepRecorderContent`). Vorlagen mit Makros werden abgelehnt.
+- **Sprachen der Anleitung:** Deutsch, Englisch, Französisch, Spanisch, Italienisch oder Niederländisch – die automatischen Schritttexte und alle Überschriften der Anleitung.
 
 ---
 
@@ -154,6 +160,7 @@ Ganz oben in der Schrittliste steht **„Titelseite und Einleitung“**: Dort wi
 | **HTML** | eine einzige Datei, Bilder eingebettet, Bilder per Klick vergrößerbar | E-Mail, Intranet, Ansehen ohne weitere Programme |
 | **Markdown** | Text plus Bilderordner `<name>-bilder/`, ASCII-Dateinamen, Hinweiskästen für GitHub/GitLab oder Obsidian, auf Wunsch Kopfdaten (YAML); gleiche Aufnahme ergibt dieselbe Datei | Wikis, Git-Repositories, Docusaurus, MkDocs, Obsidian |
 | **GIF** | animierte Kurzfassung: Titelbild, dann jeder Schritt mit Nummer und Überschrift; mit Größenziel (z. B. 10 MB für Pull Requests) | Teams, Chat, Wiki, schnelle Vorschau |
+| **Video (MP4)** | dieselbe Bildfolge als H.264-Video, erzeugt mit Windows Media Foundation | Schulungsplattformen, Präsentationen, Chat |
 | **KI-Paket** | Protokoll, Schritte, Bilder und Lesehilfe für KI-Assistenten | ChatGPT, Claude & Co. |
 | **AutoHotkey** | AutoHotkey-v2-Skript, das den Ablauf wiederholt | Automatisierung wiederkehrender Abläufe |
 | **UI-Test** | Testentwurf für FlaUI (C#), pywinauto (Python) oder Playwright (Browser-Schritte), auf Wunsch als Test-KI-Paket | automatisierte Oberflächentests |
@@ -170,7 +177,8 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 ## Datenschutz
 
 - **Passwortfelder** werden immer maskiert; im Bild sind die Punkte zu sehen, im Protokoll nur die Anzahl der Zeichen.
-- **Privattaste** (Strg+Umschalt+F8): Eingaben werden nur gezählt, nicht gespeichert – z. B. für Kennwörter in Terminals.
+- **Privattaste** (Strg+Umschalt+F8): Eingaben werden nur gezählt, nicht gespeichert.
+- **Kennwortabfragen im Terminal** (`ssh`, `sudo`, `Read-Host -AsSecureString` …) werden am Text des Terminals erkannt und bis zur Eingabetaste maskiert; die Leiste zeigt „Passwortabfrage erkannt“. Alles andere, was im Terminal getippt wird, muss vor der Weitergabe durchgesehen werden.
 - **Ausschlussliste:** Passwortmanager wie KeePass, 1Password oder Bitwarden werden nie aufgezeichnet; die Liste ist erweiterbar.
 - **Durchsicht vor dem Export:** Auffällige Eingaben (Schlüssel, IBANs, Kartennummern, Kennwörter in Befehlen) müssen vor der Weitergabe geprüft werden.
 - **Schwärzen:** Bereiche im Bild schwärzen oder verpixeln, Texte überall schwärzen, persönliche Werte (z. B. Benutzername) durch Platzhalter ersetzen.
@@ -199,7 +207,7 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
   | `SebastiansStepRecorder.exe <Aufnahmeordner>` | Aufnahme im Editor öffnen |
   | `SebastiansStepRecorder.exe record [--scope screen\|app\|region] [--profile …] [--title …]` | Aufnahme sofort starten |
   | `SebastiansStepRecorder.exe record --stop` | laufende Aufnahme beenden |
-  | `SebastiansStepRecorder.exe export <Aufnahme> --format pdf\|docx\|html\|md\|gif\|ki\|ahk` | exportieren |
+  | `SebastiansStepRecorder.exe export <Aufnahme> --format pdf\|docx\|html\|md\|gif\|mp4\|ki\|ahk\|flaui\|pywinauto\|playwright [--lang de\|en\|fr\|es\|it\|nl]` | exportieren |
   | `SebastiansStepRecorder.exe compare <A> <B> [--images]` | zwei Aufnahmen vergleichen (mit Bildunterschieden) |
   | `SebastiansStepRecorder.exe list` · `steps <Aufnahme>` | Aufnahmen bzw. Schritte auflisten (`--json`) |
   | `SebastiansStepRecorder.exe testability <Aufnahme> --strict` | Bedienelemente ohne AutomationId melden (Exit 9 für die CI) |
@@ -225,7 +233,7 @@ Alle Exporte entstehen ohne Zusatzsoftware. Das Programm verschickt nichts – S
 
 ## Systemvoraussetzungen und Hinweise
 
-- **Windows 10 (ab Version 2004) oder Windows 11, 64 Bit.** Keine Installation, kein .NET nötig – alles steckt in der EXE (ca. 73 MB).
+- **Windows 10 (ab Version 2004) oder Windows 11, 64 Bit** (x64; für Windows on ARM gibt es zusätzlich `SebastiansStepRecorder-arm64.exe`, noch ohne Test auf ARM-Geräten). Keine Installation, kein .NET nötig – alles steckt in der EXE (ca. 73 MB).
 - **Windows Server und ältere Windows-10-Versionen** (z. B. Windows Server 2019) können eigene Fenster nicht aus Bildschirmfotos ausschließen. Das Programm erkennt das und bietet an, **mit ausgeblendeter Anzeige** aufzunehmen: Leiste und Rahmen bleiben unsichtbar, die Bedienung läuft über Tastenkürzel und das Symbol im Infobereich.
 - **Texterkennung** (für die Suche nach persönlichen Daten) nutzt die in Windows eingebaute OCR. Fehlt das Sprachpaket, lässt es sich unter *Einstellungen → Zeit und Sprache → Sprache* nachinstallieren.
 - **Wo liegen die Daten?** Ist der Ordner der EXE beschreibbar, liegen Einstellungen und Aufnahmen daneben (Ordner `Sessions`) – ideal für einen USB-Stick. Sonst unter `%APPDATA%\StepRecorder` und `%LOCALAPPDATA%\StepRecorder`. Der Aufnahmeordner ist in den Einstellungen änderbar.

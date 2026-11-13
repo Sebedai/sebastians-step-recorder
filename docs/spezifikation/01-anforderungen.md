@@ -32,19 +32,19 @@ Dieses Dokument ist der **Gesamtindex** aller Anforderungen. Die einzelnen Anfor
 | Kapitel | Präfix | Anzahl | Muss | Soll | Kann | Themenblöcke |
 |---|---|---:|---:|---:|---:|---|
 | [02 Architektur](02-architektur.md#16-anforderungen) | `ARC` | 76 | 43 | 33 | 0 | Prozesse · Schichten und Schreiben · Betriebsarten · Technologie · Build · Konfiguration und Betrieb · Oberflächensprache, Protokoll, Export- und Pack-Ablauf |
-| [03 Aufzeichnungskern](03-aufzeichnungskern.md) | `AUF` | 109 | 73 | 35 | 1 | Lebenszyklus und Zeit · Eingabe · Bild · Aufnahmebereich · Unsichtbarkeit · UI Automation · Fenster/System/Zwischenablage/Lücken · Leistung |
-| [04 Datenformat](04-datenformat.md) | `DAT` | 76 | 54 | 20 | 2 | Formate und Ordner · Ereigniskopf, Zeit, Koordinaten · Eingaben und Lücken · Bilder · `steps.json` · `edits.json` · Versionierung und Robustheit |
+| [03 Aufzeichnungskern](03-aufzeichnungskern.md) | `AUF` | 111 | 73 | 37 | 1 | Lebenszyklus und Zeit · Eingabe · Bild · Aufnahmebereich · Unsichtbarkeit · UI Automation · Fenster/System/Zwischenablage/Lücken · Leistung |
+| [04 Datenformat](04-datenformat.md) | `DAT` | 83 | 60 | 21 | 2 | Formate und Ordner · Ereigniskopf, Zeit, Koordinaten · Eingaben und Lücken · Bilder · `steps.json` · `edits.json` · Versionierung und Robustheit |
 | [05 Schritterkennung](05-schritterkennung.md) | `SCH` | 64 | 47 | 17 | 0 | Grundsätze · Schrittarten · Ziel, Wirkung, Bilder · Belegstufen, Wichtigkeit · Textvorlagen · Bericht · Neuberechnung |
-| [06 KI-Export](06-ki-export-und-mcp.md) | `KI` | 41 | 29 | 12 | 0 | Paketaufbau · `trace.md` · Bilder · Detailstufen · Entschärfung · Schwärzung |
-| [06 MCP-Server](06-ki-export-und-mcp.md) | `MCP` | 36 | 25 | 10 | 1 | Start und Sandbox · Tools · Paging und Budgets · Bilder · Schwärzung · Robustheit |
-| [07 Aufnahme-Bedienung](07-aufnahme-bedienung.md) | `BED` | 98 | 57 | 39 | 2 | Start · Aufnahmebereiche · Leiste · Tastenkürzel · Kommentar/Marker · Pause/Privattaste · Unsichtbarkeit · Einstellungen · `record` |
-| [08 Viewer](08-viewer.md) | `VIE` | 129 | 56 | 71 | 2 | Öffnen · Ansehen · Abspielen · Bildbearbeitung · Schwärzen · Kommentare · Schritte · Kopieren · Sitzungen · Komfort · Durchsicht · Geschwindigkeit |
-| [09 Anleitungs-Export](09-anleitungs-export.md) | `EXP` | 94 | 45 | 45 | 4 | Dialog · Optionen · HTML · Markdown · DOCX · PDF · Vorlagen · Sprache · Entschärfung · Vorprüfung · Kommandozeile |
-| [10 Datenschutz](10-datenschutz-und-sicherheit.md) | `DS` | 67 | 41 | 25 | 1 | Grundsätze · Schutzstufen · Passwort-Rückhaltung · Terminal · Privattaste · Ausschlüsse · Zwischenablage · Schwärzung · Durchsicht · Netzwerk · Signierung |
+| [06 KI-Export](06-ki-export-und-mcp.md) | `KI` | 43 | 29 | 14 | 0 | Paketaufbau · `trace.md` · Bilder · Detailstufen · Entschärfung · Schwärzung |
+| [06 MCP-Server](06-ki-export-und-mcp.md) | `MCP` | 43 | 26 | 16 | 1 | Start und Sandbox · Tools · Paging und Budgets · Bilder · Schwärzung · Robustheit |
+| [07 Aufnahme-Bedienung](07-aufnahme-bedienung.md) | `BED` | 102 | 57 | 43 | 2 | Start · Aufnahmebereiche · Leiste · Tastenkürzel · Kommentar/Marker · Pause/Privattaste · Unsichtbarkeit · Einstellungen · `record` |
+| [08 Viewer](08-viewer.md) | `VIE` | 138 | 58 | 77 | 3 | Öffnen · Ansehen · Abspielen · Bildbearbeitung · Schwärzen · Kommentare · Schritte · Kopieren · Sitzungen · Komfort · Durchsicht · Geschwindigkeit |
+| [09 Anleitungs-Export](09-anleitungs-export.md) | `EXP` | 103 | 47 | 50 | 6 | Dialog · Optionen · HTML · Markdown · DOCX · PDF · Vorlagen · Sprache · Entschärfung · Vorprüfung · Kommandozeile |
+| [10 Datenschutz](10-datenschutz-und-sicherheit.md) | `DS` | 75 | 49 | 25 | 1 | Grundsätze · Schutzstufen · Passwort-Rückhaltung · Terminal · Privattaste · Ausschlüsse · Zwischenablage · Schwärzung · Durchsicht · Netzwerk · Signierung |
 | 01 (dieses Dokument) | `NFA` | 20 | 18 | 2 | 0 | kapitelübergreifend |
-| **Summe** | | **810** | **488** | **309** | **13** | |
+| **Summe** | | **858** | **507** | **335** | **16** | |
 
-Gezählt sind gültige Anforderungen; entfallen sind BED-066 und VIE-004 (Entscheidungen E24, E19). Die Zeilen 02 und 05 enthalten die zuletzt ergänzten Anforderungen ARC-066–076 und SCH-062–064 (umgesetzte Ausbaupakete); die Summenzeile ist aus diesen Werten fortgeschrieben und bei der nächsten Neuermittlung (Abschnitt 7) zu prüfen. Gemischte Prioritäten sind nach ihrem höchsten Teil gezählt. Die Zahlen werden bei jeder Spezifikationsversion neu ermittelt (Abschnitt 7).
+Gezählt sind gültige Anforderungen; entfallen sind BED-066 und VIE-004 (Entscheidungen E24, E19) sowie eine Anforderung in 03. Neu ermittelt am 13.11.2026 aus den Anforderungstabellen der Kapitel (die frühere Fortschreibung lag um 42 zu niedrig); enthalten sind die Ergänzungen des Entwickler-Fahrplans (MCP-039–043, EXP-198). Gemischte Prioritäten sind nach ihrem höchsten Teil gezählt. Die Zahlen werden bei jeder Spezifikationsversion neu ermittelt (Abschnitt 7).
 
 ## 3. Nicht-funktionale Anforderungen
 
@@ -183,7 +183,7 @@ Beim Abgleich der parallel geschriebenen Kapitel getroffene Festlegungen. Sie ge
 | E7 | Lückenmarker `outOfScope` dürfen Ereigniszahlen je Art enthalten, `excludedApp` keine. | Ausgeschlossene Anwendungen sollen keine Spuren hinterlassen |
 | E8 | Einheitliche Platzhalter: `[geschwärzt]` / `[redacted]`, „Schritt geschwärzt“ / „Step redacted“; Bilder schwarz gefüllt. | Eindeutig für Mensch und KI |
 | E9 | Schwärzungsarten: Bereich im Bild, Textstelle, Schritt, Zeitraum; „Schritt“ wird beim Anlegen auf seinen `seq`-Bereich aufgelöst. | Übersteht Neuberechnung der Schritte |
-| E10 | Privattaste ist ein Umschalter ohne automatisches Ende; zusätzlich soll die Terminal-Abfrageerkennung jede erkannte Abfragezeile automatisch bis zur Eingabetaste (bzw. Abbruch der Abfrage) maskieren – *noch nicht umgesetzt, siehe E29*. | Auch doppelte Passwortabfragen geschützt |
+| E10 | Privattaste ist ein Umschalter ohne automatisches Ende; zusätzlich soll die Terminal-Abfrageerkennung jede erkannte Abfragezeile automatisch bis zur Eingabetaste (bzw. Abbruch der Abfrage) maskieren – *umgesetzt (Regeln T1–T3, 10 §6), im echten Terminal noch nicht bestätigt, siehe E29*. | Auch doppelte Passwortabfragen geschützt |
 | E11 | Interne und ausgeblendete Kommentare erscheinen in keiner Ausgabe (Anleitung, KI-Paket, MCP). | Kommentare können Vertrauliches enthalten |
 | E12 | Sperren, Benutzerwechsel und Trennen pausieren die Aufnahme; sie läuft erst nach Bestätigung weiter (Lücken `sessionLocked`, dann `paused`). | Nach dem Entsperren kann jemand anderes am Rechner sitzen |
 | E13 | Zwischendateien (extern bearbeiten, Herausziehen, Exportvorschau) liegen im Sitzungsordner unter `export/.tmp/`, nie in `%TEMP%`. | Keine Spuren außerhalb des Sitzungsordners |
@@ -202,7 +202,7 @@ Beim Abgleich der parallel geschriebenen Kapitel getroffene Festlegungen. Sie ge
 | E26 | Ein verworfener weiterer Aufnahmeabschnitt (z. B. abgebrochene Neuaufnahme) wird markiert und von der Leseschicht aus allen Ausgaben herausgehalten; das Journal wird nie gekürzt. „Aufnahme verwerfen“ betrifft dann nur diesen Abschnitt. Die Ersetzung trägt die Aufzeichnungssteuerung nach sauberem Stopp ein. | Nur-Anhängen-Prinzip bleibt unangetastet |
 | E27 | `--profile` meint überall das Aufnahmeprofil; das Bildprofil des KI-Exports heißt `--image-profile`. | Keine Verwechslung in der Kommandozeile |
 | E28 | Schutzregeln der Zusatzfunktionen (Profile, Import, Suche, Vergleich, Support-Paket, Verallgemeinerung) gelten als Muss, sobald die Funktion gebaut wird. | Neue Funktionen dürfen den Schutz nie aufweichen |
-| E29 | Getipptes in Terminals, Remote-Desktop- und VM-Fenstern ist **prüfpflichtig** (`flags.plaintext`); die Stufe „Streng“ hält dort alles zurück. Die automatische Erkennung von Kennwortabfragen im Terminal (Regel T1, DS-022/DS-023) ist **nicht umgesetzt**; E10 gilt insoweit nur für die Privattaste. | Ehrlicher Stand: Schutz durch Durchsicht und Stufenwahl statt durch eine Erkennung, die nur in wenigen Terminals möglich wäre |
+| E29 | Getipptes in Terminals, Remote-Desktop- und VM-Fenstern ist **prüfpflichtig** (`flags.plaintext`); die Stufe „Streng“ hält dort alles zurück. Die automatische Erkennung von Kennwortabfragen im Terminal (Regeln T1–T3, DS-022/DS-023) ist **gebaut**: Eine erkannte Abfrage maskiert die Eingabe ohne Durchsicht; alles andere Getippte dort bleibt prüfpflichtig. Ob Terminals ihren Text über UI Automation liefern, ist nicht gemessen (O-09). | Ehrlicher Stand: Erkennung als zusätzlicher Schutz, Durchsicht und Stufenwahl bleiben das Netz darunter |
 | E30 | Schritte lassen sich nur für **Anleitungen** zusammenfassen (`edits.merges`); `steps.json`, KI-Paket, MCP, Vergleich und AutoHotkey-Export behalten die Einzelschritte. | Die Spur bleibt vollständig, die Anleitung darf kürzer sein |
 | E31 | Die Sprache der Oberfläche (`uiLanguage`) ist unabhängig von der Sprache der Anleitungstexte. Texte, die in eine Aufnahme oder einen Export gehen, folgen der Inhaltssprache; das Manifest nennt weiter die Windows-Sprache. | Ein englisch bedienter Rechner erzeugt keine gemischten Anleitungen |
 | E32 | Löschen aus der Oberfläche geht nur in den Papierkorb; wo es keinen gibt, fragt das Programm ausdrücklich. Ordner-Exporte leeren nie einen fremden Ordner (Exit-Code 8). | Kein stilles, endgültiges Löschen |
