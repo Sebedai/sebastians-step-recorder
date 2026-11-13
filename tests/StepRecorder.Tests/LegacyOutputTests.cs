@@ -93,7 +93,8 @@ public class LegacyOutputTests : IDisposable
                 var sb = new StringBuilder(File.ReadAllText(path).Replace("\r\n", "\n"));
                 foreach (var f in Directory.GetFiles(Path.GetDirectoryName(path)!, "*", SearchOption.AllDirectories).Where(f => f != path).OrderBy(f => f, StringComparer.Ordinal))
                     sb.Append("\n#file ").Append(Path.GetRelativePath(Path.GetDirectoryName(path)!, f).Replace('\\', '/'));
-                return Version(sb.ToString());
+                // Datum mit Uhrzeit ist Ortszeit (Zeitzone des Rechners) – im Vergleich neutral
+                return Version(System.Text.RegularExpressions.Regex.Replace(sb.ToString(), @"\d{1,4}[./-]\d{1,2}[./-]\d{2,4},? \d{1,2}:\d{2}", "{DATUM}"));
             }
             case "docx" or "pptx":
             {

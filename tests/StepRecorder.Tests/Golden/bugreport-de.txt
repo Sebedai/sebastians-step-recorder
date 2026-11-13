@@ -8,7 +8,7 @@ Diese Anleitung zeigt den Ablauf\.
 
 - Monitor M1: 200 × 100, 100 % (Hauptmonitor)
 - Programme: `notepad.exe`
-- Aufgenommen: 11.11.2026 14:30 mit Sebastians Step Recorder test
+- Aufgenommen: {DATUM} mit Sebastians Step Recorder test
 
 ## Schritte zum Nachstellen
 
