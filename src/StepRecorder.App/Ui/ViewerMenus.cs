@@ -163,7 +163,7 @@ sealed partial class ViewerWindow
             ChapterSubMenu(edit),
             Item("hide", s?.Hidden == true ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), edit),
             Item("moveUp", enabled: edit), Item("moveDown", enabled: edit), Sep(),
-            Item("merge", enabled: !ro && _list.SelectedItems.Count > 1), Item("unmerge", enabled: edit), Sep(),
+            Item("merge", enabled: !ro && _list.SelectedItems.Count > 1), Item("unmerge", enabled: edit), Item("splitStep", enabled: edit), Item("resultStep", enabled: edit), Sep(),
             ReRecordSubMenu(ro), Sep(),
             InsertSubMenu(Loc.L("Schritt einfügen", "Insert step"), !ro), SectionSubMenu(!ro),
             Item("deleteInserted", enabled: !ro && SelSteps.Any(x => x.Manual)),
