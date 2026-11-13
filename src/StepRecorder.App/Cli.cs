@@ -47,7 +47,7 @@ Aufruf:
   SebastiansStepRecorder.exe steps <Aufnahme> [--json] [--all]   Schrittliste mit Reaktionszeiten
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <Ordner>] [--all]   Aufnahmen auflisten (neueste zuerst)
       Statt <Aufnahme> überall auch: latest (neueste Aufnahme im Aufnahmeordner)
-  SebastiansStepRecorder.exe settings export <Datei> [--parts hotkeys,excluded,exportTemplates,customProfile,preferences]
+  SebastiansStepRecorder.exe settings export <Datei> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
   SebastiansStepRecorder.exe settings import <Datei> [--parts …] [--confirm] [--allow-weaker <Kennung>]… [--json]
   SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <Kennung>]…
   SebastiansStepRecorder.exe mcp [--root <Ordner>] [--allow-edit] [--allow-requests] [--lang de|en]
@@ -93,7 +93,7 @@ Usage:
   SebastiansStepRecorder.exe steps <recording> [--json] [--all]   step list with response times
   SebastiansStepRecorder.exe list [--json] [--limit n] [--root <folder>] [--all]   list recordings (newest first)
       Instead of <recording> you can always write: latest (newest recording in the recordings folder)
-  SebastiansStepRecorder.exe settings export <file> [--parts hotkeys,excluded,exportTemplates,customProfile,preferences]
+  SebastiansStepRecorder.exe settings export <file> [--parts hotkeys,excluded,exportTemplates,textSnippets,customProfile,preferences]
   SebastiansStepRecorder.exe settings import <file> [--parts …] [--confirm] [--allow-weaker <id>]… [--json]
   SebastiansStepRecorder.exe settings reset [--templates] [--confirm] [--allow-weaker <id>]…
   SebastiansStepRecorder.exe mcp [--root <folder>] [--allow-edit] [--allow-requests] [--lang de|en]

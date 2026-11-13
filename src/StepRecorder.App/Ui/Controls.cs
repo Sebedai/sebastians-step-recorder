@@ -111,6 +111,36 @@ static class U
     /// <summary>Eigenschaften setzen und das Element zurückgeben (statt Objekt-Initialisierer bei Fabrik-Methoden).</summary>
     public static T Set<T>(this T e, Action<T> init) where T : DependencyObject { init(e); return e; }
 
+    /// <summary>
+    /// Name für Bildschirmleser (NFA-015, BED-112) – gleich beim Erzeugen gesetzt, damit auch reine Symbolknöpfe einen tragen.
+    /// <paramref name="help"/> wird zur Hilfe (Tooltip), wenn er sich vom Namen unterscheidet. Leere Werte ändern nichts.
+    /// </summary>
+    public static T Named<T>(this T e, string? name, string? help = null) where T : DependencyObject
+    {
+        if (!string.IsNullOrWhiteSpace(name)) System.Windows.Automation.AutomationProperties.SetName(e, A11yText(name));
+        if (!string.IsNullOrWhiteSpace(help) && help != name) System.Windows.Automation.AutomationProperties.SetHelpText(e, A11yText(help));
+        return e;
+    }
+
+    static string A11yText(string s) => s.Replace("\r", "").Replace("\n", " ").Replace("  ", " ").Trim();
+
+    /// <summary>Inhalt „Symbol + Text“ einer Schaltfläche austauschen – der Name für Bildschirmleser wandert mit.</summary>
+    public static void Relabel(ContentControl b, string? glyph, string text)
+    {
+        b.Content = IconText(glyph, text);
+        b.Named(text);
+    }
+
+    /// <summary>Umschalter mit Symbol (optional mit kurzem Text) für Filter und Zustände; Name aus Text, sonst Tooltip.</summary>
+    public static System.Windows.Controls.Primitives.ToggleButton IconToggle(string glyph, string? text, string tip, double iconSize = 13)
+    {
+        var content = new StackPanel { Orientation = Orientation.Horizontal };
+        content.Children.Add(Icon(glyph, iconSize, Theme.Fg2));
+        if (!string.IsNullOrEmpty(text)) content.Children.Add(Text(text, Theme.FsCaption, margin: new Thickness(5, 0, 0, 0)));
+        var t = new System.Windows.Controls.Primitives.ToggleButton { Content = content, Padding = new Thickness(8, 4, 8, 4), VerticalAlignment = VerticalAlignment.Center, ToolTip = tip };
+        return t.Named(string.IsNullOrEmpty(text) ? tip : text, tip);
+    }
+
     /// <summary>Schlichte Schaltfläche wie in Windows-Befehlsleisten: ohne Fläche und Rand, beim Zeigen leicht hinterlegt.</summary>
     static void Subtle(Wpf.Ui.Controls.Button b)
     {
@@ -173,6 +203,8 @@ static class U
     {
         var b = Make(style);
         b.Content = IconText(glyph, text); b.Margin = new Thickness(3); b.MinWidth = minW; b.ToolTip = tip;
+        // Name aus dem sichtbaren Text, bei reinen Symbolknöpfen aus dem Tooltip
+        b.Named(string.IsNullOrWhiteSpace(text) ? tip : text, tip);
         b.Click += (_, _) => { try { click(); } catch (Exception ex) { UiApp.ShowError(ex); } };
         return b;
     }
@@ -224,8 +256,13 @@ static class U
     public static StackPanel Field(string label, UIElement control, string? hint = null, Thickness? margin = null)
     {
         var p = new StackPanel { Margin = margin ?? new Thickness(0, 0, 0, 16) };
-        p.Children.Add(Text(label, Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6)));
+        var caption = Text(label, Theme.FsBody, false, Theme.Fg, new Thickness(0, 0, 0, 6));
+        p.Children.Add(caption);
         p.Children.Add(control);
+        // Bildschirmleser: Feld und Beschriftung gehören zusammen; Eingabefelder heißen wie ihre Beschriftung
+        System.Windows.Automation.AutomationProperties.SetLabeledBy(control, caption);
+        if (control is Control and not System.Windows.Controls.Primitives.ButtonBase && string.IsNullOrEmpty(System.Windows.Automation.AutomationProperties.GetName(control)))
+            control.Named(label);
         if (hint != null) p.Children.Add(Hint(hint, new Thickness(0, 6, 0, 0)));
         return p;
     }
@@ -283,6 +320,7 @@ static class U
         for (int i = 0; i < items.Length; i++)
         {
             var rb = new RadioButton { GroupName = group, Style = Theme.Style("Segment"), IsChecked = i == selected, Content = IconText(items[i].glyph, items[i].text, 14) };
+            rb.Named(items[i].text);
             panel.Children.Add(rb); list.Add(rb);
         }
         var track = new Border { Background = Brushes.Transparent, Child = panel, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(-4, 0, 0, 0) };

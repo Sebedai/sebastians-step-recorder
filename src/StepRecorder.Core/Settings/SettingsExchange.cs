@@ -39,13 +39,14 @@ public static class SettingsExchange
     public const string Format = "steprecorder.settings-exchange";
     public const int FormatVersion = 1;
     public const int MaxBytes = 32 * 1024 * 1024;
-    public static readonly string[] Parts = { "hotkeys", "excluded", "exportTemplates", "customProfile", "preferences" };
+    public static readonly string[] Parts = { "hotkeys", "excluded", "exportTemplates", "textSnippets", "customProfile", "preferences" };
 
     public static string PartName(string part) => part switch
     {
         "hotkeys" => Loc.L("Tastenkürzel", "Keyboard shortcuts"),
         "excluded" => Loc.L("Ausgeschlossene Programme", "Excluded programs"),
         "exportTemplates" => Loc.L("Dokumentvorlagen", "Document templates"),
+        "textSnippets" => Loc.L("Textbausteine", "Text snippets"),
         "customProfile" => Loc.L("Modus „Eigene“", "Custom mode"),
         "preferences" => Loc.L("Allgemeine Einstellungen", "General preferences"),
         _ => part
@@ -67,6 +68,8 @@ public static class SettingsExchange
                 ["templates"] = new JsonObject(s.DocTemplates.Select(kv => KeyValuePair.Create(kv.Key, (JsonNode?)kv.Value.DeepClone()))),
                 ["default"] = s.DefaultTemplate
             };
+        if (want.Contains("textSnippets"))
+            p["textSnippets"] = new JsonArray(TextSnippet.Clean(s.TextSnippets).Select(t => (JsonNode)new JsonObject { ["name"] = t.Name, ["text"] = t.Text }).ToArray());
         if (want.Contains("customProfile"))
             p["customProfile"] = new JsonObject
             {
@@ -173,6 +176,32 @@ public static class SettingsExchange
                     cand.DefaultTemplate = def;
                     plan.Changes.Add(new("exportTemplates", "default", "Standardvorlage: " + (def.Length == 0 ? "keine" : def), "Default template: " + (def.Length == 0 ? "none" : def)));
                 }
+            }
+        }
+
+        // Textbausteine: werden ergänzt oder (gleicher Name) ersetzt, nie gelöscht – Texte des Autors, schwächen den Schutz nicht
+        if (want.Contains("textSnippets") && p["textSnippets"] is { } tsNode)
+        {
+            var snippets = TextSnippet.Clean(current.TextSnippets);
+            bool bad = tsNode is not JsonArray tsArr || tsArr.Count > TextSnippet.MaxCount;
+            var incoming = new List<TextSnippet>();
+            if (!bad)
+                foreach (var x in (JsonArray)tsNode)
+                {
+                    if (x is not JsonObject o || o["name"] is not JsonValue nv || !nv.TryGetValue<string>(out var name) || o["text"] is not JsonValue tv || !tv.TryGetValue<string>(out var text) || !TextSnippet.Valid(name, text)) { bad = true; break; }
+                    incoming.Add(new TextSnippet { Name = name, Text = text });
+                }
+            if (bad) Skip("textSnippets", "enthält einen ungültigen Textbaustein – nicht übernommen.", "contains an invalid text snippet – not applied.");
+            else
+            {
+                foreach (var t in TextSnippet.Clean(incoming))
+                {
+                    int i = snippets.FindIndex(x => string.Equals(x.Name, t.Name, StringComparison.OrdinalIgnoreCase));
+                    if (i >= 0 && snippets[i].Text == t.Text) continue;
+                    plan.Changes.Add(new("textSnippets", t.Name, (i >= 0 ? "Textbaustein ersetzt: " : "Textbaustein neu: ") + t.Name, (i >= 0 ? "Text snippet replaced: " : "New text snippet: ") + t.Name));
+                    if (i >= 0) snippets[i] = t; else snippets.Add(t);
+                }
+                cand.TextSnippets = TextSnippet.Clean(snippets);
             }
         }
 

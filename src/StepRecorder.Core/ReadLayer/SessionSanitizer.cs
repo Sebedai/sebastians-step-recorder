@@ -102,6 +102,8 @@ public static class SessionSanitizer
             foreach (var c in cs.OfType<JsonObject>().Where(c => c.Str("origin") != "recording" && (SessionView.IsInternalKind(c.Str("kind")) || c.Bool("hidden"))).ToList()) cs.Remove(c);
         foreach (var a in (ed.Obj("guide")?.Arr("append") ?? new JsonArray()).OfType<JsonObject>()) a.Remove("path");
         ed.Remove("qualityIgnores");
+        // Lesezeichen sind Arbeitsnotizen des Autors (wie ignorierte Befunde)
+        foreach (var st in (ed.Arr("steps") ?? new JsonArray()).OfType<JsonObject>()) st.Remove("bookmark");
         ed["sessionId"] = newId;
         ed["revision"] = 1;
         ed["savedBy"] = "sanitizer";

@@ -114,6 +114,10 @@ sealed partial class ViewerWindow
         _slowToggle.Checked += (_, _) => { if (IsLoaded) Fill(); }; _slowToggle.Unchecked += (_, _) => { if (IsLoaded) Fill(); };
         DockPanel.SetDock(langTrack, Dock.Right); filterRow.Children.Add(langTrack);
         DockPanel.SetDock(_slowToggle, Dock.Right); filterRow.Children.Add(_slowToggle);
+        // Filter „nur Lesezeichen“: Stern rechts neben der Suche (in der Filterzeile ist kein Platz mehr)
+        _bookmarkToggle = BuildBookmarkFilter();
+        searchHost.ColumnDefinitions.Add(new ColumnDefinition()); searchHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(_bookmarkToggle, 1); searchHost.Children.Add(_bookmarkToggle);
         filterRow.Children.Add(impTrack);
         _list.SelectionMode = SelectionMode.Extended;
         _list.ItemContainerStyle = Theme.Style("StepItem");
@@ -395,6 +399,7 @@ sealed partial class ViewerWindow
             if (!StepSearch.Matches(s, query)) continue;
             long? waitMs = s.Redacted || s.Manual ? null : StepRecorder.ReadLayer.Timing.WaitMsOf(s.Json);
             if (_slowToggle.IsChecked == true && (waitMs ?? 0) < StepRecorder.ReadLayer.Timing.SlowMs) continue;
+            if (!PassesBookmarkFilter(s)) continue;
             n++;
             bool primary = s.Importance == "primary", gap = s.Kind == "gap", dim = s.Hidden || s.Discarded;
             var merge = s.Manual ? null : _view.MergeOf(s.Anchor);
@@ -428,6 +433,7 @@ sealed partial class ViewerWindow
             lead.VerticalAlignment = VerticalAlignment.Top; lead.Margin = new Thickness(lead.Margin.Left, lead.Margin.Top, 12, 0);
             g.Children.Add(lead);
             var head = new TextBlock { TextWrapping = TextWrapping.Wrap, FontWeight = primary ? FontWeights.SemiBold : FontWeights.Normal, Foreground = dim ? Theme.Muted : s.Importance == "trace" ? Theme.Fg2 : Theme.Fg, FontStyle = gap ? FontStyles.Italic : FontStyles.Normal, MaxHeight = 2 * 19 + 2, LineHeight = 19, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, TextTrimming = TextTrimming.CharacterEllipsis };
+            if (s.Bookmarked) head.Inlines.Add(new System.Windows.Documents.Run(Theme.IStarFill + " ") { FontFamily = Theme.Icons, FontSize = Theme.FsCaption, Foreground = Theme.Warn, BaselineAlignment = BaselineAlignment.Center });
             head.Inlines.Add(new System.Windows.Documents.Run(s.AuthorTitle ?? s.Title));
             var meta = new WrapPanel { Margin = new Thickness(0, 4, 0, 0) };
             var kindRow = U.Row(U.Icon(KindIcon(s), 12, Theme.Muted), U.Meta(KindLabel(s.Kind), new Thickness(5, 0, 8, 0)), U.Meta(ShortTime(Fmt.Time(s.TFrom, "de")), new Thickness(0, 0, 8, 0)));
@@ -581,7 +587,11 @@ sealed partial class ViewerWindow
         chips.Children.Add(ev);
         if (s.ImageReplaced) chips.Children.Add(U.Chip(Loc.L("Bild ersetzt", "Image replaced"), Theme.Surface2, Theme.Muted, Theme.ICamera));
         }
-        _details.Children.Add(chips);
+        // Stern rechts neben den Angaben: Lesezeichen (nur für den Autor)
+        var chipRow = new DockPanel();
+        var star = BookmarkButton(s); DockPanel.SetDock(star, Dock.Right); chipRow.Children.Add(star);
+        chipRow.Children.Add(chips);
+        _details.Children.Add(chipRow);
 
         if (s.Unreviewed)
             _details.Children.Add(Callout(Theme.IWarn, Theme.WarnSoft, Theme.Warn, Loc.L("Auffällige Eingabe", "Conspicuous input"), Loc.F("{0} – bitte in der Durchsicht prüfen, bevor Sie die Aufnahme weitergeben.", "{0} – please check it in the review before you share the recording.", Patterns.KindName(s.FlagReason ?? "", Loc.Lang))));
@@ -619,6 +629,8 @@ sealed partial class ViewerWindow
         TextBlock.SetLineHeight(_editBody, 21);
         var editTitle = _editTitle; var editBody = _editBody;
         Spell(editTitle); Spell(editBody);
+        editTitle.GotKeyboardFocus += (_, _) => _lastInlineTitle = true; editBody.GotKeyboardFocus += (_, _) => _lastInlineTitle = false;
+        _lastInlineTitle = false;
         editTitle.KeyDown += (_, e) => { if (e.Key == Key.Enter) { editBody.Focus(); editBody.CaretIndex = editBody.Text.Length; e.Handled = true; } };
         foreach (var box in new[] { editTitle, editBody })
         {
@@ -641,6 +653,7 @@ sealed partial class ViewerWindow
             reset.Margin = new Thickness(8, -2, -6, 0); reset.Padding = new Thickness(6, 2, 6, 2); reset.VerticalAlignment = VerticalAlignment.Top;
             DockPanel.SetDock(reset, Dock.Right); editInfo.Children.Add(reset);
         }
+        if (!ro) { var snip = SnippetButton(); DockPanel.SetDock(snip, Dock.Right); editInfo.Children.Add(snip); }
         var infoText = U.Text(ro ? Loc.L("Schreibgeschützt – zum Bearbeiten bitte entpacken.", "Read-only – unpack to edit.") : s.Manual ? Loc.L("Eigener Text · wird automatisch gespeichert", "Own text · saved automatically") : edited ? Loc.L("Von Ihnen geändert · wird automatisch gespeichert", "Changed by you · saved automatically") : Loc.L("Automatisch erzeugt – einfach überschreiben, wird automatisch gespeichert", "Generated automatically – just overwrite it, saved automatically"), Theme.FsCaption, fg: Theme.Muted);
         infoText.TextWrapping = TextWrapping.Wrap;
         editInfo.Children.Add(infoText);

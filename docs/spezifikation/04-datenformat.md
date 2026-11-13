@@ -1902,6 +1902,7 @@ Lässt sich ein Eintrag nach einer Neuberechnung keinem Schritt mehr zuordnen, w
 | `hidden` | bool | In der Anleitung ausblenden. Im KI-Paket und über den MCP-Server bleibt der Schritt sichtbar – er ist geschehen. |
 | `discarded` | bool | Überschreibt das Kennzeichen „verworfen“ des Schritts: `false` nimmt ein Verwerfen aus der Aufnahme zurück, `true` verwirft nachträglich. Fehlt das Feld, gilt `flags.discarded` aus `steps.json`. |
 | `importance` | enum | Wichtigkeit überschreiben. |
+| `bookmark` | bool | Lesezeichen des Autors (Stern im Editor, Filter „nur Lesezeichen“). Reine Arbeitsnotiz: erscheint in keiner Ausgabe; die bereinigte Kopie entfernt das Feld. Fehlt es, ist kein Lesezeichen gesetzt. |
 | `markerKind` | enum | Nur für `marker`-Schritte: Typ des Markers überschreiben (`note` \| `error` \| `expected` \| `important`). Fehlt das Feld, gilt `input.markerKind` aus `steps.json`. |
 | `view` | Objekt | Darstellung nur für diesen Schritt, siehe 13.4. |
 | `frameChoice` | Objekt | Anderes Bild wählen: `pre`, `post` (Bild-Kennungen). |

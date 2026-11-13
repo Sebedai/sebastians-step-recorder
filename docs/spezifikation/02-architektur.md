@@ -935,11 +935,12 @@ Ein Profil enthält keine absoluten Pfade und keine Sitzungsdaten. Die Felder he
 |---|---|---|
 | Modus „Eigene“ (Aufnahmeprofil) | `customProfile` | Einstellungen (`record`, Bildänderungen, Anwendungskontext, Aktion nach dem Stopp) |
 | Dokumentvorlagen und Branding | `exportTemplates` | Einstellungen (`docTemplates`); das Logo ist eingebettet und wird beim Import neu kodiert |
+| Textbausteine | `textSnippets` | Einstellungen (`textSnippets`: Name und Text je Baustein); beim Import ergänzt oder bei gleichem Namen ersetzt, nie gelöscht |
 | Ausschlussliste | `excluded` | Einstellungen |
 | Tastenkürzel | `hotkeys` | Einstellungen |
 | Allgemeine Vorlieben | `preferences` | Einstellungen (Sprachen, Darstellung, Anrede, Countdown, Töne, Schutzstufe) |
 
-*Stand der Umsetzung:* Die Teile heißen so, wie die Tabelle sie nennt. Aufnahmeprofile als `profiles` sowie Stilvorlagen für Markierungen und Textbausteine gibt es noch nicht (Abschnitt 12.5). Nie enthalten sind der Aufnahmeordner, die Liste der zuletzt verwendeten Aufnahmen, der Ausweichmodus der Unsichtbarkeit und unbekannte Schlüssel.
+*Stand der Umsetzung:* Die Teile heißen so, wie die Tabelle sie nennt. Aufnahmeprofile als `profiles` und Stilvorlagen für Markierungen gibt es noch nicht (Abschnitt 12.5); Textbausteine sind als `textSnippets` umgesetzt. Nie enthalten sind der Aufnahmeordner, die Liste der zuletzt verwendeten Aufnahmen, der Ausweichmodus der Unsichtbarkeit und unbekannte Schlüssel.
 
 - **Aufbau:** ein JSON-Objekt mit Formatkennung, Formatversion, Programmversion und Erstellungszeit, dazu je gewähltem Teil ein Eintrag im Aufbau seiner Quelle. Nicht gewählte Teile fehlen.
 - **Was nie darin steht:** Sitzungsdaten; zuletzt verwendete Sitzungen; Fensterpositionen; der Aufnahmeordner und jeder andere absolute Pfad; Rechner-, Benutzer- und Domänenname.

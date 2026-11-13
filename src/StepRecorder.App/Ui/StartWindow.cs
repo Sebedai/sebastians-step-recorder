@@ -133,7 +133,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
             Loaded += async (_, _) =>
             {
                 var r = await UpdateCheck.CheckAsync();
-                if (r.Newer) { update.Content = U.IconText(Theme.IGlobe, Loc.F("Version {0} verfügbar", "Version {0} available", r.Latest)); update.Visibility = Visibility.Visible; }
+                if (r.Newer) { U.Relabel(update, Theme.IGlobe, Loc.F("Version {0} verfügbar", "Version {0} available", r.Latest)); update.Visibility = Visibility.Visible; }
             };
         var shield = U.Icon(Theme.IShield, 14, Theme.Muted); shield.Margin = new Thickness(0, 0, 8, 0);
         var footLeft = U.Row(shield, _protection);
@@ -342,7 +342,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
     {
         bool set = (_goalText + _expectedText + _referenceText + _titleText).Trim().Length > 0;
         bool recommended = RecordingModes.All[ProfileIndex].ShowGoalFields && !IsCustom;
-        _goalLink.Content = U.IconText(set ? Theme.ICheck : Theme.IFlag, set ? Loc.L("Ziel und Titel ✓", "Goal and title ✓") : recommended ? Loc.L("Ziel und Titel (empfohlen) …", "Goal and title (recommended) …") : Loc.L("Ziel und Titel …", "Goal and title …"));
+        U.Relabel(_goalLink, set ? Theme.ICheck : Theme.IFlag, set ? Loc.L("Ziel und Titel ✓", "Goal and title ✓") : recommended ? Loc.L("Ziel und Titel (empfohlen) …", "Goal and title (recommended) …") : Loc.L("Ziel und Titel …", "Goal and title …"));
     }
 
     /// <summary>„Anpassen …“ bei einem festen Modus: Detailgrad in „Eigene“ übernehmen; bei „Eigene“: Einstellungen öffnen.</summary>
@@ -366,7 +366,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         if (_profiles == null || _recLink == null) return;
         int i = ProfileIndex;
         _modeText.Text = Modes[i].text;
-        _recLink.Content = U.IconText(Theme.IEdit, Ids[i] == "custom" ? Loc.L("Einstellen …", "Set up …") : Loc.L("Anpassen …", "Customize …"));
+        U.Relabel(_recLink, Theme.IEdit, Ids[i] == "custom" ? Loc.L("Einstellen …", "Set up …") : Loc.L("Anpassen …", "Customize …"));
         _recLink.ToolTip = Ids[i] == "custom" ? Loc.L("Eingabearten, Zusatzbilder, Programmkontext und „nach dem Stopp“ festlegen", "Set input types, extra images, program context and “after stopping”") : Loc.L("Diesen Detailgrad als Ausgangspunkt für den Modus „Eigene“ übernehmen", "Use this level of detail as the starting point for the “Custom” mode");
         if (Ids[i] == "custom")
         {

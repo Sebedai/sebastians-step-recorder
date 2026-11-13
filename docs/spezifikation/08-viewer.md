@@ -980,8 +980,8 @@ Ein Agent wie Claude Code liest Sitzungen über den MCP-Server ([06](06-ki-expor
 | Volltextsuche über alle Sitzungen | Siehe [11.2](#112-volltextsuche-über-alle-sitzungen) | Soll |
 | Schritt neu bebildern | „Bild neu aufnehmen“ ersetzt das Bild eines Schritts durch einen frischen Schnappschuss | Kann |
 | Befehlspalette | `Strg+Umschalt+P` findet jeden Befehl über seinen Namen | Kann – *umgesetzt (Paket 15 aus [12](12-entwickler-fahrplan.md)): Suche über Namen und Gruppe, zuletzt benutzte zuerst, Kürzel daneben; auch im Menü „Hilfe“* |
-| Lesezeichen | Schritte mit einem Stern merken und danach filtern | Kann |
-| Textbausteine | Häufige Hinweise per Kürzel einfügen | Kann |
+| Lesezeichen | Schritte mit einem Stern merken und danach filtern | Kann – *umgesetzt: `Strg+Umschalt+L`, der Stern oben rechts im Detailbereich oder Schritt › Lesezeichen setzen (bei Mehrfachauswahl für alle); gemerkte Schritte tragen in der Liste einen Stern, der Stern neben der Suche (auch Ansicht › Nur Lesezeichen) zeigt nur sie. Gespeichert als `edits.steps[].bookmark` ([04](04-datenformat.md#edits-steps)); Arbeitsnotiz des Autors, erscheint in keiner Ausgabe und fällt in der bereinigten Kopie weg* |
+| Textbausteine | Häufige Hinweise per Kürzel einfügen | Kann – *umgesetzt: Bausteine (Name und Text) stehen in den Einstellungen (Allgemein › Textbausteine verwalten …). `Strg+Umschalt+B` oder der Knopf „Textbaustein“ fügt an der Schreibmarke ein – in Überschrift und Anleitungstext des Detailbereichs, im Hinweis-Dialog (`K`) und in den übrigen Textdialogen; das Menü führt auch zur Verwaltung. Im Einstellungs-Austausch der Teil `textSnippets` ([07, 13.2](07-aufnahme-bedienung.md#132-einstellungen-exportieren-und-importieren))* |
 | Rechtschreibprüfung | In Schritttexten und Kommentaren, soweit Windows die Sprache bereitstellt | Kann |
 | Kapitelvorschläge | Vorschlag für Kapitel bei jedem Wechsel der Anwendung | Kann |
 | Präsentationsansicht | Vollbild mit Bild und Schritttext zum Durchklicken in Schulungen | Kann |
@@ -1248,6 +1248,8 @@ Die Kürzel gelten im Viewer-Fenster. Buchstaben ohne Zusatztaste wirken nicht, 
 | `Strg+Umschalt+K` | Kapitel einfügen |
 | `Strg+R` | Gewählte Schritte neu aufnehmen und ersetzen |
 | `Strg+Umschalt+G` | Werte verallgemeinern |
+| `Strg+Umschalt+L` | Lesezeichen setzen, entfernen |
+| `Strg+Umschalt+B` | Textbaustein einfügen (wirkt auch beim Tippen in einem Textfeld) |
 | `Strg+A` | Alle Schritte wählen |
 
 **Kopieren und Ausgeben**

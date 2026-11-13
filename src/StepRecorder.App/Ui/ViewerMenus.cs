@@ -31,7 +31,7 @@ sealed partial class ViewerWindow
         ["beforeAfter"] = Theme.ICompare, ["stepMarks"] = Theme.IMouse, ["play"] = Theme.IPlay, ["lightbox"] = Theme.IFullScreen, ["zoomIn"] = Theme.IZoomIn, ["zoomOut"] = Theme.IZoomOut,
         ["zoomFit"] = Theme.IFit, ["zoom100"] = Theme.IActual, ["review"] = Theme.IChecklist, ["quality"] = Theme.ICheck, ["piiScan"] = Theme.ISearch, ["redactStep"] = Theme.IShield,
         ["overview"] = Theme.IInfo, ["finalRedact"] = Theme.IWarn, ["shortcuts"] = Theme.IKeyboard, ["palette"] = Theme.ISearch, ["help"] = Theme.IHelp, ["prev"] = Theme.IPrev, ["next"] = Theme.INext,
-        ["compare"] = Theme.ICompare,
+        ["compare"] = Theme.ICompare, ["bookmark"] = Theme.IStar, ["snippet"] = Theme.ISnippet,
     };
 
     /// <summary>Anzeige-Kürzel: aus der Tabelle; Zoom wird vom Bildbereich selbst behandelt.</summary>
@@ -156,7 +156,8 @@ sealed partial class ViewerWindow
         bool ro = _view.Session.ReadOnly, edit = s != null && !ro;
         return new()
         {
-            Item("editText", enabled: edit), Item("comment", enabled: edit), Sep(),
+            Item("editText", enabled: edit), Item("comment", enabled: edit), Item("snippet", enabled: edit), Sep(),
+            Item("bookmark", s?.Bookmarked == true ? Loc.L("Lesezeichen entfernen", "Remove bookmark") : Loc.L("Lesezeichen setzen", "Set bookmark"), edit),
             ImportanceMenu(s, edit),
             Item("chapter", s?.ChapterTitle != null ? Loc.L("Kapitel entfernen", "Remove chapter") : null, edit),
             Item("hide", s?.Hidden == true ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), edit),
@@ -236,7 +237,8 @@ sealed partial class ViewerWindow
         {
             Item("beforeAfter", enabled: Sel != null), disp, MarksMenu(), Sep(),
             Check(Loc.L("Schritte", "Steps"), _filterBtns[0].IsChecked == true, () => _filterBtns[0].IsChecked = true),
-            Check(Loc.L("Mit Spur", "With trace"), _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true), Sep(),
+            Check(Loc.L("Mit Spur", "With trace"), _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true),
+            Check(Loc.L("Nur Lesezeichen", "Bookmarks only"), _bookmarkToggle.IsChecked == true, () => _bookmarkToggle.IsChecked = _bookmarkToggle.IsChecked != true), Sep(),
             lang, Sep(),
             Item("play", _play.IsEnabled ? Loc.L("Abspielen beenden", "Stop playback") : null), Item("lightbox", enabled: _current != null), zoom, Sep(),
             Item("compare"),
@@ -308,6 +310,7 @@ sealed partial class ViewerWindow
         if (s.ImageReplaced) image.Items.Add(Item("restoreImage", enabled: !ro));
         var copy = Sub(Loc.L("Kopieren", "Copy"), Theme.ICopy, Item("copyImage"), Item("copyImageText"), Item("copyText"), Item("copyMarkdown"));
         Add(Item("editText", enabled: !ro), Item("comment", enabled: !ro), Sep(),
+            Item("bookmark", s.Bookmarked ? Loc.L("Lesezeichen entfernen", "Remove bookmark") : Loc.L("Lesezeichen setzen", "Set bookmark"), !ro),
             ImportanceMenu(s, !ro),
             Item("chapter", s.ChapterTitle != null ? Loc.L("Kapitel entfernen", "Remove chapter") : null, !ro),
             Item("hide", s.Hidden ? Loc.L("Einblenden", "Show") : Loc.L("Ausblenden", "Hide"), !ro),
@@ -331,7 +334,7 @@ sealed partial class ViewerWindow
     Button MenuCmdButton(string glyph, string text, string tip, int labelLevel, Func<List<object>> items)
     {
         var content = U.MenuContent(glyph, text);
-        var b = U.Make("Ghost"); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
+        var b = U.Make("Ghost").Named(string.IsNullOrEmpty(text) ? tip : text, tip); b.Content = content; b.ToolTip = tip; b.Margin = new Thickness(2, 0, 2, 0);
         b.Click += (_, _) =>
         {
             var m = U.MenuScope(new ContextMenu { PlacementTarget = b, Placement = PlacementMode.Bottom });

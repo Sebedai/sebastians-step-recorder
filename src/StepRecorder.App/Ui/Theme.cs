@@ -48,7 +48,9 @@ static class Theme
     /// <summary>Überschriften: engere Display-Variante (Windows 11), sonst Segoe UI.</summary>
     public static readonly FontFamily Display = new("Segoe UI Variable Display, Segoe UI");
     public static readonly FontFamily Mono = new("Cascadia Mono, Consolas");
-    public const string IArrowUp = "", IArrowDown = "";
+    /// <summary>Lesezeichen: Stern leer und gefüllt (FavoriteStar, FavoriteStarFill); Textbaustein (Notizblock).</summary>
+    public const string IStar = "", IStarFill = "", ISnippet = "";
+    public const string IArrowUp ="", IArrowDown = "";
     /// <summary>Freihand (Stift), Spotlight (Helligkeit), Lupe.</summary>
     public const string IInk = "", ISpot = "", IMagnifier = "";
     public const string IZoomIn ="", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "", IStroke = "";

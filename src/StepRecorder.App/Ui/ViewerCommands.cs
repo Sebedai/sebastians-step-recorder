@@ -84,6 +84,8 @@ sealed partial class ViewerWindow
             new("editText", "steps", Loc.L("Überschrift und Text bearbeiten", "Edit heading and text"), Key.F2, N, FocusInlineTitle, InText: true),
             new("comment", "steps", Loc.L("Hinweis hinzufügen …", "Add note …"), Key.K, N, AddComment),
             new("note", "steps", Loc.L("Hinweis hinzufügen (zweite Taste)", "Add note (second key)"), Key.Insert, N, InsertNote),
+            new("bookmark", "steps", Loc.L("Lesezeichen setzen/entfernen", "Set/remove bookmark"), Key.L, CS, ToggleBookmark),
+            new("snippet", "steps", Loc.L("Textbaustein einfügen …", "Insert text snippet …"), SnippetUi.ShortcutKey, SnippetUi.ShortcutMods, InsertSnippet, InText: true),
             new("next", "steps", Loc.L("Nächster Schritt", "Next step"), Key.Down, N, Next, ListUnfocused),
             new("prev", "steps", Loc.L("Vorheriger Schritt", "Previous step"), Key.Up, N, Prev, ListUnfocused),
             new("next2", "steps", Loc.L("Nächster Schritt", "Next step"), Key.Right, N, Next, ListUnfocused, Listed: false),
