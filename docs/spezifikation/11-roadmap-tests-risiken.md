@@ -87,6 +87,7 @@ Dieses Dokument legt fest, **in welcher Reihenfolge** StepRecorder gebaut wird, 
 
 | Paket | Inhalt | Stand |
 |---|---|---|
+| 26 Bausteine | Impressum, Änderungsverzeichnis und Glossar je Sprache mit Platzierung, Störungsbehebung als Textabschnitt mit Tabelle | erledigt; Glossarbegriffe im Text markieren (Q38): offen |
 | 25 Bildunterschriften, Warnhinweise | Bildunterschriften (automatisch oder eigen) mit Abbildungsverzeichnis, Alternativtext je Sprache, Warnhinweise mit Signalwort (GEFAHR, WARNUNG, VORSICHT, HINWEIS) wahlweise vor dem Schritttext, Hinweise je Sprache, Regel Q34 | erledigt; Gefahrenhinweis nach ISO 3864 mit Folgen und Abhilfe als eigene Felder: offen |
 | 24 Gliederung | Unterkapitel, Zählweise je Kapitel, Kapitel ausblenden und verschieben, Textabschnitte mit Vorlagen (Sicherheitshinweise, Häufige Fragen, Kontakt), Überschriftenregel korrigiert | erledigt; einklappbare Kapitelzeilen und Ziehen ganzer Kapitel folgen |
 | 23 Querverweise, Variablen, Tabellen | Querverweise auf Schritte und Kapitel mit der gedruckten Nummer, Variablen (eigene je Sprache und eingebaute), Tabellen in allen Formaten, Einfügen-Menü im Textfeld, Regeln Q31 und Q32 | erledigt; eine Tabelle in Word von Hand geöffnet: offen |

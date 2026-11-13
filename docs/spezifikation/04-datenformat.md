@@ -2488,6 +2488,21 @@ Autorentexte können eine kleine Auszeichnung tragen ([09 §11.1](09-anleitungs-
 |---|---|---|---|
 | DAT-087 | Ohne `captions`, `signal` und `i18n` an Hinweisen ist jede Ausgabe gleich. | Muss | `LegacyOutputTests`, `FiguresTests` |
 
+### 13.22 Impressum, Änderungsverzeichnis, Glossar (Paket 26)
+
+| Ort | Form | Fehlt = |
+|---|---|---|
+| `guide.imprint` | `{ "text": "…", "fmt": 1?, "i18n": { "en": { "text", "fmt" } } }` | kein Abschnitt |
+| `guide.revisions[]` | `{ "id", "version", "date": "YYYY-MM-DD", "author", "text", "i18n": { "en": { "text" } } }` | kein Abschnitt |
+| `guide.glossary[]` | `{ "id", "term", "text", "i18n": { "en": { "term", "text" } } }` | kein Abschnitt |
+| `guide.doc` | `imprint`, `revisions`: `front` (Standard) \| `back` \| `off`; `glossary`: `false` schaltet ab | vorn bzw. an |
+
+Reihenfolge in der Anleitung: Titelseite · Impressum und Änderungen (bei `front`) · Inhaltsverzeichnis · Einleitung · Schritte · Abschluss · Abbildungsverzeichnis · Impressum und Änderungen (bei `back`) · Glossar (alphabetisch, als Tabelle). Alle Texte laufen über Variablen, Schwärzung und Verallgemeinerung. Der Editor trägt nie von selbst einen Benutzer- oder Rechnernamen ein; „Eintrag mit heutigem Datum“ setzt nur Version und Datum. Die Störungsbehebung ist ein Textabschnitt mit Tabelle (Problem | Mögliche Ursache | Abhilfe), siehe §13.20.
+
+| Nr. | Anforderung | Priorität | Abnahme |
+|---|---|---|---|
+| DAT-088 | Impressum, Änderungsverzeichnis und Glossar erscheinen nur, wenn Daten da sind, an der gewählten Stelle und je Sprache; ein geschützter Wert darin erscheint nicht. | Soll | `PartsTests` |
+
 ### 13.19 Markenstil (`guide.auto.style`)
 
 Aussehen der automatischen Mausmarken in Editor und Anleitungen ([13](13-handbuch-fahrplan.md) Paket 22). Fehlt der Block, gilt das bisherige Aussehen („Klassisch“: roter Ring mit Fadenkreuz, blauer Rahmen der Stärke 3).

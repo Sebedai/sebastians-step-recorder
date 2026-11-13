@@ -30,6 +30,9 @@ public sealed class DocSettings
     /// <summary>Bildunterschriften: none (bisher), auto (Abb. n: Titel), custom (eigener Text, sonst Titel); Abbildungsverzeichnis; Warnhinweise vor dem Schritttext (13, Paket 25).</summary>
     public string Captions = "none";
     public bool Figures, WarnFirst;
+    /// <summary>Impressum und Änderungsverzeichnis: front (vor dem Inhalt), back (am Ende), off; Glossar am Ende (13, Paket 26).</summary>
+    public string Imprint = "front", Revisions = "front";
+    public bool Glossary = true;
     /// <summary>Querformat für Word und PDF.</summary>
     public bool Landscape;
     /// <summary>Eigene Word-Vorlage (.dotx/.docx, Base64; 09 §7.3); leer = keine. Höchstens <see cref="WordTemplateMaxBytes"/>.</summary>
@@ -154,6 +157,9 @@ public sealed class DocSettings
         d.WordTemplate = j.Str("wordTemplate") ?? ""; d.WordTemplateName = j.Str("wordTemplateName") ?? "";
         d.Captions = j.Str("captions") is "auto" or "custom" ? j.Str("captions")! : "none";
         d.Figures = j.Bool("figures"); d.WarnFirst = j.Bool("warnFirst");
+        d.Imprint = j.Str("imprint") is "back" or "off" ? j.Str("imprint")! : "front";
+        d.Revisions = j.Str("revisions") is "back" or "off" ? j.Str("revisions")! : "front";
+        if (j["glossary"] != null) d.Glossary = j.Bool("glossary");
     }
 
     public static (string id, string name)[] Pages => new[] { ("a4", "A4"), ("letter", "Letter") };
@@ -198,6 +204,9 @@ public sealed class DocSettings
         if (Captions != "none") o["captions"] = Captions;
         if (Figures) o["figures"] = true;
         if (WarnFirst) o["warnFirst"] = true;
+        if (Imprint != "front") o["imprint"] = Imprint;
+        if (Revisions != "front") o["revisions"] = Revisions;
+        if (!Glossary) o["glossary"] = false;
         return o;
     }
 

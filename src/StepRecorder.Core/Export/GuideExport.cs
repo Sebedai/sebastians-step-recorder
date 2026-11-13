@@ -98,6 +98,8 @@ public static partial class GuideExport
         public RichText? IntroRich, OutroRich;
         /// <summary>Abbildungsverzeichnis (Sprungmarke, Bildunterschrift), nur wenn eingeschaltet (13, Paket 25).</summary>
         public List<(string anchor, string caption)> FigureList = new();
+        /// <summary>Impressum, Änderungsverzeichnis (vorn oder hinten), Glossar (hinten) – 13, Paket 26.</summary>
+        public List<Part> Front = new(), Back = new();
         /// <summary>Enthält die Anleitung formatierten Text? Dann kommen zusätzliche Stile hinzu.</summary>
         public bool UsesRich => IntroRich != null || OutroRich != null || Blocks.Any(b => b is Chapter { Body: not null } || b is Item it && (it.Body != null || it.NoteRich?.Any(n => n != null) == true));
         public int StepCount => Blocks.OfType<Item>().Count();
@@ -267,6 +269,7 @@ public static partial class GuideExport
 
         ResolveRefs(d, lang);
         if (s.Figures) foreach (var fi in d.Blocks.OfType<Item>()) if (fi.Caption != null) d.FigureList.Add((fi.Anchor, fi.Caption));
+        BuildParts(view, d, lang);
         string date = view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(lang));
         d.Date = view.Session.StartUtc.ToLocalTime().ToString("yyyy-MM-dd");
         if (s.Version.Length > 0) d.Meta.Add((d.L("Version", "Version"), view.Clean(s.Version)));
@@ -401,6 +404,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         else
             sb.Append($"<header>{logoHtml}<h1>{e(d.Title)}</h1>{(d.Subtitle.Length > 0 ? $"<p class=\"sub\">{e(d.Subtitle)}</p>" : "")}<div class=\"meta\">{metaHtml}</div></header>\n");
 
+        sb.Append(HtmlParts(d.Front));
         if (d.ShowToc)
         {
             sb.Append($"<nav class=\"toc box\"><h2>{d.L("Inhalt", "Contents")}</h2><ol>\n");
@@ -470,6 +474,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             foreach (var (anchor, caption) in d.FigureList) sb.Append($"<li><a href=\"#{anchor}\">{e(caption)}</a></li>");
             sb.Append("</ul></section>\n");
         }
+        sb.Append(HtmlParts(d.Back));
         sb.Append($"<footer><span>{e(d.S.Footer.Length > 0 ? d.S.Footer : d.Title)}</span><span>{d.L("Erstellt mit", "Created with")} {AppInfo.DisplayName}</span></footer>\n</body>\n</html>\n");
         return sb.ToString();
     }
@@ -574,6 +579,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         // Sprungziele je Block (Kapitel = Überschrift 1, Schritt = Überschrift 2) – das Inhaltsverzeichnis verweist darauf
         var marks = new Dictionary<object, string>();
         for (int i = 0; i < d.Blocks.Count; i++) marks[d.Blocks[i]] = SimpleDocx.TocBookmark(i + 1);
+        DocxParts(x, d.Front);
         if (d.ShowToc)
         {
             x.Toc(d.L("Inhalt", "Contents"), d.Blocks.Select(b => b is Chapter c ? (Heading(c.Number, c.Title), c.Level, marks[b]) : (Heading(((Item)b).Number, ((Item)b).Title), 2, marks[b])));
@@ -632,6 +638,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
         if (d.OutroRich != null) { x.Heading(d.L("Abschluss", "Finally"), 1); x.RichBlocks(d.OutroRich.Doc); }
         else if (d.Outro.Length > 0) { x.Heading(d.L("Abschluss", "Finally"), 1); x.Paragraph(d.Outro); }
         if (d.FigureList.Count > 0) { x.Heading(d.L("Abbildungsverzeichnis", "List of figures"), 1); foreach (var (_, cap) in d.FigureList) x.Paragraph(cap); }
+        DocxParts(x, d.Back);
         x.Save(outPath);
     }
 
@@ -714,6 +721,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
             pdf.Paragraph(string.Join("   ·   ", d.Meta.Select(m => m.label + ": " + m.value)), 9, false, 0, 16, muted);
         }
 
+        if (d.Front.Count > 0) { PdfParts(pdf, d.Front, acc, ink); if (d.ShowToc) pdf.NewPage(); }
         // Inhaltsverzeichnis mit Seitenzahlen
         if (d.ShowToc)
         {
@@ -871,6 +879,7 @@ body.compact .step{padding:8px 0} body.compact .step h3{font-size:1em;margin:0 0
                 pdf.LinkTo(pdf.Margin, pdf.Y, cw, ty - pdf.Y, anchor);
             }
         }
+        PdfParts(pdf, d.Back, acc, ink);
         return pdf;
     }
 

@@ -73,6 +73,7 @@ public static partial class GuideExport
         sb.Append("# ").Append(MdText(d.Title)).Append("\n\n");
         if (d.Subtitle.Length > 0) sb.Append('*').Append(MdText(d.Subtitle)).Append("*\n\n");
         if (d.Meta.Count > 0) sb.Append(string.Join(" · ", d.Meta.Select(x => $"{MdText(x.label)}: **{MdText(x.value)}**"))).Append("\n\n");
+        MdParts(sb, d.Front);
         if (d.ShowToc && d.HasChapters)
         {
             sb.Append("## ").Append(d.L("Inhalt", "Contents")).Append("\n\n");
@@ -150,6 +151,7 @@ public static partial class GuideExport
             foreach (var (_, cap) in d.FigureList) sb.Append("- ").Append(MdText(cap)).Append('\n');
             sb.Append('\n');
         }
+        MdParts(sb, d.Back);
         if (d.S.Footer.Length > 0) sb.Append("---\n\n").Append(MdText(d.S.Footer)).Append('\n');
         // genau ein abschließender Zeilenumbruch
         return sb.ToString().TrimEnd('\n') + "\n";

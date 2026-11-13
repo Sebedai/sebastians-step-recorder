@@ -8,6 +8,7 @@ public static class ManualBlocks
         ("text", "Textabschnitt", "Text section", "", ""),
         ("safety", "Sicherheitshinweise", "Safety information", "- Lesen Sie diese Anleitung vollständig, bevor Sie beginnen.\n- Arbeiten Sie nur mit den Berechtigungen, die Sie für diese Aufgabe brauchen.\n- Geben Sie Kennwörter nie weiter.", "- Read this guide completely before you start.\n- Only work with the permissions you need for this task.\n- Never share passwords."),
         ("faq", "Häufige Fragen", "Frequently asked questions", "**Was tun, wenn …?**\nAntwort.\n\n**Wo finde ich …?**\nAntwort.", "**What if …?**\nAnswer.\n\n**Where do I find …?**\nAnswer."),
+        ("trouble", "Störungsbehebung", "Troubleshooting", "| Problem | Mögliche Ursache | Abhilfe |\n|---|---|---|\n| Die Anwendung startet nicht. | Keine Berechtigung | Wenden Sie sich an den Servicedesk. |\n|  |  |  |", "| Problem | Possible cause | Remedy |\n|---|---|---|\n| The application does not start. | No permission | Contact the service desk. |\n|  |  |  |"),
         ("contact", "Kontakt und Hilfe", "Contact and help", "Bei Fragen hilft Ihnen der Servicedesk weiter:\n- Telefon: \n- E-Mail: ", "If you have questions, the service desk will help:\n- Phone: \n- Email: "),
     ];
 }
