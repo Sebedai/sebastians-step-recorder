@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 using StepRecorder.Data;
 
@@ -78,7 +78,7 @@ footer{color:var(--muted);font-size:.8em;margin-top:28px}
             string prev = i == 0 ? "#start" : "#" + items[i - 1].Anchor, next = i == items.Count - 1 ? "#end" : "#" + items[i + 1].Anchor;
             b.Append("<section class=\"slide\" id=\"").Append(it.Anchor).Append("\">\n<header>");
             if (it.Number.Length > 0) b.Append("<span class=\"n\">").Append(e(it.Number)).Append("</span>");
-            b.Append("<h2>").Append(e(it.Title)).Append("</h2><span class=\"count\">").Append(e(d.L($"{i + 1} von {items.Count}", $"{i + 1} of {items.Count}"))).Append("</span></header>\n");
+            b.Append("<h2>").Append(e(it.Title)).Append("</h2><span class=\"count\">").Append(e(Settings.OutText.For(d.Lang, $"{i + 1} von {items.Count}", $"{i + 1} of {items.Count}", $"{i + 1} sur {items.Count}", $"{i + 1} de {items.Count}", $"{i + 1} di {items.Count}", $"{i + 1} van {items.Count}"))).Append("</span></header>\n");
             if (it.Text.Length > 0 && it.Text != it.Title) b.Append("<p class=\"text\">").Append(P(it.Text)).Append("</p>\n");
             foreach (var (kind, text) in it.Notes)
             {

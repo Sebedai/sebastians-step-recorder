@@ -41,8 +41,8 @@ public static class GuidePresets
     /// <summary>Zusatz im Dateinamen, damit die Standardanleitung nicht überschrieben wird.</summary>
     public static string FileSuffix(string? id, string lang) => Normalize(id) switch
     {
-        "short" => lang == "de" ? " – Kurzfassung" : " – short",
-        "checklist" => lang == "de" ? " – Checkliste" : " – checklist",
+        "short" => Settings.OutText.For(lang, " – Kurzfassung", " – short", " – version courte", " – versión corta", " – versione breve", " – korte versie"),
+        "checklist" => Settings.OutText.For(lang, " – Checkliste", " – checklist", " – liste de contrôle", " – lista de comprobación", " – lista di controllo", " – checklist"),
         _ => ""
     };
 }

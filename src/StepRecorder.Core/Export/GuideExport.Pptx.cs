@@ -1,4 +1,4 @@
-using System.Drawing;
+﻿using System.Drawing;
 using StepRecorder.Data;
 using StepRecorder.Export.Formats;
 
@@ -14,7 +14,7 @@ public static partial class GuideExport
     {
         const long M = 457200;                         // 0,5 Zoll Rand
         long W = SimplePptx.W, H = SimplePptx.H;
-        var p = new SimplePptx { Title = d.Title, Language = d.Lang == "de" ? "de-DE" : "en-US", Accent = d.S.AccentHex, Author = d.S.Author };
+        var p = new SimplePptx { Title = d.Title, Language = Settings.OutText.Tag(d.Lang), Accent = d.S.AccentHex, Author = d.S.Author };
         string ink = SimplePptx.Ink, muted = SimplePptx.Muted;
         string footer = d.S.Footer.Length > 0 ? d.S.Footer : d.Title;
 

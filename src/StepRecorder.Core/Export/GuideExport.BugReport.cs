@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 using System.Text.Json.Nodes;
 using StepRecorder.Data;
 using StepRecorder.ReadLayer;
@@ -57,7 +57,7 @@ public static partial class GuideExport
             if (b.Obj("git") is { } git) bits.Add(d.L("Git-Arbeitsstand (ungeprüft): ", "Git working tree (unchecked): ") + (git.Str("branch") ?? d.L("losgelöst", "detached")) + (git.Str("commit") is { } cm ? " @ " + cm[..Math.Min(12, cm.Length)] : ""));
             if (bits.Count > 0) sb.Append("- Build ").Append(m(view.Clean(b.Str("process") ?? ""))).Append(": ").Append(m(view.Clean(string.Join(" · ", bits)))).Append('\n');
         }
-        sb.Append("- ").Append(d.L("Aufgenommen", "Recorded")).Append(": ").Append(view.Session.StartUtc.ToLocalTime().ToString(d.Lang == "de" ? "dd.MM.yyyy HH:mm" : "yyyy-MM-dd HH:mm"))
+        sb.Append("- ").Append(d.L("Aufgenommen", "Recorded")).Append(": ").Append(view.Session.StartUtc.ToLocalTime().ToString(Settings.OutText.DateFormat(d.Lang) + " HH:mm"))
           .Append(d.L(" mit ", " with ")).Append(AppInfo.DisplayName).Append(man.Obj("recorder")?.Str("version") is { Length: > 0 } rv ? " " + m(rv) : "").Append("\n\n");
 
         // Schritte zum Nachstellen (Beobachtungen „Fehler“/„Erwartet“ kommen in eigene Abschnitte)

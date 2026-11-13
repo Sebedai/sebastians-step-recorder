@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text;
 
 namespace StepRecorder.Export;
@@ -6,13 +6,13 @@ namespace StepRecorder.Export;
 /// <summary>Schreibweisen für Ausgaben (06 §5 Notation, Entschärfung E1–E9).</summary>
 public static class Fmt
 {
-    public static CultureInfo Culture(string lang) => lang == "de" ? CultureInfo.GetCultureInfo("de-DE") : CultureInfo.InvariantCulture;
+    public static CultureInfo Culture(string lang) => Settings.OutText.Culture(lang);
 
     /// <summary>Zeit seit Aufnahmebeginn: HH:MM:SS,mmm (Englisch mit Punkt).</summary>
     public static string Time(long us, string lang)
     {
         var ts = TimeSpan.FromTicks(Math.Max(0, us) * 10);
-        string sep = lang == "de" ? "," : ".";
+        string sep = Culture(lang).NumberFormat.NumberDecimalSeparator;
         return $"{(int)ts.TotalHours:00}:{ts.Minutes:00}:{ts.Seconds:00}{sep}{ts.Milliseconds:000}";
     }
 
@@ -26,7 +26,7 @@ public static class Fmt
 
     public static string Pct(double ratio, string lang)
     {
-        if (ratio > 0 && ratio < 0.001) return lang == "de" ? "unter 0,1 %" : "under 0.1 %";
+        if (ratio > 0 && ratio < 0.001) return Settings.OutText.For(lang, "unter 0,1 %", "under 0.1 %", "moins de 0,1 %", "menos del 0,1 %", "meno dello 0,1 %", "minder dan 0,1 %");
         return (ratio * 100).ToString("0.0", Culture(lang)) + " %";
     }
 
@@ -40,7 +40,7 @@ public static class Fmt
         int count = 0;
         foreach (var ch in s)
         {
-            if (count >= max) { sb.Append(lang == "de" ? $"…[+{s.Length - max} Zeichen]" : $"…[+{s.Length - max} chars]"); break; }
+            if (count >= max) { sb.Append(Settings.OutText.For(lang, $"…[+{s.Length - max} Zeichen]", $"…[+{s.Length - max} chars]", $"…[+{s.Length - max} caractères]", $"…[+{s.Length - max} caracteres]", $"…[+{s.Length - max} caratteri]", $"…[+{s.Length - max} tekens]")); break; }
             sb.Append(ch switch
             {
                 '\n' => "⏎", '\r' => "", '\t' => "⇥",
@@ -82,7 +82,7 @@ public static class Fmt
     {
         s ??= "";
         if (s.IndexOfAny(new[] { '*', '_', '[', ']', '<', '>', '#', '`', '|', '\\', '\n', '!' }) >= 0 || s.Length > max) return Code(s, max);
-        return lang == "de" ? $"„{s}“" : $"“{s}”";
+        return Settings.OutText.Quote(s, lang);
     }
 
     public static string HtmlEscape(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
