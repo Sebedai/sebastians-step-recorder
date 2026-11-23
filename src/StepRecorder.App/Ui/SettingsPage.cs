@@ -50,9 +50,6 @@ static class SettingsPage
         var lang = new ComboBox { Items = { "Deutsch", "English" }, SelectedIndex = s.Language == "en" ? 1 : 0 };
         var address = new ComboBox { Items = { Loc.L("Sie (förmlich)", "Sie (formal)"), Loc.L("du (persönlich)", "du (informal)") }, SelectedIndex = s.Address == "informal" ? 1 : 0 };
         var level = new ComboBox { Items = { Loc.L("Schutznetz – Passwortfelder maskieren", "Safety net – mask password fields"), Loc.L("Streng – unbekannte Felder, Terminal und Fernzugriff maskieren", "Strict – mask unknown fields, terminals and remote sessions") }, SelectedIndex = s.PrivacyLevel == "strict" ? 1 : 0 };
-        var change = new ComboBox { Items = { DetailPresets.ChangeFramesName("few"), DetailPresets.ChangeFramesName("normal"), DetailPresets.ChangeFramesName("many") }, SelectedIndex = s.ChangeFrames switch { "few" => 0, "many" => 2, _ => 1 } };
-        var changeHint = U.Hint(DetailPresets.ChangeFramesRule(s.ChangeFrames), new Thickness(0, 6, 0, 0));
-        change.SelectionChanged += (_, _) => changeHint.Text = DetailPresets.ChangeFramesRule(change.SelectedIndex switch { 0 => "few", 2 => "many", _ => "normal" });
         var folder = new TextBox { Text = s.SessionsFolder ?? AppPaths.DefaultSessionsFolder() };
         var warn = U.Text("", Theme.FsHint, fg: Theme.Warn, margin: new Thickness(0, 6, 0, 0));
         void CheckSync() { warn.Text = AppPaths.LooksSynced(folder.Text) ? Loc.L("Der Ordner wird synchronisiert – Aufnahmen können dadurch Unbeteiligten zugänglich werden.", "This folder is synced – recordings may become accessible to others.") : ""; warn.Visibility = warn.Text.Length > 0 ? Visibility.Visible : Visibility.Collapsed; }
@@ -66,7 +63,7 @@ static class SettingsPage
         var folderRow = new DockPanel(); DockPanel.SetDock(browse, Dock.Right); folderRow.Children.Add(browse); folderRow.Children.Add(folder);
         var excl = new TextBox { Text = string.Join(Environment.NewLine, s.Excluded), AcceptsReturn = true, Height = 130, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top, FontFamily = Theme.Mono, FontSize = Theme.FsHint };
         var theme = new ComboBox { Items = { Loc.L("Dunkel", "Dark"), Loc.L("Hell", "Light"), Loc.L("Wie Windows", "Like Windows") }, SelectedIndex = s.Theme switch { "light" => 1, "system" => 2, _ => 0 } };
-        var rec = new Dictionary<string, bool>(s.Record);
+        var customMode = CustomModeChoice.Draft.From(s);   // Modus „Eigene“: wie im Dialog, übernommen erst mit „Speichern“
         var fallback = new CheckBox { Content = new TextBlock { Text = Loc.L("Ohne Nachfrage mit ausgeblendeter Anzeige aufnehmen, wenn die Unsichtbarkeit nicht bestätigt werden kann", "Record with hidden display without asking if invisibility cannot be confirmed"), TextWrapping = TextWrapping.Wrap }, IsChecked = s.InvisibleFallback == "hidden", Margin = new Thickness(0, 6, 0, 0),
             ToolTip = Loc.L("Z. B. unter Windows Server 2019: Leiste und Rahmen bleiben ausgeblendet, gesteuert wird über Tastenkürzel und das Symbol im Infobereich.", "E.g. on Windows Server 2019: bar and frame stay hidden; control via shortcuts and the notification area icon.") };
         var countdown = new ComboBox { Items = { Loc.L("aus", "off"), Loc.L("3 Sekunden", "3 seconds"), Loc.L("5 Sekunden", "5 seconds") }, SelectedIndex = s.Countdown >= 5 ? 2 : s.Countdown >= 3 ? 1 : 0 };
@@ -115,7 +112,7 @@ static class SettingsPage
                                   U.Field(Loc.L("Erinnerung „Privattaste noch an“", "Reminder \"privacy key still on\""), priv), new Border()), fallback, cleanup, keepAsk);
         var keys = U.Col(U.Hint(Loc.L("Diese Tastenkürzel gelten systemweit während der Aufnahme. „Sofort aufnehmen“ startet auch ohne geöffnetes Fenster eine Aufnahme.", "These shortcuts work system-wide during recording. \"Record now\" also starts a recording without an open window."), new Thickness(0, 0, 0, 12)), hotkeys);
         var custom = U.Col(U.Hint(Loc.L("Gilt nur für den Modus „Eigene“ – die anderen Modi haben einen festen Detailgrad.", "Applies to the \"Custom\" mode only – the other modes have a fixed level of detail."), new Thickness(0, 0, 0, 12)),
-                           RecordChoice.Build(rec, null), U.Field(Loc.L("Zusatzbilder ohne Eingabe", "Extra images without input"), U.Col(change, changeHint), margin: new Thickness(0, 10, 0, 0)));
+                           CustomModeChoice.Build(customMode, null));
 
         var exchange = new WrapPanel { Margin = new Thickness(-3, 0, 0, 0) };
         exchange.Children.Add(U.Btn(Theme.IExport, Loc.L("Exportieren …", "Export …"), () => SettingsExchangeDialogs.Export(owner), Loc.L("Einstellungen, Tastenkürzel, Vorlagen, Textbausteine und Ausschlussliste als Datei speichern – ohne persönliche Angaben", "Save settings, shortcuts, templates, text snippets and exclusion list to a file – without personal data")));
@@ -175,9 +172,8 @@ static class SettingsPage
             bool restart = newTheme != s.Theme || newUi != s.UiLanguage;
             s.Language = lang.SelectedIndex == 1 ? "en" : "de"; s.PrivacyLevel = level.SelectedIndex == 1 ? "strict" : "balanced";
             s.UiLanguage = newUi; s.Theme = newTheme;
-            s.ChangeFrames = change.SelectedIndex switch { 0 => "few", 2 => "many", _ => "normal" };
             s.SessionsFolder = folder.Text.Trim(); s.Address = address.SelectedIndex == 1 ? "informal" : "formal";
-            s.Record = rec;
+            customMode.ApplyTo(s);   // Eingabearten, Zusatzbilder, Programmkontext, nach dem Stopp
             s.InvisibleFallback = fallback.IsChecked == true ? "hidden" : "ask";
             s.Countdown = countdown.SelectedIndex switch { 1 => 3, 2 => 5, _ => 0 };
             s.SoundCues = sounds.SelectedIndex switch { 1 => "always", 2 => "never", _ => "hidden" };

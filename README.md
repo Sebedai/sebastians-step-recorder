@@ -143,7 +143,7 @@ Nach der Aufnahme öffnet sich der Editor: links die Schritte, in der Mitte das 
 - **Vorschau im Browser:** die fertige Anleitung als HTML ansehen (*Datei → Vorschau im Browser*).
 - **Vergleichen:** zwei Aufnahmen desselben Ablaufs gegenüberstellen (F7) – Paarliste, beide Bilder nebeneinander mit hervorgehobenen Bildunterschieden, Zeitunterschiede; als Markdown mit Vorher/Nachher-Bildern speicherbar.
 - **Befehlspalette** (Strg+Umschalt+P): jeden Befehl über seinen Namen finden.
-- **Reaktionszeiten:** Jeder Schritt zeigt, wie lange die Anwendung gebraucht hat; der Filter „Langsam“ zeigt nur langsame Schritte.
+- **Reaktionszeiten:** Jeder Schritt zeigt, wie lange die Anwendung gebraucht hat; der Filter „Nur langsame Schritte“ (Stoppuhr neben der Suche) zeigt nur langsame Schritte.
 - **Als Markdown kopieren:** einen Schritt (Strg+M) oder alle Schritte (Strg+Umschalt+M) – für Pull Requests, Issues und Wikis.
 - **Deutsch und Englisch:** Mit „DE | EN“ über der Schrittliste pflegen Sie Texte in beiden Sprachen – aus einer Aufnahme werden zwei Anleitungen.
 - Alles wird automatisch gespeichert; Rückgängig mit Strg+Z.

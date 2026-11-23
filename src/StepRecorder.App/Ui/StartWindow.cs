@@ -64,10 +64,37 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
 
         // ---------- Zweck ----------
         int sel = Math.Max(0, Array.IndexOf(Ids, s.LastProfile));
-        var modes = new System.Windows.Controls.Primitives.UniformGrid { Columns = Modes.Length, Margin = new Thickness(-4, 0, -4, 0) };
+        var modes = new Grid { Margin = new Thickness(-4, 0, -4, 0) };
         _profiles = Modes.Select((m, i) => ModeCard(m.name, m.audience, i == sel)).ToArray();
         for (int k = 0; k < _profiles.Length; k++) _profiles[k].ToolTip = $"{Modes[k].name} – {Modes[k].audience}\n{Modes[k].text}";
         foreach (var r in _profiles) { r.Margin = new Thickness(4, 0, 4, 0); modes.Children.Add(r); r.Checked += (_, _) => UpdateProfile(); }
+        // Moduskarten ohne leere Zelle: alle fünf in einer Reihe, sonst 3 + 2, bei sehr wenig Platz 2 + 2 + 1
+        double cardW = 0; int modeRows = 0;
+        void LayoutModes(double w)
+        {
+            // Wunschbreite der breitesten Karte (Titel und Zielgruppe ungekürzt, mit Rand) – einmal messen, Texte ändern sich nicht
+            if (cardW <= 0)
+                foreach (var r in _profiles) { r.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); cardW = Math.Max(cardW, r.DesiredSize.Width + 1); r.InvalidateMeasure(); }
+            double full = w + 8 - SystemParameters.VerticalScrollBarWidth;   // das Raster ragt je 4 px über den Rand; Platz für die Bildlaufleiste bleibt frei
+            int rows = full / 5 >= cardW ? 1 : full / 3 >= cardW ? 2 : 3;
+            if (rows == modeRows) return;
+            modeRows = rows;
+            int[] perRow = rows switch { 1 => new[] { 5 }, 2 => new[] { 3, 2 }, _ => new[] { 2, 2, 1 } };
+            int cols = rows switch { 1 => 5, 2 => 6, _ => 2 };   // gemeinsames Vielfaches: jede Reihe füllt die ganze Breite
+            modes.ColumnDefinitions.Clear(); modes.RowDefinitions.Clear();
+            for (int c = 0; c < cols; c++) modes.ColumnDefinitions.Add(new ColumnDefinition());
+            for (int row = 0, k = 0; row < perRow.Length; row++)
+            {
+                modes.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                int span = cols / perRow[row];
+                for (int j = 0; j < perRow[row]; j++, k++)
+                {
+                    var r = _profiles[k];
+                    Grid.SetRow(r, row); Grid.SetColumn(r, j * span); Grid.SetColumnSpan(r, span);
+                    r.Margin = new Thickness(4, 0, 4, row < perRow.Length - 1 ? 8 : 0);
+                }
+            }
+        }
 
         // Detailkarte: Zeile 1 Beschreibung + Detailgrad, Zeile 2 was aufgezeichnet wird + „Anpassen …“
         _recLink = U.Btn(Theme.IEdit, Loc.L("Anpassen …", "Customize …"), CustomizeFromPreset, null, "Link");
@@ -124,7 +151,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
         columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         columns.Children.Add(main); columns.Children.Add(side);
-        // Bei wenig Platz bricht die Seite um, statt zu schrumpfen: „Zuletzt“ unter die Auswahl, Moduskarten in zwei Reihen
+        // Bei wenig Platz bricht die Seite um, statt zu schrumpfen: „Zuletzt“ unter die Auswahl, Moduskarten in mehrere Reihen
         void Reflow(double w)
         {
             if (w <= 0) return;
@@ -135,13 +162,7 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
             columns.ColumnDefinitions[1].Width = new GridLength(wide ? 24 : 0);
             columns.ColumnDefinitions[2].Width = wide ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
             columns.ColumnDefinitions[2].MinWidth = wide ? 290 : 0;
-            double mainW = wide ? w - 24 - Math.Max(290, (w - 24) / 3.4) : w;
-            int cols = mainW >= 600 ? 4 : 2;
-            if (modes.Columns != cols)
-            {
-                modes.Columns = cols;
-                foreach (var r in _profiles) r.Margin = new Thickness(4, 0, 4, cols == 2 ? 8 : 0);
-            }
+            LayoutModes(wide ? w - 24 - Math.Max(290, (w - 24) / 3.4) : w);
         }
 
         // ---------- Fuß: Schutzhinweis, belegte Kürzel, bei Bedarf neue Version ----------
@@ -261,44 +282,18 @@ sealed partial class StartWindow : Wpf.Ui.Controls.FluentWindow
             : Loc.L("Fenster und angeklicktes Element – reicht für Anleitungen", "Window and clicked element – enough for guides"));
     }
 
-    static readonly (string id, string name, string result)[] AfterStops =
-    {
-        ("viewer", Loc.L("Editor öffnen", "Open editor"), Loc.L("Anleitung im Editor – Export in jedes Format", "Guide in the editor – export to any format")),
-        ("export", Loc.L("KI-Paket exportieren", "Export AI package"), Loc.L("KI-Paket: Protokoll, Bilder und Lesehilfe", "AI package: log, images and reading guide")),
-        ("supportPackage", Loc.L("Support-Paket (ZIP) erstellen", "Create support package (ZIP)"), Loc.L("ZIP-Paket: Anleitung (HTML) + KI-Paket", "ZIP package: guide (HTML) + AI package")),
-        ("folder", Loc.L("Aufnahmeordner öffnen", "Open recording folder"), Loc.L("Aufnahme im Ordner – später im Editor öffnen", "Recording in its folder – open it in the editor later")),
-    };
-
     bool IsCustom => Ids[ProfileIndex] == "custom";
 
     void UpdateCustomCard() { if (_profiles != null && IsCustom) UpdateProfile(); }
 
-    /// <summary>Inhalt „Eigener Detailgrad“: Eingabearten, Zusatzbilder, Programmkontext, nach dem Stopp.</summary>
+    /// <summary>Inhalt „Eigener Detailgrad“ (gemeinsam mit dem Einstellungsreiter): jede Änderung wird sofort gespeichert.</summary>
     internal FrameworkElement BuildCustomContent()
     {
-        var st = AppSettings.Load();
-        void Save(Action<AppSettings> change) { var x = AppSettings.Load(); change(x); x.Save(); UpdateCustomCard(); }
-        var col = new StackPanel();
-        col.Children.Add(U.Hint(Loc.L("Wird gespeichert und gilt für den Modus „Eigene“. Ausgeschaltetes wird gar nicht erst aufgezeichnet.", "Saved and applied to the “Custom” mode. Anything switched off is not recorded at all."), new Thickness(0, 0, 0, 14)));
-        col.Children.Add(RecordChoice.Build(st.Record, () => Save(x => x.Record = new Dictionary<string, bool>(st.Record))));
-        var grid = new Grid { Margin = new Thickness(0, 10, 0, 0) };
-        for (int i = 0; i < 3; i++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = i == 1 ? new GridLength(24) : new GridLength(1, GridUnitType.Star) });
-        int cf = st.ChangeFrames switch { "few" => 0, "many" => 2, _ => 1 };
-        var (cfTrack, cfs) = U.Segmented("cfr", cf, (null, Loc.L("Nur große", "Large only")), (null, Loc.L("Auch kleine", "Small too")), (null, Loc.L("Jede Änderung", "Every change")));
-        var cfHint = U.Hint(DetailPresets.ChangeFramesRule(st.ChangeFrames), new Thickness(0, 8, 0, 0));
-        for (int i = 0; i < 3; i++) { string v = new[] { "few", "normal", "many" }[i]; cfs[i].Checked += (_, _) => { cfHint.Text = DetailPresets.ChangeFramesRule(v); Save(x => x.ChangeFrames = v); }; }
-        var left = U.Field(Loc.L("Zusatzbilder ohne Eingabe", "Extra images without input"), U.Col(cfTrack, cfHint));
-        var ctx = new CheckBox { Content = Loc.L("Erweiterter Programmkontext", "Extended program context"), IsChecked = st.CustomAppContext, Margin = new Thickness(0, 4, 0, 0), ToolTip = Loc.L("Menüpfade, Listen, Explorer-Ordner, Browser-Adresse, Office-Dokument und Statusleiste – nötig für gute AutoHotkey-Skripte", "Menu paths, lists, Explorer folder, browser address, Office document and status bar – needed for good AutoHotkey scripts") };
-        ctx.Checked += (_, _) => Save(x => x.CustomAppContext = true); ctx.Unchecked += (_, _) => Save(x => x.CustomAppContext = false);
-        var after = new ComboBox { MinWidth = 240, HorizontalAlignment = HorizontalAlignment.Left };
-        foreach (var a in AfterStops) after.Items.Add(a.name);
-        after.SelectedIndex = Math.Max(0, Array.FindIndex(AfterStops, a => a.id == st.CustomAfterStop));
-        after.SelectionChanged += (_, _) => { string id = AfterStops[Math.Max(0, after.SelectedIndex)].id; Save(x => x.CustomAfterStop = id); };
-        var right = U.Col(U.Field(Loc.L("Programmkontext", "Program context"), ctx), U.Field(Loc.L("Nach dem Stopp", "After stopping"), after, margin: new Thickness(0)));
-        Grid.SetColumn(left, 0); Grid.SetColumn(right, 2);
-        grid.Children.Add(left); grid.Children.Add(right);
-        col.Children.Add(grid);
-        return col;
+        var d = CustomModeChoice.Draft.From(AppSettings.Load());
+        // frisch laden: nur die vier Angaben übernehmen, alles andere bleibt, wie es gespeichert ist
+        void Save() { var x = AppSettings.Load(); d.ApplyTo(x); x.Save(); UpdateCustomCard(); }
+        return U.Col(U.Hint(Loc.L("Wird gespeichert und gilt für den Modus „Eigene“. Ausgeschaltetes wird gar nicht erst aufgezeichnet.", "Saved and applied to the “Custom” mode. Anything switched off is not recorded at all."), new Thickness(0, 0, 0, 14)),
+                     CustomModeChoice.Build(d, Save));
     }
 
     void ShowCustomDialog()

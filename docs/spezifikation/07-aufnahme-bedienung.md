@@ -165,15 +165,18 @@ Profile lassen sich mit der EXE weitergeben: Eine Datei `profiles.json` neben de
 Das Startfenster ist eine kleine App im Stil von Windows 11 (Mica-Hintergrund, eigene Titelleiste) mit einer
 Navigationsspalte links: **Neue Aufnahme** · **Aufnahmen** · unten **Einstellungen** · **Hilfe**. Unter 900 px
 Fensterbreite zeigt die Spalte nur Symbole. Die Seiten behalten immer die volle Schriftgröße: Bei wenig Platz rutscht
-„Zuletzt“ unter die Auswahl, die Moduskarten stehen in zwei Reihen, und reicht die Höhe nicht, scrollt die Seite
-(ebenso die Einstellungen). Die Tab-Taste geht von der Navigation über Zweck und Bereich zu „Zuletzt“.
+„Zuletzt“ unter die Auswahl, und reicht die Höhe nicht, scrollt die Seite
+(ebenso die Einstellungen). Die fünf Moduskarten füllen jede Reihe ganz aus: alle in einer Reihe, wenn jeder Titel
+ungekürzt hineinpasst, sonst drei und zwei, bei sehr wenig Platz zwei, zwei und eine über die ganze Breite.
+Die Tab-Taste geht von der Navigation über Zweck und Bereich zu „Zuletzt“.
 
 ```
 ┌─ Sebastians Step Recorder ─────────────────────────────────────────────────────── – □ × ┐
 │ ● Neue Aufnahme  │ Neue Aufnahme                                                         │
 │ ◷ Aufnahmen      │ Zweck                                                   ┌ Zuletzt ─ › Alle ┐ │
-│                  │ [● Anleitung][○ Support-Fall][○ KI-Spur][○ Eigene]       │ [Bild] Editor …  │ │
-│                  │ Schlank – nur was Menschen …         ▬▬▭▭ Schlank        │ [Bild] Explorer …│ │
+│                  │ [● Anleitung      ][○ Support-Fall   ][○ KI-Spur        ]│ [Bild] Editor …  │ │
+│                  │ [○ Fehler nachstellen      ][○ Eigene                   ]│ [Bild] Explorer …│ │
+│                  │ Schlank – nur was Menschen …         ▬▬▭▭ Schlank        │ [Bild] Rechner … │ │
 │                  │ ✓ Klicks ✓ Tastatur … ohne Mauswege        ✎ Anpassen …  └──────────────────┘ │
 │                  │ Bereich                 [Monitor mit Aktivität v]  ⚑ Ziel und Titel …        │
 │                  │ ▣ Ganzer Bildschirm  Alles auf dem Monitor …   [Eingabe] startet ›          │
@@ -186,7 +189,7 @@ Fensterbreite zeigt die Spalte nur Symbole. Die Seiten behalten immer die volle 
 
 | Seite | Inhalt |
 |---|---|
-| Neue Aufnahme | Zweck (vier Auswahlkarten mit Detailgrad und „Anpassen …“), Bereich (drei Karten – ein Klick startet), Monitorwahl, „Ziel und Titel …“, rechts „Zuletzt“ mit Verweis „Alle Aufnahmen“ |
+| Neue Aufnahme | Zweck (fünf Auswahlkarten mit Detailgrad und „Anpassen …“), Bereich (drei Karten – ein Klick startet), Monitorwahl, „Ziel und Titel …“, rechts „Zuletzt“ mit Verweis „Alle Aufnahmen“ |
 | Aufnahmen | Alle Aufnahmen des Aufnahmeordners und die zuletzt geöffneten, gruppiert nach Heute · Gestern · Diese Woche · Diesen Monat · Früher; Suche, „Öffnen …“ (`Strg+O`), „Aufnahmeordner“; Rechtsklick: Öffnen, Im Explorer zeigen |
 | Einstellungen | Die Einstellungen als Seite ([13](#13-einstellungen)) |
 | Hilfe | So funktioniert es (vier Schritte), alle Tastenkürzel aus einer gemeinsamen Liste, Hinweis für KI-Agenten (MCP), Version, Lizenz, Update-Suche |
@@ -859,7 +862,7 @@ Die Abnahme der Garantie – ein bekanntes Testmuster muss mit darüberliegenden
 
 ## 13 Einstellungen
 
-Die Einstellungen sind eine Seite des Startfensters (Navigation „Einstellungen“; aus dem Editor über Datei › Einstellungen …). Die Bereiche – Allgemein · Aufnahme · Modus „Eigene“ · Speicher und Schutz – stehen als Auswahlleiste oben; „Speichern“ übernimmt die Änderungen, „Verwerfen“ nimmt sie zurück. Sie liegen portabel beim Programm, nicht in der Registry; Ablageort und Format regelt [02](02-architektur.md#konfiguration). Änderungen gelten sofort; laufende Aufnahmen übernehmen nur Einstellungen der Leiste.
+Die Einstellungen sind eine Seite des Startfensters (Navigation „Einstellungen“; aus dem Editor über Datei › Einstellungen …). Die Bereiche – Allgemein · Aufnahme · Modus „Eigene“ · Speicher und Schutz – stehen als Auswahlleiste oben; „Speichern“ übernimmt die Änderungen, „Verwerfen“ nimmt sie zurück. Der Reiter Modus „Eigene“ zeigt dieselben vier Angaben wie der Dialog „Eigener Detailgrad“ der Startseite – Eingabearten, Zusatzbilder ohne Eingabe, Programmkontext, nach dem Stopp –, übernimmt sie aber wie alle Reiter erst mit „Speichern“; der Dialog speichert jede Änderung sofort. Die Einstellungen liegen portabel beim Programm, nicht in der Registry; Ablageort und Format regelt [02](02-architektur.md#konfiguration). Änderungen gelten sofort; laufende Aufnahmen übernehmen nur Einstellungen der Leiste.
 
 | Gruppe | Einstellung | Werte | Standard |
 |---|---|---|---|

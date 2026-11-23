@@ -56,7 +56,7 @@ static class Theme
     /// <summary>Farbpalette, Pipette (13, Paket 22).</summary>
     public const string IPalette = "", IPipette = "";
     public const string IInk = "", ISpot = "", IMagnifier = "";
-    public const string IZoomIn ="", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "", IStroke = "";
+    public const string IZoomIn ="", IZoomOut = "", IFit = "", IActual = "", IFullScreen = "", IPixelate = "";
 
     // Symbole (Segoe Fluent Icons / MDL2)
     public const string IRecord = "", IStop = "", IPause = "", IPlay = "", ISettings = "", IOpen = "", IFolder = "",

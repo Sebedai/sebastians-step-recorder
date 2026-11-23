@@ -46,6 +46,15 @@ public sealed partial class SimplePdf
         556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584
     };
 
+    /// <summary>Helvetica-Bold (auch Helvetica-BoldOblique), Codes 32–126 wie <see cref="HelvWidths"/>; geprüft gegen Arial Bold.</summary>
+    static readonly int[] HelvBoldWidths =
+    {
+        278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,
+        333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,
+        611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,
+        611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584
+    };
+
     // ---------------- Schriften ----------------
 
     static readonly Lazy<TrueTypeFont?> FbRegular = new(() => TrueTypeFont.TryLoadSystem("segoeui.ttf", "SegoeUI") ?? TrueTypeFont.TryLoadSystem("arial.ttf", "ArialMT") ?? TrueTypeFont.TryLoadSystem("tahoma.ttf", "Tahoma"));
@@ -79,11 +88,32 @@ public sealed partial class SimplePdf
         return (-1, '?');
     }
 
-    static double HelvWidth(int cp) => cp >= 32 && cp <= 126 ? HelvWidths[cp - 32] : cp switch
+    /// <summary>Breite in Helvetica bzw. Helvetica-Bold (1/1000 em); akzentuierte Buchstaben wie ihr Grundbuchstabe (ä = a, É = E).</summary>
+    static double HelvWidth(int cp, bool bold = false)
     {
-        'Ä' => 667, 'Ö' => 778, 'Ü' => 722, 'ß' => 611, 'é' or 'è' or 'à' or 'á' => 556, '€' => 556, '–' => 556, '—' => 1000, '…' => 1000,
-        '„' or '“' or '”' => 333, '‘' or '’' or '‚' => 222, '·' => 278, '•' => 350, '°' => 400, '§' => 556, '©' or '®' => 737, '×' => 584, _ => 556
-    };
+        var t = bold ? HelvBoldWidths : HelvWidths;
+        if (cp >= 32 && cp <= 126) return t[cp - 32];
+        double sp = bold ? cp switch
+        {
+            'ß' => 611, '€' => 556, '–' => 556, '—' => 1000, '…' => 1000, '„' or '“' or '”' => 500, '‘' or '’' or '‚' => 278,
+            '·' => 278, '•' => 350, '°' => 400, '§' => 556, '©' or '®' => 737, '×' => 584, _ => 0
+        } : cp switch
+        {
+            'ß' => 611, '€' => 556, '–' => 556, '—' => 1000, '…' => 1000, '„' or '“' or '”' => 333, '‘' or '’' or '‚' => 222,
+            '·' => 278, '•' => 350, '°' => 400, '§' => 556, '©' or '®' => 737, '×' => 584, _ => 0
+        };
+        if (sp > 0) return sp;
+        int b = BaseLetter(cp);
+        return b > 0 ? t[b - 32] : bold ? 556 * 1.06 : 556;   // unbekannt: wie bisher geschätzt
+    }
+
+    /// <summary>Grundbuchstabe (A–Z, a–z) eines akzentuierten Zeichens, sonst -1.</summary>
+    static int BaseLetter(int cp)
+    {
+        if (cp < 0xC0 || cp > 0xFFFF) return -1;
+        string d = ((char)cp).ToString().Normalize(NormalizationForm.FormD);
+        return d.Length > 1 && char.IsAsciiLetter(d[0]) ? d[0] : -1;
+    }
 
     public SimplePdf() : this(A4W, A4H) { }
 
@@ -109,7 +139,7 @@ public sealed partial class SimplePdf
         foreach (var r in (s ?? "").EnumerateRunes())
         {
             var (font, code) = Classify(r.Value, bold);
-            w += font switch { 0 => HelvWidth(r.Value) * (bold ? 1.06 : 1.0), -1 => 556, _ => FontOf(font)!.Width1000(code) };
+            w += font switch { 0 => HelvWidth(r.Value, bold), -1 => 556, _ => FontOf(font)!.Width1000(code) };
         }
         return w * size / 1000.0;
     }

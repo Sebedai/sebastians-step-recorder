@@ -143,7 +143,7 @@ After recording, the editor opens: the steps on the left, the image in the middl
 - **Preview in browser:** view the finished guide as HTML (*File → Preview in browser*).
 - **Compare:** put two recordings of the same procedure side by side (F7) – pair list, both images side by side with highlighted image differences, timing differences; can be saved as Markdown with before/after images.
 - **Command palette** (Ctrl+Shift+P): find any command by name.
-- **Response times:** every step shows how long the application took; the "Slow" filter shows only slow steps.
+- **Response times:** every step shows how long the application took; the "Slow steps only" filter (stopwatch next to the search) shows only slow steps.
 - **Copy as Markdown:** one step (Ctrl+M) or all steps (Ctrl+Shift+M) – for pull requests, issues and wikis.
 - **German and English:** with "DE | EN" above the image you maintain texts in both languages – one recording becomes two guides.
 - Everything is saved automatically; undo with Ctrl+Z.
