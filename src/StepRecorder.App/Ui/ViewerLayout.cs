@@ -111,22 +111,20 @@ sealed partial class ViewerWindow
         _langBtns = langs;
         langTrack.ToolTip = Loc.L("Sprache der Texte: Überschriften, Anleitungstexte, Kapitel und Dokumenttexte gibt es je Sprache – so entstehen aus einer Aufnahme eine deutsche und eine englische Anleitung.", "Language of the texts: headings, guide texts, chapters and document texts exist per language – so one recording yields a German and an English guide.");
         langs[0].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("de"); }; langs[1].Checked += (_, _) => { if (IsLoaded) SetTextLanguage("en"); };
+        // Filterzeile nur [Schritte|Mit Spur] links und [DE|EN] rechts – mehr passt bei schmaler Spalte nicht in eine Zeile
         var filterRow = new DockPanel { Margin = new Thickness(16, 0, 16, 8) };
-        _slowToggle = new System.Windows.Controls.Primitives.ToggleButton
-        {
-            Content = U.Row(U.Icon(Theme.IStopwatch, 13, Theme.Fg2), U.Text(Loc.L("Langsam", "Slow"), Theme.FsCaption, margin: new Thickness(5, 0, 0, 0))),
-            Padding = new Thickness(8, 4, 8, 4), Margin = new Thickness(8, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center,
-            ToolTip = Loc.F("Nur Schritte, nach denen die Anwendung mindestens {0} brauchte, bis sie bereit war", "Only steps after which the application needed at least {0} to be ready", StepRecorder.ReadLayer.Timing.Ms(StepRecorder.ReadLayer.Timing.SlowMs, Loc.Lang == "de"))
-        };
-        System.Windows.Automation.AutomationProperties.SetName(_slowToggle, Loc.L("Nur langsame Schritte", "Slow steps only"));
-        _slowToggle.Checked += (_, _) => { if (IsLoaded) Fill(); }; _slowToggle.Unchecked += (_, _) => { if (IsLoaded) Fill(); };
         DockPanel.SetDock(langTrack, Dock.Right); filterRow.Children.Add(langTrack);
-        DockPanel.SetDock(_slowToggle, Dock.Right); filterRow.Children.Add(_slowToggle);
-        // Filter „nur Lesezeichen“: Stern rechts neben der Suche (in der Filterzeile ist kein Platz mehr)
-        _bookmarkToggle = BuildBookmarkFilter();
-        searchHost.ColumnDefinitions.Add(new ColumnDefinition()); searchHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(_bookmarkToggle, 1); searchHost.Children.Add(_bookmarkToggle);
         filterRow.Children.Add(impTrack);
+        // Filter „Langsam“ (Stoppuhr) und „nur Lesezeichen“ (Stern) als Symbol-Umschalter rechts neben der Suche
+        var slowTip = Loc.F("Nur Schritte, nach denen die Anwendung mindestens {0} brauchte, bis sie bereit war", "Only steps after which the application needed at least {0} to be ready", StepRecorder.ReadLayer.Timing.Ms(StepRecorder.ReadLayer.Timing.SlowMs, Loc.Lang == "de"));
+        _slowToggle = U.IconToggle(Theme.IStopwatch, null, slowTip, 14);
+        _slowToggle.Margin = new Thickness(8, 0, 0, 0); _slowToggle.VerticalAlignment = VerticalAlignment.Stretch; _slowToggle.Padding = new Thickness(10, 4, 10, 4);
+        _slowToggle.Named(Loc.L("Nur langsame Schritte", "Slow steps only"), slowTip);
+        _slowToggle.Checked += (_, _) => { if (IsLoaded) Fill(); }; _slowToggle.Unchecked += (_, _) => { if (IsLoaded) Fill(); };
+        _bookmarkToggle = BuildBookmarkFilter();
+        searchHost.ColumnDefinitions.Add(new ColumnDefinition()); searchHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); searchHost.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(_slowToggle, 1); searchHost.Children.Add(_slowToggle);
+        Grid.SetColumn(_bookmarkToggle, 2); searchHost.Children.Add(_bookmarkToggle);
         _list.SelectionMode = SelectionMode.Extended;
         _list.ItemContainerStyle = Theme.Style("StepItem");
         ScrollViewer.SetHorizontalScrollBarVisibility(_list, ScrollBarVisibility.Disabled);
@@ -224,7 +222,9 @@ sealed partial class ViewerWindow
         _toolBtns["stamp"].Checked += (_, _) => ChooseStamp(_toolBtns["stamp"]);
         Tool("redact", G(Theme.IRedact), Loc.L("Schwärzen (X) – gilt ab diesem Bild für alle folgenden, auch im Export und KI-Paket", "Redact (X) – applies from this image onwards, also in the export and AI package"));
         Tool("pixelate", G(Theme.IPixelate), Loc.L("Verpixeln (P) – wie Schwärzen, aber unauffälliger; gilt ab diesem Bild für alle folgenden", "Pixelate (P) – like redact, but less conspicuous; applies from this image onwards"));
-        Tool("blur", G(Theme.ISpot), Loc.L("Weichzeichnen – wie Verpixeln, sieht unscharf aus; der Inhalt ist zerstört, gilt ab diesem Bild für alle folgenden", "Blur – like pixelate, looks blurred; the content is destroyed, applies from this image onwards"));
+        // Weichzeichnen: gezeichneter Tropfen (kein Schriftzeichen – sieht unter Windows 10 und 11 gleich aus)
+        var dropIcon = Bound(new System.Windows.Shapes.Path { Data = Geometry.Parse("M9,1.5 C9,1.5 3.5,7.8 3.5,11.5 A5.5,5.5 0 0 0 14.5,11.5 C14.5,7.8 9,1.5 9,1.5 Z"), StrokeThickness = 1.6, StrokeLineJoin = PenLineJoin.Round, Width = 18, Height = 18 }, Shape.StrokeProperty);
+        Tool("blur", dropIcon, Loc.L("Weichzeichnen – wie Verpixeln, sieht unscharf aus; der Inhalt ist zerstört, gilt ab diesem Bild für alle folgenden", "Blur – like pixelate, looks blurred; the content is destroyed, applies from this image onwards"));
         Tool("crop", G(Theme.ICrop), Loc.L("Zuschneiden (C) – Rechteck aufziehen; gilt für die Bilder dieses Schritts, auch im Export", "Crop (C) – drag a rectangle; applies to the images of this step, also in the export"));
         Border PalSep() => new() { Height = 1, Background = Theme.Line, Margin = new Thickness(6, 6, 6, 6) };
         pal.Children.Add(PalSep());
@@ -240,7 +240,9 @@ sealed partial class ViewerWindow
             _strokeBtns.Add(rb); widthGrid.Children.Add(rb);
         }
         pal.Children.Add(widthGrid);
-        var styleBtn = U.Ghost(Theme.IStroke, Loc.L("Stil", "Style"), () => { }, Loc.L("Linienart, Spitzen, Füllung, Hintergrund, Form und Zählweise von Nummern, Deckkraft – für die ausgewählte Zeichnung oder neue Zeichnungen; Stil auf alle übertragen", "Line style, heads, fill, background, shape and counting of numbers, opacity – for the selected drawing or new drawings; apply style to all"));
+        // „Stil“ öffnet ein Menü: Beschriftung mit Menü-Pfeil statt eines Symbols (das Stift-Symbol gehört zu Freihand)
+        var styleBtn = U.Ghost(null, Loc.L("Stil", "Style"), () => { },Loc.L("Linienart, Spitzen, Füllung, Hintergrund, Form und Zählweise von Nummern, Deckkraft – für die ausgewählte Zeichnung oder neue Zeichnungen; Stil auf alle übertragen", "Line style, heads, fill, background, shape and counting of numbers, opacity – for the selected drawing or new drawings; apply style to all"));
+        styleBtn.Content = U.Row(new TextBlock { Text = Loc.L("Stil", "Style"), VerticalAlignment = VerticalAlignment.Center }, new TextBlock { Text = Theme.IDown, FontFamily = Theme.Icons, FontSize = 10, Margin = new Thickness(8, 1, 0, 0), VerticalAlignment = VerticalAlignment.Center });
         styleBtn.Click += (_, _) => ShowStyleMenu(styleBtn);
         styleBtn.Margin = new Thickness(0, 4, 0, 0); styleBtn.MinWidth = 36; styleBtn.HorizontalAlignment = HorizontalAlignment.Stretch;
         pal.Children.Add(styleBtn);
@@ -303,7 +305,8 @@ sealed partial class ViewerWindow
         detPanel.Children.Add(new ScrollViewer { Content = _details, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, Background = Theme.Surface });
 
         var grid = new Grid();
-        _leftCol = new ColumnDefinition { Width = new GridLength(LeftWide), MinWidth = 250 };
+        // Mindestbreite = schmale Standardbreite: darunter bricht die Filterzeile ([Schritte|Mit Spur] [DE|EN]) um
+        _leftCol = new ColumnDefinition { Width = new GridLength(LeftWide), MinWidth = LeftNarrow };
         _rightCol = new ColumnDefinition { Width = new GridLength(RightWide), MinWidth = 280 };
         grid.ColumnDefinitions.Add(_leftCol);
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1) });

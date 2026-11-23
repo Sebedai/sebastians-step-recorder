@@ -29,7 +29,7 @@ sealed partial class ViewerWindow : Wpf.Ui.Controls.FluentWindow
     readonly Grid _imgHost = new();
     readonly StackPanel _details = new() { Margin = new Thickness(22, 20, 22, 24) };
     readonly TextBlock _status = new() { FontSize = Theme.FsHint, VerticalAlignment = VerticalAlignment.Center, TextTrimming = TextTrimming.CharacterEllipsis };
-    readonly Wpf.Ui.Controls.TextBox _search = new() { PlaceholderText = Loc.L("Schritte durchsuchen", "Search steps"), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)"), Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
+    readonly Wpf.Ui.Controls.TextBox _search = new() { PlaceholderText = Loc.L("Schritte suchen", "Search steps"), ToolTip = Loc.L("Suche (Strg+F)", "Search (Ctrl+F)"), Icon = new Wpf.Ui.Controls.FontIcon { Glyph = Theme.ISearch, FontFamily = Theme.Icons, FontSize = 14 } };
     Wpf.Ui.Controls.TitleBar? _titleBar;
     ToggleButton _allToggle = null!;
     /// <summary>Filter „Langsam“: nur Schritte, nach denen die Anwendung mindestens <see cref="StepRecorder.ReadLayer.Timing.SlowMs"/> brauchte (Paket 9).</summary>

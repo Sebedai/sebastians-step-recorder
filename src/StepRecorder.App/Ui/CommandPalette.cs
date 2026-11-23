@@ -7,17 +7,19 @@ namespace StepRecorder.App.Ui;
 
 /// <summary>
 /// Befehlspalette des Editors (Strg+Umschalt+P; 08 §12, Paket 15): findet jeden Befehl der Befehlstabelle über Namen und
-/// Gruppe, zuletzt benutzte zuerst, mit Kürzel daneben. Pfeiltasten wählen, Eingabe führt aus, Esc schließt.
+/// Gruppe – auch die ohne Tastenkürzel –, zuletzt benutzte zuerst, mit Kürzel daneben. Pfeiltasten wählen, Eingabe führt aus, Esc schließt.
+/// Ändernde Befehle (<see cref="ViewerCmd.Edits"/>) sind bei schreibgeschützten Aufnahmen gesperrt: gedämpft angezeigt, beim Ausführen gemeldet.
 /// </summary>
 static class CommandPalette
 {
     /// <summary>Zuletzt ausgeführte Befehle (für diese Programmsitzung).</summary>
     static readonly List<string> Recent = new();
 
-    public static void Show(Window owner, IReadOnlyList<ViewerCmd> commands)
+    public static void Show(Window owner, IReadOnlyList<ViewerCmd> commands, Func<string, string?> gestureOf, bool readOnly, Action readOnlyNotice)
     {
         var groups = ViewerCommands.Groups().ToDictionary(g => g.id, g => g.label);
-        var all = commands.Where(c => c.Listed && c.Id != "palette").GroupBy(c => c.Id).Select(g => g.First()).ToList();
+        var all = commands.Where(c => c.Palette).GroupBy(c => c.Id).Select(g => g.First()).ToList();
+        bool Locked(ViewerCmd c) => readOnly && c.Edits;
         var w = new Window
         {
             Title = Loc.L("Befehlspalette", "Command palette"), Width = 560, Height = 440, WindowStyle = WindowStyle.ToolWindow, ResizeMode = ResizeMode.NoResize,
@@ -31,18 +33,20 @@ static class CommandPalette
         {
             list.Items.Clear();
             var q = StepRecorder.ReadLayer.SearchQuery.Parse(search.Text);
-            var hits = all.Where(c => q.Matches(c.Label + " " + (groups.GetValueOrDefault(c.Group) ?? "") + " " + c.Id))
-                          .OrderBy(c => Recent.IndexOf(c.Id) is int i && i >= 0 ? i : int.MaxValue).ThenBy(c => c.Label, StringComparer.CurrentCultureIgnoreCase);
+            // Menüname mit durchsuchen, damit auch die kurze Beschriftung aus dem Untermenü trifft
+            var hits = all.Where(c => q.Matches(c.PaletteName + " " + c.Label + " " + (groups.GetValueOrDefault(c.Group) ?? "") + " " + c.Id))
+                          .OrderBy(c => Recent.IndexOf(c.Id) is int i && i >= 0 ? i : int.MaxValue).ThenBy(c => c.PaletteName, StringComparer.CurrentCultureIgnoreCase);
             foreach (var c in hits)
             {
                 var row = new DockPanel { Margin = new Thickness(4, 3, 4, 3) };
-                if (c.Gesture.Length > 0)
+                if (gestureOf(c.Id) is { Length: > 0 } gesture)
                 {
-                    var k = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 1, 8, 2), Child = new TextBlock { Text = c.Gesture, FontFamily = Theme.Mono, FontSize = 12, Foreground = Theme.Fg } };
+                    var k = new Border { Background = Theme.Surface2, BorderBrush = Theme.Line, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4), Padding = new Thickness(8, 1, 8, 2), Child = new TextBlock { Text = gesture, FontFamily = Theme.Mono, FontSize = 12, Foreground = Theme.Fg } };
                     DockPanel.SetDock(k, Dock.Right); row.Children.Add(k);
                 }
-                row.Children.Add(new TextBlock { Text = c.Label, FontSize = 13, Foreground = Theme.Fg, VerticalAlignment = VerticalAlignment.Center });
-                var sub = new TextBlock { Text = groups.GetValueOrDefault(c.Group) ?? "", FontSize = 11, Foreground = Theme.Muted, Margin = new Thickness(10, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
+                row.Children.Add(new TextBlock { Text = c.PaletteName, FontSize = 13, Foreground = Locked(c) ? Theme.Muted : Theme.Fg, VerticalAlignment = VerticalAlignment.Center });
+                if (Locked(c)) row.ToolTip = Loc.L("Schreibgeschützte Aufnahme – ändernde Befehle sind gesperrt.", "Read-only recording – commands that change it are locked.");
+                var sub = new TextBlock { Text = groups.GetValueOrDefault(c.Group) ?? "", FontSize = 11, Foreground = Theme.Muted, Margin = new Thickness(10, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
                 DockPanel.SetDock(sub, Dock.Right); row.Children.Insert(row.Children.Count - 1, sub);
                 list.Items.Add(new ListBoxItem { Content = row, Tag = c });
             }
@@ -54,7 +58,11 @@ static class CommandPalette
             Recent.Remove(c.Id); Recent.Insert(0, c.Id);
             if (Recent.Count > 12) Recent.RemoveAt(Recent.Count - 1);
             w.Close();
-            owner.Dispatcher.BeginInvoke(() => { if (c.When == null || c.When()) try { c.Run(); } catch (Exception ex) { UiApp.ShowError(ex); } });
+            owner.Dispatcher.BeginInvoke(() =>
+            {
+                if (Locked(c)) { readOnlyNotice(); return; }   // wie die Menüs (enabled: !ro), aber mit Begründung
+                if (c.When == null || c.When()) try { c.Run(); } catch (Exception ex) { UiApp.ShowError(ex); }
+            });
         }
         search.TextChanged += (_, _) => Fill();
         search.PreviewKeyDown += (_, e) =>

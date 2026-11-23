@@ -201,7 +201,8 @@ sealed partial class ViewerWindow
     static readonly (string id, string tool)[] Tools =
     {
         ("toolSelect", "select"), ("toolArrow", "arrow"), ("toolLine", "line"), ("toolFreehand", "freehand"), ("toolRect", "rect"), ("toolEllipse", "ellipse"), ("toolHighlight", "highlight"),
-        ("toolText", "text"), ("toolBadge", "badge"), ("toolSpotlight", "spotlight"), ("toolMagnifier", "magnifier"), ("toolRedact", "redact"), ("toolPixelate", "pixelate"),
+        ("toolText", "text"), ("toolBadge", "badge"), ("toolCallout", "callout"), ("toolStamp", "stamp"), ("toolSpotlight", "spotlight"), ("toolMagnifier", "magnifier"),
+        ("toolRedact", "redact"), ("toolPixelate", "pixelate"), ("toolBlur", "blur"),
     };
 
     List<object> ImageMenu()
@@ -240,7 +241,8 @@ sealed partial class ViewerWindow
             Check(Loc.L("Seitenansicht", "Page view"), _pageMode, TogglePageMode), Item("beforeAfter", enabled: Sel != null && !_pageMode), disp, MarksMenu(), Sep(),
             Check(Loc.L("Schritte", "Steps"), _filterBtns[0].IsChecked == true, () => _filterBtns[0].IsChecked = true),
             Check(Loc.L("Mit Spur", "With trace"), _filterBtns[1].IsChecked == true, () => _filterBtns[1].IsChecked = true),
-            Check(Loc.L("Nur Lesezeichen", "Bookmarks only"), _bookmarkToggle.IsChecked == true, () => _bookmarkToggle.IsChecked = _bookmarkToggle.IsChecked != true), Sep(),
+            Check(Loc.L("Nur Lesezeichen", "Bookmarks only"), _bookmarkToggle.IsChecked == true, () => _bookmarkToggle.IsChecked = _bookmarkToggle.IsChecked != true),
+            Check(Loc.L("Nur langsame Schritte", "Slow steps only"), _slowToggle.IsChecked == true, () => _slowToggle.IsChecked = _slowToggle.IsChecked != true), Sep(),
             lang, Sep(),
             Item("play", _play.IsEnabled ? Loc.L("Abspielen beenden", "Stop playback") : null), Item("lightbox", enabled: _current != null), zoom, Sep(),
             Item("compare"),

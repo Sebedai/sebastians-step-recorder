@@ -105,8 +105,8 @@ sealed partial class StartWindow
         int n = 0;
         foreach (var (head, text) in new[]
         {
-            (Loc.L("Zweck wählen", "Choose a purpose"), Loc.L("Anleitung (schlank), Support-Fall (ausführlich), KI-Spur (vollständig) oder Eigene. Der Zweck bestimmt, wie genau aufgezeichnet wird und was nach dem Stopp passiert.",
-                "Guide (lean), Support case (detailed), AI trace (complete) or Custom. The purpose sets how precisely input is recorded and what happens after stopping.")),
+            (Loc.L("Zweck wählen", "Choose a purpose"), Loc.L("Anleitung (schlank), Support-Fall (ausführlich), KI-Spur (vollständig), Fehler nachstellen (ausführlich, mit Programm-Kontext) oder Eigene. Der Zweck bestimmt, wie genau aufgezeichnet wird und was nach dem Stopp passiert.",
+                "Guide (lean), Support case (detailed), AI trace (complete), Reproduce bug (detailed, with program context) or Custom. The purpose sets how precisely input is recorded and what happens after stopping.")),
             (Loc.L("Bereich anklicken", "Click an area"), Loc.L("Ganzer Bildschirm, eine Anwendung oder ein fester Bereich – ein Klick startet die Aufnahme.",
                 "Full screen, one application or a fixed area – one click starts recording.")),
             (Loc.L("Vorführen und beenden", "Demonstrate and stop"), Loc.F("Einfach arbeiten wie immer. {0} beendet die Aufnahme, {1} schaltet die Privattaste (Eingaben werden nur gezählt). Das Programm ist in seinen eigenen Bildern nie zu sehen.",

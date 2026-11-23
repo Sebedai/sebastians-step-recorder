@@ -107,6 +107,7 @@ static class DevSnapshots
             v.DevDemo(() => Save(v));
             v.DevMenus();
             v.DevShowShortcuts();
+            v.DevShowPalette();
             v.DevShowQuality();
             static string Target(StepRecorder.Export.ExportRequest r, string? f) => @"C:\Recordings\Example\export\" + r.Format + @"\Guide." + StepRecorder.Export.Exporter.Extension(r.Format);
             new ExportDialog(new StepRecorder.Export.ExportRequest { Format = "html", Language = "de" }, Target) { Owner = v }.ShowDialog();
